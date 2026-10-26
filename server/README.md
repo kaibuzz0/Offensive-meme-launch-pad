@@ -25,7 +25,7 @@ Room updates stream as newline-delimited JSON over an authenticated fetch. Comma
 
 ## Rules
 
-The server owns positions, collision, XP, credits, route claims, inventory, equipment, and market escrow. Actions cannot set balances. Shop/market actions require proximity. Listings move an actual owned item into escrow. Purchase debits the buyer, credits the seller and transfers the item synchronously; duplicate purchases fail. Sellers leaving invalidate their listings. Currency and inventory are temporary; room restart resets all state. Reconnecting creates a new guest character. This is intentional for the alpha and is displayed to players.
+The server owns positions, collision, XP, credits, route claims, inventory, equipment, market escrow, bot AI, health, wanted heat, projectile hits and arcade contract rewards. `city-arcade.js` is loaded after the core simulation on both server and browser. Actions cannot set balances. Shop/market actions require proximity. Listings move an actual owned item into escrow. Purchase debits the buyer, credits the seller and transfers the item synchronously; duplicate purchases fail. Sellers leaving invalidate their listings. Currency and inventory are temporary; room restart resets all state. Reconnecting creates a new guest character. This is intentional for the alpha and is displayed to players.
 
 ## Before public multiplayer launch
 

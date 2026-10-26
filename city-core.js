@@ -15,7 +15,7 @@
   {id:'arcade',x:1060,y:455,name:'Chaos Arcade',hint:'Get a daily route',kind:'mission'},
   {id:'garage',x:1800,y:1050,name:'Meme Motors',hint:'See the development plan',kind:'roadmap'}
  ],route:[{x:330,y:510,name:'Launch House'},{x:1800,y:520,name:'Creator Alley'},{x:1060,y:1000,name:'Night Market'}]};
- const ITEMS=[{id:'jacket',name:'Neon founder jacket',price:60,slot:'outfit',color:'#bdff56',description:'An acid-green jacket for an unmistakable entrance.'},{id:'visor',name:'Purple chaos visor',price:90,slot:'head',color:'#ca91ff',description:'A little extra attitude. Cosmetic only.'},{id:'blaster',name:'Foam meme blaster',price:120,slot:'hand',color:'#ffb65d',description:'Fires harmless visual foam sparks. No player damage.'},{id:'boots',name:'Street runner boots',price:150,slot:'feet',color:'#63dae9',description:'A cosmetic upgrade for your city explorer.'}];
+ const ITEMS=[{id:'jacket',name:'Neon founder jacket',price:60,slot:'outfit',color:'#bdff56',description:'An acid-green jacket for an unmistakable entrance.'},{id:'visor',name:'Purple chaos visor',price:90,slot:'head',color:'#ca91ff',description:'A little extra attitude. Cosmetic only.'},{id:'blaster',name:'Chaos meme blaster',price:120,slot:'hand',color:'#ffb65d',description:'Upgraded arcade blaster: 36 damage to hostile bots. No player-versus-player damage.'},{id:'boots',name:'Street runner boots',price:150,slot:'feet',color:'#63dae9',description:'Run faster through the city: +25 movement speed.'}];
  const validIds=['offensive','you-missed','maduro','redacted','congress','exit'];
  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  const level=xp=>1+Math.floor(Math.sqrt(Math.max(0,xp)/50));
