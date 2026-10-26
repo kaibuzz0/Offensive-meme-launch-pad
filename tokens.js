@@ -10,7 +10,7 @@ window.MEME_TOKENS = [
     "context": "Trump-inspired political satire. The title is meme copy, not an authenticated quote.",
     "mint": null,
     "featured": true,
-    "art": "assets/you-missed.svg"
+    "art": "assets/coins/you-missed.webp"
   },
   {
     "id": "maduro",
@@ -22,7 +22,7 @@ window.MEME_TOKENS = [
     "context": "Satire about the January 2026 operation that captured Nicol\u00e1s Maduro.",
     "mint": null,
     "featured": true,
-    "art": "assets/maduro.svg"
+    "art": "assets/coins/maduro.webp"
   },
   {
     "id": "redacted",
@@ -34,7 +34,7 @@ window.MEME_TOKENS = [
     "context": "A fictional roast of secrecy and heavily redacted public records.",
     "mint": null,
     "featured": false,
-    "art": "assets/redacted.svg"
+    "art": "assets/coins/redacted.webp"
   },
   {
     "id": "congress",
@@ -46,7 +46,7 @@ window.MEME_TOKENS = [
     "context": "Broad satire of political stock trading; no individual allegation.",
     "mint": null,
     "featured": false,
-    "art": "assets/congress.svg"
+    "art": "assets/coins/congress.webp"
   },
   {
     "id": "exit",
@@ -58,7 +58,7 @@ window.MEME_TOKENS = [
     "context": "A roast of predatory crypto hype, not a promise of returns.",
     "mint": null,
     "featured": false,
-    "art": "assets/exit.svg"
+    "art": "assets/coins/exit.webp"
   },
   {
     "id": "rug",
@@ -70,7 +70,7 @@ window.MEME_TOKENS = [
     "context": "A fictional rug-pull parody. No actual rug pull is planned.",
     "mint": null,
     "featured": false,
-    "art": "assets/rug.svg"
+    "art": "assets/coins/rug.webp"
   },
   {
     "id": "printer",
@@ -82,7 +82,7 @@ window.MEME_TOKENS = [
     "context": "Satire of inflation, inequality, and monetary policy.",
     "mint": null,
     "featured": false,
-    "art": "assets/printer.svg"
+    "art": "assets/coins/printer.webp"
   },
   {
     "id": "bailout",
@@ -94,7 +94,7 @@ window.MEME_TOKENS = [
     "context": "A fictional roast of corporate bailouts and moral hazard.",
     "mint": null,
     "featured": false,
-    "art": "assets/bailout.svg"
+    "art": "assets/coins/bailout.webp"
   },
   {
     "id": "terms",
@@ -106,7 +106,7 @@ window.MEME_TOKENS = [
     "context": "Satire of invasive platform terms and subscription culture.",
     "mint": null,
     "featured": false,
-    "art": "assets/terms.svg"
+    "art": "assets/coins/terms.webp"
   },
   {
     "id": "apology",
@@ -118,6 +118,6 @@ window.MEME_TOKENS = [
     "context": "A fictional roast of empty PR statements and outrage marketing.",
     "mint": null,
     "featured": false,
-    "art": "assets/apology.svg"
+    "art": "assets/coins/apology.webp"
   }
 ];

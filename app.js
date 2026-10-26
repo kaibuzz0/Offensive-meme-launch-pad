@@ -22,7 +22,7 @@
       const card = el('article','token-card');
       const art = el('button','art-button');
       art.type = 'button'; art.setAttribute('aria-label',`View ${t.name} token details`);
-      const img = el('img'); img.src=t.art; img.alt=`${t.name} satire poster`; img.width=420; img.height=420; img.loading='lazy';
+      const img = el('img'); img.src=t.art; img.alt=`${t.name} satire coin artwork`; img.width=420; img.height=420; img.loading='lazy';
       art.append(img,el('span','card-status',mintValid(t.mint)?'MINT CONFIGURED':'CONCEPT / NOT LAUNCHED'));
       art.addEventListener('click',()=>open(t,art));
       const content = el('div','card-content');
@@ -40,7 +40,7 @@
   function open(t,trigger) {
     returnFocus=trigger;
     const content=document.querySelector('#dialog-content'); content.replaceChildren();
-    const layout=el('div','detail-layout'); const img=el('img');img.src=t.art;img.alt=`${t.name} satire poster`;img.width=420;img.height=420;
+    const layout=el('div','detail-layout'); const img=el('img');img.src=t.art;img.alt=`${t.name} satire coin artwork`;img.width=420;img.height=420;
     const info=el('div');const heading=el('h2','',t.name);heading.id='dialog-title';
     info.append(el('p','eyebrow',`${t.category} / $${t.ticker}`),heading,el('p','',t.description),el('p','',t.context));
     if (mintValid(t.mint)) {
@@ -52,6 +52,7 @@
     } else {
       info.append(el('div','launch-pending','CONCEPT ONLY — No official token mint has been configured. Trading is unavailable.'));
     }
+    const download=el('a','button secondary','Download coin art ↓');download.href=t.art;download.download=`${t.id}.webp`;info.append(download);
     layout.append(img,info);content.append(layout);dialog.showModal();
   }
   function close(){dialog.close();if(returnFocus?.isConnected)returnFocus.focus();}

@@ -10,12 +10,12 @@ assert.ok(tokens.length>=10,'At least 10 concepts are required');
 assert.equal(new Set(tokens.map(t=>t.id)).size,tokens.length,'Unique token IDs');
 for(const token of tokens){
   for(const field of ['id','name','ticker','category','description','context','art'])assert.ok(typeof token[field]==='string'&&token[field].length,`${token.id}: ${field}`);
-  assert.ok(/^assets\/[a-z-]+\.svg$/.test(token.art),'Local artwork only');
+  assert.ok(/^assets\/coins\/[a-z-]+\.webp$/.test(token.art),'Local artwork only');
   assert.ok(fs.existsSync(path.join(root,token.art)),`Missing art: ${token.art}`);
   assert.ok(token.mint===null||/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(token.mint),'Mint must be null or a Solana address');
 }
 const html=read('index.html');
-for(const file of ['styles.css','app.js','tokens.js','assets/icon.svg','assets/you-missed.svg'])assert.ok(html.includes(file),`Missing asset reference: ${file}`);
+for(const file of ['styles.css','app.js','tokens.js','assets/icon.svg','assets/coins/you-missed.webp'])assert.ok(html.includes(file),`Missing asset reference: ${file}`);
 for(const id of ['token-grid','search','token-dialog','dialog-content','empty','results','toast'])assert.ok(html.includes(`id="${id}"`),`Missing interaction target: ${id}`);
 new vm.Script(read('app.js'));
 console.log(`PASS: ${tokens.length} unique concepts, all artwork, mint format checks, asset references, interaction targets, and JS syntax.`);

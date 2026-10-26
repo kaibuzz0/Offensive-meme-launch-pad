@@ -1,6 +1,6 @@
 # OFFENSIVE — Solana meme showcase
 
-A mobile-friendly, buildless static website for an independent, explicit satire token collection. Includes 10 original concepts and SVG posters, category filters, live search, accessible token detail dialogs, and a GitHub submission form.
+A mobile-friendly, buildless static website for an independent, explicit satire token collection. Includes 10 original concepts and illustrated coin artwork, category filters, live search, accessible token detail dialogs, and a GitHub submission form.
 
 ## Current state
 
@@ -17,7 +17,7 @@ The `pages.yml` workflow validates the catalog and deploys a minimal public arti
 3. Update the artwork and copy as appropriate. Run `node scripts/check.mjs`.
 4. Push to `main`. Valid configured mints enable a full-address display, copy button, and `https://pump.fun/coin/<mint>` trade link. Syntax checks do **not** verify on-chain identity, liquidity, ownership, or safety.
 
-To add another concept, copy an object with a unique `id`, add local SVG artwork, and leave `mint` null until confirmed. Category buttons are in `index.html`; update those if introducing a new category. The collection's introduction currently describes ten original concepts and should be updated as the catalog grows.
+To add another concept, copy an object with a unique `id`, add local coin artwork, and leave `mint` null until confirmed. Category buttons are in `index.html`; update those if introducing a new category. The collection's introduction currently describes ten original concepts and should be updated as the catalog grows.
 
 ## Local preview and validation
 
@@ -33,6 +33,6 @@ Only `index.html`, `styles.css`, `app.js`, `tokens.js`, `.nojekyll`, and `assets
 
 ## Content
 
-Political/public-figure and institutional satire is welcome. Submissions must not include threats, private information, protected-group attacks, impersonation, or fraudulent token claims. Original SVG posters are included; contributors must have rights to submitted artwork.
+Political/public-figure and institutional satire is welcome. Submissions must not include threats, private information, protected-group attacks, impersonation, or fraudulent token claims. Original SVG posters are retained as backups; AI-generated illustrated icons are in `assets/coins/`. Prompt notes are in `ARTWORK.md`. Coin art is provided as satire, without implying endorsement by any depicted person. Contributors must check artwork and naming rights before a commercial launch. Posters and icons are included; contributors must have rights to submitted artwork.
 
 The Maduro concept references his **capture**, not a killing. Context: [Reuters, January 3, 2026](https://www.reuters.com/business/aerospace-defense/mock-house-cia-source-special-forces-us-operation-capture-maduro-2026-01-03/). Other slogans are parody, not authenticated quotes or factual allegations.
