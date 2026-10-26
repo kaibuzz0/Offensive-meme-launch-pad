@@ -27,19 +27,28 @@
     const ready = core.mintValid(platform.mint);
     const buy = document.querySelector('#platform-buy');
     buy.disabled = !ready;
-    buy.textContent = ready ? `Buy ${platform.name} with wallet ↗` : `Buy ${platform.name} — coming soon`;
-    document.querySelector('#platform-launch-status').textContent = ready ? 'MINT CONFIGURED' : 'PRE-LAUNCH / NOT MINTED';
+    buy.textContent = ready ? `Buy $${platform.ticker} with wallet ↗` : `Buy ${platform.name} — coming soon`;
+    document.querySelector('#platform-launch-status').textContent = ready ? 'OFFICIAL PLATFORM TOKEN / MINT PROVIDED' : 'PRE-LAUNCH / NOT MINTED';
     document.querySelector('#platform-mint').textContent = ready ? platform.mint : 'Official mint address will appear here after launch.';
     document.querySelector('#platform-ticker').textContent = ready ? `$${platform.ticker}` : `$${platform.ticker} / PROPOSED SYMBOL`;
-    const verified = ready && platform.rewards.status === 'verified' && /^https:\/\/pump\.fun\/coin\/[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(platform.rewards.evidenceUrl || '') && platform.rewards.evidenceUrl === core.pumpUrl(platform.mint);
-    document.querySelector('#reward-state').textContent = verified ? 'HOLDER REWARDS / CONFIGURATION CHECKED' : 'PLANNED AT LAUNCH / NOT ACTIVE';
+    const evidenceMatches = ready && platform.rewards.evidenceUrl === core.pumpUrl(platform.mint);
+    const verified = evidenceMatches && platform.rewards.status === 'verified';
+    const reported = evidenceMatches && platform.rewards.status === 'creator-reported';
+    const payout = platform.rewards.payoutAsset || 'the pool’s quote asset';
+    document.querySelector('#reward-state').textContent = verified ? `${payout} HOLDER REWARDS / CONFIGURATION CHECKED` : reported ? `${payout} HOLDER REWARDS / CREATOR ANNOUNCEMENT` : 'PLANNED AT LAUNCH / NOT ACTIVE';
     document.querySelector('#reward-percent').textContent = `${platform.rewards.allocationPercent}%`;
     document.querySelector('#reward-note').textContent = verified
-      ? 'Creator rewards are allocated to eligible token holders through pump.fun, net of distribution costs. Eligibility and payout timing follow pump.fun’s rules.'
-      : 'Plan: select pump.fun Holder Rewards when creating this token. Creator rewards would go to eligible token holders, net of distribution costs. No rewards are active before launch.';
+      ? `Creator rewards are allocated to eligible holders in ${payout}, net of distribution costs. Eligibility and payout timing follow pump.fun’s rules.`
+      : reported
+        ? `The creator states that ${platform.rewards.allocationPercent}% of this token’s creator rewards go to eligible holders in ${payout}. Distributions are net of costs and follow pump.fun’s eligibility rules; amounts vary with trading activity.`
+        : 'Plan: select pump.fun Holder Rewards when creating this token. Creator rewards would go to eligible token holders, net of distribution costs. No rewards are active before launch.';
     const evidence = document.querySelector('#reward-evidence');
-    evidence.hidden = !verified;
-    if (verified) evidence.href = platform.rewards.evidenceUrl;
+    evidence.hidden = !(verified || reported);
+    evidence.textContent = verified ? 'View reward configuration ↗' : 'View coin on pump.fun ↗';
+    if (evidenceMatches) evidence.href = platform.rewards.evidenceUrl;
+    const directBuy = document.querySelector('#platform-pump');
+    directBuy.hidden = !ready;
+    if (ready) directBuy.href = core.pumpUrl(platform.mint);
     buy.addEventListener('click', () => { if (ready) open(platform.id, buy); });
     document.querySelector('#download-platform-art').href = platform.art;
   }

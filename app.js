@@ -37,8 +37,9 @@
     }
     document.querySelector('#empty').hidden=visible.length>0;
     document.querySelector('#results').textContent=`${visible.length} ${visible.length===1?'meme':'memes'} shown`;
-    const launched = tokens.filter(t=>mintValid(t.mint)).length;
-    document.querySelector('.ticker span:last-child').textContent=`${tokens.length} LISTINGS / ${launched} CONFIGURED MINTS`;
+    const allListings=[...tokens,window.LAUNCHPAD_CONFIG.platformToken];
+    const launched = allListings.filter(t=>mintValid(t.mint)).length;
+    document.querySelector('.ticker span:last-child').textContent=`${allListings.length} LISTINGS / ${launched} CONFIGURED MINTS`;
   }
   function open(t,trigger) {
     returnFocus=trigger;

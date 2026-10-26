@@ -39,15 +39,13 @@ The Maduro concept references his **capture**, not a killing. Context: [Reuters,
 
 ## Platform coin and wallet buying
 
-`launchpad-config.js` defines the proposed OFFENSIVE platform token separately from the meme catalog. Its mint is deliberately `null`; the featured buy button is disabled. The artwork is ready at `assets/coins/offensive.webp`.
+`launchpad-config.js` defines the official **OFFENSIVE ($OFFENDED)** platform token separately from the meme catalog. Its creator-supplied mint is `A4gTwKUpL64nVTFDMSfDZxKcQRJNwwZ95X1MgoZPpump`. Both the featured wallet-buy button and direct pump.fun button are enabled. The artwork remains at `assets/coins/offensive.webp`.
 
-Before enabling platform-token purchases:
+The creator states that **100% of this token's creator rewards are allocated to eligible holders in SOL**. The UI distinguishes this announcement (`rewards.status: creator-reported`) from independently checked settings (`verified`). The pump.fun coin page is provided as the reference; the site's public-page lookup did not independently establish the per-token reward setting. Reward eligibility, distribution costs, and timing follow pump.fun's rules. No fixed yield is promised. This policy does not allocate every protocol/LP fee or unrelated tokens' fees.
 
-1. Create the coin on pump.fun and choose **Holder Rewards**. This must be a real launch setting, not just website copy. The user must create/approve the actual on-chain transaction in their wallet.
-2. Supply the final name, ticker, and mint in `launchpad-config.js`. This enables the platform buy button and adds it to the swap selector.
-3. Check that pump.fun shows the intended reward configuration for that mint. Only then set `rewards.status` to `verified` and `rewards.evidenceUrl` to that exact `https://pump.fun/coin/<mint>` page. This is a manual project-owner attestation; the site does not independently query the reward configuration.
+Community chat: [Telegram](https://t.me/+a-qL277g18UwMjIx). The chat appears in the top utility bar, bottom community section, and token-share-page footers. The supplied pump.fun referral/profile link remains in its existing top and bottom positions.
 
-The policy is **100% of this token's creator rewards allocated to eligible holders**, paid net of pump.fun distribution costs, subject to its eligibility and payout rules. It does not allocate every protocol/LP fee or the fees of unrelated collection tokens. Before launch, the site says the allocation is planned and inactive. The 100% allocation is not a rate of return.
+If the platform mint is ever reset to `null`, its buy controls become disabled and the platform is removed from the active swap list. If reward settings are independently checked later, `rewards.status` can be changed to `verified` with the exact coin page as `evidenceUrl`.
 
 `trade-core.js` validates 32-byte Base58 mints and constructs allowlisted trade configurations. `trade.js` loads the Jupiter Plugin only after a visitor clicks a buy/swap button. It preselects SOL as input and fixes the chosen token mint. Wallet connection, balances, quotes, fees, and signing stay with Jupiter and the user's wallet. A loaded swap form is not evidence that a token has a route. Unrouted/bonding-curve tokens can be purchased on pump.fun using the provided direct links or Phantom/Solflare in-app browsers. No trade or wallet connection was executed during automated verification.
 

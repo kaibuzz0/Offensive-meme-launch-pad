@@ -1,19 +1,22 @@
 'use strict';
-/* Add the platform mint only after launch. Keep rewards.status planned until the
-   Holder Rewards setting is checked on the actual pump.fun coin. */
+/* Official platform mint and SOL reward announcement supplied by the creator.
+   creator-reported is not an independent on-chain verification. */
 window.LAUNCHPAD_CONFIG = {
   siteUrl: 'https://kaibuzz0.github.io/Offensive-meme-launch-pad/',
+  telegramUrl: 'https://t.me/+a-qL277g18UwMjIx',
   platformToken: {
     id: 'offensive',
     name: 'OFFENSIVE',
-    ticker: 'OFFENSIVE',
-    mint: null,
+    ticker: 'OFFENDED',
+    mint: 'A4gTwKUpL64nVTFDMSfDZxKcQRJNwwZ95X1MgoZPpump',
     art: 'assets/coins/offensive.webp',
+    description: 'The official OFFENSIVE launchpad token. Creator-announced holder rewards in SOL.',
     rewards: {
       allocationPercent: 100,
       mode: 'holder-rewards',
-      status: 'planned',
-      evidenceUrl: null
+      status: 'creator-reported',
+      payoutAsset: 'SOL',
+      evidenceUrl: 'https://pump.fun/coin/A4gTwKUpL64nVTFDMSfDZxKcQRJNwwZ95X1MgoZPpump'
     }
   }
 };
