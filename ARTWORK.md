@@ -92,3 +92,9 @@ Exact text: "SORRY. NOT SORRY.".
 
 The gallery and hero use these icons. Each token detail panel offers a Download coin art link. These images do not create a token or imply that any depicted person endorses one.
 
+
+## OFFENSIVE platform token artwork
+
+Asset: [offensive.webp](assets/coins/offensive.webp), 1254 × 1254 pixels. Created with the built-in image-generation tool.
+
+Prompt: One square premium meme-token badge for the OFFENSIVE launchpad. A wickedly grinning acid-green cartoon skull with a black exclamation mark on its forehead, a small upward rocket, purple/green ink splashes, thick black outlines, halftone screenprint texture, and circular framing. Large exact wordmark “OFFENSIVE”; recognizable at small sizes. Full-bleed opaque background. No mockup, watermark, small text, ticker, reward percentages, or financial promises.

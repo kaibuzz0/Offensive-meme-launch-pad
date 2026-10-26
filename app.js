@@ -7,7 +7,7 @@
   const filters = [...document.querySelectorAll('[data-filter]')];
   let category = 'All';
   let returnFocus;
-  const mintValid = mint => typeof mint === 'string' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint);
+  const mintValid = window.OffensiveTradeCore.mintValid;
   const el = (tag, className, text) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -30,7 +30,9 @@
       content.append(meta,el('h3','',t.name),el('p','',t.description));
       const bottom = el('div','card-bottom');
       const details = el('button','detail-button','View details ↗'); details.type='button'; details.setAttribute('aria-label',`Details for ${t.name}`); details.addEventListener('click',()=>open(t,details));
-      bottom.append(el('code','',`$${t.ticker}`),details);content.append(bottom);card.append(art,content);grid.append(card);
+      bottom.append(el('code','',`$${t.ticker}`),details);
+      if (mintValid(t.mint)) { const buy=el('button','card-buy','Buy with wallet'); buy.type='button'; buy.setAttribute('aria-label',`Buy ${t.name} with wallet`); buy.addEventListener('click',()=>window.OffensiveSwap.open(t.id,buy)); bottom.append(buy); }
+      content.append(bottom);card.append(art,content);grid.append(card);
     }
     document.querySelector('#empty').hidden=visible.length>0;
     document.querySelector('#results').textContent=`${visible.length} ${visible.length===1?'meme':'memes'} shown`;
@@ -48,7 +50,8 @@
       const copy=el('button','button secondary','Copy mint address');copy.type='button';
       copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(t.mint);toast('Mint address copied.');}catch{toast('Copy unavailable. Select the address above to copy.');}});
       const trade=el('a','button primary','Open on pump.fun ↗');trade.href=`https://pump.fun/coin/${encodeURIComponent(t.mint)}`;trade.target='_blank';trade.rel='noopener noreferrer';
-      info.append(copy,trade,el('p','','Compare the full address with the creator’s announcement before trading.'));
+      const walletBuy=el('button','button primary','Buy with wallet ↗');walletBuy.type='button';walletBuy.addEventListener('click',()=>{close();window.OffensiveSwap.open(t.id,trigger);});
+      info.append(walletBuy,copy,trade,el('p','','Compare the full address with the creator’s announcement before trading.'));
     } else {
       info.append(el('div','launch-pending','CONCEPT ONLY — No official token mint has been configured. Trading is unavailable.'));
     }
