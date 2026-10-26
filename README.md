@@ -4,7 +4,7 @@ A mobile-friendly, buildless static website for an independent, explicit satire 
 
 ## Current state
 
-All 10 listings are **concepts**, with `mint: null`. No tokens are created, no wallet is connected, and no money or platform fees are collected by this site. The existing “You Missed Bitches” name is used as a proposed parody concept, with no claim of ownership of an existing token. Community token creation is future work, not an available feature.
+Five listings have public token mints supplied by the project owner: You Missed Bitches ($SHOOTER), Special Delivery ($TAKEN), Redacted As Fuck ($FINEPRINT), Insider ($CUNTS), and Exit Liquidity ($RUGGEDAF). Their details show the full mint, copy controls, and direct pump.fun links. The other five remain concepts with `mint: null`. Address format checks do not independently verify on-chain metadata or ownership. No tokens are created, no wallet is connected, and no money or platform fees are collected by this site. Community token creation is future work, not an available feature.
 
 ## GitHub Pages
 
@@ -17,7 +17,7 @@ The `pages.yml` workflow validates the catalog and deploys a minimal public arti
 3. Update the artwork and copy as appropriate. Run `node scripts/check.mjs`.
 4. Push to `main`. Valid configured mints enable a full-address display, copy button, and `https://pump.fun/coin/<mint>` trade link. Syntax checks do **not** verify on-chain identity, liquidity, ownership, or safety.
 
-To add another concept, copy an object with a unique `id`, add local coin artwork, and leave `mint` null until confirmed. Category buttons are in `index.html`; update those if introducing a new category. The collection's introduction currently describes ten original concepts and should be updated as the catalog grows.
+To add another concept, copy an object with a unique `id`, add local coin artwork, and leave `mint` null until confirmed. Category buttons are in `index.html`; update those if introducing a new category. Update the collection introduction as the catalog grows or more tokens are listed.
 
 ## Local preview and validation
 

@@ -16,7 +16,7 @@ Subject: An unmistakable satirical caricature of Donald Trump: huge swooping gol
 
 Exact text: "YOU MISSED BITCHES".
 
-### Maduro Got DoorDashed
+### Special Delivery
 
 Asset: [maduro.webp](assets/coins/maduro.webp)
 
@@ -32,7 +32,7 @@ Subject: A furious cartoon bureaucrat whose face is comically obscured by thick 
 
 Exact text: "REDACTED AS FUCK".
 
-### Insider Cunts
+### Insider
 
 Asset: [congress.webp](assets/coins/congress.webp)
 
@@ -40,7 +40,7 @@ Subject: A fictional grotesque congressional fat-cat in an expensive suit, pig-l
 
 Exact text: "INSIDER CUNTS".
 
-### Fuck Your Exit Liquidity
+### Exit Liquidity
 
 Asset: [exit.webp](assets/coins/exit.webp)
 
