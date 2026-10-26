@@ -1,0 +1,37 @@
+name: Pitch a meme
+description: Propose a meme for the curated collection. This does not launch or automatically list a token.
+title: "[Meme pitch] "
+labels: []
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Proposed name and ticker
+    validations:
+      required: true
+  - type: textarea
+    id: concept
+    attributes:
+      label: The meme
+      description: Explain the joke, visual concept, and any real event behind it. Link sources for factual claims.
+    validations:
+      required: true
+  - type: input
+    id: mint
+    attributes:
+      label: Existing Solana mint address (optional)
+      description: Public mint address only. Never share keys or seed phrases.
+  - type: textarea
+    id: ownership
+    attributes:
+      label: Artwork and ownership
+      description: Link artwork you own or have permission to use, and identify the token creator if applicable.
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Submission rules
+      options:
+        - label: No threats, doxxing, protected-group attacks, impersonation, or misleading token claims.
+          required: true
+        - label: I understand this is a review request, not an automatic listing or token launch.
+          required: true
