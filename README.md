@@ -72,3 +72,9 @@ The homepage now introduces community launches and audience building. `beta.html
 Draft commercial terms are explicitly inactive: 0.1 SOL review, 0.5 SOL approved launch service; 20% of settled eligible service fees to the pool. Qualification requires 7 days live, 100 non-team holders, 20 SOL of screened 7-day volume on 4 days, 0.1 SOL cumulative attributable settled service fees, creator updates and review compliance. Screened-volume-weighted weekly payouts cap each project at 25%; excess and small balances roll forward. These are proposed product rules, not implemented financial services.
 
 Before activating community launches: implement persistent project profiles and interest verification, review/audit evidence records, fee collection/refunds, on-chain data screening, public pool accounting, appeals, and payout infrastructure. Publish final agreed terms before collecting money. Existing platform-token holder reward statements remain separate from this proposed creator pool.
+
+
+## Meme City alpha
+`city.html` is the first playable neighborhood, linked from the homepage. Six configured beta mints provide avatar identities; there is no token gating, new contract, wallet balance verification, or real-money game economy. Solo mode includes keyboard/mobile movement, collision, three mission checkpoints, XP/levels, play credits, equipment shopping, inventory, cosmetic rendering, and versioned browser-local saves. `city-roadmap.html` publishes the larger milestones and release gates.
+
+`city-core.js` is shared by the client and optional authoritative multiplayer service in `server/city-server.mjs`. The service supports room presence, streamed state, chat, missions, inventory, escrowed listings and play-credit trades. It is not deployed by the GitHub Pages workflow. See `server/README.md` for running, hosting, temporary-state limits, and production requirements. Public `city-network.js` stays disabled until an HTTPS room service is deployed.

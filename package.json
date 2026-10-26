@@ -1,0 +1,11 @@
+{
+  "name": "offensive-meme-launchpad",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "node server/city-server.mjs",
+    "test": "node --test scripts/*.test.mjs",
+    "check": "node scripts/check.mjs"
+  }
+}
