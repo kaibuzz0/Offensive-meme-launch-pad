@@ -23,13 +23,14 @@ jobs:
           node-version: '22'
       - name: Validate catalog and static assets
         run: |
+          node scripts/build-share-pages.mjs
           node scripts/check.mjs
-          node --test scripts/trade.test.mjs
+          node --test scripts/*.test.mjs
       - name: Assemble public files
         run: |
           mkdir _site
-          cp index.html styles.css app.js tokens.js launchpad-config.js trade-core.js trade.js .nojekyll _site/
-          cp -r assets _site/
+          cp index.html styles.css app.js tokens.js launchpad-config.js trade-core.js trade.js share-core.js social.js pwa.js sw.js manifest.webmanifest offline.html .nojekyll _site/
+          cp -r assets tokens _site/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -88,6 +88,7 @@
     return pluginPromise;
   }
   async function mount() {
+    if(navigator.onLine===false){showStatus('Offline. Reconnect before opening a wallet swap.');return;}
     const token = current();
     if (!token) return;
     const generation = ++requestId;

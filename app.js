@@ -21,7 +21,7 @@
     for (const t of visible) {
       const card = el('article','token-card');
       const art = el('button','art-button');
-      art.type = 'button'; art.setAttribute('aria-label',`View ${t.name} token details`);
+      art.type = 'button'; art.dataset.tokenId=t.id; art.setAttribute('aria-label',`View ${t.name} token details`);
       const img = el('img'); img.src=t.art; img.alt=`${t.name} satire coin artwork`; img.width=420; img.height=420; img.loading='lazy';
       art.append(img,el('span','card-status',mintValid(t.mint)?'MINT CONFIGURED':'CONCEPT / NOT LAUNCHED'));
       art.addEventListener('click',()=>open(t,art));
@@ -32,6 +32,7 @@
       const details = el('button','detail-button','View details ↗'); details.type='button'; details.setAttribute('aria-label',`Details for ${t.name}`); details.addEventListener('click',()=>open(t,details));
       bottom.append(el('code','',`$${t.ticker}`),details);
       if (mintValid(t.mint)) { const buy=el('button','card-buy','Buy with wallet'); buy.type='button'; buy.setAttribute('aria-label',`Buy ${t.name} with wallet`); buy.addEventListener('click',()=>window.OffensiveSwap.open(t.id,buy)); bottom.append(buy); }
+      const share=el('button','card-share','Share ↗');share.type='button';share.dataset.shareToken=t.id;share.setAttribute('aria-label',`Share ${t.name}`);bottom.append(share);
       content.append(bottom);card.append(art,content);grid.append(card);
     }
     document.querySelector('#empty').hidden=visible.length>0;
@@ -55,7 +56,7 @@
     } else {
       info.append(el('div','launch-pending','CONCEPT ONLY — No official token mint has been configured. Trading is unavailable.'));
     }
-    const download=el('a','button secondary','Download coin art ↓');download.href=t.art;download.download=`${t.id}.webp`;info.append(download);
+    const download=el('a','button secondary','Download coin art ↓');download.href=t.art;download.download=`${t.id}.webp`;info.append(download);const share=el('button','button secondary','Share token ↗');share.type='button';share.dataset.shareToken=t.id;info.append(share);
     layout.append(img,info);content.append(layout);dialog.showModal();
   }
   function close(){dialog.close();if(returnFocus?.isConnected)returnFocus.focus();}
@@ -67,4 +68,7 @@
   filters.forEach(button=>button.addEventListener('click',()=>{category=button.dataset.filter;filters.forEach(b=>b.setAttribute('aria-pressed',String(b===button)));render();}));
   search.addEventListener('input',render);
   render();
+  const requested=new URLSearchParams(window.location.search).get('token');
+  const requestedToken=tokens.find(t=>t.id===requested);
+  if(requestedToken){const trigger=grid.querySelector(`[data-token-id="${requestedToken.id}"]`);open(requestedToken,trigger);}
 })();

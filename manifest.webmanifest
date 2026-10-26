@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "OFFENSIVE Meme Launchpad",
+  "short_name": "OFFENSIVE",
+  "description": "Solana meme tokens, wallet swaps, and unapologetic satire.",
+  "lang": "en",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#121310",
+  "theme_color": "#121310",
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "assets/icons/app-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/app-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
