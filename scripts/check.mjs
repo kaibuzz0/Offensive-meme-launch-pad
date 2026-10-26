@@ -14,8 +14,16 @@ for(const token of tokens){
   assert.ok(fs.existsSync(path.join(root,token.art)),`Missing art: ${token.art}`);
   assert.ok(token.mint===null||/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(token.mint),'Mint must be null or a Solana address');
 }
-const html=read('index.html');
+const html=read('beta.html');
 for(const file of ['styles.css','app.js','tokens.js','assets/icon.svg','assets/coins/offensive.webp','launchpad-config.js','trade-core.js','trade.js','share-core.js','social.js','pwa.js','manifest.webmanifest'])assert.ok(html.includes(file),`Missing asset reference: ${file}`);
 for(const id of ['token-grid','search','token-dialog','dialog-content','empty','results','toast','platform-buy','platform-mint','reward-state','buy-token','load-swap','offensive-swap-root','swap-status','swap-fallback'])assert.ok(html.includes(`id="${id}"`),`Missing interaction target: ${id}`);
 for (const file of ['app.js','launchpad-config.js','trade-core.js','trade.js','share-core.js','social.js','pwa.js','sw.js']) new vm.Script(read(file));
 console.log(`PASS: ${tokens.length} unique listings, all artwork, mint format checks, asset references, interaction targets, and JS syntax.`);
+
+for(const file of ['index.html','creators.html']){
+ const page=read(file);
+ for(const asset of ['launchpad.css','launchpad.js','social.js','pwa.js'])assert.ok(page.includes(asset),`${file}: ${asset}`);
+ assert.ok(!page.includes('src="trade.js"'),`${file} should not load trading UI`);
+}
+new vm.Script(read('launchpad.js'));
+console.log('PASS: community pages, lightweight script boundaries, and application JS syntax.');

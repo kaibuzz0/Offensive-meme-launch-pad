@@ -64,3 +64,11 @@ Run `node scripts/build-share-pages.mjs` after changing token data or platform c
 The service worker precaches only an offline information page and app icons. HTML navigations are network-first with the offline page as fallback; token data, reward configuration, trade scripts, quote APIs, and third-party requests are not cached or replayed. Existing app windows are not force-reloaded on a worker update. Registration uses the project-relative scope, not the entire GitHub Pages origin.
 
 Validation: `node scripts/build-share-pages.mjs`, `node scripts/check.mjs`, and `node --test scripts/*.test.mjs`. PWA/share tests cover unique canonical links, exact encoded payloads, all 11 share pages, referral placement, icon dimensions, manifest scope, and financial-request cache bypass. Native installation, posting to social accounts, and wallet transactions are not performed during verification.
+
+
+## Community launch platform direction (proposal v0.1)
+The homepage now introduces community launches and audience building. `beta.html` retains founder test tokens and existing wallet integrations; these are real mints, not audited community launches. `creators.html` publishes draft review stages, fee terms, and weekly creator pool eligibility. `launchpad.js` prepares a public GitHub issue application without sending it, and preserves old token/trade deep links.
+
+Draft commercial terms are explicitly inactive: 0.1 SOL review, 0.5 SOL approved launch service; 20% of settled eligible service fees to the pool. Qualification requires 7 days live, 100 non-team holders, 20 SOL of screened 7-day volume on 4 days, 0.1 SOL cumulative attributable settled service fees, creator updates and review compliance. Screened-volume-weighted weekly payouts cap each project at 25%; excess and small balances roll forward. These are proposed product rules, not implemented financial services.
+
+Before activating community launches: implement persistent project profiles and interest verification, review/audit evidence records, fee collection/refunds, on-chain data screening, public pool accounting, appeals, and payout infrastructure. Publish final agreed terms before collecting money. Existing platform-token holder reward statements remain separate from this proposed creator pool.

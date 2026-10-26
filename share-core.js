@@ -7,7 +7,7 @@
     if (!site.pathname.endsWith('/')) site.pathname += '/';
     if (!id) return {
       title: 'OFFENSIVE — Solana Meme Launchpad',
-      text: 'OFFENSIVE: Solana meme tokens, wallet swaps, and unapologetic satire.',
+      text: 'OFFENSIVE: Build the crowd. Then launch. A community Solana meme launchpad in development. Explore creator applications and the beta lab.',
       url: site.href,
       art: new URL(platform.art, site).href
     };

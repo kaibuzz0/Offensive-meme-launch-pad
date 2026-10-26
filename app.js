@@ -23,7 +23,7 @@
       const art = el('button','art-button');
       art.type = 'button'; art.dataset.tokenId=t.id; art.setAttribute('aria-label',`View ${t.name} token details`);
       const img = el('img'); img.src=t.art; img.alt=`${t.name} satire coin artwork`; img.width=420; img.height=420; img.loading='lazy';
-      art.append(img,el('span','card-status',mintValid(t.mint)?'MINT CONFIGURED':'CONCEPT / NOT LAUNCHED'));
+      art.append(img,el('span','card-status',mintValid(t.mint)?'BETA TEST / NOT AUDITED':'BETA CONCEPT / NOT LAUNCHED'));
       art.addEventListener('click',()=>open(t,art));
       const content = el('div','card-content');
       const meta = el('div','card-category'); meta.append(el('span','',t.category),el('span','','SOLANA ↗'));
