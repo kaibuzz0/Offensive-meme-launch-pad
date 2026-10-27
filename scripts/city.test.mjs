@@ -53,3 +53,11 @@ test('chat is bounded and rate-limited; snapshots expose no other player invento
  const s=e.snapshot('b');assert.equal(s.chat[0].text,'hello');assert.equal(s.players.find(p=>p.id==='a').inventory,undefined);assert.equal(s.self.id,'b');
  e.leave('a');assert.equal(e.snapshot('b').players.length,1);
 });
+test('streetwear styles are bounded, saved on the player, and included in public appearance',()=>{
+ const e=setup();e.action('a',{type:'style',style:{skin:4,hair:2,pants:3,print:1}});
+ const appearance=e.snapshot('b').players.find(p=>p.id==='a').style;
+ assert.deepEqual(JSON.parse(JSON.stringify(appearance)),{skin:4,hair:2,pants:3,print:1});
+ assert.equal(e.player('b').style.skin,0);
+ for(const style of [null,[],{skin:-1,hair:0,pants:0},{skin:0,hair:9,pants:0},{skin:0,hair:0,pants:Infinity},{skin:0,hair:0,pants:0,print:5}])assert.throws(()=>e.action('a',{type:'style',style}),/Invalid/);
+ assert.equal(e.player('a').style.print,1);
+});
