@@ -23,3 +23,19 @@ test('HTTP rooms authenticate, stream real peers, reject forged actions and isol
  assert.equal((await fetch(base+'/city-districts.js')).status,200);
  await post('/leave',{},a.session);assert.equal((await fetch(base+'/api/city/state',{headers:{Authorization:`Bearer ${a.session}`}})).status,401);
 });
+
+test('trailer serves playable video, a poster and seekable byte ranges',async t=>{
+ const {server}=createCityServer();
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ t.after(()=>{server.closeAllConnections();server.close();});
+ const base=`http://127.0.0.1:${server.address().port}/assets/media/`;
+ const head=await fetch(base+'meme-city-trailer.mp4',{method:'HEAD'});
+ assert.equal(head.status,200);assert.equal(head.headers.get('content-type'),'video/mp4');assert.equal(head.headers.get('accept-ranges'),'bytes');
+ const total=Number(head.headers.get('content-length'));assert.ok(total>0);
+ const start=await fetch(base+'meme-city-trailer.mp4',{headers:{Range:'bytes=0-31'}});
+ assert.equal(start.status,206);assert.equal(start.headers.get('content-range'),`bytes 0-31/${total}`);assert.equal((await start.arrayBuffer()).byteLength,32);
+ const tail=await fetch(base+'meme-city-trailer.mp4',{headers:{Range:'bytes=-16'}});
+ assert.equal(tail.status,206);assert.equal((await tail.arrayBuffer()).byteLength,16);
+ assert.equal((await fetch(base+'meme-city-trailer.mp4',{headers:{Range:`bytes=${total}-`}})).status,416);
+ const poster=await fetch(base+'meme-city-trailer-poster.jpg');assert.equal(poster.status,200);assert.equal(poster.headers.get('content-type'),'image/jpeg');
+});

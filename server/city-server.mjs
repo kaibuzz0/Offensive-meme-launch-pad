@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const scope={};for(const file of ['city-core.js','city-arcade.js'])vm.runInNewContext(await fs.readFile(path.join(root,file),'utf8'),scope);
 const {Engine}=scope.MemeCityCore;
-const contentTypes={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.webp':'image/webp','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
+const contentTypes={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mp4':'video/mp4','.jpg':'image/jpeg','.webp':'image/webp','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
 const files=new Set(['index.html','beta.html','creators.html','city.html','city-roadmap.html','city.css','city.js','city-core.js','city-arcade.js','city-visuals.js','city-districts.js','city-network.js','styles.css','app.js','tokens.js','launchpad-config.js','trade-core.js','trade.js','share-core.js','social.js','pwa.js','sw.js','manifest.webmanifest','offline.html','launchpad.js','launchpad.css']);
 export function createCityServer({origins=[],now=()=>Date.now()}={}){
  const engine=new Engine(),sessions=new Map(),streams=new Map(),joinLimits=new Map();let last=now();
@@ -48,9 +48,20 @@ export function createCityServer({origins=[],now=()=>Date.now()}={}){
   try{
    const relative=decodeURIComponent(url.pathname).replace(/^\//,'')||'index.html';
    if(relative==='city-network.js'){res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'no-store'});return res.end("window.MEME_CITY_NETWORK=Object.freeze({enabled:true,apiBase:'/api/city'});");}
-   if(!files.has(relative)&&!/^assets\/[a-zA-Z0-9_/-]+\.(webp|png|svg)$/.test(relative)&&!/^tokens\/[a-z-]+\/(index.html)?$/.test(relative)){res.writeHead(404);return res.end('Not found');}
+   if(!files.has(relative)&&!/^assets\/[a-zA-Z0-9_/-]+\.(webp|png|svg|jpg|mp4)$/.test(relative)&&!/^tokens\/[a-z-]+\/(index.html)?$/.test(relative)){res.writeHead(404);return res.end('Not found');}
    const file=path.resolve(root,relative.endsWith('/')?relative+'index.html':relative);if(!file.startsWith(root)){res.writeHead(403);return res.end();}
-   const data=await fs.readFile(file);res.writeHead(200,{'Content-Type':contentTypes[path.extname(file)]||'application/octet-stream','Cache-Control':'no-cache'});res.end(req.method==='HEAD'?undefined:data);
+   const data=await fs.readFile(file),headers={'Content-Type':contentTypes[path.extname(file)]||'application/octet-stream','Cache-Control':'no-cache','Content-Length':data.length};
+   if(path.extname(file)==='.mp4'){
+    headers['Accept-Ranges']='bytes';
+    if(req.headers.range&&req.method==='GET'){
+     const match=/^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
+     let start=match?.[1]?Number(match[1]):0,end=match?.[2]?Number(match[2]):data.length-1;
+     if(match&&!match[1]&&match[2]){start=Math.max(0,data.length-Number(match[2]));end=data.length-1;}
+     if(!match||(!match[1]&&!match[2])||!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>=data.length||start>end){res.writeHead(416,{'Content-Range':`bytes */${data.length}`});return res.end();}
+     end=Math.min(end,data.length-1);res.writeHead(206,{...headers,'Content-Range':`bytes ${start}-${end}/${data.length}`,'Content-Length':end-start+1});return res.end(data.subarray(start,end+1));
+    }
+   }
+   res.writeHead(200,headers);res.end(req.method==='HEAD'?undefined:data);
   }catch{res.writeHead(404);res.end('Not found');}
  });
  const tick=setInterval(()=>{const stamp=now(),dt=(stamp-last)/1000;last=stamp;for(const s of sessions.values())if(stamp-s.lastInput>500){engine.input(s.id,0,0);engine.trigger(s.id,false);}engine.tick(dt);},50);

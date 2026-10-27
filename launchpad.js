@@ -23,6 +23,21 @@
       if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
     });
   });
+  const copyMint = document.querySelector('[data-copy-platform-mint]');
+  copyMint?.addEventListener('click', async () => {
+    const status = document.querySelector('[data-mint-copy-status]');
+    const mint = window.LAUNCHPAD_CONFIG.platformToken.mint;
+    try {
+      await navigator.clipboard.writeText(mint);
+      status.textContent = 'Address copied.';
+    } catch {
+      status.textContent = 'Copy the address shown above.';
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(document.querySelector('.spotlight-mint code'));
+      selection.removeAllRanges(); selection.addRange(range);
+    }
+  });
   const form = document.querySelector('#creator-form');
   if (!form) return;
   form.addEventListener('submit', event => {
