@@ -19,7 +19,8 @@
  const validIds=['offensive','you-missed','maduro','redacted','congress','exit'];
  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  const level=xp=>1+Math.floor(Math.sqrt(Math.max(0,xp)/50));
- function blocked(x,y){return x<28||y<35||x>WORLD.width-28||y>WORLD.height-28||WORLD.buildings.some(b=>x>b.x-15&&x<b.x+b.w+15&&y>b.y-12&&y<b.y+b.h+22);}
+ WORLD.obstacles=[{x:978,y:677,w:135,h:110},...[[820,820],[1210,820],[1650,850],[430,850]].map(([x,y])=>({x,y,w:55,h:20}))];
+ function blocked(x,y){return WORLD.obstacles.some(o=>x>o.x-10&&x<o.x+o.w+10&&y>o.y-8&&y<o.y+o.h+8)|| x<28||y<35||x>WORLD.width-28||y>WORLD.height-28||WORLD.buildings.some(b=>x>b.x-15&&x<b.x+b.w+15&&y>b.y-12&&y<b.y+b.h+22);}
  function nearest(p){return WORLD.stations.find(s=>dist(p,s)<105)||null;}
  function cleanName(name){return String(name||'Guest').replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,22)||'Guest';}
  class Engine{

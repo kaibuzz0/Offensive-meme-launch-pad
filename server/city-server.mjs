@@ -37,7 +37,7 @@ export function createCityServer({origins=[],now=()=>Date.now()}={}){
     if(route==='/events'&&req.method==='GET'){
      streams.get(token)?.end();streams.set(token,res);res.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store, no-transform','X-Accel-Buffering':'no'});res.write(JSON.stringify(engine.snapshot(session.id))+'\n');req.on('close',()=>{if(streams.get(token)===res)streams.delete(token);});return;
     }
-    if(route==='/input'&&req.method==='POST'){engine.input(session.id,body.x,body.y);session.lastInput=stamp;return json(res,200,{ok:true});}
+    if(route==='/input'&&req.method==='POST'){engine.input(session.id,body.x,body.y);engine.trigger(session.id,body.fire===true,body.aimX??1,body.aimY??0);session.lastInput=stamp;return json(res,200,{ok:true});}
     if(route==='/action'&&req.method==='POST'){const message=engine.action(session.id,body);return json(res,200,{message,state:engine.snapshot(session.id)});}
     if(route==='/state'&&req.method==='GET')return json(res,200,engine.snapshot(session.id));
     if(route==='/leave'&&req.method==='POST'){streams.get(token)?.end();streams.delete(token);engine.leave(session.id);sessions.delete(token);return json(res,200,{ok:true});}
@@ -53,7 +53,7 @@ export function createCityServer({origins=[],now=()=>Date.now()}={}){
    const data=await fs.readFile(file);res.writeHead(200,{'Content-Type':contentTypes[path.extname(file)]||'application/octet-stream','Cache-Control':'no-cache'});res.end(req.method==='HEAD'?undefined:data);
   }catch{res.writeHead(404);res.end('Not found');}
  });
- const tick=setInterval(()=>{const stamp=now(),dt=(stamp-last)/1000;last=stamp;for(const s of sessions.values())if(stamp-s.lastInput>500)engine.input(s.id,0,0);engine.tick(dt);},50);
+ const tick=setInterval(()=>{const stamp=now(),dt=(stamp-last)/1000;last=stamp;for(const s of sessions.values())if(stamp-s.lastInput>500){engine.input(s.id,0,0);engine.trigger(s.id,false);}engine.tick(dt);},50);
  const publish=setInterval(()=>{for(const [token,res]of streams){const s=sessions.get(token);if(!s)continue;if(res.writableLength>262144){res.destroy();streams.delete(token);continue;}res.write(JSON.stringify(engine.snapshot(s.id))+'\n');}},200);
  const reap=setInterval(()=>{const stamp=now();for(const [token,s]of sessions)if(stamp-s.lastSeen>45000){streams.get(token)?.end();streams.delete(token);engine.leave(s.id);sessions.delete(token);}for(const [ip,l]of joinLimits)if(stamp-l.start>600000)joinLimits.delete(ip);},5000);
  server.on('close',()=>{clearInterval(tick);clearInterval(publish);clearInterval(reap);for(const r of streams.values())r.end();});

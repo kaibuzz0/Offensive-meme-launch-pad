@@ -21,7 +21,7 @@ window.MEME_CITY_NETWORK = Object.freeze({
 });
 ```
 
-Room updates stream as newline-delimited JSON over an authenticated fetch. Commands are JSON POST requests. Session tokens stay in memory and travel in Authorization headers, not URLs. Player IDs exposed in snapshots are separate from secret session tokens. There is one room, maximum 32 players. Movement stops after 500 ms without input; inactive sessions expire after 45 seconds. Join and request limits are basic alpha protections, not a complete abuse prevention system. Use a host-level connection/IP limit as well.
+Room updates stream as newline-delimited JSON over an authenticated fetch. Commands are JSON POST requests. Session tokens stay in memory and travel in Authorization headers, not URLs. Player IDs exposed in snapshots are separate from secret session tokens. There is one room, maximum 32 players. Movement and held fire stop after 500 ms without input; inactive sessions expire after 45 seconds. Join and request limits are basic alpha protections, not a complete abuse prevention system. Use a host-level connection/IP limit as well.
 
 ## Rules
 
@@ -36,3 +36,5 @@ The server owns positions, collision, XP, credits, route claims, inventory, equi
 - Keep real-money settlement disabled until an independently reviewed design exists. Current items and play credits have no redemption or token value.
 
 Tests: `node --test scripts/city*.test.mjs`.
+
+Night Shift input accepts `fire` (boolean), `aimX`, and `aimY`; the shared simulation owns fire cooldowns, auto-aim and projectile creation. Mission actors are removed when their owning player leaves. Police pursuit, collision, attack windups and contract results run on the server.

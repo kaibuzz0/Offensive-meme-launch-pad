@@ -33,3 +33,6 @@ for(const file of ['city.html','city-roadmap.html','city.css','server/city-serve
 assert.ok(read('index.html').includes('href="city.html"'),'Homepage must link to the playable city');
 assert.ok(read('city-network.js').includes('enabled: false'),'Public rooms must stay disabled until hosting is configured');
 console.log('PASS: Meme City assets, script syntax, homepage entry and public solo configuration.');
+
+for(const id of ['pause-toggle','fullscreen-toggle','mission-kicker','mission-fill','quick-job','ready-countdown'])assert.ok(read('city.html').includes(`id="${id}"`),`Missing polished game control: ${id}`);
+console.log('PASS: Night Shift control targets.');
