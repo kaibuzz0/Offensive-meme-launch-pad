@@ -9,7 +9,7 @@ function context(href,values){
  const status={textContent:''};
  const form={reportValidity:()=>true,addEventListener:(name,fn)=>handler=fn};
  const location=new URL(href);location.replace=url=>replaced=url;
- vm.runInNewContext(script,{URL,URLSearchParams,location,document:{querySelector:s=>s==='#creator-form'?(values?form:null):s==='#application-link'?link:status},FormData:class{get(key){return values[key];}}});
+ vm.runInNewContext(script,{URL,URLSearchParams,location,document:{querySelectorAll:()=>[],querySelector:s=>s==='#creator-form'?(values?form:null):s==='#application-link'?link:status},FormData:class{get(key){return values[key];}}});
  return {link,status,submit:()=>handler({preventDefault(){}}),redirect:()=>replaced};
 }
 test('legacy shared token and buy links reach the beta lab preserving state',()=>{
