@@ -38,3 +38,5 @@ The server owns positions, collision, XP, credits, route claims, inventory, equi
 Tests: `node --test scripts/city*.test.mjs`.
 
 Night Shift input accepts `fire` (boolean), `aimX`, and `aimY`; the shared simulation owns fire cooldowns, auto-aim and projectile creation. Mission actors are removed when their owning player leaves. Police pursuit, collision, attack windups and contract results run on the server.
+
+District travel and fortress editing are currently solo-only; the HTTP action endpoint rejects `travel`, `build`, `demolish` and `starterfort`. Open `city.html?solo=1` to use the separate browser-local save. Connected plot visits need an ownership and shared-world design before they are exposed to room play.

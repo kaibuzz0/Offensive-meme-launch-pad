@@ -37,6 +37,7 @@
   // Arms and sleeves have fabric folds, shoulder seams, and visible hands.
   for(const side of [-1,1]){
    const x=side<0?-24:16,arm=pose*side*.65;
+   if(o.gesture&&side===1){rounded(c,17,-94,9,27,4,coat);rounded(c,18,-111,7,20,3,tone);rounded(c,17,-116,9,10,3,tone);continue;}
    rounded(c,x,-74,9,24+arm,4,gradient(c,x,-74,10,27,coat,'#1b2836'));
    rounded(c,x+1,-54+arm,7,13,3,gradient(c,x,-53,9,12,tone,'#79503c'));
    rounded(c,x+.2,-44+arm,8,7,3,tone);
@@ -91,7 +92,7 @@
  function person(c,o,time=0){
   const pose=o.moving?Math.round(Math.sin(time/95+(o.phase||0))*3):0;
   const ready=!!o.image?.complete&&!!o.image?.naturalWidth,style=o.style||{},gear=o.gear||{};
-  const key=[o.role||'player',o.ticker||'',o.color||'',style.skin||0,style.hair||0,style.pants||0,style.print||0,o.coinName||'',gear.outfit||'',gear.head||'',gear.feet||'',!!o.back,pose,ready].join('|');
+  const key=[o.role||'player',o.ticker||'',o.color||'',style.skin||0,style.hair||0,style.pants||0,style.print||0,o.coinName||'',gear.outfit||'',gear.head||'',gear.feet||'',!!o.back,!!o.gesture,pose,ready].join('|');
   let sprite=cache.get(key);
   if(!sprite){const surface=document.createElement('canvas');surface.width=260;surface.height=288;const g=surface.getContext('2d');g.scale(2,2);drawBody(g,o,pose);sprite=surface;cache.set(key,sprite);if(cache.size>96)cache.delete(cache.keys().next().value);}
   const scale=o.scale||1;c.save();c.translate(o.x,o.y);c.scale(scale,scale);

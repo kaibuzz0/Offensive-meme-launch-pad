@@ -28,7 +28,7 @@ for(const file of ['index.html','creators.html']){
 new vm.Script(read('launchpad.js'));
 console.log('PASS: community pages, lightweight script boundaries, and application JS syntax.');
 
-for(const file of ['city.js','city-core.js','city-arcade.js','city-visuals.js','city-network.js'])new vm.Script(read(file));
+for(const file of ['city.js','city-core.js','city-arcade.js','city-visuals.js','city-districts.js','city-network.js'])new vm.Script(read(file));
 for(const file of ['city.html','city-roadmap.html','city.css','server/city-server.mjs'])assert.ok(fs.existsSync(path.join(root,file)),`Missing city release file: ${file}`);
 assert.ok(read('index.html').includes('href="city.html"'),'Homepage must link to the playable city');
 assert.ok(read('city-network.js').includes('enabled: false'),'Public rooms must stay disabled until hosting is configured');
@@ -40,3 +40,6 @@ console.log('PASS: Night Shift control targets.');
 assert.ok(read('city.html').includes('city-visuals.js'),'Clothing renderer must load before the game');
 assert.ok(read('.github/workflows/pages.yml').includes('city-visuals.js'),'Clothing renderer must ship in Pages builds');
 console.log('PASS: streetwear renderer and deployment references.');
+
+assert.ok(read('city.html').includes('city-districts.js'),'District renderer must load');
+assert.ok(read('.github/workflows/pages.yml').includes('city-districts.js'),'District renderer must deploy');

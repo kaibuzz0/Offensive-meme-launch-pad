@@ -15,21 +15,88 @@
   {id:'arcade',x:1060,y:455,name:'Chaos Arcade',hint:'Get a daily route',kind:'mission'},
   {id:'garage',x:1800,y:1050,name:'Meme Motors',hint:'See the development plan',kind:'roadmap'}
  ],route:[{x:330,y:510,name:'Launch House'},{x:1800,y:520,name:'Creator Alley'},{x:1060,y:1000,name:'Night Market'}]};
+ const DISTRICTS=[
+  {id:'fortress',name:'Fortress Heights',tag:'BUILD YOUR OWN MEME CITY',color:'#b6cd8c',x:85,y:100,hint:'Your private build plot',kind:'district'},
+  {id:'creator',name:'Creator Quarter',tag:'MAKE A MEME. MAKE A SCENE.',color:'#c5a2e2',x:2110,y:100,hint:'Explore meme collections',kind:'district'},
+  {id:'arena',name:'Arena District',tag:'PROVE IT ON THE STREETS',color:'#e2a177',x:85,y:1490,hint:'Take on city challenges',kind:'district'},
+  {id:'social',name:'Social Boardwalk',tag:'FIND YOUR PEOPLE',color:'#83c4ce',x:2110,y:1490,hint:'Unwind at the waterfront',kind:'district'}
+ ];
+ const BUILD_KIT=[
+  {id:'wall',name:'Concrete wall',cost:8,solid:true,color:'#85939c'},
+  {id:'tower',name:'Watchtower',cost:22,solid:true,color:'#91a8b1'},
+  {id:'home',name:'Meme HQ',cost:35,solid:true,color:'#b2c896'},
+  {id:'banner',name:'Meme banner',cost:6,solid:false,color:'#c8a6dd'},
+  {id:'tree',name:'Cypress tree',cost:5,solid:true,color:'#76a485'},
+  {id:'lamp',name:'Street lamp',cost:4,solid:true,color:'#e7c593'},
+  {id:'floor',name:'Stone paving',cost:2,solid:false,color:'#909ca5'}
+ ];
+ const PLOT={x:600,y:450,cols:16,rows:10,tile:64};
+ const districtBlocks=id=>id==='creator'?[
+  {x:380,y:350,w:420,h:270,label:'THE MEME GALLERY',hue:'#635975'},
+  {x:1370,y:350,w:420,h:270,label:'THE PRINT STUDIO',hue:'#647976'}
+ ]:id==='arena'?[
+  {x:420,y:320,w:1400,h:320,label:'THE PROVING GROUND',hue:'#806957'}
+ ]:id==='social'?[
+  {x:380,y:330,w:400,h:250,label:'THE COMMON ROOM',hue:'#60798a'},
+  {x:1440,y:330,w:360,h:250,label:'BOARDWALK CAFE',hue:'#7c7766'}
+ ]:[];
+ function restorePlot(value){
+  if(!Array.isArray(value))return [];
+  const used=new Set();return value.slice(0,PLOT.cols*PLOT.rows).filter(o=>o&&BUILD_KIT.some(k=>k.id===o.kind)&&Number.isInteger(o.col)&&o.col>=0&&o.col<PLOT.cols&&Number.isInteger(o.row)&&o.row>=0&&o.row<PLOT.rows&&!used.has(o.row*PLOT.cols+o.col)&&used.add(o.row*PLOT.cols+o.col)).map(o=>({col:o.col,row:o.row,kind:o.kind,rotation:Number.isInteger(o.rotation)?((o.rotation%4)+4)%4:0}));
+ }
+ WORLD.stations.push(...DISTRICTS);
  const ITEMS=[{id:'jacket',name:'Founder bomber jacket',price:60,slot:'outfit',color:'#bdff56',description:'A tailored bomber with contrast panels, zip seams, and meme graphics.'},{id:'visor',name:'Purple chaos visor',price:90,slot:'head',color:'#ca91ff',description:'A little extra attitude. Cosmetic only.'},{id:'blaster',name:'Chaos meme blaster',price:120,slot:'hand',color:'#ffb65d',description:'Upgraded arcade blaster: 36 damage to hostile bots. No player-versus-player damage.'},{id:'boots',name:'Street runner boots',price:150,slot:'feet',color:'#63dae9',description:'Run faster through the city: +25 movement speed.'}];
  const validIds=['offensive','you-missed','maduro','redacted','congress','exit'];
  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  const level=xp=>1+Math.floor(Math.sqrt(Math.max(0,xp)/50));
  WORLD.obstacles=[{x:978,y:677,w:135,h:110},...[[820,820],[1210,820],[1650,850],[430,850]].map(([x,y])=>({x,y,w:55,h:20}))];
- function blocked(x,y){return WORLD.obstacles.some(o=>x>o.x-10&&x<o.x+o.w+10&&y>o.y-8&&y<o.y+o.h+8)|| x<28||y<35||x>WORLD.width-28||y>WORLD.height-28||WORLD.buildings.some(b=>x>b.x-15&&x<b.x+b.w+15&&y>b.y-12&&y<b.y+b.h+22);}
- function nearest(p){return WORLD.stations.find(s=>dist(p,s)<105)||null;}
+ function blocked(x,y,p){
+  if(p?.area&&p.area!=='hub'){
+   if(x<180||y<230||x>2060||y>1530)return true;
+   if(p.area==='social'&&y>1260&&x<940)return true;
+   if(districtBlocks(p.area).some(b=>x>b.x-15&&x<b.x+b.w+15&&y>b.y-12&&y<b.y+b.h+22))return true;
+   if(p.area==='fortress')return (p.plot||[]).some(o=>BUILD_KIT.find(k=>k.id===o.kind)?.solid&&x>PLOT.x+o.col*64-4&&x<PLOT.x+o.col*64+60&&y>PLOT.y+o.row*64-4&&y<PLOT.y+o.row*64+60);
+   return false;
+  }
+  return WORLD.obstacles.some(o=>x>o.x-10&&x<o.x+o.w+10&&y>o.y-8&&y<o.y+o.h+8)|| x<28||y<35||x>WORLD.width-28||y>WORLD.height-28||WORLD.buildings.some(b=>x>b.x-15&&x<b.x+b.w+15&&y>b.y-12&&y<b.y+b.h+22);}
+ function nearest(p){if(p.area&&p.area!=='hub')return dist(p,{x:1120,y:1440})<110?{id:'hub',kind:'district',name:'Founder Plaza',hint:'Return to the main square',x:1120,y:1440}:null;return WORLD.stations.find(s=>dist(p,s)<105)||null;}
  function cleanName(name){return String(name||'Guest').replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,22)||'Guest';}
  class Engine{
   constructor(){this.players=new Map();this.listings=new Map();this.chat=[];this.serial=0;}
-  join(id,name,avatar){if(this.players.size>=32)throw Error('Room is full.');if(!validIds.includes(avatar))throw Error('Unknown beta avatar.');const p={id,name:cleanName(name),avatar,x:WORLD.spawn.x,y:WORLD.spawn.y,xp:0,credits:180,inventory:[],equipped:{},route:0,completed:false,input:{x:0,y:0},lastChat:0,style:{skin:0,hair:0,pants:0,print:0}};this.players.set(id,p);return p;}
+  join(id,name,avatar){if(this.players.size>=32)throw Error('Room is full.');if(!validIds.includes(avatar))throw Error('Unknown beta avatar.');const p={id,name:cleanName(name),avatar,x:WORLD.spawn.x,y:WORLD.spawn.y,xp:0,credits:180,inventory:[],equipped:{},route:0,completed:false,input:{x:0,y:0},lastChat:0,area:'hub',plot:[],style:{skin:0,hair:0,pants:0,print:0}};this.players.set(id,p);return p;}
   player(id){const p=this.players.get(id);if(!p)throw Error('Session expired. Rejoin the room.');return p;}
   input(id,x,y){const p=this.player(id);if(!Number.isFinite(x)||!Number.isFinite(y))throw Error('Invalid movement.');const n=Math.max(1,Math.hypot(x,y));p.input={x:x/n,y:y/n};}
-  tick(dt){dt=Math.max(0,Math.min(.1,dt));for(const p of this.players.values()){const nx=p.x+p.input.x*205*dt,ny=p.y+p.input.y*205*dt;if(!blocked(nx,p.y))p.x=nx;if(!blocked(p.x,ny))p.y=ny;}}
+  tick(dt){dt=Math.max(0,Math.min(.1,dt));for(const p of this.players.values()){const nx=p.x+p.input.x*205*dt,ny=p.y+p.input.y*205*dt;if(!blocked(nx,p.y,p))p.x=nx;if(!blocked(p.x,ny,p))p.y=ny;}}
   action(id,a){const p=this.player(id);if(!a||typeof a.type!=='string')throw Error('Invalid action.');
+   if(a.type==='travel'){
+    if(!['hub',...DISTRICTS.map(d=>d.id)].includes(a.area))throw Error('Unknown district.');
+    if(p.contract||p.heat>0)throw Error('Finish your contract and lose all wanted heat before travelling.');
+    p.area=a.area;p.x=1120;p.y=({hub:900,fortress:1280,creator:1080,arena:900,social:1120})[a.area];p.input={x:0,y:0};p.fireHeld=false;p.lockTarget=null;p.dashTime=0;p.hp=100;p.invulnerable=3;
+    return a.area==='hub'?'Back at Founder Plaza.':`Welcome to ${DISTRICTS.find(d=>d.id===a.area).name}.`;
+   }
+   if(a.type==='starterfort'){
+    if(p.area!=='fortress'||p.plot.length)throw Error('Starter layout needs an empty fortress plot.');
+    const plan=[{col:4,row:2,kind:'tower'},{col:11,row:2,kind:'tower'},...Array.from({length:6},(_,i)=>({col:i+5,row:2,kind:'wall'})),{col:7,row:5,kind:'home'},{col:5,row:6,kind:'banner'},{col:10,row:6,kind:'banner'},{col:3,row:7,kind:'tree'},{col:12,row:7,kind:'tree'},{col:6,row:8,kind:'lamp'},{col:9,row:8,kind:'lamp'}];
+    const cost=plan.reduce((sum,o)=>sum+BUILD_KIT.find(k=>k.id===o.kind).cost,0);
+    if(p.credits<cost)throw Error(`Starter layout costs ${cost} play credits. Earn more with city jobs.`);
+    if(plan.some(o=>BUILD_KIT.find(k=>k.id===o.kind).solid&&Math.abs(p.x-(PLOT.x+o.col*64+28))<46&&Math.abs(p.y-(PLOT.y+o.row*64+28))<46))throw Error('Step outside the plot before adding the starter layout.');
+    p.credits-=cost;p.plot=plan.map(o=>({...o,rotation:0}));return `Starter fortress built for ${cost} play credits.`;
+   }
+   if(a.type==='build'||a.type==='demolish'){
+    if(p.area!=='fortress')throw Error('Visit your fortress to build.');
+    if(!Number.isInteger(a.col)||a.col<0||a.col>=PLOT.cols||!Number.isInteger(a.row)||a.row<0||a.row>=PLOT.rows)throw Error('Choose a tile inside your plot.');
+    const index=p.plot.findIndex(o=>o.col===a.col&&o.row===a.row);
+    if(a.type==='demolish'){
+     if(index<0)throw Error('That tile is empty.');
+     const item=p.plot[index];p.credits+=BUILD_KIT.find(k=>k.id===item.kind).cost;p.plot.splice(index,1);return 'Removed. All play credits refunded.';
+    }
+    const item=BUILD_KIT.find(k=>k.id===a.kind);if(!item)throw Error('Unknown building piece.');
+    if(index>=0)throw Error('Remove the existing piece first.');
+    if(p.credits<item.cost)throw Error('Not enough play credits. Complete jobs in the main city.');
+    if(item.solid&&Math.abs(p.x-(PLOT.x+a.col*64+28))<46&&Math.abs(p.y-(PLOT.y+a.row*64+28))<46)throw Error('Move off this tile before building.');
+    p.plot.push({col:a.col,row:a.row,kind:item.id,rotation:Number.isInteger(a.rotation)?((a.rotation%4)+4)%4:0});p.credits-=item.cost;return `${item.name} built.`;
+   }
+   if(p.area!=='hub'&&['checkpoint','buy','list','purchase'].includes(a.type))throw Error('Return to the main city for this action.');
    if(a.type==='style'){
     if(!a.style||typeof a.style!=='object'||Array.isArray(a.style))throw Error('Invalid outfit style.');
     for(const [key,max]of [['skin',5],['hair',3],['pants',3]])if(!Number.isInteger(a.style[key])||a.style[key]<0||a.style[key]>max)throw Error('Invalid outfit style.');
@@ -47,7 +114,7 @@
    throw Error('Unknown action.');
   }
   leave(id){for(const [lid,l]of this.listings)if(l.seller===id)this.listings.delete(lid);this.players.delete(id);}
-  snapshot(id){const p=this.player(id);return {self:{...p,input:undefined,lastChat:undefined},players:[...this.players.values()].map(x=>({id:x.id,name:x.name,avatar:x.avatar,x:x.x,y:x.y,level:level(x.xp),style:{...x.style},equipped:Object.fromEntries(Object.entries(x.equipped).map(([slot,uid])=>[slot,x.inventory.find(i=>i.uid===uid)?.item]))})),listings:[...this.listings.values()].map(l=>({id:l.id,seller:l.seller,sellerName:l.sellerName,item:l.owned.item,price:l.price})),chat:this.chat};}
+  snapshot(id){const p=this.player(id);return {self:{...p,plot:p.plot.map(o=>({...o})),input:undefined,lastChat:undefined},players:[...this.players.values()].map(x=>({id:x.id,name:x.name,avatar:x.avatar,x:x.x,y:x.y,level:level(x.xp),area:x.area,style:{...x.style},equipped:Object.fromEntries(Object.entries(x.equipped).map(([slot,uid])=>[slot,x.inventory.find(i=>i.uid===uid)?.item]))})),listings:[...this.listings.values()].map(l=>({id:l.id,seller:l.seller,sellerName:l.sellerName,item:l.owned.item,price:l.price})),chat:this.chat};}
  }
- root.MemeCityCore=Object.freeze({WORLD,ITEMS,Engine,level,nearest,blocked,validIds});
+ root.MemeCityCore=Object.freeze({WORLD,ITEMS,DISTRICTS,BUILD_KIT,PLOT,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
 })(typeof window==='undefined'?globalThis:window);

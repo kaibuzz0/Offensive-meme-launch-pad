@@ -8,7 +8,7 @@ const root=fileURLToPath(new URL('../',import.meta.url));
 const scope={};for(const file of ['city-core.js','city-arcade.js'])vm.runInNewContext(await fs.readFile(path.join(root,file),'utf8'),scope);
 const {Engine}=scope.MemeCityCore;
 const contentTypes={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.webp':'image/webp','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
-const files=new Set(['index.html','beta.html','creators.html','city.html','city-roadmap.html','city.css','city.js','city-core.js','city-arcade.js','city-visuals.js','city-network.js','styles.css','app.js','tokens.js','launchpad-config.js','trade-core.js','trade.js','share-core.js','social.js','pwa.js','sw.js','manifest.webmanifest','offline.html','launchpad.js','launchpad.css']);
+const files=new Set(['index.html','beta.html','creators.html','city.html','city-roadmap.html','city.css','city.js','city-core.js','city-arcade.js','city-visuals.js','city-districts.js','city-network.js','styles.css','app.js','tokens.js','launchpad-config.js','trade-core.js','trade.js','share-core.js','social.js','pwa.js','sw.js','manifest.webmanifest','offline.html','launchpad.js','launchpad.css']);
 export function createCityServer({origins=[],now=()=>Date.now()}={}){
  const engine=new Engine(),sessions=new Map(),streams=new Map(),joinLimits=new Map();let last=now();
  const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));};
@@ -38,7 +38,7 @@ export function createCityServer({origins=[],now=()=>Date.now()}={}){
      streams.get(token)?.end();streams.set(token,res);res.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store, no-transform','X-Accel-Buffering':'no'});res.write(JSON.stringify(engine.snapshot(session.id))+'\n');req.on('close',()=>{if(streams.get(token)===res)streams.delete(token);});return;
     }
     if(route==='/input'&&req.method==='POST'){engine.input(session.id,body.x,body.y);engine.trigger(session.id,body.fire===true,body.aimX??1,body.aimY??0);session.lastInput=stamp;return json(res,200,{ok:true});}
-    if(route==='/action'&&req.method==='POST'){const message=engine.action(session.id,body);return json(res,200,{message,state:engine.snapshot(session.id)});}
+    if(route==='/action'&&req.method==='POST'){if(['travel','build','demolish','starterfort'].includes(body.type))throw Error('District building is currently solo only. Open city.html?solo=1.');const message=engine.action(session.id,body);return json(res,200,{message,state:engine.snapshot(session.id)});}
     if(route==='/state'&&req.method==='GET')return json(res,200,engine.snapshot(session.id));
     if(route==='/leave'&&req.method==='POST'){streams.get(token)?.end();streams.delete(token);engine.leave(session.id);sessions.delete(token);return json(res,200,{ok:true});}
     return json(res,404,{error:'Unknown room endpoint.'});

@@ -100,3 +100,15 @@ Avatar and Gear panels share a high-resolution wardrobe using the same character
 ### Visual homepage introductions
 
 The homepage has two animated entry cards for creators and Meme City. Accessible native dialogs summarize the creator vision and the playable city; decorative motion respects reduced-motion preferences. The game opens with a scrollable welcome screen explaining clothing, contracts, play credits and controls before starting. Public worldwide multiplayer and custom community collections remain clearly labeled as goals in development.
+
+### Districts / Alpha 05
+
+Founder Square has four corner gateways and a Districts transit menu. Fortress Heights is a private, solo 16 × 10 tile construction plot; Creator Quarter is a six-collection gallery linked to the wardrobe; Arena District has a terminal that returns players to the hub and starts an existing combat/courier/pursuit contract; Social Boardwalk is a waterfront with NPCs and local greeting emotes. The latter three establish creative, competitive and community connections as separate directions for future shared play.
+
+Fortress construction uses only play credits: wall 8, tower 22, HQ 35, banner 6, tree 5, lamp 4, paving 2. Removal refunds the exact price. A fresh 180-credit character can optionally buy the 157-credit starter layout. The core validates bounds, piece types, duplicates, affordability and building under the player; solid construction blocks movement and dash. Starter placement is atomic. Plot data is validated and bounded on save restoration. No token purchase is required and plots have no real-world ownership or redemption value.
+
+Travel requires no active contract and zero heat. Peaceful district players cannot shoot, start hub contracts, claim hub checkpoints or collect hub pickups; hub bots and bullets cannot hurt them. Travel clears owned projectiles. Private plots are not included in peer profiles. The optional multiplayer server rejects district construction/travel actions for now: use `city.html?solo=1` to access your separate browser save. Public visits, plot linking, hosted meetups, uploads, co-op events and moderation remain future work.
+
+`city-districts.js` contains new architecture, textured stonework, layered landscaping, waterfront and construction rendering. The game remains a stylized 2D canvas implementation; this release does not claim full 3D graphics. Existing solo saves migrate without resetting XP, gear or credits.
+
+Validation: catalog/static syntax checks and 49 Node tests including construction accounting, collision, save sanitization, private snapshots, district safety and HTTP isolation. Browser checks cover placement/refund, saved plot reload, district transit, collection wardrobe, challenge entry and phone layouts.

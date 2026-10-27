@@ -21,14 +21,14 @@
  }
  function move(o,x,y){
   const n=Math.max(1,Math.ceil(Math.hypot(x,y)/7));
-  for(let i=0;i<n;i++){if(!C.blocked(o.x+x/n,o.y))o.x+=x/n;if(!C.blocked(o.x,o.y+y/n))o.y+=y/n;}
+  for(let i=0;i<n;i++){if(!C.blocked(o.x+x/n,o.y,o))o.x+=x/n;if(!C.blocked(o.x,o.y+y/n,o))o.y+=y/n;}
  }
  function visible(a,b){
   const steps=Math.ceil(distance(a,b)/10);
   for(let i=1;i<steps;i++)if(C.blocked(a.x+(b.x-a.x)*i/steps,a.y+(b.y-a.y)*i/steps))return false;
   return true;
  }
- function safe(p){return !p.contract&&p.heat<1&&distance(p,WORLD.spawn)<90;}
+ function safe(p){return (p.area&&p.area!=='hub')||!p.contract&&p.heat<1&&distance(p,WORLD.spawn)<90;}
  function effect(e,x,y,text,color='#bdff56'){e.arcade.effects.push({id:++e.serial,x,y,text,color,ttl:1.1});if(e.arcade.effects.length>45)e.arcade.effects.shift();}
  function notify(p,text){p.notice=text;p.noticeSeq=(p.noticeSeq||0)+1;}
  function cleanup(e,id){e.arcade.bots=e.arcade.bots.filter(b=>b.owner!==id);}
@@ -99,7 +99,7 @@
   for(const p of this.players.values()){
    for(const k of ['fireCooldown','dashCooldown','invulnerable','missionCooldown'])p[k]=Math.max(0,p[k]-dt);
    p.quiet+=dt;
-   p.policeSeen=p.heat>=22&&a.bots.some(b=>b.kind==='cop'&&b.hp>0&&distance(b,p)<570&&visible(b,p));
+   p.policeSeen=p.area==='hub'&&p.heat>=22&&a.bots.some(b=>b.kind==='cop'&&b.hp>0&&distance(b,p)<570&&visible(b,p));
    if(p.quiet>5&&!p.policeSeen)p.heat=Math.max(0,p.heat-dt*3.8);
    if(p.comboUntil<a.time)p.combo=0;
    if(safe(p)&&p.quiet>5)p.hp=Math.min(100,p.hp+8*dt);
@@ -111,7 +111,7 @@
     if(p.contract.remaining<=0){result(this,p,'expired');notify(p,'Contract expired. Pick another job from the mission board.');}
     else if(p.contract.type==='escape'&&p.heat<8&&!p.policeSeen&&a.time-p.contract.started>12)win(this,p);
    }
-   for(const item of a.pickups){
+   for(const item of (p.area==='hub'?a.pickups:[])){
     if(a.time<item.ready||distance(p,item)>30||item.kind==='med'&&p.hp===100)continue;
     item.ready=a.time+25;
     if(item.kind==='med'){p.hp=Math.min(100,p.hp+35);effect(this,p.x,p.y,'+35 HEALTH','#6ce6d0');}
@@ -119,7 +119,7 @@
    }
   }
   // Held fire advances with the simulation, so a slow render frame does not lower fire rate.
-  for(const p of this.players.values())if(p.fireHeld&&p.fireCooldown<.000001&&!(p.contract?.countdown>0)){
+  for(const p of this.players.values())if(p.area==='hub'&&p.fireHeld&&p.fireCooldown<.000001&&!(p.contract?.countdown>0)){
    p.fireCooldown=0;this.action(p.id,{type:'fire',x:p.fireAim.x,y:p.fireAim.y});
   }
   for(const b of [...a.bots]){
@@ -134,8 +134,8 @@
     b.windup=Math.max(0,b.windup-dt);b.state='attack';
     if(b.windup===0){
      const victim=this.players.get(b.attackTarget);
-     if(victim&&b.kind==='cop'&&b.aim)bullet(this,b,b.aim,'bot',victim.id,10);
-     else if(victim&&distance(b,victim)<64&&visible(b,victim))hurt(this,victim,12);
+     if(victim&&victim.area==='hub'&&b.kind==='cop'&&b.aim)bullet(this,b,b.aim,'bot',victim.id,10);
+     else if(victim&&victim.area==='hub'&&distance(b,victim)<64&&visible(b,victim))hurt(this,victim,12);
      b.cooldown=b.kind==='cop'?1.15:1.05;b.state='recover';
     }
    }else if(p){
@@ -143,7 +143,7 @@
     if(b.cooldown===0&&((b.kind==='cop'&&d<410)||(b.kind==='gang'&&d<52))){
      b.windup=b.kind==='cop'?.65:.48;b.windupMax=b.windup;b.attackTarget=p.id;b.aim={x:p.x,y:p.y};b.state='attack';
     }else if(d>(b.kind==='cop'?150:43))steer(this,b,p,b.kind==='cop'?158:113,dt);
-   }else if(old&&b.lastSeen&&a.time-b.seenAt<5&&!safe(old)&&(!b.owner||old.contract)){
+   }else if(old&&old.area==='hub'&&b.lastSeen&&a.time-b.seenAt<5&&!safe(old)&&(!b.owner||old.contract)){
     b.state='search';steer(this,b,b.lastSeen,115,dt);
    }else{
     b.state='patrol';b.targetId=null;b.windup=0;
@@ -187,7 +187,7 @@
      }
     }else{
      const p=this.players.get(q.owner);
-     if(p&&Math.hypot(q.x-p.x,q.y-(p.y-18))<20){hurt(this,p,q.damage);hit=true;}
+     if(p&&p.area==='hub'&&Math.hypot(q.x-p.x,q.y-(p.y-18))<20){hurt(this,p,q.damage);hit=true;}
     }
    }
    if(hit||q.ttl<=0)a.bullets.splice(i,1);
@@ -198,6 +198,7 @@
  P.action=function(id,action){
   init(this);const p=this.player(id),a=this.arcade;
   if(!action||typeof action.type!=='string')throw Error('Invalid action.');
+  if(p.area!=='hub'&&['fire','contract','deliver'].includes(action.type))throw Error('Combat contracts are played in the main city.');
   if(action.type==='fire'){
    const x=Number(action.x),y=Number(action.y);if(!Number.isFinite(x)||!Number.isFinite(y))throw Error('Invalid aim.');
    if(p.contract?.countdown>0)throw Error('Get ready — the job is starting.');
@@ -238,7 +239,9 @@
    if(distance(p,WORLD.route[1])>100)throw Error('Get closer to the delivery beacon.');
    win(this,p);return 'Delivery complete!';
   }
-  return base.action.call(this,id,action);
+  const message=base.action.call(this,id,action);
+  if(action.type==='travel')a.bullets=a.bullets.filter(q=>q.owner!==id);
+  return message;
  };
  P.leave=function(id){if(this.arcade)cleanup(this,id);return base.leave.call(this,id);};
  P.snapshot=function(id){
