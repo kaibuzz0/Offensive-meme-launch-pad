@@ -23,6 +23,12 @@
       if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
     });
   });
+  // Keep each choice focused and stop hidden trailer audio when a card closes.
+  document.querySelectorAll('.portal-details').forEach(panel => {
+    panel.addEventListener('toggle', () => {
+      if (!panel.open) panel.querySelectorAll('video').forEach(video => video.pause());
+    });
+  });
   const copyMint = document.querySelector('[data-copy-platform-mint]');
   copyMint?.addEventListener('click', async () => {
     const status = document.querySelector('[data-mint-copy-status]');
