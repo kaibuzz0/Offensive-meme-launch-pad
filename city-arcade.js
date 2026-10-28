@@ -178,15 +178,15 @@
     b.windup=Math.max(0,b.windup-dt);b.state='attack';
     if(b.windup===0){
      const victim=this.players.get(b.attackTarget)||a.guards.find(g=>g.id===b.attackTarget&&g.hp>0);
-     if(victim&&!peaceful(victim)&&b.kind==='cop'&&b.aim)bullet(this,b,b.aim,'bot',victim.id,10);
+     if(victim&&!peaceful(victim)&&(b.kind==='cop'||b.ranged)&&b.aim)bullet(this,b,b.aim,'bot',victim.id,b.boss?14:b.ranged?8:10);
      else if(victim&&!peaceful(victim)&&distance(b,victim)<64&&visible(b,victim))hurt(this,victim,12);
      b.cooldown=b.kind==='cop'?1.15:1.05;b.state='recover';
     }
    }else if(p){
     const d=distance(b,p);b.state='chase';
-    if(b.cooldown===0&&((b.kind==='cop'&&d<410)||(b.kind==='gang'&&d<52))){
-     b.windup=b.kind==='cop'?.65:.48;b.windupMax=b.windup;b.attackTarget=p.id;b.aim={x:p.x,y:p.y};b.state='attack';
-    }else if(d>(b.kind==='cop'?150:43))steer(this,b,p,b.kind==='cop'?158:113,dt);
+    if(b.cooldown===0&&(((b.kind==='cop'||b.ranged)&&d<410)||(b.kind==='gang'&&!b.ranged&&d<52))){
+     b.windup=b.ranged?.8:b.kind==='cop'?.65:.48;b.windupMax=b.windup;b.attackTarget=p.id;b.aim={x:p.x,y:p.y};b.state='attack';
+    }else if(d>(b.kind==='cop'||b.ranged?150:43))steer(this,b,p,b.boss?86:b.kind==='cop'||b.ranged?158:113,dt);
    }else if(old&&!peaceful(old)&&b.lastSeen&&a.time-b.seenAt<5&&!safe(old)&&(!b.owner||old.contract)){
     b.state='search';steer(this,b,b.lastSeen,115,dt);
    }else{

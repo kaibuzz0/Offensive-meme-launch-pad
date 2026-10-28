@@ -116,3 +116,16 @@ The character renderer now connects both shoulders and forearms to the rifle gri
 The existing save key remains compatible: version 1 local district coordinates migrate into version 2 world coordinates, retaining XP, credits, gear, style and construction. Private plots and hired NPCs are currently solo features. The optional room server allows walking around the expanded map but rejects construction, hiring, squad orders and defense drills. Public multiplayer hosting, connected player ownership, moderation and shared fortress visits remain future work.
 
 Validation: catalog/static syntax checks, 60 Node tests covering continuous walking routes through every district, legacy position migration, construction accounting/collision, roster ownership/caps, follower movement, actual NPC combat, recovery, cover, point-blank shots, full squad defense, atomic rewards and no reward on a bust. Browser checks cover walking from the square to the fortress, hiring and orders, fortress/squad reload, a complete player-and-NPC defense drill, weapon poses, desktop controls and phone layout.
+
+
+### City Rising / Alpha 07
+
+`city-rise.js` adds an eight-chapter journey, twelve collectible landmarks, five scripted activity guides, a free accelerating hoverboard, medkits, three permanent fortress HQ upgrades, and three-wave survival ending in the Rug Baron. `city-rise-visuals.js` renders landmark diamonds, guides, recovery zones, hoverboard effects, a dusk/night clock, rain and streetlight reflections. `city-arcade.js` supports telegraphed ranged gang enemies and the boss without enabling player-versus-player damage.
+
+- Open **Journey** (J) to track and claim chapter rewards. Each landmark pays 20 play credits and 20 XP once; chapters must be claimed in order.
+- **V / Ride** mounts the free city-loaner board. Collision is shared with walking; firing/dashing dismounts. Active challenges and wanted pursuits prevent mounting.
+- **H / Heal** restores 45 HP using one medkit. Two are granted when first entering this update; restock beside Patch for 25 play credits, with a carry limit of nine.
+- **Menu → Upgrade fortress HQ** requires a home and four placed pieces. Upgrade prices are 120 / 220 / 350 play credits. Each level adds 20 max defender HP, idle squad recovery and an out-of-combat HQ healing zone.
+- **Menu → Arena survival** marks Marshal in Arena District. Start nearby, survive 3 / 4 / 5 enemies across three waves and defeat the 420-HP Rug Baron within four minutes. Full clears award 180 play credits and 160 XP once per run. Leaving, abandonment, busting and expiration clean up the run without clear rewards. Following defenders can fight alongside you. Full-clear cooldown: 40 seconds.
+
+The existing save key now stores version 3. Version 1/2 saves retain character, inventory, gear, plots, hired defenders, XP and play credits; journey data initializes separately. Only persistent progression is serialized: active arena runs, riding, HP, heat and weather clocks reset between sessions. The public release remains solo; multiplayer hosting and durable shared ownership are still separate milestones. All new progression is game-only and does not grant tokens or cash rewards.
