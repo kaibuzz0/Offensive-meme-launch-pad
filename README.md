@@ -129,3 +129,9 @@ Validation: catalog/static syntax checks, 60 Node tests covering continuous walk
 - **Menu → Arena survival** marks Marshal in Arena District. Start nearby, survive 3 / 4 / 5 enemies across three waves and defeat the 420-HP Rug Baron within four minutes. Full clears award 180 play credits and 160 XP once per run. Leaving, abandonment, busting and expiration clean up the run without clear rewards. Following defenders can fight alongside you. Full-clear cooldown: 40 seconds.
 
 The existing save key now stores version 3. Version 1/2 saves retain character, inventory, gear, plots, hired defenders, XP and play credits; journey data initializes separately. Only persistent progression is serialized: active arena runs, riding, HP, heat and weather clocks reset between sessions. The public release remains solo; multiplayer hosting and durable shared ownership are still separate milestones. All new progression is game-only and does not grant tokens or cash rewards.
+
+### Open Doors / Alpha 08
+
+Distance-driven jointed walk cycles, foot lift, arm swing, upper-body lean and eased stops preserve the arcade look. Trees, lamps, benches, ambient traffic and pedestrians now join the actor depth queue; tree trunks also have small collision footprints.
+
+All eleven city buildings have walkable themed cutaway interiors, plus a built Meme HQ. Approach a marked front door and press E; walk to the rear activity terminal or the bottom exit. Furnishings block movement, first visits award 10 play credits / 15 XP, and each room has a one-time 25 XP memento. Discovery passports migrate with existing solo saves (version 4); reloading returns the player outside. Combat, challenges and hoverboards are disabled indoors. Public multiplayer remains pending hosting.

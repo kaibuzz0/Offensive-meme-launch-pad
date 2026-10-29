@@ -8,22 +8,17 @@
  function rounded(c,x,y,w,h,r,fill){c.fillStyle=fill;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
  function gradient(c,x,y,w,h,a,b){const g=c.createLinearGradient(x,y,x+w,y+h);g.addColorStop(0,a);g.addColorStop(1,b);return g;}
  function text(c,value,x,y,size,color,weight='700'){c.fillStyle=color;c.font=`${weight} ${size}px Arial`;c.textAlign='center';c.fillText(value,x,y);}
- function drawBody(c,o,pose){
-  const style=o.style||{},role=o.role||'player',guard=role==='guard',cop=role==='cop',gang=role==='gang',civilian=role==='civilian',back=!!o.back;
-  const tone=skin[style.skin||0],hairColor=hair[style.hair||0],pants=denim[style.pants||0],gear=o.gear||{};
-  const accent=cop?'#8db9e4':gang?'#c56d83':o.color||'#b7ef84';
-  const coat=guard?(o.color||'#6e8e78'):cop?'#324c68':gang?'#4b293c':gear.outfit?'#5e7654':civilian?(o.color||'#647d8d'):'#303e4d';
-  c.translate(65,132);
-  // Articulated legs: shaped denim panels, stitching, knees, cuffs, and soles.
+ function drawLegs(c,o,pose){
+  const style=o.style||{},role=o.role||'player',civilian=role==='civilian',cop=role==='cop',gang=role==='gang',gear=o.gear||{},pants=denim[style.pants||0];
+  // A planted foot alternates with a lifted swing foot. Travel distance drives the stride.
+  const hx=o.travel?.x??1,hy=o.travel?.y??0;
   for(const side of [-1,1]){
-   const legX=side<0?-14:2,step=pose*side;
-   const hip=legX+6,knee=hip+step*.12,ankle=hip+step*.22;
-   c.fillStyle=gradient(c,legX,-40,16,37,pants,'#17232e');c.beginPath();c.moveTo(hip-6,-40);c.lineTo(knee-6,-24);c.lineTo(ankle-6,-6+step);c.quadraticCurveTo(ankle,-3+step,ankle+6,-6+step);c.lineTo(knee+6,-24);c.lineTo(hip+6,-40);c.closePath();c.fill();
-   c.strokeStyle='#8492a546';c.lineWidth=.7;c.beginPath();c.moveTo(legX+2,-36);c.lineTo(legX+2,-10+step);c.stroke();
-   rounded(c,legX+1,-23+step*.4,10,9,2,'#9cabbe12');
-   rounded(c,legX-2,-8+step,17,9,3,gear.feet?'#375c66':'#20242d');
-   rounded(c,legX-2,-2+step,17,3,1,gear.feet?'#8de0d4':'#94a0ab');
-   for(let n=0;n<3;n++){c.strokeStyle='#b9c5cd88';c.lineWidth=.7;c.beginPath();c.moveTo(legX+3,-6+step+n*1.5);c.lineTo(legX+10,-6+step+n*1.5);c.stroke();}
+   const step=pose*side,hip=side<0?-8:8,knee=hip+step*hx*.5,ankle=hip+step*hx*.95,lift=Math.max(0,step)*.65,footY=-3+step*hy*.65-lift;
+   c.fillStyle=gradient(c,hip-8,-40,16,40,pants,'#172733');c.beginPath();c.moveTo(hip-7,-41);c.lineTo(knee-6,-23-lift*.25);c.lineTo(ankle-6,footY-4);c.quadraticCurveTo(ankle,footY,ankle+6,footY-4);c.lineTo(knee+6,-23-lift*.25);c.lineTo(hip+7,-41);c.closePath();c.fill();
+   c.strokeStyle='#adbdc548';c.lineWidth=.8;c.beginPath();c.moveTo(hip-3,-38);c.lineTo(knee-3,-23-lift*.25);c.lineTo(ankle-3,footY-5);c.stroke();
+   rounded(c,knee-5,-24-lift*.25,10,7,2,'#c4cfd614');
+   rounded(c,ankle-7,footY-5,18,8,3,gear.feet?'#375c66':'#202a35');rounded(c,ankle-7,footY+1,19,3,1,gear.feet?'#8de0d4':'#a7b3bd');
+   c.strokeStyle='#dce5e88a';c.lineWidth=.8;for(let n=0;n<3;n++){c.beginPath();c.moveTo(ankle-2,footY-3+n*1.4);c.lineTo(ankle+4,footY-3+n*1.4);c.stroke();}
   }
   // Ticker on the trouser leg stays text, independent of the image print.
   if(!civilian&&!cop&&!gang){
@@ -35,16 +30,24 @@
    }else{c.save();c.translate(10,-36);c.rotate(Math.PI/2);text(c,`$${o.ticker||'MEME'}`,11,0,4.5,'#dbe7ed');c.restore();}
   }
   rounded(c,-15,-44,31,8,3,'#25303b');rounded(c,-14,-43,29,3,1,'#667784');rounded(c,-3,-43,6,4,1,'#afb9bd');
-  // Arms and sleeves have fabric folds, shoulder seams, and visible hands.
-  for(const side of [-1,1]){
-   if(o.armed)continue;
-   const x=side<0?-24:16,arm=pose*side*.65;
-   if(o.gesture&&side===1){rounded(c,17,-94,9,27,4,coat);rounded(c,18,-111,7,20,3,tone);rounded(c,17,-116,9,10,3,tone);continue;}
-   rounded(c,x,-74,9,24+arm,4,gradient(c,x,-74,10,27,coat,'#1b2836'));
-   rounded(c,x+1,-54+arm,7,13,3,gradient(c,x,-53,9,12,tone,'#79503c'));
-   rounded(c,x+.2,-44+arm,8,7,3,tone);
-   c.strokeStyle='#c4d1d22b';c.lineWidth=.7;c.beginPath();c.moveTo(x+2,-67);c.lineTo(x+6,-67);c.stroke();
-  }
+
+ }
+ function drawArms(c,o,pose){
+  if(o.armed)return;const tone=skin[o.style?.skin||0],role=o.role||'player',coat=role==='civilian'?(o.color||'#647d8d'):o.gear?.outfit?'#5e7654':o.color||'#3b5361';
+  c.save();c.lineCap='round';c.lineJoin='round';
+  for(const side of [-1,1]){const swing=pose*side,shoulder={x:side*18,y:-73},elbow={x:side*(23+Math.abs(swing)*.25),y:-54+swing*.6},hand={x:side*21+swing*.45,y:-37+swing*.7};
+   if(o.gesture&&side===1){elbow.x=27;elbow.y=-92;hand.x=25;hand.y=-112;}
+   c.strokeStyle='#142835';c.lineWidth=10;c.beginPath();c.moveTo(shoulder.x,shoulder.y);c.lineTo(elbow.x,elbow.y);c.stroke();c.strokeStyle=coat;c.lineWidth=8;c.stroke();
+   c.strokeStyle=tone;c.lineWidth=6;c.beginPath();c.moveTo(elbow.x,elbow.y);c.lineTo(hand.x,hand.y);c.stroke();c.fillStyle=tone;c.beginPath();c.ellipse(hand.x,hand.y,4,4.5,-.1*side,0,7);c.fill();
+  }c.restore();
+ }
+ function drawBody(c,o,pose){
+  const style=o.style||{},role=o.role||'player',guard=role==='guard',cop=role==='cop',gang=role==='gang',civilian=role==='civilian',back=!!o.back;
+  const tone=skin[style.skin||0],hairColor=hair[style.hair||0],pants=denim[style.pants||0],gear=o.gear||{};
+  const accent=cop?'#8db9e4':gang?'#c56d83':o.color||'#b7ef84';
+  const coat=guard?(o.color||'#6e8e78'):cop?'#324c68':gang?'#4b293c':gear.outfit?'#5e7654':civilian?(o.color||'#647d8d'):'#303e4d';
+  c.translate(65,132);
+  if(!o.upperOnly){drawLegs(c,o,pose);drawArms(c,o,pose);}
   c.fillStyle=gradient(c,-20,-78,40,40,coat,'#1a2633');c.beginPath();c.moveTo(-14,-78);c.quadraticCurveTo(-22,-75,-20,-65);c.lineTo(-16,-42);c.quadraticCurveTo(0,-38,17,-42);c.lineTo(20,-65);c.quadraticCurveTo(19,-75,13,-78);c.closePath();c.fill();
   c.strokeStyle='#d4e3ef22';c.lineWidth=.8;c.beginPath();c.moveTo(-16,-70);c.lineTo(-13,-45);c.moveTo(16,-70);c.lineTo(13,-45);c.stroke();
   rounded(c,-10,-81,21,7,3,'#172432');
@@ -92,17 +95,28 @@
   if(gear.head&&!back){rounded(c,-12,-99,24,7,3,gradient(c,-12,-99,24,7,'#c4a3ff','#5b4c8f'));c.fillStyle='#e8ddff9c';c.fillRect(-7,-98,7,1.4);}
   c.restore();
  }
+ const motionStates=new Map();
+ function motion(id,x,y,time,moving,phase=0){
+  const key=String(id),old=motionStates.get(key);let stride=old?.stride||phase,amount=old?.amount||0,travel=old?.travel||{x:1,y:0},speed=0;
+  if(old){const dt=Math.max(.001,Math.min(.1,(time-old.time)/1000)),distance=Math.hypot(x-old.x,y-old.y);if(distance>0.02&&distance<90){stride+=distance/20;speed=distance/dt;travel={x:(x-old.x)/distance,y:(y-old.y)/distance};}const target=distance>.02&&distance<90&&moving!==false?Math.min(1,speed/120):0;amount+=(target-amount)*(1-Math.exp(-dt*18));}
+  const result={x,y,time,stride,amount,travel,speed};motionStates.set(key,result);if(motionStates.size>160)motionStates.delete(motionStates.keys().next().value);return result;
+ }
  function person(c,o,time=0){
-  const pose=o.moving?Math.round(Math.sin(time/110+(o.phase||0))*5):0;
+  const state=o.id?motion(o.id,o.x,o.y,time,o.moving,o.phase||0):null,amount=state?.amount??(o.moving?1:0),cycle=state?.stride??time/115+(o.phase||0),pose=Math.sin(cycle)*6*amount;
+  const facing=o.aim||state?.travel||{x:0,y:1},back=o.back??(facing.y<-.5&&Math.abs(facing.x)<.8),profile=facing.x>.45?1:facing.x<-.45?-1:0;
+  o={...o,back,travel:state?.travel||{x:1,y:0}};
   const ready=!!o.image?.complete&&!!o.image?.naturalWidth,style=o.style||{},gear=o.gear||{};
-  const key=[o.role||'player',o.ticker||'',o.color||'',style.skin||0,style.hair||0,style.pants||0,style.print||0,o.coinName||'',gear.outfit||'',gear.head||'',gear.feet||'',!!o.back,!!o.gesture,!!o.armed,pose,ready].join('|');
+  const key=[o.role||'player',o.ticker||'',o.color||'',style.skin||0,style.hair||0,style.pants||0,o.coinName||'',gear.outfit||'',gear.head||'',back,ready].join('|');
   let sprite=cache.get(key);
-  if(!sprite){const surface=document.createElement('canvas');surface.width=260;surface.height=288;const g=surface.getContext('2d');g.scale(2,2);drawBody(g,o,pose);sprite=surface;cache.set(key,sprite);if(cache.size>96)cache.delete(cache.keys().next().value);}
+  if(!sprite){const surface=document.createElement('canvas');surface.width=260;surface.height=288;const g=surface.getContext('2d');g.scale(2,2);drawBody(g,{...o,upperOnly:true},0);sprite=surface;cache.set(key,sprite);if(cache.size>64)cache.delete(cache.keys().next().value);}
   const scale=o.scale||1;c.save();c.translate(o.x,o.y);c.scale(scale,scale);
-  const shadow=c.createRadialGradient(0,2,2,0,2,24);shadow.addColorStop(0,'#03081080');shadow.addColorStop(1,'#03081000');c.save();c.scale(1,.4);c.fillStyle=shadow;c.beginPath();c.arc(0,5,24,0,Math.PI*2);c.fill();c.restore();
-  c.save();const bob=o.moving?-Math.abs(pose)*.28:Math.sin(time/750+(o.phase||0))*.35;c.translate(0,bob);c.rotate(o.moving?pose*.0025:0);
-  if(scale>=2){c.save();c.translate(-65,-132);drawBody(c,o,pose);c.restore();}else c.drawImage(sprite,-65,-132,130,144);
-  if(o.armed){const a=o.aim||{x:1,y:0},angle=Math.atan2(a.y,a.x);heldWeapon(c,{...o,angle});}c.restore();c.restore();
+  const shadow=c.createRadialGradient(0,2,2,0,2,25);shadow.addColorStop(0,'#03081090');shadow.addColorStop(1,'#03081000');c.save();c.scale(1,.4);c.fillStyle=shadow;c.beginPath();c.arc(0,5,25,0,7);c.fill();c.restore();
+  drawLegs(c,o,pose);
+  c.save();const bob=-Math.abs(Math.cos(cycle*2))*1.1*amount+(1-amount)*Math.sin(time/950+(o.phase||0))*.3;
+  c.translate(profile*amount*.9,bob);c.rotate((o.dashing?profile*.09:profile*.025)*amount);
+  drawArms(c,o,pose);
+  c.save();c.scale(profile?.96:1,1);if(scale>=2){c.translate(-65,-132);drawBody(c,{...o,upperOnly:true},0);}else c.drawImage(sprite,-65,-132,130,144);c.restore();
+  if(o.armed){const angle=Math.atan2(facing.y,facing.x);heldWeapon(c,{...o,angle});}c.restore();c.restore();
  }
  function heldWeapon(c,o){
   const angle=o.angle||0,recoil=o.flash?3:0,ca=Math.cos(angle),sa=Math.sin(angle),pivot={x:-ca*recoil,y:-60-sa*recoil};
@@ -151,5 +165,5 @@
   rounded(c,b.x+b.w-110,b.y+b.h-79,72,16,2,'#1a2b3a');text(c,b.id==='garage'?'SERVICE':b.id==='shop'?'STREETWEAR':'OPEN LATE',b.x+b.w-74,b.y+b.h-68,5.5,'#c7d0cc');
   c.restore();
  }
- root.CityVisuals=Object.freeze({person,weapon,groundFinish,architecture});
+ root.CityVisuals=Object.freeze({person,motion,weapon,groundFinish,architecture});
 })(window);

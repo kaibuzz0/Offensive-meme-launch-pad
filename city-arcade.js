@@ -8,7 +8,7 @@
  const spots=[[1510,800],[1830,690],[470,640],[850,560],[1950,900],[620,1230],[1450,1390],[430,1480]];
  const patrol=[[620,500],[1440,1000],[1800,550],[620,1010]];
  const jobs={bounty:{name:'Street Sweep',duration:90,reward:100},courier:{name:'Special Delivery',duration:65,reward:85},escape:{name:'Lose the Heat',duration:55,reward:120}};
- const peaceful=p=>['creator','social'].includes(C.areaAt(p.x,p.y));
+ const peaceful=p=>!!p.room||['creator','social'].includes(C.areaAt(p.x,p.y));
  function init(e){
   if(e.arcade)return;
   e.arcade={time:0,bots:[],guards:[],bullets:[],effects:[],pickups:[]};

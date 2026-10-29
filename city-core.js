@@ -59,12 +59,26 @@
  for(const p of [...WORLD.stations,...WORLD.route])p.x+=HUB.x;
  WORLD.stations.push(...DISTRICTS.map(d=>({...d})),...DISTRICTS.map(d=>({id:'road-'+d.id,x:HUB.x+d.gate.x,y:d.gate.y,name:d.name,hint:d.hint,kind:'directions',district:d.id})));
 
+ const SCENERY=[];
+ const prop=(kind,x,y,scale=1)=>SCENERY.push({id:`${kind}-${SCENERY.length}`,kind,x,y,scale});
+ for(const [x,y]of [[775,640],[1303,640],[775,830],[1303,830]])prop('tree',HUB.x+x,y,.62);
+ for(const [x,y]of [[330,760],[1600,750],[1930,750],[90,650],[2160,840]])prop('tree',HUB.x+x,y,.85);
+ for(const [x,y]of [[590,570],[1370,570],[590,1080],[1370,1080],[760,870],[1320,870],[1550,880]])prop('lamp',HUB.x+x,y);
+ for(const [x,y]of [[820,820],[1210,820],[1650,850],[430,850]])prop('bench',HUB.x+x,y+14);
+ for(let x=2350;x<4300;x+=260){prop('tree',x,1900,.9);prop('tree',x,3070,1.1);prop('lamp',x,2400);}
+ for(let y=1740;y<3270;y+=230){prop('tree',3010,y,.8);prop('tree',3720,y,.8);}
+ for(const d of DISTRICTS){
+  for(const [x,y]of [[280,690],[1950,690],[280,1180],[1950,1180],[830,1160],[1400,1160]])prop('tree',d.ox+x,d.oy+y,1.1);
+  for(const [x,y]of [[900,980],[1340,980],[900,1280],[1340,1280],[460,750],[1790,750]])prop('lamp',d.ox+x,d.oy+y);
+  for(let i=0;i<5;i++)prop('bench',d.ox+600+i*210,d.oy+1395);
+ }
  const ITEMS=[{id:'jacket',name:'Founder bomber jacket',price:60,slot:'outfit',color:'#bdff56',description:'A tailored bomber with contrast panels, zip seams, and meme graphics.'},{id:'visor',name:'Purple chaos visor',price:90,slot:'head',color:'#ca91ff',description:'A little extra attitude. Cosmetic only.'},{id:'blaster',name:'Chaos meme blaster',price:120,slot:'hand',color:'#ffb65d',description:'Upgraded arcade blaster: 36 damage to hostile bots. No player-versus-player damage.'},{id:'boots',name:'Street runner boots',price:150,slot:'feet',color:'#63dae9',description:'Run faster through the city: +25 movement speed.'}];
  const validIds=['offensive','you-missed','maduro','redacted','congress','exit'];
  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  const level=xp=>1+Math.floor(Math.sqrt(Math.max(0,xp)/50));
  WORLD.obstacles=[{x:978,y:677,w:135,h:110},...[[820,820],[1210,820],[1650,850],[430,850]].map(([x,y])=>({x,y,w:55,h:20}))];
  for(const o of WORLD.obstacles)o.x+=HUB.x;
+ for(const o of SCENERY.filter(o=>o.kind==='tree'))WORLD.obstacles.push({x:o.x-6,y:o.y-7,w:12,h:12});
  const districtSolids=DISTRICTS.flatMap(d=>districtBlocks(d.id).map(b=>({...b,x:b.x+d.ox,y:b.y+d.oy})));
  function blocked(x,y,p){
   if(!Number.isFinite(x)||!Number.isFinite(y)||x<28||y<35||x>WORLD.width-28||y>WORLD.height-28)return true;
@@ -126,5 +140,5 @@
   leave(id){for(const [lid,l]of this.listings)if(l.seller===id)this.listings.delete(lid);this.players.delete(id);}
   snapshot(id){const p=this.player(id);return {self:{...p,plot:p.plot.map(o=>({...o})),crew:p.crew.map(o=>({...o,...(o.post?{post:{...o.post}}:{})})),input:undefined,lastChat:undefined},players:[...this.players.values()].map(x=>({id:x.id,name:x.name,avatar:x.avatar,x:x.x,y:x.y,level:level(x.xp),area:x.area,style:{...x.style},equipped:Object.fromEntries(Object.entries(x.equipped).map(([slot,uid])=>[slot,x.inventory.find(i=>i.uid===uid)?.item]))})),listings:[...this.listings.values()].map(l=>({id:l.id,seller:l.seller,sellerName:l.sellerName,item:l.owned.item,price:l.price})),chat:this.chat};}
  }
- root.MemeCityCore=Object.freeze({WORLD,HUB,ITEMS,DISTRICTS,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
+ root.MemeCityCore=Object.freeze({WORLD,HUB,SCENERY,ITEMS,DISTRICTS,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
 })(typeof window==='undefined'?globalThis:window);

@@ -21,7 +21,7 @@
  }
  function layers(c,p,time){return R.GUIDES.filter(g=>Math.hypot(g.x-p.x,g.y-p.y)<1400).map((g,i)=>({y:g.y,draw:()=>{
   c.fillStyle=g.color+'22';c.beginPath();c.ellipse(g.x,g.y+2,27,12,0,0,7);c.fill();c.strokeStyle=g.color+'66';c.lineWidth=1;c.stroke();
-  root.CityVisuals.person(c,{x:g.x,y:g.y,role:'civilian',color:g.color,style:{skin:(i+2)%6,hair:i%4,pants:i%4},gesture:Math.sin(time/1800+i)>.92},time);text(c,g.name,g.x,g.y-126,9,g.color);text(c,'◇',g.x,g.y-145+Math.sin(time/500)*3,20,g.color);
+  root.CityVisuals.person(c,{id:'guide-'+g.id,x:g.x,y:g.y,role:'civilian',color:g.color,style:{skin:(i+2)%6,hair:i%4,pants:i%4},gesture:Math.sin(time/1800+i)>.92},time);text(c,g.name,g.x,g.y-126,9,g.color);text(c,'◇',g.x,g.y-145+Math.sin(time/500)*3,20,g.color);
  }}));}
  function board(c,x,y,aim,time,moving){
   c.save();c.translate(x,y);c.fillStyle='#080f1955';c.beginPath();c.ellipse(2,10,35,12,0,0,7);c.fill();
