@@ -1,6 +1,6 @@
 # Meme City / Play Together (Alpha 09)
 
-An authoritative Node 22+ service serves the game and up to eight separate rooms of eight guests each. GitHub Pages remains solo until a deployed HTTPS service is configured. No tokens, wallet transactions, blockchain rewards or client-supplied balances are accepted.
+An authoritative Node 22+ service serves the game and up to eight separate rooms of eight guests each. GitHub Pages connects to the deployed free service at https://offensive-meme-city-rooms.onrender.com. No tokens, wallet transactions, blockchain rewards or client-supplied balances are accepted.
 
 ## Run or deploy
 
@@ -14,7 +14,7 @@ Open `http://localhost:8787/city.html`, enter the game, and choose **Together**.
 
 The root `render.yaml` is a deployment-ready free Render blueprint. Connect the repository in Render and apply the blueprint; the service serves `/city.html` and the API itself, with networking enabled automatically. Check `/api/city/health` for `protocol: 2`. Use a single instance: the rooms are in memory, with no multi-instance routing or durable accounts. Free hosting can sleep when idle and restart; all online progress resets on restart. Choose paid hosting separately if persistent uptime is needed; this blueprint starts no paid service.
 
-To activate the existing GitHub Pages entry point after verifying the deployed service in two browsers, update `city-network.js`:
+The GitHub Pages entry point is activated in `city-network.js`. To move to another verified HTTPS service, update that file:
 
 ```js
 window.MEME_CITY_NETWORK = Object.freeze({

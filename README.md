@@ -141,3 +141,7 @@ All eleven city buildings have walkable themed cutaway interiors, plus a built M
 The Together panel adds public matchmaking and private friend-code rooms (up to eight guests each, eight rooms total), with shared interiors, appearance, bots, chat and play-credit trading. The authoritative server validates actions and movement; credentials remain in memory and Authorization headers. Input sequencing, stale-input cutoff, bounded requests/streams and automatic same-session reconnects are covered by tests. Peer movement is smoothed and facing is synchronized. Solo saves are not imported or overwritten by online progression.
 
 GitHub Pages remains solo until a real HTTPS room host is activated. `render.yaml` prepares a single-instance free Render deployment; the Node host automatically serves the game with networking enabled. See `server/README.md` for setup, exact limits and the GitHub Pages switch. No durable online accounts, public moderation service, shared fortress ownership, real-money settlement, blockchain rewards or security audit is claimed.
+
+### Public room activation
+
+Guest multiplayer is hosted at https://offensive-meme-city-rooms.onrender.com and connected to the GitHub Pages game. Open Together → Quick play or create/join a friend room. Service ID: `srv-dbhfhdlg1s2s739v1ih0`; one free Ohio instance, manual deploys. Free idle wake-up can take about a minute; joins allow up to 90 seconds. Guest progress is in memory and resets with a restart or deploy.
