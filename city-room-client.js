@@ -1,0 +1,20 @@
+/* Authenticated fetch streams: credentials never appear in URLs or invite links. */
+'use strict';
+(function(root){
+ class RoomClient {
+  constructor({api,onState,onStatus,onLost,input}){const u=new URL(api,location.href);if(u.username||u.password||u.search||u.hash||!(u.protocol==='https:'||u.protocol==='http:'&&['localhost','127.0.0.1','terminal.local'].includes(u.hostname)))throw Error('Room hosting requires a plain HTTPS service URL.');this.api=u.href.replace(/\/$/,'');this.onState=onState;this.onStatus=onStatus;this.onLost=onLost;this.input=input;this.token=null;this.revision=-1;this.generation=0;this.seq=0;this.active=false;this.ready=false;}
+  accept(s){if(!s?.self||!Array.isArray(s.players)||s.players.length>8||!s.roomInfo)throw Error('Invalid room state.');if(s.revision<this.revision)return;this.revision=s.revision;this.onState(s);}
+  async request(path,body,signal){const response=await fetch(this.api+path,{method:body?'POST':'GET',headers:{...(body?{'Content-Type':'application/json'}:{}),...(this.token?{Authorization:'Bearer '+this.token}:{})},body:body?JSON.stringify(body):undefined,credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer',signal:signal||AbortSignal.timeout(10000)});const data=await response.json();if(!response.ok){const e=Error(data.error||'Room request failed.');e.status=response.status;throw e;}return data;}
+  async join(body){const r=await this.request('/join',body);this.token=r.session;this.active=this.ready=true;this.revision=-1;this.accept(r.state);this.onStatus('connected');const generation=++this.generation;this.pump(generation);this.timer=setInterval(async()=>{if(this.sending||!this.ready)return;this.sending=true;try{const move=this.input(),n=Math.max(1,Math.hypot(move.x,move.y));await this.request('/input',{...move,x:move.x/n,y:move.y/n,seq:++this.seq});}catch(e){if(e.status===401)this.stop(e.message);}finally{this.sending=false;}},100);return r.state;}
+  async action(body){const generation=this.generation;if(!this.ready)throw Error('Reconnecting. Wait before acting.');const r=await this.request('/action',body);if(!this.active||generation!==this.generation)throw Error('You left this room.');this.accept(r.state);return r;}
+  async pump(generation){let attempts=0;while(this.active&&generation===this.generation){this.controller=new AbortController();try{if(attempts){this.accept(await this.request('/state'));this.ready=true;this.onStatus('connected');}
+    const response=await fetch(this.api+'/events',{headers:{Authorization:'Bearer '+this.token},credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer',signal:this.controller.signal});if(!response.ok){const e=Error('Room stream unavailable.');e.status=response.status;throw e;}
+    const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='',last=Date.now();this.watch=setInterval(()=>{if(Date.now()-last>12000)this.controller.abort();},3000);
+    try{while(this.active&&generation===this.generation){const {value,done}=await reader.read();if(done)throw Error('Room connection interrupted.');last=Date.now();buffer+=decoder.decode(value,{stream:true});if(buffer.length>1048576)throw Error('Room update exceeded its limit.');let index;while((index=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,index);buffer=buffer.slice(index+1);if(line){this.accept(JSON.parse(line));attempts=0;}}}}finally{clearInterval(this.watch);await reader.cancel().catch(()=>{});}
+   }catch(e){clearInterval(this.watch);if(!this.active||generation!==this.generation)return;this.ready=false;if(e.status===401||++attempts>4){this.stop('Room session ended. Your separate solo city is safe.');return;}this.onStatus('reconnecting');await new Promise(resolve=>setTimeout(resolve,Math.min(4000,500*2**(attempts-1))));}}
+  }
+  stop(reason){if(!this.active)return;this.active=this.ready=false;this.generation++;clearInterval(this.timer);clearInterval(this.watch);this.controller?.abort();if(reason)this.onLost(reason);}
+  async leave(){this.stop();try{await this.request('/leave',{});}catch{}this.token=null;}
+ }
+ root.CityRoomClient=RoomClient;
+})(window);

@@ -1,0 +1,15 @@
+# Optional room host. One instance: all room state is in memory.
+services:
+  - type: web
+    name: offensive-meme-city-rooms
+    runtime: node
+    plan: free
+    buildCommand: node scripts/check.mjs && npm test
+    startCommand: node server/city-server.mjs
+    healthCheckPath: /api/city/health
+    autoDeploy: false
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: CITY_ALLOWED_ORIGINS
+        value: https://kaibuzz0.github.io

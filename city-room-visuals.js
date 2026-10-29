@@ -40,13 +40,14 @@
   else{for(let i=0;i<3;i++)box(c,x+14+i*(w-30)/3,y-25,(w-45)/3,25,['#aac1a1','#a19eb8','#d9bb88'][i],4);}
   c.strokeStyle='#d2e9df22';c.lineWidth=1;c.strokeRect(x+2,y-z+2,w-4,h+z-4);
  }
- function draw(c,p,time,art,renderPlayer,peerPlayers=[]){
+ function draw(c,p,time,art,renderPlayer,peerPlayers=[],renderPeer=()=>{}){
   const r=p.room;if(!r)return;floor(c,r,art);
   const layers=I.furniture(r.theme).map(o=>({y:o.y+o.h,draw:()=>furniture(c,o,r,art)}));
   // The terminal provides the building's actual city activity, rather than an empty backdrop.
   const a=I.ROOM.activity;layers.push({y:a.y+8,draw:()=>{box(c,a.x-36,a.y-76,72,80,'#1c3346',5);box(c,a.x-30,a.y-70,60,39,r.accent+'66',3);text(c,'ACTIVITY',a.x,a.y-46,9,'#e5f6dc');box(c,a.x-31,a.y-22,62,7,r.accent,2);text(c,'E / INTERACT',a.x,a.y+30,9,r.accent);}});
   const npc={x:430,y:345};layers.push({y:npc.y,draw:()=>root.CityVisuals.person(c,{id:'room-host-'+r.id,x:npc.x,y:npc.y,role:'civilian',color:r.accent,style:{skin:2,hair:1,pants:2},aim:{x:.6,y:1}},time)});
   layers.push({y:r.y,draw:()=>renderPlayer(r.x,r.y)});
+  for(const peer of peerPlayers)layers.push({y:peer.room.y,draw:()=>renderPeer(peer)});
   for(const l of layers.sort((a,b)=>a.y-b.y))l.draw();
   if(!p.places.souvenirs.includes(r.id)){const s=I.ROOM.souvenir,bob=Math.sin(time/450)*4;c.save();c.translate(s.x,s.y-28+bob);c.fillStyle='#ffe0a3';c.beginPath();c.moveTo(0,-14);c.lineTo(12,0);c.lineTo(0,14);c.lineTo(-12,0);c.closePath();c.fill();text(c,'ROOM MEMENTO',0,-27,9,'#ffe7b7');c.restore();}
   // Near wall has an open doorway; side wings cover feet when walking behind them.

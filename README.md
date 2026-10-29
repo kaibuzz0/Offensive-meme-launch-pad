@@ -135,3 +135,9 @@ The existing save key now stores version 3. Version 1/2 saves retain character, 
 Distance-driven jointed walk cycles, foot lift, arm swing, upper-body lean and eased stops preserve the arcade look. Trees, lamps, benches, ambient traffic and pedestrians now join the actor depth queue; tree trunks also have small collision footprints.
 
 All eleven city buildings have walkable themed cutaway interiors, plus a built Meme HQ. Approach a marked front door and press E; walk to the rear activity terminal or the bottom exit. Furnishings block movement, first visits award 10 play credits / 15 XP, and each room has a one-time 25 XP memento. Discovery passports migrate with existing solo saves (version 4); reloading returns the player outside. Combat, challenges and hoverboards are disabled indoors. Public multiplayer remains pending hosting.
+
+### Play Together / Alpha 09
+
+The Together panel adds public matchmaking and private friend-code rooms (up to eight guests each, eight rooms total), with shared interiors, appearance, bots, chat and play-credit trading. The authoritative server validates actions and movement; credentials remain in memory and Authorization headers. Input sequencing, stale-input cutoff, bounded requests/streams and automatic same-session reconnects are covered by tests. Peer movement is smoothed and facing is synchronized. Solo saves are not imported or overwritten by online progression.
+
+GitHub Pages remains solo until a real HTTPS room host is activated. `render.yaml` prepares a single-instance free Render deployment; the Node host automatically serves the game with networking enabled. See `server/README.md` for setup, exact limits and the GitHub Pages switch. No durable online accounts, public moderation service, shared fortress ownership, real-money settlement, blockchain rewards or security audit is claimed.

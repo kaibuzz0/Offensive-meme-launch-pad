@@ -39,3 +39,15 @@ test('trailer serves playable video, a poster and seekable byte ranges',async t=
  assert.equal((await fetch(base+'meme-city-trailer.mp4',{headers:{Range:`bytes=${total}-`}})).status,416);
  const poster=await fetch(base+'meme-city-trailer-poster.jpg');assert.equal(poster.status,200);assert.equal(poster.headers.get('content-type'),'image/jpeg');
 });
+
+test('HTTP boundaries reject malformed, oversized and unauthenticated room messages',async t=>{
+ const {server}=createCityServer();await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>{server.closeAllConnections();server.close();});const base=`http://127.0.0.1:${server.address().port}/api/city`;
+ const raw=(path,body,headers={})=>fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json',...headers},body});
+ assert.equal((await raw('/join','{')).status,400);assert.equal((await raw('/join','[]')).status,400);assert.equal((await raw('/join','x'.repeat(5000))).status,413);assert.equal((await raw('/join','{}',{'Content-Type':'text/plain'})).status,415);
+ assert.equal((await raw('/join','{}',{Origin:'null'})).status,403);assert.equal((await raw('/action','{"type":"setCredits"}')).status,401);
+ const preflight=await fetch(base+'/join',{method:'OPTIONS',headers:{Origin:'https://evil.example'}});assert.equal(preflight.status,403);
+ const a=await (await raw('/join',JSON.stringify({avatar:'offensive',name:'Alice'}))).json();const auth={Authorization:'Bearer '+a.session};
+ assert.equal((await raw('/input','{"x":1000,"y":0}',auth)).status,400);
+ const state=await fetch(base+'/state',{headers:auth});assert.equal(state.headers.get('cache-control'),'no-store');assert.equal(state.status,200);assert.equal((await state.json()).self.name,'Alice');
+ const resumed=await fetch(base+'/state',{headers:auth});assert.equal((await resumed.json()).self.id,a.state.self.id);
+});

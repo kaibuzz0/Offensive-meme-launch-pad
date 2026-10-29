@@ -28,10 +28,10 @@ for(const file of ['index.html','creators.html']){
 new vm.Script(read('launchpad.js'));
 console.log('PASS: community pages, lightweight script boundaries, and application JS syntax.');
 
-for(const file of ['city.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js'])new vm.Script(read(file));
+for(const file of ['city.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js'])new vm.Script(read(file));
 for(const file of ['city.html','city-roadmap.html','city.css','server/city-server.mjs'])assert.ok(fs.existsSync(path.join(root,file)),`Missing city release file: ${file}`);
 assert.ok(read('index.html').includes('href="city.html"'),'Homepage must link to the playable city');
-assert.ok(read('city-network.js').includes('enabled: false'),'Public rooms must stay disabled until hosting is configured');
+const networkContext={window:{}};vm.runInNewContext(read('city-network.js'),networkContext);const network=networkContext.window.MEME_CITY_NETWORK;assert.equal(typeof network.enabled,'boolean');if(network.enabled)assert.ok(/^https:\/\//.test(network.apiBase),'Public room service must use HTTPS');
 console.log('PASS: Meme City assets, script syntax, homepage entry and public solo configuration.');
 
 for(const id of ['pause-toggle','fullscreen-toggle','mission-kicker','mission-fill','quick-job','ready-countdown'])assert.ok(read('city.html').includes(`id="${id}"`),`Missing polished game control: ${id}`);

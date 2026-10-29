@@ -1,42 +1,42 @@
-# Meme City room service (temporary alpha)
+# Meme City / Play Together (Alpha 09)
 
-The public GitHub Pages site runs solo. This service is a functioning optional multiplayer backend, not yet publicly hosted. It serves the same site plus authenticated streamed room snapshots and action endpoints. No wallet, tokens, money, or blockchain transactions are involved.
+An authoritative Node 22+ service serves the game and up to eight separate rooms of eight guests each. GitHub Pages remains solo until a deployed HTTPS service is configured. No tokens, wallet transactions, blockchain rewards or client-supplied balances are accepted.
 
-## Run
+## Run or deploy
 
-Node.js 22 or newer; no packages to install:
+No dependencies are required:
 
-```
+```sh
 node server/city-server.mjs
 ```
 
-Open `http://localhost:8787/city.html` in two browsers and click Enter in each. The Node host serves an enabled `city-network.js`; the GitHub Pages configuration stays disabled. Use `PORT` for your hosting platform. Deploy behind HTTPS, with streaming response buffering disabled. Set `CITY_ALLOWED_ORIGINS` to a comma-separated list of explicitly allowed frontend origins. The default launcher allows the existing GitHub Pages origin and its own origin.
+Open `http://localhost:8787/city.html`, enter the game, and choose **Together**. Quick play fills public rooms. Create friend room produces a random 18-character hex room code. Joining requires that exact code. Codes grant room admission, so don't publish private invites. Guest nicknames are not verified identities. Share the invite copied from Together with a second browser or device.
 
-For a separate HTTPS API host, edit the public `city-network.js` only after successful deployment:
+The root `render.yaml` is a deployment-ready free Render blueprint. Connect the repository in Render and apply the blueprint; the service serves `/city.html` and the API itself, with networking enabled automatically. Check `/api/city/health` for `protocol: 2`. Use a single instance: the rooms are in memory, with no multi-instance routing or durable accounts. Free hosting can sleep when idle and restart; all online progress resets on restart. Choose paid hosting separately if persistent uptime is needed; this blueprint starts no paid service.
 
-```
+To activate the existing GitHub Pages entry point after verifying the deployed service in two browsers, update `city-network.js`:
+
+```js
 window.MEME_CITY_NETWORK = Object.freeze({
   enabled: true,
-  apiBase: 'https://YOUR-DEPLOYED-HOST/api/city'
+  apiBase: 'https://YOUR-ACTUAL-DEPLOYED-HOST/api/city'
 });
 ```
 
-Room updates stream as newline-delimited JSON over an authenticated fetch. Commands are JSON POST requests. Session tokens stay in memory and travel in Authorization headers, not URLs. Player IDs exposed in snapshots are separate from secret session tokens. There is one room, maximum 32 players. Movement and held fire stop after 500 ms without input; inactive sessions expire after 45 seconds. Join and request limits are basic alpha protections, not a complete abuse prevention system. Use a host-level connection/IP limit as well.
+Use the actual returned hostname. Never put credentials or session tokens in this config or an invite URL. `CITY_ALLOWED_ORIGINS` accepts exact comma-separated frontend origins; it defaults to `https://kaibuzz0.github.io` and the service's own HTTP/HTTPS origin. HTTPS termination belongs at the hosting proxy. Disable proxy response buffering and caching for `/api/city/events`.
 
-## Rules
+## Connection and trust boundary
 
-The server owns positions, collision, XP, credits, route claims, inventory, equipment, market escrow, bot AI, health, wanted heat, projectile hits and arcade contract rewards. `city-arcade.js` is loaded after the core simulation on both server and browser. Actions cannot set balances. Shop/market actions require proximity. Listings move an actual owned item into escrow. Purchase debits the buyer, credits the seller and transfers the item synchronously; duplicate purchases fail. Sellers leaving invalidate their listings. Currency and inventory are temporary; room restart resets all state. Reconnecting creates a new guest character. This is intentional for the alpha and is displayed to players.
+The server runs simulation at 20 Hz and streams authenticated NDJSON snapshots at 10 Hz. Input is limited, normalized and sequenced; stale input stops movement/fire after 500 ms. Room clients smooth peer positions, reject backwards snapshot revisions and retry interrupted streams up to four consecutive failures. Reconnecting uses the same in-memory session token and guest character for up to two minutes without authenticated activity. Reloading creates a new guest: credentials aren't persisted. Leaving revokes that token. Closing the page stops input and the guest expires automatically.
 
-## Before public multiplayer launch
+Friends share city streets, the eleven interiors, bots, public appearance, chat, shop equipment, missions and play-credit trading. Online construction, hired defenders and fortress upgrades are rejected until shared plot ownership is implemented. Existing solo saves are isolated and never imported to the server. Player-vs-player damage remains disabled.
 
-- Choose and deploy an HTTPS host; validate two devices, latency, streaming and reconnect behavior.
-- Add durable accounts, server-owned persistence and atomic durable transactions. Do not carry solo localStorage into an online account.
-- Add moderation, chat reporting/blocking, stronger rate limits and admission control, privacy/retention terms, logs and monitoring.
-- Add wallet sign-in nonce verification and reliable server-side balance reads before any holding tier. Mints come from the existing beta catalog; no new game token is minted.
-- Keep real-money settlement disabled until an independently reviewed design exists. Current items and play credits have no redemption or token value.
+The server owns movement, collisions, HP, XP, credits, gear, mission claims and escrowed marketplace transactions. Peers cannot write balances or inventories; snapshots omit other players' inventory and credentials. Chat renders as text. Same-room interiors show peers; private rooms isolate chat, players, listings and bots. Caps bound rooms, guests, join-rate records, HTTP connections, headers, request bodies, action rates and stream backpressure. Origins are checked in addition to bearer authentication; origin checks alone do not stop non-browser clients. Join limits use the TCP peer address, so shared proxies can share a limit; add a trusted hosting-level admission/rate-limit layer before broad promotion.
 
-Tests: `node --test scripts/city*.test.mjs`.
+## Limits before larger public release
 
-Night Shift input accepts `fire` (boolean), `aimX`, and `aimY`; the shared simulation owns fire cooldowns, auto-aim and projectile creation. Mission actors are removed when their owning player leaves. Police pursuit, collision, attack windups and contract results run on the server.
+This is a guest multiplayer alpha, not an independent security audit. There is no durable online account, save database, moderation/report system, advanced anti-bot admission or multi-region replication. Friend codes aren't passwords or verified accounts. Public rooms and chat need active moderation as the audience grows. Add durable authenticated accounts and transaction storage before treating online progression as permanent; never attach real-money rewards to temporary guest progress.
 
-The expanded world is walkable in rooms, but construction and hired defenders are currently solo features. The HTTP action endpoint rejects legacy `travel` teleports, `build`, `demolish`, `starterfort`, `hire`, `crewOrder`, `defenseDrill` and `endDefense`. Open `city.html?solo=1` for the separate browser-local fortress/squad save. Shared plot ownership and defender limits across real players need review before room activation. Manual aim is a boolean in the normal authenticated input payload; stale input still stops movement and held fire.
+## Verify
+
+`npm test` covers room isolation, limits, input sequencing and stale controls, reconnect/expiry, credential handling, shared interiors, action rejection and atomic marketplace transfers. Browser QA uses two real browser sessions: create room, join code, move, chat, then return to the separate solo save.
