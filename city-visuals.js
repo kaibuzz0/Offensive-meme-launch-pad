@@ -12,8 +12,9 @@
   const style=o.style||{},role=o.role||'player',civilian=role==='civilian',cop=role==='cop',gang=role==='gang',gear=o.gear||{},pants=denim[style.pants||0];
   // A planted foot alternates with a lifted swing foot. Travel distance drives the stride.
   const hx=o.travel?.x??1,hy=o.travel?.y??0;
+  const yaw=o.aim||{x:0,y:1},width=.32+.68*Math.abs(yaw.y);
   for(const side of [-1,1]){
-   const step=pose*side,hip=side<0?-8:8,knee=hip+step*hx*.5,ankle=hip+step*hx*.95,lift=Math.max(0,step)*.65,footY=-3+step*hy*.65-lift;
+   const step=pose*side,hip=side*8*width,knee=hip+step*hx*.5,ankle=hip+step*hx*.95,lift=Math.max(0,step)*.65,footY=-3+side*yaw.x*3+step*hy*.65-lift;
    c.fillStyle=gradient(c,hip-8,-40,16,40,pants,'#172733');c.beginPath();c.moveTo(hip-7,-41);c.lineTo(knee-6,-23-lift*.25);c.lineTo(ankle-6,footY-4);c.quadraticCurveTo(ankle,footY,ankle+6,footY-4);c.lineTo(knee+6,-23-lift*.25);c.lineTo(hip+7,-41);c.closePath();c.fill();
    c.strokeStyle='#adbdc548';c.lineWidth=.8;c.beginPath();c.moveTo(hip-3,-38);c.lineTo(knee-3,-23-lift*.25);c.lineTo(ankle-3,footY-5);c.stroke();
    rounded(c,knee-5,-24-lift*.25,10,7,2,'#c4cfd614');
@@ -104,9 +105,9 @@
  function person(c,o,time=0){
   const state=o.id?motion(o.id,o.x,o.y,time,o.moving,o.phase||0):null,amount=state?.amount??(o.moving?1:0),cycle=state?.stride??time/115+(o.phase||0),pose=Math.sin(cycle)*6*amount;
   const raw=o.aim||state?.travel||{x:0,y:1},target=Math.atan2(raw.y,raw.x),ak=o.id||null,prior=ak&&aimStates.get(ak),dt=prior?Math.max(0,Math.min(.1,(time-prior.time)/1000)):.1;
-  const diff=prior?Math.atan2(Math.sin(target-prior.angle),Math.cos(target-prior.angle)):0,angle=prior?prior.angle+diff*(1-Math.exp(-dt*22)):target;
+  const diff=prior?Math.atan2(Math.sin(target-prior.angle),Math.cos(target-prior.angle)):0,angle=prior&&!o.flash?prior.angle+diff*(1-Math.exp(-dt*30)):target;
   if(ak){aimStates.set(ak,{angle,time});if(aimStates.size>160)aimStates.delete(aimStates.keys().next().value);}
-  const facing={x:Math.cos(angle),y:Math.sin(angle)},back=facing.y<-.45,profile=facing.x>.45?1:facing.x<-.45?-1:0;
+  const facing={x:Math.cos(angle),y:Math.sin(angle)},back=facing.y<0,profile=facing.x;
   o={...o,aim:facing,back,travel:state?.travel||{x:1,y:0}};
   const ready=!!o.image?.complete&&!!o.image?.naturalWidth,style=o.style||{},gear=o.gear||{};
   const key=[o.role||'player',o.ticker||'',o.color||'',style.skin||0,style.hair||0,style.pants||0,o.coinName||'',gear.outfit||'',gear.head||'',back,ready].join('|');
@@ -115,26 +116,102 @@
   const scale=o.scale||1;c.save();c.translate(o.x,o.y);c.scale(scale,scale);
   const shadow=c.createRadialGradient(0,2,2,0,2,25);shadow.addColorStop(0,'#03081090');shadow.addColorStop(1,'#03081000');c.save();c.scale(1,.4);c.fillStyle=shadow;c.beginPath();c.arc(0,5,25,0,7);c.fill();c.restore();
   if(o.holderTier>=3){c.strokeStyle=o.color||'#b7ef84';c.globalAlpha=.5;c.lineWidth=2;c.beginPath();c.ellipse(0,2,29,11,0,0,7);c.stroke();c.globalAlpha=1;}
-  drawLegs(c,o,pose);
+  if(!o.armed||(o.role&&o.role!=='player'))drawLegs(c,o,pose);
   if(o.holderTier>=2)rounded(c,5,-14,13,4,1,o.color||'#b7ef84');
   c.save();const bob=-Math.abs(Math.cos(cycle*2))*1.1*amount+(1-amount)*Math.sin(time/950+(o.phase||0))*.3;
   c.translate(profile*amount*.9,bob);c.rotate((o.dashing?profile*.09:profile*.025)*amount);
-  drawArms(c,o,pose);
-  c.save();c.scale(profile?.96:1,1);if(scale>=2){c.translate(-65,-132);drawBody(c,{...o,upperOnly:true},0);}else c.drawImage(sprite,-65,-132,130,144);c.restore();
-  if(o.armed){const angle=Math.atan2(facing.y,facing.x);heldWeapon(c,{...o,angle});}if(o.clanRank){for(let i=0;i<o.clanRank;i++)rounded(c,-21,-68+i*4,8,2,1,['#c89560','#c4d4dd','#f0d17c'][o.clanRank-1]);}c.restore();c.restore();
+  if(o.armed&&(!o.role||o.role==='player')){drawSolidRig(c,{...o,stridePose:pose},angle);c.restore();c.restore();return;}
+  // Existing NPC artwork keeps its faction-specific details.
+  if(o.armed&&back)heldWeapon(c,{...o,angle});
+
+  c.save();c.scale(.32+.68*Math.abs(facing.y),1);drawArms(c,o,pose);c.restore();
+  // Continuous yaw: torso depth remains visible in profile, with the shirt wrapping around it.
+  rounded(c,-13,-77,26,36,9,o.gear?.outfit?'#5e7654':'#303e4d');
+  rounded(c,-7+facing.x*3,-105,14,22,6,skin[style.skin||0]);
+  c.save();c.translate(facing.x*4,0);c.scale(Math.max(.025,Math.abs(facing.y)),1);if(scale>=2){c.translate(-65,-132);drawBody(c,{...o,upperOnly:true},0);}else c.drawImage(sprite,-65,-132,130,144);c.restore();
+  if(o.armed&&!back)heldWeapon(c,{...o,angle});if(o.clanRank){for(let i=0;i<o.clanRank;i++)rounded(c,-21,-68+i*4,8,2,1,['#c89560','#c4d4dd','#f0d17c'][o.clanRank-1]);}c.restore();c.restore();
+ }
+ // Fixed-length, two-bone arms. Hands and rifle share one transform at every yaw.
+ function armElbow(shoulder,hand){
+  const v=hand.map((n,i)=>n-shoulder[i]),d=Math.hypot(...v),u=v.map(n=>n/d);
+  const along=(27*27-29*29+d*d)/(2*d),height=Math.sqrt(27*27-along*along);
+  // Bend toward the ground, perpendicular to the shoulder-to-grip axis.
+  const down=[u[0]*u[2],u[1]*u[2],-1+u[2]*u[2]],n=Math.hypot(...down);
+  return shoulder.map((value,i)=>value+u[i]*along+down[i]/n*height);
+ }
+ function weaponPose(angle,flash=false){
+  const ca=Math.cos(angle),sa=Math.sin(angle),recoil=flash?2:0;
+  // Local coordinates: forward, lateral, height. Rotate the entire rig around vertical.
+  const project=([f,l,h])=>({x:f*ca-l*sa,y:f*sa+l*ca*.35-h});
+  const shoulders3=[[0,17,73],[0,-17,73]],hands3=[[8-recoil,4,56],[28-recoil,-1,56]];
+  const elbows3=hands3.map((h,i)=>armElbow(shoulders3[i],h));
+  return{pivot:project([-recoil,0,56]),hands:hands3.map(project),shoulders:shoulders3.map(project),elbows:elbows3.map(project),muzzle:project([50-recoil,0,56]),joints:{shoulders:shoulders3,hands:hands3,elbows:elbows3}};
+ }
+ // All surfaces share one world-space yaw and camera depth. Occlusion is geometric,
+ // never a front/back switch for the whole gun or both arms.
+ function rigSurfaces(o,angle){
+  const ca=Math.cos(angle),sa=Math.sin(angle),faces=[];
+  const project=([f,l,h])=>{const y=f*sa+l*ca;return{x:f*ca-l*sa,y:y-h,depth:y+h};};
+  function face(points,color,print=false){const p=points.map(project);faces.push({points:p,color,print,depth:p.reduce((sum,v)=>sum+v.depth,0)/p.length});}
+  function box(center,size,color){
+   const [f,l,h]=center,[a,b,d]=size.map(n=>n/2),v=[[-a,-b,-d],[-a,b,-d],[a,b,-d],[a,-b,-d],[-a,-b,d],[-a,b,d],[a,b,d],[a,-b,d]].map(p=>p.map((n,i)=>n+center[i]));
+   for(const ids of [[0,1,2,3],[4,7,6,5],[0,4,5,1],[3,2,6,7],[0,3,7,4],[1,5,6,2]])face(ids.map(i=>v[i]),color);
+  }
+  function limb(a,b,r,color){
+   const delta=b.map((v,i)=>v-a[i]),len=Math.hypot(...delta),u=delta.map(v=>v/len),ref=Math.abs(u[2])<.9?[0,0,1]:[1,0,0];
+   const cross=(x,y)=>[x[1]*y[2]-x[2]*y[1],x[2]*y[0]-x[0]*y[2],x[0]*y[1]-x[1]*y[0]],v=cross(u,ref),n=Math.hypot(...v),w=cross(u,v.map(x=>x/n));
+   const at=(t,k)=>a.map((x,i)=>x+delta[i]*t+r*(v[i]/n*Math.cos(k*Math.PI/4)+w[i]*Math.sin(k*Math.PI/4)));
+   for(let j=0;j<4;j++)for(let k=0;k<8;k++)face([at(j/4,k),at(j/4,k+1),at((j+1)/4,k+1),at((j+1)/4,k)],color);
+   face(Array.from({length:8},(_,k)=>at(1,k)),color);
+  }
+  function oval(center,radii,color,low=-Math.PI/2,high=Math.PI/2){
+   const point=(t,k)=>[center[0]+radii[0]*Math.cos(t)*Math.cos(k),center[1]+radii[1]*Math.cos(t)*Math.sin(k),center[2]+radii[2]*Math.sin(t)];
+   for(let j=0;j<8;j++)for(let k=0;k<12;k++){const a=low+(high-low)*j/8,b=low+(high-low)*(j+1)/8,u=k*Math.PI/6,v=(k+1)*Math.PI/6;face([point(a,u),point(a,v),point(b,v),point(b,u)],color);}
+  }
+  const style=o.style||{},tone=skin[style.skin||0],coat=o.role==='cop'?'#324c68':o.role==='gang'?'#4b293c':o.gear?.outfit?'#5e7654':'#303e4d';
+  box([0,0,59],[18,34,36],coat);
+  box([0,0,80],[9,10,9],tone);
+  oval([0,0,94],[8,9,12],tone);
+  oval([-1,0,97],[8.5,9.5,10],hair[style.hair||0],.1);
+  oval([-6,0,97],[3,8,8],hair[style.hair||0]);
+  box([9,0,93],[4,4,5],tone);
+  for(const side of [-1,1])box([8.2,side*4.5,97],[.6,2.5,2],'#172432');
+  box([8.2,0,88],[.6,5,1],'#845642');
+  if(o.gear?.head)box([9,0,97],[2,19,5],'#a78cd9');
+  // The same meme is printed on the chest and back and wraps out of view in profile.
+  for(const side of [-1,1])face([[side*9.15,-13,74],[side*9.15,13,74],[side*9.15,13,47],[side*9.15,-13,47]],o.color||'#b7ef84',true);
+  for(const side of [-1,1]){
+   const stride=(o.stridePose||0)*side,hip=[0,side*8,40],knee=[stride*.5,side*8,23],ankle=[stride,side*8,5+Math.max(0,stride)*.5];
+   limb(hip,knee,6,denim[style.pants||0]);limb(knee,ankle,5,denim[style.pants||0]);box([ankle[0]+3,ankle[1],ankle[2]-2],[15,11,6],o.gear?.feet?'#375c66':'#202a35');box([ankle[0]+3,ankle[1],ankle[2]-4],[16,12,2],'#a7b3bd');
+  }
+  const joints=weaponPose(angle,o.flash).joints;
+  for(let i=0;i<2;i++){limb(joints.shoulders[i],joints.elbows[i],4,coat);limb(joints.elbows[i],joints.hands[i],3,tone);box(joints.hands[i],[6,6,6],tone);}
+  const recoil=o.flash?2:0;
+  const gun=(f,l,h,size,color)=>box([f-recoil,l,h],size,color);
+  gun(-6,0,56,[15,7,8],'#405765');gun(16,0,58,[28,7,9],o.upgraded?'#9cabc0':'#829aa4');gun(32,0,58,[16,5,6],'#304957');gun(44,0,58,[12,3,3],'#bac8cf');gun(49,0,58,[3,5,5],'#253e4d');gun(11,0,50,[5,5,10],'#243944');gun(14,0,65,[13,4,3],'#253e4d');
+  if(o.flash)gun(55,0,58,[10,5,5],'#ffedb5');
+  return faces.sort((a,b)=>a.depth-b.depth);
+ }
+ function drawSolidRig(c,o,angle){
+  for(const f of rigSurfaces(o,angle)){
+   const p=f.points;c.beginPath();c.moveTo(p[0].x,p[0].y);for(let i=1;i<p.length;i++)c.lineTo(p[i].x,p[i].y);c.closePath();c.fillStyle=f.color;c.fill();c.strokeStyle=f.color;c.lineWidth=.35;c.stroke();
+   if(f.print){
+    const a=p[0],b=p[1],d=p[3],det=(b.x-a.x)*(d.y-a.y)-(b.y-a.y)*(d.x-a.x);if(Math.abs(det)<.01)continue;
+    c.save();c.clip();c.transform((b.x-a.x)/30,(b.y-a.y)/30,(d.x-a.x)/28,(d.y-a.y)/28,a.x,a.y);
+    if(o.image?.complete&&o.image.naturalWidth)c.drawImage(o.image,0,0,30,28);else{text(c,'o!',15,20,18,'#172432');}c.restore();
+   }
+  }
  }
  function heldWeapon(c,o){
-  const angle=o.angle||0,recoil=o.flash?3:0,ca=Math.cos(angle),sa=Math.sin(angle),pivot={x:(ca<0?-1:1)*21-ca*recoil,y:-37-sa*recoil};
-  const point=(x,y)=>({x:pivot.x+x*ca-y*sa,y:pivot.y+x*sa+y*ca});
-  const grip=point(8,4),support=point(28,-1),hands=[grip,support],shoulders=ca<0?[{x:-17,y:-69},{x:17,y:-69}]:[{x:17,y:-69},{x:-17,y:-69}];
+  const angle=o.angle||0,{pivot,hands,shoulders,elbows}=weaponPose(angle,o.flash);
   const tone=skin[o.style?.skin||0],coat=o.role==='cop'?'#324c68':o.role==='guard'?(o.color||'#6e8e78'):o.gear?.outfit?'#91ae6e':'#344657';
   c.save();c.lineCap='round';c.lineJoin='round';
-  for(let i=0;i<2;i++){const s=shoulders[i],hand=hands[i],elbow={x:s.x*.55+hand.x*.45+(i===0?9:-7),y:s.y*.35+hand.y*.65+12};c.strokeStyle='#102431';c.lineWidth=9;c.beginPath();c.moveTo(s.x,s.y);c.lineTo(elbow.x,elbow.y);c.lineTo(hand.x,hand.y);c.stroke();c.strokeStyle=coat;c.lineWidth=7;c.beginPath();c.moveTo(s.x,s.y);c.lineTo(elbow.x,elbow.y);c.stroke();c.strokeStyle=tone;c.lineWidth=6;c.beginPath();c.moveTo(elbow.x,elbow.y);c.lineTo(hand.x,hand.y);c.stroke();}
-  weapon(c,{x:pivot.x,y:pivot.y,angle,upgraded:o.upgraded,flash:o.flash});
-  for(const hand of hands){c.fillStyle=tone;c.beginPath();c.ellipse(hand.x,hand.y,3.4,3,angle,0,7);c.fill();c.strokeStyle='#795f4d88';c.lineWidth=.6;c.stroke();}c.restore();
+  for(let i=0;i<2;i++){const s=shoulders[i],hand=hands[i],elbow=elbows[i];c.strokeStyle='#102431';c.lineWidth=9;c.beginPath();c.moveTo(s.x,s.y);c.lineTo(elbow.x,elbow.y);c.lineTo(hand.x,hand.y);c.stroke();c.strokeStyle=coat;c.lineWidth=7;c.beginPath();c.moveTo(s.x,s.y);c.lineTo(elbow.x,elbow.y);c.stroke();c.strokeStyle=tone;c.lineWidth=6;c.beginPath();c.moveTo(elbow.x,elbow.y);c.lineTo(hand.x,hand.y);c.stroke();}
+  weapon(c,{x:pivot.x,y:pivot.y,angle,depth:.35,upgraded:o.upgraded,flash:o.flash});
+  for(const hand of hands){c.fillStyle=tone;c.beginPath();c.ellipse(hand.x,hand.y,3.4,3,angle,0,7);c.fill();}c.restore();
  }
  function weapon(c,o){
-  c.save();c.translate(o.x,o.y);c.rotate(o.angle||0);c.scale(o.scale||1,o.scale||1);
+  c.save();c.translate(o.x,o.y);const a=o.angle||0;if(o.depth)c.transform(Math.cos(a),Math.sin(a),-Math.sin(a),Math.cos(a)*o.depth,0,0);else c.rotate(a);c.scale(o.scale||1,o.scale||1);
   rounded(c,-11,-2,15,9,2,'#4a5e67');rounded(c,-13,-3,4,11,1,'#263942');rounded(c,2,-6,27,11,2,gradient(c,2,-6,30,12,o.upgraded?'#9cabc0':'#9daeb0','#3e5562'));
   rounded(c,11,3,6,11,2,'#243944');rounded(c,22,-5,17,8,2,'#304957');rounded(c,38,-2,12,3,1,'#bbc5bd');rounded(c,47,-4,4,7,1,'#253e4d');rounded(c,7,-9,15,3,1,'#263c47');rounded(c,11,-11,9,3,1,'#a0b6b9');
   c.strokeStyle='#c8d5d355';c.lineWidth=.8;for(let x=26;x<37;x+=3){c.beginPath();c.moveTo(x,-4);c.lineTo(x,1);c.stroke();}
@@ -170,5 +247,5 @@
   rounded(c,b.x+b.w-110,b.y+b.h-79,72,16,2,'#1a2b3a');text(c,b.id==='garage'?'SERVICE':b.id==='shop'?'STREETWEAR':'OPEN LATE',b.x+b.w-74,b.y+b.h-68,5.5,'#c7d0cc');
   c.restore();
  }
- root.CityVisuals=Object.freeze({person,motion,weapon,groundFinish,architecture});
+ root.CityVisuals=Object.freeze({person,motion,weapon,weaponPose,rigSurfaces,groundFinish,architecture});
 })(window);
