@@ -1,3 +1,15 @@
+## Alpha 10 — Block Wars
+
+The connected world is now 6,720 × 6,720. Six southern token neighborhoods add 24 buildings (35 city interiors total), clan terminals, street circuits, delivery runs and timed block holds. Existing solo coordinates and saves remain compatible. Construction still uses the original private fortress plot; shared neighborhood construction is not implemented.
+
+INSIDER security and RUGMASTERS fight autonomously. Mission enemies stay isolated from these ambient battles. Joining a clan is free; 3/6/9 completed jobs earn visible rank stripes. Rug clan members are ignored by ambient Rug enemies. Player damage remains PvE only.
+
+Character aim now uses normalized, smoothed directions. Guns are carried beside and below the larger front/back clothing prints. The square map and minimap include all six new neighborhoods.
+
+Optional real-token purchases still open the existing wallet swap flow with the exact catalog mint. In online rooms, a signed, nonce-bound wallet challenge plus a server-side Solana balance lookup grants temporary cosmetics at 1 / 1,000 / 10,000 whole tokens. These are token thresholds, not fixed dollar prices. The client refreshes every 60 seconds; verified cosmetics expire after 120 seconds without renewal. Failed balance queries remove them. No signatures authorize transactions, no private keys are requested, and no token holdings grant money, transferable game inventory, combat power or XP. Wallet ownership stays in session memory only. Public RPC may throttle: configure an HTTPS `SOLANA_RPC_URL` on the server for production reliability. Mobile verification requires a compatible wallet browser; no universal mobile wallet adapter is bundled.
+
+Validation: automated simulation, room, collision, save, wallet-signature, replay, balance-revocation and failure checks; browser QA for game rendering and clan menus. Real-wallet approval and live funded token trades require user testing; no real trade was executed.
+
 # OFFENSIVE — Solana meme showcase
 
 A mobile-friendly, buildless static website for an independent, explicit satire token collection. Includes 10 original concepts and illustrated coin artwork, category filters, live search, accessible token detail dialogs, and a GitHub submission form.

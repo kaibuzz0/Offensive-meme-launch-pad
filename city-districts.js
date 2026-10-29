@@ -20,8 +20,16 @@
  function lamp(c,x,y,on=true){c.save();if(on){const g=c.createRadialGradient(x,y,0,x,y,140);g.addColorStop(0,'#ffda9a1c');g.addColorStop(1,'#ffda9a00');c.fillStyle=g;c.fillRect(x-140,y-140,280,280);}poly(c,[[x-3,y],[x+3,y],[x+29,y+7],[x+19,y+10]],'#050e1566');box(c,x-4,y-100,8,102,grad(c,x-4,0,8,0,'#52626c','#182b36'),3);box(c,x-16,y-108,32,10,'#182b37',3);box(c,x-12,y-106,24,4,on?'#ffe1aa':'#9da89e',2);c.restore();}
  function land(c){
   c.save();c.fillStyle='#263d3c';c.fillRect(0,0,W.width,W.height);
-  for(const y of [870,2530]){box(c,0,y-95,W.width,190,'#75858a');box(c,0,y-65,W.width,130,'#243a47');c.strokeStyle='#c4c7a25c';c.lineWidth=2;c.setLineDash([20,32]);c.beginPath();c.moveTo(0,y);c.lineTo(W.width,y);c.stroke();c.setLineDash([]);}
+  for(const y of [870,2530,4190,5850]){box(c,0,y-95,W.width,190,'#75858a');box(c,0,y-65,W.width,130,'#243a47');c.strokeStyle='#c4c7a25c';c.lineWidth=2;c.setLineDash([20,32]);c.beginPath();c.moveTo(0,y);c.lineTo(W.width,y);c.stroke();c.setLineDash([]);}
   for(const x of [1120,3360,5600]){box(c,x-95,0,190,W.height,'#738588');box(c,x-65,0,130,W.height,'#243a47');c.strokeStyle='#c4c7a25c';c.lineWidth=2;c.setLineDash([20,32]);c.beginPath();c.moveTo(x,0);c.lineTo(x,W.height);c.stroke();c.setLineDash([]);}
+  for(const n of C.NEIGHBORHOODS){
+   box(c,n.ox+160,n.oy+130,1920,610,'#60747a',20);box(c,n.ox+170,n.oy+140,1900,590,'#344b58',16);
+   box(c,n.ox+160,n.oy+1000,1920,530,'#60747a',20);box(c,n.ox+170,n.oy+1010,1900,510,'#344b58',16);
+   box(c,n.x-94,n.oy,188,1660,'#79888b');box(c,n.x-65,n.oy,130,1660,'#243a47');
+   for(let yy=n.oy+60;yy<n.oy+1660;yy+=110)box(c,n.x-1,yy,2,35,'#d5d3a766');
+   text(c,n.name,n.x,n.oy+100,30,n.color);text(c,n.clan.toUpperCase()+' / WALKABLE COMMUNITY BLOCK',n.x,n.oy+960,13,n.color);
+   box(c,n.x-115,n.y-48,230,96,'#122833',14);text(c,'CLAN TERMINAL',n.x,n.y-10,15,n.color);text(c,'E / JOBS & MEMBERSHIP',n.x,n.y+14,10,'#dce8e5');
+  }
   text(c,'← FORTRESS HEIGHTS',2290,790,13,'#d3e2b9');text(c,'CREATOR QUARTER →',4430,790,13,'#d8c5eb');
   text(c,'ARENA DISTRICT ↙',2480,1610,13,'#e1bc98');text(c,'SOCIAL BOARDWALK ↘',4200,1610,13,'#afd7df');
   c.restore();

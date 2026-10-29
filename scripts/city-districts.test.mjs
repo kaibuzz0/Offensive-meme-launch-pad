@@ -12,7 +12,7 @@ function walk(e,p,x,y){
 }
 test('one expanded map allows walking across every district boundary without teleporting',()=>{
  const e=setup(),p=e.player('a');for(const b of e.arcade.bots){b.hp=0;b.respawn=10000;}p.invulnerable=10000;
- assert.equal(C.WORLD.width,6720);assert.equal(C.WORLD.height,3320);
+ assert.equal(C.WORLD.width,6720);assert.equal(C.WORLD.height,6720);
  walk(e,p,2320,900);walk(e,p,1120,1280);assert.equal(p.area,'fortress');
  walk(e,p,2120,1280);walk(e,p,2120,2560);walk(e,p,1120,2560);assert.equal(p.area,'arena');
  walk(e,p,2120,2560);walk(e,p,2120,950);walk(e,p,5600,950);walk(e,p,5600,1080);assert.equal(p.area,'creator');

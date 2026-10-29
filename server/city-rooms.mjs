@@ -1,7 +1,7 @@
 /* Authoritative, bounded guest rooms. No client balances or solo saves are accepted. */
 import {randomBytes} from 'node:crypto';
 export class RoomError extends Error {constructor(message,status=400){super(message);this.status=status;}}
-const allowed=new Set(['avatar','style','checkpoint','buy','equip','list','purchase','cancel','chat','fire','dash','contract','abandon','ride','medkit','restock','claimChapter','enterBuilding','exitBuilding']);
+const allowed=new Set(['joinClan','blockJob','abandonBlock','avatar','style','checkpoint','buy','equip','list','purchase','cancel','chat','fire','dash','contract','abandon','ride','medkit','restock','claimChapter','enterBuilding','exitBuilding']);
 export function createRooms(Engine,{now=Date.now,capacity=8,maxRooms=8,sessionTTL=120000}={}){
  const rooms=new Map(),sessions=new Map(),joins=new Map();
  const make=(code,privateRoom)=>{const r={code,private:privateRoom,engine:new Engine(),revision:0};rooms.set(code,r);return r;};

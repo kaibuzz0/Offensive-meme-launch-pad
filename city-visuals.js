@@ -60,11 +60,11 @@
   if(guard){rounded(c,-14,-72,28,26,3,'#314b4e');text(c,back?'DEFENDER':'CITY',0,-58,back?4.5:5,'#d9e7c7');rounded(c,-15,-44,30,4,1,'#192c3b');}
   else if(cop){
    rounded(c,-15,-72,31,26,3,'#253b54');
-   if(back)text(c,'POLICE',0,-57,6,'#e8f0f6');else{rounded(c,-11,-67,8,9,2,'#c9b678');rounded(c,4,-67,9,2,0,'#b9cfe1');text(c,'CITY',0,-47,4,'#bacddb');}
+   if(back)text(c,'INSIDER',0,-57,6,'#e8f0f6');else{rounded(c,-11,-67,8,9,2,'#c9b678');rounded(c,4,-67,9,2,0,'#b9cfe1');text(c,'CITY',0,-47,4,'#bacddb');}
    rounded(c,-19,-44,38,5,2,'#111c28');rounded(c,-17,-46,7,9,2,'#263443');
-  }else if(gang){text(c,back?'RUG CREW':'RUG',0,-58,back?5.5:8,'#d8b0bc');text(c,'NO REFUNDS',0,-49,3.6,'#c194a5');}
+  }else if(gang){text(c,back?'RUGMASTERS':'RUG',0,-58,back?5.5:8,'#d8b0bc');text(c,'NO REFUNDS',0,-49,3.6,'#c194a5');}
   else if(!civilian){
-   const image=o.image,printW=back?29:24,printH=back?25:23,printY=back?-73:-71;
+   const image=o.image,printW=30,printH=27,printY=back?-73:-71;
    c.save();c.beginPath();c.roundRect(-printW/2,printY,printW,printH,1.4);c.clip();
    if(image?.complete&&image.naturalWidth)c.drawImage(image,-printW/2,printY,printW,printH);
    else{c.fillStyle=accent;c.fillRect(-printW/2,printY,printW,printH);text(c,'o!',0,printY+17,16,'#182536');}
@@ -95,7 +95,7 @@
   if(gear.head&&!back){rounded(c,-12,-99,24,7,3,gradient(c,-12,-99,24,7,'#c4a3ff','#5b4c8f'));c.fillStyle='#e8ddff9c';c.fillRect(-7,-98,7,1.4);}
   c.restore();
  }
- const motionStates=new Map();
+ const motionStates=new Map(),aimStates=new Map();
  function motion(id,x,y,time,moving,phase=0){
   const key=String(id),old=motionStates.get(key);let stride=old?.stride||phase,amount=old?.amount||0,travel=old?.travel||{x:1,y:0},speed=0;
   if(old){const dt=Math.max(.001,Math.min(.1,(time-old.time)/1000)),distance=Math.hypot(x-old.x,y-old.y);if(distance>0.02&&distance<90){stride+=distance/20;speed=distance/dt;travel={x:(x-old.x)/distance,y:(y-old.y)/distance};}const target=distance>.02&&distance<90&&moving!==false?Math.min(1,speed/120):0;amount+=(target-amount)*(1-Math.exp(-dt*18));}
@@ -103,25 +103,30 @@
  }
  function person(c,o,time=0){
   const state=o.id?motion(o.id,o.x,o.y,time,o.moving,o.phase||0):null,amount=state?.amount??(o.moving?1:0),cycle=state?.stride??time/115+(o.phase||0),pose=Math.sin(cycle)*6*amount;
-  const facing=o.aim||state?.travel||{x:0,y:1},back=o.back??(facing.y<-.5&&Math.abs(facing.x)<.8),profile=facing.x>.45?1:facing.x<-.45?-1:0;
-  o={...o,back,travel:state?.travel||{x:1,y:0}};
+  const raw=o.aim||state?.travel||{x:0,y:1},target=Math.atan2(raw.y,raw.x),ak=o.id||null,prior=ak&&aimStates.get(ak),dt=prior?Math.max(0,Math.min(.1,(time-prior.time)/1000)):.1;
+  const diff=prior?Math.atan2(Math.sin(target-prior.angle),Math.cos(target-prior.angle)):0,angle=prior?prior.angle+diff*(1-Math.exp(-dt*22)):target;
+  if(ak){aimStates.set(ak,{angle,time});if(aimStates.size>160)aimStates.delete(aimStates.keys().next().value);}
+  const facing={x:Math.cos(angle),y:Math.sin(angle)},back=facing.y<-.45,profile=facing.x>.45?1:facing.x<-.45?-1:0;
+  o={...o,aim:facing,back,travel:state?.travel||{x:1,y:0}};
   const ready=!!o.image?.complete&&!!o.image?.naturalWidth,style=o.style||{},gear=o.gear||{};
   const key=[o.role||'player',o.ticker||'',o.color||'',style.skin||0,style.hair||0,style.pants||0,o.coinName||'',gear.outfit||'',gear.head||'',back,ready].join('|');
   let sprite=cache.get(key);
   if(!sprite){const surface=document.createElement('canvas');surface.width=260;surface.height=288;const g=surface.getContext('2d');g.scale(2,2);drawBody(g,{...o,upperOnly:true},0);sprite=surface;cache.set(key,sprite);if(cache.size>64)cache.delete(cache.keys().next().value);}
   const scale=o.scale||1;c.save();c.translate(o.x,o.y);c.scale(scale,scale);
   const shadow=c.createRadialGradient(0,2,2,0,2,25);shadow.addColorStop(0,'#03081090');shadow.addColorStop(1,'#03081000');c.save();c.scale(1,.4);c.fillStyle=shadow;c.beginPath();c.arc(0,5,25,0,7);c.fill();c.restore();
+  if(o.holderTier>=3){c.strokeStyle=o.color||'#b7ef84';c.globalAlpha=.5;c.lineWidth=2;c.beginPath();c.ellipse(0,2,29,11,0,0,7);c.stroke();c.globalAlpha=1;}
   drawLegs(c,o,pose);
+  if(o.holderTier>=2)rounded(c,5,-14,13,4,1,o.color||'#b7ef84');
   c.save();const bob=-Math.abs(Math.cos(cycle*2))*1.1*amount+(1-amount)*Math.sin(time/950+(o.phase||0))*.3;
   c.translate(profile*amount*.9,bob);c.rotate((o.dashing?profile*.09:profile*.025)*amount);
   drawArms(c,o,pose);
   c.save();c.scale(profile?.96:1,1);if(scale>=2){c.translate(-65,-132);drawBody(c,{...o,upperOnly:true},0);}else c.drawImage(sprite,-65,-132,130,144);c.restore();
-  if(o.armed){const angle=Math.atan2(facing.y,facing.x);heldWeapon(c,{...o,angle});}c.restore();c.restore();
+  if(o.armed){const angle=Math.atan2(facing.y,facing.x);heldWeapon(c,{...o,angle});}if(o.clanRank){for(let i=0;i<o.clanRank;i++)rounded(c,-21,-68+i*4,8,2,1,['#c89560','#c4d4dd','#f0d17c'][o.clanRank-1]);}c.restore();c.restore();
  }
  function heldWeapon(c,o){
-  const angle=o.angle||0,recoil=o.flash?3:0,ca=Math.cos(angle),sa=Math.sin(angle),pivot={x:-ca*recoil,y:-60-sa*recoil};
+  const angle=o.angle||0,recoil=o.flash?3:0,ca=Math.cos(angle),sa=Math.sin(angle),pivot={x:(ca<0?-1:1)*21-ca*recoil,y:-37-sa*recoil};
   const point=(x,y)=>({x:pivot.x+x*ca-y*sa,y:pivot.y+x*sa+y*ca});
-  const grip=point(8,4),support=point(28,-1),hands=[grip,support],shoulders=[{x:17,y:-73},{x:-17,y:-73}];
+  const grip=point(8,4),support=point(28,-1),hands=[grip,support],shoulders=ca<0?[{x:-17,y:-69},{x:17,y:-69}]:[{x:17,y:-69},{x:-17,y:-69}];
   const tone=skin[o.style?.skin||0],coat=o.role==='cop'?'#324c68':o.role==='guard'?(o.color||'#6e8e78'):o.gear?.outfit?'#91ae6e':'#344657';
   c.save();c.lineCap='round';c.lineJoin='round';
   for(let i=0;i<2;i++){const s=shoulders[i],hand=hands[i],elbow={x:s.x*.55+hand.x*.45+(i===0?9:-7),y:s.y*.35+hand.y*.65+12};c.strokeStyle='#102431';c.lineWidth=9;c.beginPath();c.moveTo(s.x,s.y);c.lineTo(elbow.x,elbow.y);c.lineTo(hand.x,hand.y);c.stroke();c.strokeStyle=coat;c.lineWidth=7;c.beginPath();c.moveTo(s.x,s.y);c.lineTo(elbow.x,elbow.y);c.stroke();c.strokeStyle=tone;c.lineWidth=6;c.beginPath();c.moveTo(elbow.x,elbow.y);c.lineTo(hand.x,hand.y);c.stroke();}
