@@ -66,6 +66,6 @@
    if(!p.places.souvenirs.includes(r.id)&&distance(r,ROOM.souvenir)<45){p.places.souvenirs.push(r.id);p.xp+=25;p.notice=`ROOM MEMENTO / ${r.name} · +25 XP. Your discovery passport is saved.`;p.noticeSeq++;}
   }
  };
- P.snapshot=function(id){const s=base.snapshot.call(this,id),p=this.player(id);s.self.room=p.room?{...p.room}:null;s.self.places=save(p);for(const x of s.players){const room=this.player(x.id).room;x.room=room?{...room}:null;x.facing={...(this.player(x.id).facing||{x:0,y:1})};x.firing=this.player(x.id).fireCooldown>.18;x.recoil=Math.max(0,(this.player(x.id).fireCooldown||0)/.25);x.moving=Math.hypot(this.player(x.id).input.x,this.player(x.id).input.y)>.1;}return s;};
+ P.snapshot=function(id){const s=base.snapshot.call(this,id),p=this.player(id);s.self.room=p.room?{...p.room}:null;s.self.places=save(p);for(const x of s.players){const room=this.player(x.id).room;x.room=room?{...room}:null;x.facing={...(this.player(x.id).facing||{x:0,y:1})};x.firing=this.player(x.id).fireCooldown>.20;x.recoil=Math.max(0,Math.min(1,((this.player(x.id).fireCooldown||0)-.13)/.12));x.moving=Math.hypot(this.player(x.id).input.x,this.player(x.id).input.y)>.1;}return s;};
  root.CityInteriors=Object.freeze({BUILDINGS,ROOM,IDS,furniture,buildings,door,nearest,roomBlocked,activity,restore,save});
 })(typeof window==='undefined'?globalThis:window);

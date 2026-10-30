@@ -173,7 +173,7 @@
  // Ground-plane combat coordinates never include visual body height.
  const WEAPON=Object.freeze({barrel:50,height:58,recoil:2,shotInterval:.25});
  function weaponAnchor(angle,recoil=0){const reach=WEAPON.barrel-Math.max(0,Math.min(1,recoil))*WEAPON.recoil;return {x:Math.cos(angle)*reach,y:Math.sin(angle)*reach,height:WEAPON.height};}
- const CAPABILITIES=Object.freeze({online:Object.freeze({actions:Object.freeze(['deliver','joinClan','blockJob','abandonBlock','avatar','style','checkpoint','buy','equip','list','purchase','cancel','chat','fire','dash','contract','abandon','ride','medkit','restock','claimChapter','enterBuilding','exitBuilding']),soloPanels:Object.freeze(['build','outposts','crew','fortress','survival'])}),solo:Object.freeze({persistent:'browser-local'})});
+ const CAPABILITIES=Object.freeze({online:Object.freeze({actions:Object.freeze(['joinConflict','deliver','joinClan','blockJob','abandonBlock','avatar','style','checkpoint','buy','equip','list','purchase','cancel','chat','fire','dash','contract','abandon','ride','medkit','restock','claimChapter','enterBuilding','exitBuilding']),soloPanels:Object.freeze(['build','outposts','crew','fortress','survival'])}),solo:Object.freeze({persistent:'browser-local'})});
  Engine.CAPABILITIES=CAPABILITIES;
  const RELEASE=Object.freeze({name:'Living Blocks',version:'Alpha 12'});
  root.MemeCityCore=Object.freeze({WEAPON,weaponAnchor,CAPABILITIES,RELEASE,WORLD,HUB,SCENERY,ITEMS,DISTRICTS,NEIGHBORHOODS,FACTIONS,factionOf,rivals,npcHostile,outpostLot,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
