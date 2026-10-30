@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const context={window:{}};
+vm.runInNewContext(fs.readFileSync(new URL('../city-core.js',import.meta.url),'utf8'),context);
 vm.runInNewContext(fs.readFileSync(new URL('../city-visuals.js',import.meta.url),'utf8'),context);
 const {weaponPose}=context.window.CityVisuals;
 test('rifle grips retain fixed arm lengths across 360 degrees and recoil',()=>{
@@ -31,3 +32,4 @@ test('solid avatar surfaces are depth sorted and the rifle crosses behind the bo
 });
 
 test('armed clothing has visible meme surfaces at every yaw and keeps pants patterns',()=>{const {rigSurfaces}=context.window.CityVisuals;for(let deg=0;deg<360;deg+=10){const faces=rigSurfaces({style:{print:1},clanRank:3,holderTier:2},deg*Math.PI/180);const prints=faces.filter(f=>f.print==='meme');assert.equal(prints.length,4);assert.ok(prints.some(f=>{const [a,b,,d]=f.points;return Math.abs((b.x-a.x)*(d.y-a.y)-(b.y-a.y)*(d.x-a.x))>150;}));assert.equal(faces.filter(f=>f.print==='pattern').length,2);assert.ok(faces.some(f=>f.color==='#f0d17c'));}});
+test('shared muzzle maps ground-plane shots to visual height in every direction',()=>{const C=context.window.MemeCityCore;for(let d=0;d<360;d++){const a=d*Math.PI/180;for(const recoil of [0,.5,1]){const ground=C.weaponAnchor(a,recoil),pose=weaponPose(a,recoil);assert.ok(Math.abs(ground.x-pose.muzzle.x)<1e-9);assert.ok(Math.abs(ground.y-ground.height-pose.muzzle.y)<1e-9);}}});

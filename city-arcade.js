@@ -63,10 +63,9 @@
   }
  }
  function bullet(e,source,target,side,owner,damage){
-  const d=Math.max(1,distance(source,target)),dx=(target.x-source.x)/d,dy=(target.y-source.y)/d,muzzle=Math.min(50,Math.max(0,d-18));
-  // Collision begins at the weapon, after checking the whole barrel path against cover.
-  for(let n=8;n<=muzzle;n+=7)if(C.blocked(source.x+dx*n,source.y-18+dy*n,source))return;
-  e.arcade.bullets.push({id:++e.serial,x:source.x+dx*muzzle,y:source.y-18+dy*muzzle,vx:dx*650,vy:dy*650,side,owner,damage,ttl:.8});
+  const d=Math.max(.001,distance(source,target)),dx=(target.x-source.x)/d,dy=(target.y-source.y)/d;
+  const anchor=C.weaponAnchor(Math.atan2(dy,dx));
+  e.arcade.bullets.push({id:++e.serial,x:source.x+anchor.x,y:source.y+anchor.y,launch:{x:source.x,y:source.y},height:anchor.height,vx:dx*650,vy:dy*650,side,owner,sourceId:source.id,sourceFaction:C.factionOf(source),damage,ttl:.8});
  }
  // A bounded grid search gives pursuers a route around solid scenery.
  function route(e,from,to){
@@ -171,7 +170,7 @@
   }
   for(const b of [...a.bots]){
    if(b.hp<=0){if(!b.owner){b.respawn-=dt;if(b.respawn<=0)Object.assign(b,{x:b.homeX,y:b.homeY,hp:b.maxHp,cooldown:1.2,state:'patrol',windup:0,targetId:null});}continue;}
-   if(!b.owner&&![...this.players.values()].some(p=>!p.room&&distance(b,p)<1300)){b.state='dormant';continue;}
+   if(!b.owner&&![...this.players.values()].some(p=>!p.room&&distance(b,p)<1300)){b.state='dormant';b.windup=0;b.targetId=null;b.attackTarget=null;b.aim=null;b.path=[];b.cooldown=Math.max(b.cooldown,1.2);continue;}
    if(b.owner&&(this.players.get(b.owner)?.contract?.countdown>0||b.raid&&this.players.get(b.owner)?.defense?.countdown>0)){b.state='ready';continue;}
    b.cooldown=Math.max(0,b.cooldown-dt);
    const builder=[...this.players.values()].find(p=>p.plot?.length||p.outposts?.length);b.plot=builder?.plot||[];b.outposts=builder?.outposts||[];
@@ -191,8 +190,8 @@
     b.windup=Math.max(0,b.windup-dt);b.state='attack';
     if(b.windup===0){
      const victim=this.players.get(b.attackTarget)||a.guards.find(g=>g.id===b.attackTarget&&g.hp>0);
-     if(victim&&!peaceful(victim)&&(b.kind==='cop'||b.ranged)&&b.aim)bullet(this,b,b.aim,'bot',victim.id,b.boss?14:b.ranged?8:10);
-     else if(victim&&!peaceful(victim)&&distance(b,victim)<64&&visible(b,victim))hurt(this,victim,12);
+     if(victim&&C.npcHostile(b,victim)&&!peaceful(victim)&&(b.kind==='cop'||b.ranged)&&b.aim)bullet(this,b,b.aim,'bot',victim.id,b.boss?14:b.ranged?8:10);
+     else if(victim&&C.npcHostile(b,victim)&&!peaceful(victim)&&distance(b,victim)<64&&visible(b,victim))hurt(this,victim,12);
      b.cooldown=b.kind==='cop'?1.15:1.05;b.state='recover';
     }
    }else if(p){
@@ -200,7 +199,7 @@
     if(b.cooldown===0&&(((b.kind==='cop'||b.ranged)&&d<410)||(b.kind==='gang'&&!b.ranged&&d<52))){
      b.windup=b.ranged?.8:b.kind==='cop'?.65:.48;b.windupMax=b.windup;b.attackTarget=p.id;b.aim={x:p.x,y:p.y};b.state='attack';
     }else if(d>(b.kind==='cop'||b.ranged?150:43))steer(this,b,p,b.boss?86:b.kind==='cop'||b.ranged?158:113,dt);
-   }else if(old&&!peaceful(old)&&b.lastSeen&&a.time-b.seenAt<5&&!safe(old)&&(!b.owner||old.contract)){
+   }else if(old&&C.npcHostile(b,old)&&!peaceful(old)&&b.lastSeen&&a.time-b.seenAt<5&&!safe(old)&&(!b.owner||old.contract)){
     b.state='search';steer(this,b,b.lastSeen,115,dt);
    }else{
     b.state='patrol';b.targetId=null;b.windup=0;
@@ -220,15 +219,15 @@
   }
   for(let i=a.bullets.length-1;i>=0;i--){
    const q=a.bullets[i];q.ttl-=dt;let hit=false;
-   const steps=Math.max(1,Math.ceil(650*dt/9));
+   const launch=q.launch,travel=650*dt+(launch?C.WEAPON.barrel:0),steps=Math.max(1,Math.ceil(travel/9));if(launch){q.x=launch.x;q.y=launch.y;delete q.launch;}
    for(let j=0;j<steps&&!hit;j++){
-    q.x+=q.vx*dt/steps;q.y+=q.vy*dt/steps;
+    q.x+=q.vx/650*travel/steps;q.y+=q.vy/650*travel/steps;
     if(C.blocked(q.x,q.y,this.players.get(q.creditOwner||q.owner)||a.guards.find(g=>g.id===q.owner))){hit=true;break;}
     if(q.side==='faction'){
-     const rival=a.bots.find(b=>b.id===q.owner&&b.hp>0);
-     if(rival&&Math.hypot(q.x-rival.x,q.y-(rival.y-18))<22){rival.hp-=q.damage;rival.hitFlash=.12;hit=true;if(rival.hp<=0){rival.respawn=18;rival.windup=0;effect(this,rival.x,rival.y,'FACTION KO','#a9cadf');}}
+     const rival=a.bots.find(b=>b.id===q.owner&&b.hp>0&&!b.owner&&C.rivals(q.sourceFaction,C.factionOf(b)));
+     if(rival&&Math.hypot(q.x-rival.x,q.y-rival.y)<22){rival.hp-=q.damage;rival.hitFlash=.12;hit=true;if(rival.hp<=0){rival.respawn=18;rival.windup=0;effect(this,rival.x,rival.y,'FACTION KO','#a9cadf');}}
     }else if(q.side==='player'||q.side==='ally'){
-     const b=a.bots.find(b=>b.hp>0&&(q.side!=='ally'||C.npcHostile(b,this.players.get(q.creditOwner||q.owner)))&&Math.hypot(q.x-b.x,q.y-(b.y-18))<22);
+     const b=a.bots.find(b=>b.hp>0&&C.npcHostile(b,this.players.get(q.creditOwner||q.owner))&&Math.hypot(q.x-b.x,q.y-b.y)<22);
      if(b){
       b.hp-=q.damage;hit=true;b.hitFlash=.12;
       const p=this.players.get(q.creditOwner||q.owner);effect(this,b.x,b.y,String(q.damage),'#ffcc71');
@@ -243,7 +242,7 @@
         if(q.side!=='ally')p.heat=Math.min(100,p.heat+(b.kind==='cop'?20:9));p.quiet=0;
         if(b.kind==='gang'){
          const owner=b.owner?this.players.get(b.owner):p;
-         if(owner?.contract?.type==='bounty'){owner.contract.progress++;if(owner.contract.progress>=4)win(this,owner);}
+         if(b.owner&&owner?.contract?.type==='bounty'){owner.contract.progress++;if(owner.contract.progress>=4)win(this,owner);}
         }
        }
        effect(this,b.x,b.y,'KO','#ff8fa7');
@@ -251,7 +250,8 @@
      }
     }else{
      const p=this.players.get(q.owner)||a.guards.find(g=>g.id===q.owner);
-     if(p&&!peaceful(p)&&Math.hypot(q.x-p.x,q.y-(p.y-18))<20){hurt(this,p,q.damage);hit=true;}
+     const shooter=a.bots.find(b=>b.id===q.sourceId);
+     if(p&&shooter&&C.npcHostile(shooter,p)&&!peaceful(p)&&Math.hypot(q.x-p.x,q.y-p.y)<20){hurt(this,p,q.damage);hit=true;}
     }
    }
    if(hit||q.ttl<=0)a.bullets.splice(i,1);
@@ -272,6 +272,7 @@
    if(p.contract?.countdown>0||p.defense?.countdown>0)throw Error('Get ready — the job is starting.');
    if(p.fireCooldown>0)throw Error('Blaster cooling down.');p.fireCooldown=.25;p.shots++;
    const enemies=a.bots.filter(b=>b.hp>0&&C.npcHostile(b,p)&&distance(b,p)<470&&visible(p,b)&&(!p.manualAim||((b.x-p.x)*x+(b.y-p.y)*y)/Math.max(1,distance(p,b))>.86)).sort((b,c)=>distance(p,b)-distance(p,c));
+   const locked=enemies.find(b=>b.id===p.lockTarget);if(locked&&distance(p,locked)<=distance(p,enemies[0])+75){enemies.splice(enemies.indexOf(locked),1);enemies.unshift(locked);}
    const target=enemies[0]||{x:p.x+x*400,y:p.y+y*400};p.lockTarget=enemies[0]?.id||null;
    const d=Math.max(1,distance(p,target));p.facing={x:(target.x-p.x)/d,y:(target.y-p.y)/d};
    bullet(this,p,target,'player',id,gear(p,'hand')==='blaster'?36:25);p.quiet=0;

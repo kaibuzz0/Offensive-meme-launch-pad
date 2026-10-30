@@ -1,7 +1,7 @@
 /* Streetwear character art and environment finishing, rendered locally in canvas. */
 'use strict';
 (function(root){
- const cache=new Map();
+ const cache=new Map(),W=root.MemeCityCore.WEAPON;
  const skin=['#c38f6c','#e5b898','#8d583e','#5b382b','#d3a17d','#a4775c'];
  const hair=['#242329','#4d352d','#171e25','#9b7750'];
  const denim=['#27394f','#363b43','#4c5345','#466079'];
@@ -140,12 +140,12 @@
   return shoulder.map((value,i)=>value+u[i]*along+down[i]/n*height);
  }
  function weaponPose(angle,flash=false){
-  const ca=Math.cos(angle),sa=Math.sin(angle),recoil=(typeof flash==='number'?Math.max(0,Math.min(1,flash)):flash?1:0)*2;
+  const ca=Math.cos(angle),sa=Math.sin(angle),recoil=(typeof flash==='number'?Math.max(0,Math.min(1,flash)):flash?1:0)*W.recoil;
   // Local coordinates: forward, lateral, height. Rotate the entire rig around vertical.
   const project=([f,l,h])=>({x:f*ca-l*sa,y:f*sa+l*ca*.35-h});
   const shoulders3=[[0,17,73],[0,-17,73]],hands3=[[8-recoil,4,56],[28-recoil,-1,56]];
   const elbows3=hands3.map((h,i)=>armElbow(shoulders3[i],h));
-  return{pivot:project([-recoil,0,56]),hands:hands3.map(project),shoulders:shoulders3.map(project),elbows:elbows3.map(project),muzzle:project([50-recoil,0,56]),joints:{shoulders:shoulders3,hands:hands3,elbows:elbows3}};
+  return{pivot:project([-recoil,0,W.height]),hands:hands3.map(project),shoulders:shoulders3.map(project),elbows:elbows3.map(project),muzzle:project([W.barrel-recoil,0,W.height]),joints:{shoulders:shoulders3,hands:hands3,elbows:elbows3}};
  }
  // All surfaces share one world-space yaw and camera depth. Occlusion is geometric,
  // never a front/back switch for the whole gun or both arms.
