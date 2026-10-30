@@ -4,7 +4,7 @@
  const C=root.MemeCityCore,P=C.Engine.prototype,base={join:P.join,tick:P.tick,action:P.action,snapshot:P.snapshot};
  const themes={launch:['Launch House','lobby','journey','#b9a3e5'],arcade:['Chaos Arcade','arcade','missions','#70d8d0'],club:['The Unfiltered','club','social','#d59ae8'],shop:['Bad Taste Supply','shop','shop','#c9db9a'],market:['Night Market','market','market','#e3ba85'],garage:['Meme Motors','garage','mobility','#99cfdf']};
  const extras={creator:[['Meme Gallery','gallery','collections','#c6b0e6'],['Print Studio','studio','avatar','#9dd5c3']],arena:[['The Proving Ground','arena','survival','#e7ba96']],social:[['The Common Room','lounge','social','#a6cadf'],['Boardwalk Cafe','cafe','social','#e3cc9c']]};
- const BUILDINGS=C.WORLD.buildings.map(b=>({...b,roomId:b.id,name:themes[b.id]?.[0]||b.label,theme:themes[b.id]?.[1]||(b.id.endsWith('-2')?'arcade':b.id.endsWith('-1')?'shop':'gallery'),activity:themes[b.id]?.[2]||(b.id.endsWith('-1')?'shop':'clans'),accent:themes[b.id]?.[3]||b.hue}));
+ const BUILDINGS=C.WORLD.buildings.map(b=>({...b,roomId:b.id,name:themes[b.id]?.[0]||b.label,theme:b.theme||themes[b.id]?.[1]||(b.id.endsWith('-2')?'arcade':b.id.endsWith('-1')?'shop':'gallery'),activity:b.activity||themes[b.id]?.[2]||(b.id.endsWith('-1')?'shop':'clans'),accent:themes[b.id]?.[3]||b.hue}));
  for(const d of C.DISTRICTS)C.districtBlocks(d.id).forEach((b,i)=>{const [name,theme,activity,accent]=extras[d.id][i];BUILDINGS.push({...b,x:b.x+d.ox,y:b.y+d.oy,roomId:`${d.id}-${i}`,name,theme,activity,accent});});
  const ROOM={width:1200,height:900,left:105,right:1095,top:190,bottom:755,spawn:{x:600,y:685},exit:{x:600,y:750},activity:{x:600,y:315},souvenir:{x:990,y:630}};
  const IDS=[...BUILDINGS.map(b=>b.roomId),'home'];

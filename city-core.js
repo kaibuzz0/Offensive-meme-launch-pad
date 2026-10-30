@@ -71,6 +71,7 @@
   for(const [i,label]of [n.clan+' HQ','STREETWEAR EXCHANGE','COMMUNITY ARCADE','BLOCK WORKSHOP'].entries()){
    WORLD.buildings.push({id:n.id+'-'+i,token:n.id,x:n.ox+(i%2?1430:290),y:n.oy+(i<2?290:1110),w:450,h:260,hue:n.color,label,sub:n.name});
   }
+  for(const [i,label]of ['TOKEN OUTFITTERS','STREET MEDIC'].entries())WORLD.buildings.push({id:n.id+'-annex-'+i,token:n.id,x:n.ox+(i?1570:390),y:n.oy+630,w:280,h:125,hue:n.color,label,sub:n.clan,activity:i?'supplies':'tokens',theme:i?'cafe':'shop'});
   WORLD.stations.push({id:'clan-'+n.id,x:n.x,y:n.y,name:n.clan,hint:'Clan jobs and neighborhood routes',kind:'clans'});
  }
  const SCENERY=[];

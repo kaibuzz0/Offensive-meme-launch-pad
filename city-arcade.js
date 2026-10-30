@@ -14,8 +14,8 @@
   e.arcade={time:0,bots:[],guards:[],bullets:[],effects:[],pickups:[]};
   for(let i=0;i<8;i++)spawn(e,'gang',spots[i][0]+HUB.x,spots[i][1],`gang-${i}`);
   for(let i=0;i<4;i++)spawn(e,'cop',patrol[i][0]+HUB.x,patrol[i][1],`cop-${i}`);
-  for(const n of C.NEIGHBORHOODS)for(let i=0;i<2;i++){
-   const b=spawn(e,i?'gang':'cop',n.x+(i?170:-170),n.y+200,'block-'+n.id+'-'+i);b.faction=i?'exit':'congress';b.ranged=true;b.ambient=true;
+  for(const n of C.NEIGHBORHOODS)for(let i=0;i<4;i++){
+   const rug=i%2===1;const b=spawn(e,rug?'gang':'cop',n.x+(rug?170:-170),n.y+200+Math.floor(i/2)*100,'block-'+n.id+'-'+i);b.faction=rug?'exit':'congress';b.ranged=true;b.ambient=true;
   }
   for(let i=0;i<12;i++)e.arcade.pickups.push({id:`loot-${i}`,x:HUB.x+180+(i%6)*340,y:i<6?590:910,kind:i%4===0?'med':'credit',ready:0});
  }

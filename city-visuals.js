@@ -152,7 +152,7 @@
  function rigSurfaces(o,angle){
   const ca=Math.cos(angle),sa=Math.sin(angle),faces=[];
   const project=([f,l,h])=>{const y=f*sa+l*ca;return{x:f*ca-l*sa,y:y-h,depth:y+h};};
-  function face(points,color,print=false){const p=points.map(project);faces.push({points:p,color,print,depth:p.reduce((sum,v)=>sum+v.depth,0)/p.length});}
+  function face(points,color,print=false){const p=points.map(project);const u=points[1].map((v,i)=>v-points[0][i]),v=points[2].map((v,i)=>v-points[0][i]),normal=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],len=Math.hypot(...normal)||1;const shade=.78+.22*Math.abs((normal[0]*.35+normal[1]*.25+normal[2]*.9)/len);faces.push({points:p,color,print,shade,depth:p.reduce((sum,v)=>sum+v.depth,0)/p.length});}
   function box(center,size,color){
    const [f,l,h]=center,[a,b,d]=size.map(n=>n/2),v=[[-a,-b,-d],[-a,b,-d],[a,b,-d],[a,-b,-d],[-a,-b,d],[-a,b,d],[a,b,d],[a,-b,d]].map(p=>p.map((n,i)=>n+center[i]));
    for(const ids of [[0,1,2,3],[4,7,6,5],[0,4,5,1],[3,2,6,7],[0,3,7,4],[1,5,6,2]])face(ids.map(i=>v[i]),color);
@@ -179,13 +179,21 @@
   box([8.2,0,88],[.6,5,1],'#845642');
   if(o.gear?.head)box([9,0,97],[2,19,5],'#a78cd9');
   // The same meme is printed on the chest and back and wraps out of view in profile.
-  for(const side of [-1,1])face([[side*9.15,-13,74],[side*9.15,13,74],[side*9.15,13,47],[side*9.15,-13,47]],o.color||'#b7ef84',true);
   for(const side of [-1,1]){
-   const stride=(o.stridePose||0)*side,hip=[0,side*8,40],knee=[stride*.5,side*8,23],ankle=[stride,side*8,5+Math.max(0,stride)*.5];
-   limb(hip,knee,6,denim[style.pants||0]);limb(knee,ankle,5,denim[style.pants||0]);box([ankle[0]+3,ankle[1],ankle[2]-2],[15,11,6],o.gear?.feet?'#375c66':'#202a35');box([ankle[0]+3,ankle[1],ankle[2]-4],[16,12,2],'#a7b3bd');
+   face([[side*9.25,-13,74],[side*9.25,13,74],[side*9.25,13,47],[side*9.25,-13,47]],o.color||'#b7ef84','meme');
+   // Sleeve-sized side print stays visible when the chest turns edge-on.
+   face([[-7,side*17.3,71],[7,side*17.3,71],[7,side*17.3,53],[-7,side*17.3,53]],o.color||'#b7ef84','meme');
+   for(let r=0;r<(o.clanRank||0);r++)box([0,side*17.6,76-r*2],[12,.7,1],['#c89560','#c4d4dd','#f0d17c'][o.clanRank-1]);
+  }
+  box([0,0,41],[19,35,4],'#142733');box([9.8,0,41],[1,5,3],'#d3d4bc');
+  if(o.holderTier>=1)box([9.9,-10,75],[1,5,5],o.color||'#b7ef84');
+  for(const side of [-1,1]){
+   const stride=(o.stridePose||0)*side,travel=o.travel||{x:ca,y:sa},forward=travel.x*ca+travel.y*sa,lateral=-travel.x*sa+travel.y*ca,hip=[0,side*8,40],knee=[stride*.5*forward,side*8+stride*.5*lateral,23],ankle=[stride*forward,side*8+stride*lateral,5+Math.max(0,stride)*.5];
+   limb(hip,knee,6,denim[style.pants||0]);limb(knee,ankle,5,denim[style.pants||0]);
+   face([[stride*.15-4,side*14.2,36],[stride*.15+4,side*14.2,36],[stride*.65+4,side*14.2,16],[stride*.65-4,side*14.2,16]],'#263949',style.print===1?'pattern':'ticker');box([ankle[0]+3,ankle[1],ankle[2]-2],[15,11,6],o.gear?.feet?'#375c66':'#202a35');box([ankle[0]+3,ankle[1],ankle[2]-4],[16,12,2],'#a7b3bd');
   }
   const joints=weaponPose(angle,o.flash).joints;
-  for(let i=0;i<2;i++){limb(joints.shoulders[i],joints.elbows[i],4,coat);limb(joints.elbows[i],joints.hands[i],3,tone);box(joints.hands[i],[6,6,6],tone);}
+  for(let i=0;i<2;i++){limb(joints.shoulders[i],joints.elbows[i],4,coat);limb(joints.elbows[i],joints.hands[i],3,tone);box(joints.hands[i],[6,6,6],tone);if(o.holderTier>=2)box(joints.hands[i].map((v,k)=>v+(k===2?3:0)),[7,7,2],o.color||'#b7ef84');}
   const recoil=o.flash?2:0;
   const gun=(f,l,h,size,color)=>box([f-recoil,l,h],size,color);
   gun(-6,0,56,[15,7,8],'#405765');gun(16,0,58,[28,7,9],o.upgraded?'#9cabc0':'#829aa4');gun(32,0,58,[16,5,6],'#304957');gun(44,0,58,[12,3,3],'#bac8cf');gun(49,0,58,[3,5,5],'#253e4d');gun(11,0,50,[5,5,10],'#243944');gun(14,0,65,[13,4,3],'#253e4d');
@@ -194,11 +202,13 @@
  }
  function drawSolidRig(c,o,angle){
   for(const f of rigSurfaces(o,angle)){
-   const p=f.points;c.beginPath();c.moveTo(p[0].x,p[0].y);for(let i=1;i<p.length;i++)c.lineTo(p[i].x,p[i].y);c.closePath();c.fillStyle=f.color;c.fill();c.strokeStyle=f.color;c.lineWidth=.35;c.stroke();
+   const p=f.points;c.beginPath();c.moveTo(p[0].x,p[0].y);for(let i=1;i<p.length;i++)c.lineTo(p[i].x,p[i].y);c.closePath();const lit=/^#[0-9a-f]{6}$/i.test(f.color)?'#'+[1,3,5].map(i=>Math.round(parseInt(f.color.slice(i,i+2),16)*f.shade).toString(16).padStart(2,'0')).join(''):f.color;c.fillStyle=lit;c.fill();c.strokeStyle=lit;c.lineWidth=.35;c.stroke();
    if(f.print){
     const a=p[0],b=p[1],d=p[3],det=(b.x-a.x)*(d.y-a.y)-(b.y-a.y)*(d.x-a.x);if(Math.abs(det)<.01)continue;
     c.save();c.clip();c.transform((b.x-a.x)/30,(b.y-a.y)/30,(d.x-a.x)/28,(d.y-a.y)/28,a.x,a.y);
-    if(o.image?.complete&&o.image.naturalWidth)c.drawImage(o.image,0,0,30,28);else{text(c,'o!',15,20,18,'#172432');}c.restore();
+    if(f.print==='ticker'){c.fillStyle='#142733';c.fillRect(0,0,30,28);c.save();c.translate(15,14);c.rotate(Math.PI/2);text(c,'$'+(o.ticker||'MEME'),0,2,5,'#eaf3e7');c.restore();}
+    else if(f.print==='pattern'){for(let y=0;y<28;y+=9)for(let x=0;x<30;x+=10){if(o.image?.complete&&o.image.naturalWidth)c.drawImage(o.image,x,y,9,8);else{c.fillStyle=o.color||'#b7ef84';c.fillRect(x,y,7,6);}}}
+    else {if(o.image?.complete&&o.image.naturalWidth)c.drawImage(o.image,0,0,30,23);else{text(c,'o!',15,18,18,'#172432');}c.fillStyle='#142733';c.fillRect(0,23,30,5);text(c,'$'+(o.ticker||'MEME'),15,27,3.8,'#f0f5e9');}c.restore();
    }
   }
  }

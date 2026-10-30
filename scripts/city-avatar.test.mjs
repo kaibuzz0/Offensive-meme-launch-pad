@@ -29,3 +29,5 @@ test('solid avatar surfaces are depth sorted and the rifle crosses behind the bo
  assert.ok(average(front,'#829aa4')>average(front,'#303e4d'),'rifle in front when facing camera');
  assert.ok(average(back,'#829aa4')<average(back,'#303e4d'),'rifle behind when facing away');
 });
+
+test('armed clothing has visible meme surfaces at every yaw and keeps pants patterns',()=>{const {rigSurfaces}=context.window.CityVisuals;for(let deg=0;deg<360;deg+=10){const faces=rigSurfaces({style:{print:1},clanRank:3,holderTier:2},deg*Math.PI/180);const prints=faces.filter(f=>f.print==='meme');assert.equal(prints.length,4);assert.ok(prints.some(f=>{const [a,b,,d]=f.points;return Math.abs((b.x-a.x)*(d.y-a.y)-(b.y-a.y)*(d.x-a.x))>150;}));assert.equal(faces.filter(f=>f.print==='pattern').length,2);assert.ok(faces.some(f=>f.color==='#f0d17c'));}});

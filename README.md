@@ -1,3 +1,13 @@
+## Street Life / Alpha 11
+
+Armed avatars now retain meme prints on front, back and sides, trouser ticker/pattern panels, earned clan stripes and verified holder cuffs. Directional surface shading improves depth, and walking strides follow movement while strafing. The existing fixed-length grip rig remains depth-sorted through a full turn; a weapon is correctly occluded when aimed away.
+
+Twelve walk-in Token Outfitters and Street Medic annexes bring the city to 47 public interiors, plus the player-built HQ. Each of the six neighborhoods now has two Insider security officers and two Rugmasters. The Clans menu can track a live NPC skirmish. Salvage Scramble adds four two-second crate stops and a return to the terminal; it pays 45 play credits, 35 XP and one clan reputation exactly once. Leaving a crate resets its collection progress.
+
+The 6,720-square map, free clans, existing construction plot and server-verified holder tiers remain. Token purchases use live provider quotes and explicit wallet approval; $0.50/$1 token prices cannot be guaranteed. Construction outside the original fortress plot is not yet supported. Existing saves are retained.
+
+Validation: 105 simulation, rendering-geometry, server and security tests; syntax/asset checks; browser review of solo scene and clan controls.
+
 ## Wandering Monk encounter
 
 Rare shared event using two prayer excerpts from the owner-supplied `THE SONGS OF YESHUA.txt` (Psalm 147:3 and Psalm 104:4). After three active minutes, each minute has a 15% chance to summon a monk beside an injured outdoor player with nearby hostile NPCs. The encounter lasts 24 seconds, followed by a six-minute minimum cooldown. No purchase or wallet is required. Prayer appears as text, not recorded speech.
