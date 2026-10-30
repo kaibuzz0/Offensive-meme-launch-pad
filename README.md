@@ -1,3 +1,9 @@
+## Wandering Monk encounter
+
+Rare shared event using two prayer excerpts from the owner-supplied `THE SONGS OF YESHUA.txt` (Psalm 147:3 and Psalm 104:4). After three active minutes, each minute has a 15% chance to summon a monk beside an injured outdoor player with nearby hostile NPCs. The encounter lasts 24 seconds, followed by a six-minute minimum cooldown. No purchase or wallet is required. Prayer appears as text, not recorded speech.
+
+Within the unobstructed 155-unit blessing circle, players regain 6 HP/second, capped at 100. A golden fire tornado seeks nearby hostile ambient NPCs, respects cover and clan allegiance, and cannot hurt players. Owned mission/raid/boss enemies are excluded so the event cannot consume contract objectives. Monk KOs grant no player kill, XP or credit rewards. Reduced-motion mode removes spinning and sparks. Online timing and healing are server-controlled; solo timing resets on reload and cannot summon immediately.
+
 ## Alpha 10 — Block Wars
 
 The connected world is now 6,720 × 6,720. Six southern token neighborhoods add 24 buildings (35 city interiors total), clan terminals, street circuits, delivery runs and timed block holds. Existing solo coordinates and saves remain compatible. Construction still uses the original private fortress plot; shared neighborhood construction is not implemented.
@@ -157,3 +163,5 @@ GitHub Pages remains solo until a real HTTPS room host is activated. `render.yam
 ### Public room activation
 
 Guest multiplayer is hosted at https://offensive-meme-city-rooms.onrender.com and connected to the GitHub Pages game. Open Together → Quick play or create/join a friend room. Service ID: `srv-dbhfhdlg1s2s739v1ih0`; one free Ohio instance, manual deploys. Free idle wake-up can take about a minute; joins allow up to 90 seconds. Guest progress is in memory and resets with a restart or deploy.
+
+The Wandering Monk displays “Praise YHWH! Praise Yeshua!” throughout the encounter, alongside rotating prayer excerpts from the supplied THE SONGS OF YESHUA text. Prayers are on-screen text.
