@@ -38,12 +38,19 @@
   {name:'Put down roots',description:'Build a Meme HQ and upgrade your fortress to level 2.',reward:180,xp:180,ready:p=>p.rising.fortLevel>=2,target:()=>({...GUIDES.find(g=>g.id==='keeper'),name:'Fortress command'})},
   {name:'This city is yours',description:'Find all 12 landmarks. Leave your mark in every district.',reward:250,xp:250,ready:p=>p.rising.found.length===LANDMARKS.length,target:p=>LANDMARKS.find(n=>!p.rising.found.includes(n.id))}
  ];
+ const ONLINE_CHAPTERS=[CHAPTERS[0],CHAPTERS[1],
+  {name:'Find your crew',description:'Join any clan through the Clans panel.',reward:50,xp:50,ready:p=>!!p.clan,target:()=>C.NEIGHBORHOODS[0]},
+  {name:'Work the block',description:'Complete one clan job.',reward:70,xp:70,ready:p=>Object.values(p.reputation||{}).some(n=>n>0),target:p=>C.NEIGHBORHOODS.find(n=>n.id===p.clan)||C.NEIGHBORHOODS[0]},
+  CHAPTERS[4],
+  {name:'Dress for the city',description:'Own and equip an item from an equipment shop.',reward:60,xp:60,ready:p=>p.inventory.length>0&&Object.keys(p.equipped).length>0,target:()=>C.WORLD.stations.find(s=>s.id==='shop')},
+  {name:'Open doors',description:'Explore three different building interiors.',reward:80,xp:80,ready:p=>(p.places?.visited.length||0)>=3,target:()=>C.WORLD.stations.find(s=>s.id==='arcade')},CHAPTERS[7]];
+ const chapters=p=>p.mode==='online'?ONLINE_CHAPTERS:CHAPTERS;
  function restore(p,s){const r=fresh();if(s&&typeof s==='object'){
   r.found=LANDMARKS.filter(n=>Array.isArray(s.found)&&s.found.includes(n.id)).map(n=>n.id);
   r.claimed=int(s.claimed,CHAPTERS.length);r.fortLevel=int(s.fortLevel,3);r.medkits=int(s.medkits,9);r.arenaWins=int(s.arenaWins);r.bestWave=int(s.bestWave,3);
  }p.rising=r;return r;}
  function save(p){const {found,claimed,fortLevel,medkits,arenaWins,bestWave}=p.rising;return {found:[...found],claimed,fortLevel,medkits,arenaWins,bestWave};}
- function objective(p){const chapter=CHAPTERS[p.rising.claimed];return chapter?{...chapter,number:p.rising.claimed+1,ready:chapter.ready(p),target:chapter.target(p)}:null;}
+ function objective(p){const chapter=chapters(p)[p.rising.claimed];return chapter?{...chapter,number:p.rising.claimed+1,ready:chapter.ready(p),target:chapter.target(p)}:null;}
  function nearest(p){return GUIDES.find(n=>dist(p,n)<100);}
  function cleanArena(e,p,status){
   const a=p.rising.arena;if(!a)return;
@@ -64,7 +71,7 @@
   }
   say(p,a.wave===3?'WAVE 3 / THE RUG BARON. Use cover, keep moving, and watch the aiming lines.':`WAVE ${a.wave} / ${count} raiders incoming. Your squad can help.`);
  }
- P.join=function(...args){const p=base.join.apply(this,args);restore(p);return p;};
+ P.join=function(...args){const p=base.join.apply(this,args);restore(p);p.mode=this.mode||'solo';return p;};
  P.action=function(id,a){
   const p=this.player(id),r=p.rising;
   if(!r)return base.action.call(this,id,a);
@@ -78,7 +85,7 @@
    r.medkits--;p.hp=Math.min(100,p.hp+45);p.invulnerable=Math.max(p.invulnerable,.4);return 'Medkit used. +45 HP.';
   }
   if(a?.type==='restock'){
-   if(dist(p,GUIDES.find(g=>g.id==='doc'))>125)throw Error('Visit Patch near Bad Taste Supply.');
+   if(p.room||dist(p,GUIDES.find(g=>g.id==='doc'))>125)throw Error('Visit Patch near Bad Taste Supply.');
    if(r.medkits>=9)throw Error('You can carry up to 9 medkits.');if(p.credits<25)throw Error('A medkit costs 25 play credits.');p.credits-=25;r.medkits++;return 'Medkit packed. 25 play credits.';
   }
   if(a?.type==='claimChapter'){
@@ -94,7 +101,7 @@
   if(a?.type==='startSurvival'){
    if(dist(p,GUIDES.find(g=>g.id==='marshal'))>180)throw Error('Walk to Marshal’s arena terminal.');
    if(p.contract||p.defense||r.arena)throw Error('Finish or abandon your active challenge first.');if(r.arenaCooldown>0)throw Error('The arena is resetting. Try again shortly.');
-   if(this.arcade.bots.length+12>48)throw Error('Arena is busy. Finish other challenges first.');
+   if(this.arcade.bots.length+12>64)throw Error('Arena is busy. Finish other challenges first.');
    r.riding=false;r.speed=0;r.arenaResult=null;r.arena={wave:0,next:3,remaining:240,spawned:false,startDeaths:p.deaths};return 'Arena survival: 3 waves. Stand ready. Defeat the Rug Baron to win.';
   }
   if(a?.type==='endSurvival'){if(!r.arena)throw Error('No arena run active.');cleanArena(this,p,'abandoned');return 'Arena run abandoned. No completion reward.';}
@@ -130,5 +137,5 @@
   }
  };
  P.snapshot=function(id){const s=base.snapshot.call(this,id),p=this.player(id);s.self.rising=JSON.parse(JSON.stringify(p.rising));for(const x of s.players){const player=this.players.get(x.id);x.riding=!!player.rising?.riding;}return s;};
- root.CityRising=Object.freeze({LANDMARKS,GUIDES,CHAPTERS,UPGRADE_COSTS,restore,save,objective,nearest});
+ root.CityRising=Object.freeze({LANDMARKS,GUIDES,CHAPTERS,ONLINE_CHAPTERS,chapters,UPGRADE_COSTS,restore,save,objective,nearest});
 })(typeof window==='undefined'?globalThis:window);

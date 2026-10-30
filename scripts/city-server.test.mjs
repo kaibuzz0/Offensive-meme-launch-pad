@@ -21,6 +21,8 @@ test('HTTP rooms authenticate, stream real peers, reject forged actions and isol
  assert.match(await (await fetch(base+'/city-network.js')).text(),/enabled:true/);
  assert.equal((await fetch(base+'/city.html')).status,200);
  assert.equal((await fetch(base+'/city-districts.js')).status,200);
+ assert.equal((await post('/wallet/disconnect',{},a.session)).status,200);
+ assert.equal((await post('/wallet/check',{clan:'offensive'},a.session)).status,400);
  await post('/leave',{},a.session);assert.equal((await fetch(base+'/api/city/state',{headers:{Authorization:`Bearer ${a.session}`}})).status,401);
 });
 

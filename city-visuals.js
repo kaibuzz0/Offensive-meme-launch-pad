@@ -140,7 +140,7 @@
   return shoulder.map((value,i)=>value+u[i]*along+down[i]/n*height);
  }
  function weaponPose(angle,flash=false){
-  const ca=Math.cos(angle),sa=Math.sin(angle),recoil=flash?2:0;
+  const ca=Math.cos(angle),sa=Math.sin(angle),recoil=(typeof flash==='number'?Math.max(0,Math.min(1,flash)):flash?1:0)*2;
   // Local coordinates: forward, lateral, height. Rotate the entire rig around vertical.
   const project=([f,l,h])=>({x:f*ca-l*sa,y:f*sa+l*ca*.35-h});
   const shoulders3=[[0,17,73],[0,-17,73]],hands3=[[8-recoil,4,56],[28-recoil,-1,56]];
@@ -192,9 +192,9 @@
    limb(hip,knee,6,denim[style.pants||0]);limb(knee,ankle,5,denim[style.pants||0]);
    face([[stride*.15-4,side*14.2,36],[stride*.15+4,side*14.2,36],[stride*.65+4,side*14.2,16],[stride*.65-4,side*14.2,16]],'#263949',style.print===1?'pattern':'ticker');box([ankle[0]+3,ankle[1],ankle[2]-2],[15,11,6],o.gear?.feet?'#375c66':'#202a35');box([ankle[0]+3,ankle[1],ankle[2]-4],[16,12,2],'#a7b3bd');
   }
-  const joints=weaponPose(angle,o.flash).joints;
+  const joints=weaponPose(angle,o.recoil??o.flash).joints;
   for(let i=0;i<2;i++){limb(joints.shoulders[i],joints.elbows[i],4,coat);limb(joints.elbows[i],joints.hands[i],3,tone);box(joints.hands[i],[6,6,6],tone);if(o.holderTier>=2)box(joints.hands[i].map((v,k)=>v+(k===2?3:0)),[7,7,2],o.color||'#b7ef84');}
-  const recoil=o.flash?2:0;
+  const recoil=Math.max(0,Math.min(1,o.recoil??(o.flash?1:0)))*2;
   const gun=(f,l,h,size,color)=>box([f-recoil,l,h],size,color);
   gun(-6,0,56,[15,7,8],'#405765');gun(16,0,58,[28,7,9],o.upgraded?'#9cabc0':'#829aa4');gun(32,0,58,[16,5,6],'#304957');gun(44,0,58,[12,3,3],'#bac8cf');gun(49,0,58,[3,5,5],'#253e4d');gun(11,0,50,[5,5,10],'#243944');gun(14,0,65,[13,4,3],'#253e4d');
   if(o.flash)gun(55,0,58,[10,5,5],'#ffedb5');

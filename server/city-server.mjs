@@ -39,6 +39,7 @@ export function createCityServer({origins=[],now=()=>Date.now()}={}){
     const token=String(req.headers.authorization||'').replace(/^Bearer /,''),session=service.auth(token);
     if(route==='/wallet/challenge'&&req.method==='POST')return json(res,200,holdings.challenge(session,body.address));
     if(route==='/wallet/check'&&req.method==='POST')return json(res,200,await holdings.check(session,service.rooms.get(session.room).engine.player(session.id),body));
+    if(route==='/wallet/disconnect'&&req.method==='POST'){session.walletEpoch=(session.walletEpoch||0)+1;delete session.walletAddress;delete session.walletChallenge;service.rooms.get(session.room).engine.player(session.id).holder=null;return json(res,200,{ok:true});}
     if(route==='/events'&&req.method==='GET'){
      streams.get(token)?.end();streams.set(token,res);res.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store, no-transform','X-Accel-Buffering':'no'});res.write(JSON.stringify(service.snapshot(session))+'\n');req.on('close',()=>{if(streams.get(token)===res)streams.delete(token);});return;
     }

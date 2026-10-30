@@ -40,10 +40,16 @@
    p.room=null;p.area=C.areaAt(p.x,p.y);p.input={x:0,y:0};p.invulnerable=Math.max(p.invulnerable,1);return 'Back on the street.';
   }
   if(p.room){
-   if(['ride','fire','dash','contract','startSurvival','defenseDrill','checkpoint','build','demolish','starterfort','hire','list','purchase'].includes(a?.type))throw Error('Step outside for that activity.');
+   if(['ride','fire','dash','contract','startSurvival','defenseDrill','checkpoint','build','demolish','starterfort','hire'].includes(a?.type))throw Error('Step outside for that activity.');
+   if(['restock','list','purchase'].includes(a?.type)){
+    const building=BUILDINGS.find(b=>b.roomId===p.room.id),service=a.type==='restock'?'supplies':'market';
+    if(!building||building.activity!==service||distance(p.room,ROOM.activity)>110)throw Error('Use the matching service terminal inside its building.');
+    const old={x:p.x,y:p.y,area:p.area,room:p.room};const target=service==='supplies'?root.CityRising.GUIDES.find(g=>g.id==='doc'):C.WORLD.stations.find(s=>s.id==='market');
+    Object.assign(p,{x:target.x,y:target.y,area:'hub',room:null});try{return base.action.call(this,id,a);}finally{Object.assign(p,old);}
+   }
    if(a?.type==='buy'){
-    if(p.room.theme!=='shop'||distance(p.room,ROOM.activity)>110)throw Error('Visit the equipment counter in Bad Taste Supply.');
-    const old={x:p.x,y:p.y,area:p.area};const shop=C.WORLD.stations.find(s=>s.id==='shop');p.x=shop.x;p.y=shop.y;
+    if(BUILDINGS.find(b=>b.roomId===p.room.id)?.activity!=='shop'||distance(p.room,ROOM.activity)>110)throw Error('Visit the equipment counter in Bad Taste Supply.');
+    const old={x:p.x,y:p.y,area:p.area};const shop=C.WORLD.stations.find(s=>s.id==='shop');p.x=shop.x;p.y=shop.y;p.area='hub';
     try{return base.action.call(this,id,a);}finally{Object.assign(p,old);}
    }
   }
@@ -60,6 +66,6 @@
    if(!p.places.souvenirs.includes(r.id)&&distance(r,ROOM.souvenir)<45){p.places.souvenirs.push(r.id);p.xp+=25;p.notice=`ROOM MEMENTO / ${r.name} · +25 XP. Your discovery passport is saved.`;p.noticeSeq++;}
   }
  };
- P.snapshot=function(id){const s=base.snapshot.call(this,id),p=this.player(id);s.self.room=p.room?{...p.room}:null;s.self.places=save(p);for(const x of s.players){const room=this.player(x.id).room;x.room=room?{...room}:null;x.facing={...(this.player(x.id).facing||{x:0,y:1})};x.moving=Math.hypot(this.player(x.id).input.x,this.player(x.id).input.y)>.1;}return s;};
+ P.snapshot=function(id){const s=base.snapshot.call(this,id),p=this.player(id);s.self.room=p.room?{...p.room}:null;s.self.places=save(p);for(const x of s.players){const room=this.player(x.id).room;x.room=room?{...room}:null;x.facing={...(this.player(x.id).facing||{x:0,y:1})};x.firing=this.player(x.id).fireCooldown>.18;x.recoil=Math.max(0,(this.player(x.id).fireCooldown||0)/.25);x.moving=Math.hypot(this.player(x.id).input.x,this.player(x.id).input.y)>.1;}return s;};
  root.CityInteriors=Object.freeze({BUILDINGS,ROOM,IDS,furniture,buildings,door,nearest,roomBlocked,activity,restore,save});
 })(typeof window==='undefined'?globalThis:window);
