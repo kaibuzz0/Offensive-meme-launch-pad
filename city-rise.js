@@ -2,6 +2,15 @@
 'use strict';
 (function(root){
  const C=root.MemeCityCore,P=C.Engine.prototype,base={join:P.join,tick:P.tick,action:P.action,snapshot:P.snapshot};
+ // Translate V1 story contacts with their home districts; their saved chapter
+ // and discovery IDs remain unchanged as the world layout moves around them.
+ const legacyBases={hub:{x:2240,y:0},fortress:{x:0,y:0},
+  creator:{x:4480,y:0},arena:{x:0,y:1660},social:{x:4480,y:1660}};
+ const shift=(point,area=point.area)=>{
+  const from=legacyBases[area],to=area==='hub'?C.HUB:C.DISTRICTS.find(d=>d.id===area);
+  return from&&to?{...point,x:point.x+(to.ox??to.x)-from.x,
+    y:point.y+(to.oy??to.y)-from.y}:point;
+ };
  const LANDMARKS=[
   {id:'plaza',name:'Founder Fountain',area:'hub',x:3360,y:900},
   {id:'launch',name:'First Launch',area:'hub',x:2570,y:590},
@@ -15,14 +24,14 @@
   {id:'champion',name:'Champion Corner',area:'arena',x:1600,y:2600},
   {id:'boardwalk',name:'The Gathering',area:'social',x:5600,y:2780},
   {id:'cafe',name:'Last Light Cafe',area:'social',x:6140,y:2800}
- ];
+ ].map(p=>shift(p));
  const GUIDES=[
   {id:'nova',name:'NOVA / CITY GUIDE',x:3390,y:850,panel:'journey',color:'#c1e69c',line:'Every city starts with someone showing up. Make this one yours.'},
   {id:'wrench',name:'WRENCH / MEME MOTORS',x:4020,y:1040,panel:'mobility',color:'#f1be84',line:'The board is a city loaner. Keep moving. Keep your feet on it.'},
   {id:'doc',name:'PATCH / STREET MEDIC',x:2670,y:1040,panel:'supplies',color:'#9be3d1',line:'Stay alive long enough to build something worth defending.'},
   {id:'marshal',name:'MARSHAL / THE ARENA',x:1120,y:2590,panel:'survival',color:'#ffb19a',line:'Three waves. One crew. Leave your ego at the gate.'},
   {id:'keeper',name:'KEEPER / FORTRESS HQ',x:1645,y:1140,panel:'fortress',color:'#c2d99c',line:'Walls make a plot. You and your squad make it home.'}
- ];
+ ].map(p=>shift(p,p.id==='marshal'?'arena':p.id==='keeper'?'fortress':'hub'));
  const UPGRADE_COSTS=[120,220,350];
  const fresh=()=>({found:[],claimed:0,fortLevel:0,medkits:2,arenaWins:0,bestWave:0,riding:false,speed:0,arena:null,arenaCooldown:0,arenaResult:null});
  const int=(v,max=999999)=>Number.isSafeInteger(v)?Math.max(0,Math.min(max,v)):0;
