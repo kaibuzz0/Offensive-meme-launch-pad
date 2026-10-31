@@ -30,3 +30,19 @@ For each complete batch: run `npm test`, `npm run check`, `git diff --check`, an
 ## Known gaps to disclose
 
 The map still directs toward a point, rather than navigating around collisions. Existing solo save writes v5/world1 and backs up v1–v4 raw data; a full center-out migration and rollback UI are still pending. Online players are temporary guests. Full eight-direction mobile visuals and multi-client service flow acceptance remain incomplete; shared-host CPU time is not handset FPS.
+
+
+## Most recent AI continuation (October 31, 2026)
+
+Previous handoff stage completed further on this same branch. `city-nav.js` now provides obstacle-respecting click-to-route waypoints rendered in both city and full map; 14 essential markets/shops/medics have tested paths from old spawn. Waypoint following is **manual**, with limited off-route recalculation; the map will not auto-move players. `city-topology.js` is a testable but **inactive** world-v2 blueprint with the central fortress, four main road directions, region-aware projected coordinates and strict unknown-location refusal. This is not the redesigned playable map yet.
+
+Validation: full PR CI green on the integrated navigation batch and topology test correction at `efe9b9e`, run https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41220526763. Source-level 47-door transform coverage is not post-migration reachability. Browser/mobile verification remains pending. Do not use the earlier failed CI runs at intermediate commits as final status.
+
+### Next engineer: commit and PUSH by completed batches
+1. Inspect latest remote branch and `city-topology.js`, `city-nav.js`, their tests, and `DEVELOPMENT_STATUS.md`. Preserve other newer changes.
+2. Finish world-v2 migration coverage: v1 legacy local position conversion; greenbelt coordinates; active contract/arena/delivery/checkpoint data; saved crew and player state; all portals/building entries; rollback, backup and multi-tab save conflict guards. **Do not activate map v2 before all cases are tested.**
+3. Build a real world2 collision/layout feature flag and all four safe cardinal roads, fortress gate, protected public buildings/markets/medics, visible clan neighborhoods and accessible doors. Validate collision/nav reachability from the new central spawn to all 47 entrances and main hubs.
+4. Add optional playtest-only browser preview with a full walk/reload/device QA matrix, verifying original old saves, solo fortress and two shared online guests. Gate deployment on real-world acceptance.
+5. Then expand autonomous defensive squads, faction wars and Insider-controlled police, hostile clan attacks, damageable control points/buildings (not protected services), zombie systems, accessible arcade games and verified holder cosmetics, before adding optional OFFENDED block-building play area. BAREIRON remains an efficiency reference only.
+
+Run `npm test`, `npm run check`, `git diff --check`, benchmark and browser/device acceptance as appropriate; commit and **push** to the existing draft PR branch after each usable batch. Never merge/deploy or execute financial operations without owner review. Keep the website's existing 47 interiors and tokens, and retain backup compatibility.
