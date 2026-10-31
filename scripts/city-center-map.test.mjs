@@ -87,7 +87,7 @@ test('Founder Square scenery, ambient enemies and pickups actually move with the
   vm.runInNewContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),sim);
  const G=sim.MemeCityCore,e=new G.Engine(),p=e.join('solo','Guest','offensive');
  assert.equal(p.area,'fortress','new players start at their central fortress');
- for(const b of e.arcade.bots.filter(b=>/^gang-\\d+$|^cop-\\d+$/.test(b.id)))
+ for(const b of e.arcade.bots.filter(b=>(b.id.startsWith('gang-')||b.id.startsWith('cop-'))&&Number.isInteger(Number(b.id.split('-')[1])))))
   assert.equal(G.areaAt(b.x,b.y),'hub','ambient '+b.id+' stays in Founder Square');
  for(const o of e.arcade.pickups)assert.equal(G.areaAt(o.x,o.y),'hub','pickup '+o.id+' is in Founder Square');
 });
