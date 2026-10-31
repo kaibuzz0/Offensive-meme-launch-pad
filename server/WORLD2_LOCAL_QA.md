@@ -75,4 +75,3 @@ The **Personal fortress plot** fieldset on `city-world2-online.html` now lets a 
 **These fortress lots are deliberately private guest instances**, NOT collaboratively visible construction. A different same-room player sees their own empty lot and is not blocked by another guest's walls. Construction exists only for an in-memory authenticated guest and is lost on room expiry/restart. Existing world1 permanent local saves and the separate v2 offline sandbox are not affected.
 
 Verify using `npm test`, `npm run check`, and `npm run qa:world2:browser`. The Chromium script moves an authenticated guest into range using a server-owned test fixture after first proving that remote placement fails. It then exercises the real browser controls and checks a second tab receives no private plot state. Physical Android touch/retina performance was not tested.
-
