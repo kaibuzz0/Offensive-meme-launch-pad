@@ -362,7 +362,7 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
  function streetLayers(time,visibleActor=()=>true){
   const t=state.arcade.time,layers=[];
   for(let i=0;i<8;i++){const reverse=i%2===0,x=HUB.x+((t*(reverse?-75:75)+i*305)%2400+2400)%2400-80,y=HUB.y+(i<4?482+(i%2)*28:985+(i%2)*28);layers.push({y,draw:()=>D.car(ctx,x,y,['#b77d63','#7c8f9f','#658d8b','#827b93'][i%4],reverse)});}
-  for(let i=0;i<14;i++){const reverse=i%2===0,x=HUB.x+150+((i*147+t*(reverse?-32:32))%1900+1900)%1900,y=i%2?590:900;if(visibleActor(x-40,y-120,80,140))layers.push({y,draw:()=>V.person(ctx,{id:'pedestrian-'+i,x,y,role:'civilian',style:{skin:i%6,hair:i%4,pants:i%4},color:['#7d798e','#9b8066','#65818a'][i%3],moving:true,aim:{x:reverse?-1:1,y:0},phase:i,scale:.76},time)});}return layers;
+  for(let i=0;i<14;i++){const reverse=i%2===0,x=HUB.x+150+((i*147+t*(reverse?-32:32))%1900+1900)%1900,y=HUB.y+(i%2?590:900);if(visibleActor(x-40,y-120,80,140))layers.push({y,draw:()=>V.person(ctx,{id:'pedestrian-'+i,x,y,role:'civilian',style:{skin:i%6,hair:i%4,pants:i%4},color:['#7d798e','#9b8066','#65818a'][i%3],moving:true,aim:{x:reverse?-1:1,y:0},phase:i,scale:.76},time)});}return layers;
  }
  function smoothBot(b,dt){
   if(!online)return b;let pos=positions.get(b.id);if(!pos||Math.hypot(pos.x-b.x,pos.y-b.y)>160){pos={x:b.x,y:b.y};positions.set(b.id,pos);}const k=Math.min(1,dt*14);pos.x+=(b.x-pos.x)*k;pos.y+=(b.y-pos.y)*k;return{...b,...pos};
