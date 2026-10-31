@@ -120,10 +120,10 @@
  const SCENERY=[];
  for(const n of NEIGHBORHOODS)for(let i=0;i<10;i++)SCENERY.push({id:n.id+'-tree-'+i,kind:i%3?'tree':'lamp',x:n.ox+180+i*208,y:n.oy+(i%2?1000:720),scale:.85});
  const prop=(kind,x,y,scale=1)=>SCENERY.push({id:`${kind}-${SCENERY.length}`,kind,x,y,scale});
- for(const [x,y]of [[775,640],[1303,640],[775,830],[1303,830]])prop('tree',HUB.x+x,y,.62);
- for(const [x,y]of [[330,760],[1600,750],[1930,750],[90,650],[2160,840]])prop('tree',HUB.x+x,y,.85);
- for(const [x,y]of [[590,570],[1370,570],[590,1080],[1370,1080],[760,870],[1320,870],[1550,880]])prop('lamp',HUB.x+x,y);
- for(const [x,y]of [[820,820],[1210,820],[1650,850],[430,850]])prop('bench',HUB.x+x,y+14);
+ for(const [x,y]of [[775,640],[1303,640],[775,830],[1303,830]])prop('tree',HUB.x+x,HUB.y+y,.62);
+ for(const [x,y]of [[330,760],[1600,750],[1930,750],[90,650],[2160,840]])prop('tree',HUB.x+x,HUB.y+y,.85);
+ for(const [x,y]of [[590,570],[1370,570],[590,1080],[1370,1080],[760,870],[1320,870],[1550,880]])prop('lamp',HUB.x+x,HUB.y+y);
+ for(const [x,y]of [[820,820],[1210,820],[1650,850],[430,850]])prop('bench',HUB.x+x,HUB.y+y+14);
  for(let x=2350;x<4300;x+=260){prop('tree',x,1900,.9);prop('tree',x,3070,1.1);prop('lamp',x,2400);}
  for(let y=1740;y<3270;y+=230){prop('tree',3010,y,.8);prop('tree',3720,y,.8);}
  for(const d of DISTRICTS){
@@ -151,7 +151,7 @@
  function cleanName(name){return String(name||'Guest').replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,22)||'Guest';}
  class Engine{
   constructor(){this.players=new Map();this.listings=new Map();this.chat=[];this.serial=0;}
-  join(id,name,avatar){if(this.players.size>=32)throw Error('Room is full.');if(!validIds.includes(avatar))throw Error('Unknown beta avatar.');const p={id,name:cleanName(name),avatar,x:WORLD.spawn.x,y:WORLD.spawn.y,xp:0,credits:180,inventory:[],equipped:{},route:0,completed:false,input:{x:0,y:0},lastChat:0,area:'hub',plot:[],crew:[],crewKills:0,style:{skin:0,hair:0,pants:0,print:0}};this.players.set(id,p);return p;}
+  join(id,name,avatar){if(this.players.size>=32)throw Error('Room is full.');if(!validIds.includes(avatar))throw Error('Unknown beta avatar.');const p={id,name:cleanName(name),avatar,x:WORLD.spawn.x,y:WORLD.spawn.y,xp:0,credits:180,inventory:[],equipped:{},route:0,completed:false,input:{x:0,y:0},lastChat:0,area:areaAt(WORLD.spawn.x,WORLD.spawn.y),plot:[],crew:[],crewKills:0,style:{skin:0,hair:0,pants:0,print:0}};this.players.set(id,p);return p;}
   player(id){const p=this.players.get(id);if(!p)throw Error('Session expired. Rejoin the room.');return p;}
   input(id,x,y){const p=this.player(id);if(!Number.isFinite(x)||!Number.isFinite(y))throw Error('Invalid movement.');const n=Math.max(1,Math.hypot(x,y));p.input={x:x/n,y:y/n};}
   tick(dt){dt=Math.max(0,Math.min(.1,dt));for(const p of this.players.values()){const nx=p.x+p.input.x*205*dt,ny=p.y+p.input.y*205*dt;if(!blocked(nx,p.y,p))p.x=nx;if(!blocked(p.x,ny,p))p.y=ny;p.area=areaAt(p.x,p.y);}}
