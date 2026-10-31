@@ -45,11 +45,11 @@
     const building=BUILDINGS.find(b=>b.roomId===p.room.id),service=a.type==='restock'?'supplies':'market';
     if(!building||building.activity!==service||distance(p.room,ROOM.activity)>110)throw Error('Use the matching service terminal inside its building.');
     const old={x:p.x,y:p.y,area:p.area,room:p.room};const target=service==='supplies'?root.CityRising.GUIDES.find(g=>g.id==='doc'):C.WORLD.stations.find(s=>s.id==='market');
-    Object.assign(p,{x:target.x,y:target.y,area:'hub',room:null});try{return base.action.call(this,id,a);}finally{Object.assign(p,old);}
+    Object.assign(p,{x:target.x,y:target.y,area:C.areaAt(target.x,target.y),room:null});try{return base.action.call(this,id,a);}finally{Object.assign(p,old);}
    }
    if(a?.type==='buy'){
     if(BUILDINGS.find(b=>b.roomId===p.room.id)?.activity!=='shop'||distance(p.room,ROOM.activity)>110)throw Error('Visit the equipment counter in Bad Taste Supply.');
-    const old={x:p.x,y:p.y,area:p.area};const shop=C.WORLD.stations.find(s=>s.id==='shop');p.x=shop.x;p.y=shop.y;p.area='hub';
+    const old={x:p.x,y:p.y,area:p.area};const shop=C.WORLD.stations.find(s=>s.id==='shop');p.x=shop.x;p.y=shop.y;p.area=C.areaAt(shop.x,shop.y);
     try{return base.action.call(this,id,a);}finally{Object.assign(p,old);}
    }
   }
