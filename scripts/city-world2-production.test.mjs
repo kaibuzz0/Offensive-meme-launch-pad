@@ -14,7 +14,7 @@ test('public world2 fails closed without approved durable storage and official f
  await assert.rejects(createWorld2PublicServer({...r,durableConfirmed:'yes',saveDir:'/var/data/world2-not-found'}),/provision durable/);
 });
 test('production server refuses missing durability marker; accepts explicit marker and restricts origins',async()=>{
- const dir=await mkdtemp(path.join(process.cwd(),'.world2-prod-test-'));
+ const dir=await mkdtemp(path.join('/var/tmp','world2-prod-test-'));
  try{
   const opts={saveDir:dir,durableConfirmed:'yes',allowedOrigin:'https://kaibuzz0.github.io',bindHost:'127.0.0.1'};
   await assert.rejects(createWorld2PublicServer(opts),/marker missing/);
