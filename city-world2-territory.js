@@ -46,7 +46,7 @@
     zone.state='contested';return {status:'contested',zoneId:zone.id,progress:zone.progress};
    }
    zone.state='capturing';zone.progress=Math.min(8,zone.progress+step);
-   if(zone.progress<8)return {status:'capturing',zoneId:zone.id,progress:zone.progress};
+   if(zone.progress<8-1e-8)return {status:'capturing',zoneId:zone.id,progress:zone.progress};
    zone.owner=player.clan;zone.state='captured';zone.progress=8;current=null;
    player.xp+=80;player.credits+=50;
    if(!player.reputation||typeof player.reputation!=='object')player.reputation={};
