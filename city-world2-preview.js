@@ -45,7 +45,7 @@
   if(r.status==='loaded'){room=null;travel=waypoint=null;
    if(player.clan)$('faction-select').value=player.clan;
    say('Loaded world2 sandbox, construction and captured territory from private preview storage.'+(r.relocated?' Spawn was relocated safely.':''));}
-  else say(r.reason||r.status==='empty'?'No world2 sandbox has been saved yet.':r.status);
+  else say(r.reason||(r.status==='empty'?'No world2 sandbox has been saved yet.':r.status));
  });
  const backupKey='offensive-meme-city-v1-world2-recovery',stageKey='offensive-meme-city-v1-world2-staged';
  $('load-preview').addEventListener('click',()=>{

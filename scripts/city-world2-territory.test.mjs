@@ -65,3 +65,12 @@ test('territory control is integrated into the isolated world2 simulation and re
  assert.ok(simulation.events.some(x=>x.includes('Control point secured')));
  simulation.reset();assert.equal(zone.owner,zone.homeClan);assert.equal(simulation.player.clan,null);
 });
+
+test('each future clan control point has a collision-respecting walking route from fortress spawn',()=>{
+ const router=ctx.CityNav.createRouter({WORLD:W.world,blocked:W.blocked},{cell:80,budget:17000});
+ for(const zone of create().zones){
+  const p=router.plan(W.spawn,zone);
+  assert.equal(p.status,'ok',zone.id+' must be reachable by foot from the protected spawn');
+  for(let i=1;i<p.points.length;i++)assert.ok(router.clear(p.points[i-1],p.points[i]),zone.id+' route crosses geometry');
+ }
+});
