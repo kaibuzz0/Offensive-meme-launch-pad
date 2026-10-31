@@ -6,7 +6,7 @@ test('HTTP rooms authenticate, stream real peers, reject forged actions and isol
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  t.after(()=>{server.closeAllConnections();server.close();});
  const base=`http://127.0.0.1:${server.address().port}`;
- async function post(route,body,token,origin){return fetch(base+'/api/city'+route,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{}) ,...(origin?{Origin:origin}:{})},body:JSON.stringify(body)});}
+ async function post(route,body,token,origin){return fetch(base+'/api/city'+route,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{}) ,...(origin?{Origin:origin}:{})},body:JSON.stringify(route==='/join'?{...body,layoutVersion:2}:body)});}
  const denied=await post('/join',{name:'X',avatar:'offensive'},null,'https://bad.example');assert.equal(denied.status,403);
  const a=await (await post('/join',{name:'Alice',avatar:'offensive'})).json();
  const b=await (await post('/join',{name:'Bob',avatar:'maduro'})).json();assert.equal(b.state.players.length,2);assert.notEqual(a.session,a.state.self.id);
@@ -48,7 +48,7 @@ test('HTTP boundaries reject malformed, oversized and unauthenticated room messa
  assert.equal((await raw('/join','{')).status,400);assert.equal((await raw('/join','[]')).status,400);assert.equal((await raw('/join','x'.repeat(5000))).status,413);assert.equal((await raw('/join','{}',{'Content-Type':'text/plain'})).status,415);
  assert.equal((await raw('/join','{}',{Origin:'null'})).status,403);assert.equal((await raw('/action','{"type":"setCredits"}')).status,401);
  const preflight=await fetch(base+'/join',{method:'OPTIONS',headers:{Origin:'https://evil.example'}});assert.equal(preflight.status,403);
- const a=await (await raw('/join',JSON.stringify({avatar:'offensive',name:'Alice'}))).json();const auth={Authorization:'Bearer '+a.session};
+ const a=await (await raw('/join',JSON.stringify({avatar:'offensive',name:'Alice',layoutVersion:2}))).json();const auth={Authorization:'Bearer '+a.session};
  assert.equal((await raw('/input','{"x":1000,"y":0}',auth)).status,400);
  const state=await fetch(base+'/state',{headers:auth});assert.equal(state.headers.get('cache-control'),'no-store');assert.equal(state.status,200);assert.equal((await state.json()).self.name,'Alice');
  const resumed=await fetch(base+'/state',{headers:auth});assert.equal((await resumed.json()).self.id,a.state.self.id);

@@ -16,11 +16,11 @@ test('six beta avatar themes match existing configured mint identities',()=>{
 test('movement normalizes diagonal input, caps steps, and blocks buildings',()=>{
  const e=setup(),p=e.player('a');const start={x:p.x,y:p.y};e.input('a',1000,1000);e.tick(1);
  assert.ok(Math.hypot(p.x-start.x,p.y-start.y)<=20.501);
- Object.assign(p,{x:WORLD.buildings[0].x-16,y:250});e.input('a',1,0);e.tick(.1);assert.equal(p.x,WORLD.buildings[0].x-16);
+ Object.assign(p,{x:WORLD.buildings[0].x-16,y:WORLD.buildings[0].y+100});e.input('a',1,0);e.tick(.1);assert.equal(p.x,WORLD.buildings[0].x-16);
  assert.throws(()=>e.input('a',NaN,0),/Invalid/);assert.ok(blocked(-1,0));
 });
 test('missions require proximity and cannot be claimed twice',()=>{
- const e=setup();assert.throws(()=>e.action('a',{type:'checkpoint'}),/closer/);
+ const e=setup();assert.throws(()=>e.action('a',{type:'checkpoint'}),/closer|Visit a city shop/);
  for(const stop of WORLD.route){Object.assign(e.player('a'),stop);e.action('a',{type:'checkpoint'});}
  assert.equal(e.player('a').xp,250);assert.equal(e.player('a').credits,360);
  assert.throws(()=>e.action('a',{type:'checkpoint'}),/already completed/);

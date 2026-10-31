@@ -7,9 +7,9 @@ export function createRooms(Engine,{now=Date.now,capacity=8,maxRooms=8,sessionTT
  const rooms=new Map(),sessions=new Map(),joins=new Map();
  const make=(code,privateRoom)=>{const r={code,private:privateRoom,engine:new Engine(),revision:0};r.engine.mode='online';rooms.set(code,r);return r;};
  const first=make('public-1',false);let last=now();
- function snapshot(s){const r=rooms.get(s.room),state=r.engine.snapshot(s.id);return {...state,revision:r.revision,roomInfo:{code:r.code,private:r.private,capacity,players:r.engine.players.size}};}
+ function snapshot(s){const r=rooms.get(s.room),state=r.engine.snapshot(s.id);return {...state,revision:r.revision,roomInfo:{code:r.code,private:r.private,capacity,players:r.engine.players.size,layoutVersion:Engine.LAYOUT_VERSION}};}
  function reap(){const stamp=now();for(const [token,s] of sessions)if(stamp-s.lastSeen>sessionTTL){rooms.get(s.room)?.engine.leave(s.id);sessions.delete(token);}for(const [code,r]of rooms)if(code!=='public-1'&&!r.engine.players.size)rooms.delete(code);for(const [ip,l]of joins)if(stamp-l.start>600000)joins.delete(ip);}
- function join(body,ip){reap();const stamp=now();let l=joins.get(ip);if(!l){if(joins.size>=10000)throw new RoomError('Admission is busy. Try later.',503);joins.set(ip,l={start:stamp,count:0});}if(++l.count>12)throw new RoomError('Too many joins. Try again later.',429);
+ function join(body,ip){if(body.layoutVersion!==Engine.LAYOUT_VERSION)throw new RoomError('Room map version mismatch. Refresh the city before joining.',409);reap();const stamp=now();let l=joins.get(ip);if(!l){if(joins.size>=10000)throw new RoomError('Admission is busy. Try later.',503);joins.set(ip,l={start:stamp,count:0});}if(++l.count>12)throw new RoomError('Too many joins. Try again later.',429);
   if(body.create!==undefined&&typeof body.create!=='boolean')throw new RoomError('Invalid room choice.');
   let r;if(body.create){if(rooms.size>=maxRooms)throw new RoomError('All rooms are busy.',503);r=make(randomBytes(9).toString('hex').toUpperCase(),true);}
   else if(body.code){if(typeof body.code!=='string'||!/^([A-F0-9]{18}|public-[1-8])$/.test(body.code))throw new RoomError('Invalid room code.');r=rooms.get(body.code);if(!r)throw new RoomError('Room not found or closed.',404);}
@@ -24,5 +24,5 @@ export function createRooms(Engine,{now=Date.now,capacity=8,maxRooms=8,sessionTT
  function action(s,b){if(!allowed.has(b.type))throw new RoomError('That action is unavailable in shared rooms. Fortress building and squads stay in solo.');const stamp=now();if(stamp-s.actionWindow>=1000){s.actionWindow=stamp;s.actions=0;}if(++s.actions>8)throw new RoomError('Slow down your actions.',429);const r=rooms.get(s.room),message=r.engine.action(s.id,b);r.revision++;return {message,state:snapshot(s)};}
  function leave(token){const s=sessions.get(token);if(s){rooms.get(s.room)?.engine.leave(s.id);sessions.delete(token);}}
  function advance(){const stamp=now(),elapsed=Math.max(0,Math.min(.25,(stamp-last)/1000));last=stamp;for(const s of sessions.values())if(stamp-s.lastInput>500){const e=rooms.get(s.room)?.engine;if(e?.players.has(s.id)){e.input(s.id,0,0);e.trigger(s.id,false);}}for(const r of rooms.values())if(r.engine.players.size){for(let t=elapsed;t>0;t-=.05)r.engine.tick(Math.min(.05,t));r.revision++;}}
- return {rooms,sessions,first,join,auth,input,action,leave,advance,reap,snapshot,health:()=>({status:'ok',protocol:2,mode:'temporary-play-credit-rooms',players:sessions.size,rooms:rooms.size,capacity,maxRooms})};
+ return {rooms,sessions,first,join,auth,input,action,leave,advance,reap,snapshot,health:()=>({status:'ok',protocol:2,mode:'temporary-play-credit-rooms',players:sessions.size,rooms:rooms.size,capacity,maxRooms,layoutVersion:Engine.LAYOUT_VERSION})};
 }

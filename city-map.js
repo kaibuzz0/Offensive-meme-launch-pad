@@ -7,7 +7,7 @@
    if(typeof id!=='string'||!id||ids.has(id)||typeof name!=='string'||!name||!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>world.width||y>world.height)throw Error('Invalid or duplicate map destination: '+id);
    ids.add(id);points.push(Object.freeze({id,name,x,y,kind,activity}));
   }
-  add('district:hub','Founder Square',world.spawn.x,world.spawn.y,'district');
+  add('district:hub','Founder Square',C.HUB.x+1120,C.HUB.y+900,'district');
   for(const d of C.DISTRICTS)add('district:'+d.id,d.name,d.x,d.y,'district');
   for(const n of C.NEIGHBORHOODS)add('neighborhood:'+n.id,n.name,n.x,n.y,'district');
   for(const s of world.stations)add('station:'+s.id,s.name,s.x,s.y,'station',s.kind);

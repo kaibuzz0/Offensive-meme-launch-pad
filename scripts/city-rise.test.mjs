@@ -23,9 +23,9 @@ test('legacy migration initializes supplies and restore strips invalid and trans
  const saved=R.save(p);R.restore(p,saved);assert.deepEqual(JSON.parse(JSON.stringify(R.save(p))),JSON.parse(JSON.stringify(saved)));
 });
 test('hoverboard accelerates, crosses district boundaries and stops at cover',()=>{
- const {e,p,C}=game();p.x=2290;p.y=850;e.action('a',{type:'ride'});e.input('a',-1,0);tick(e,1);assert.ok(p.x<2240);assert.equal(C.areaAt(p.x,p.y),'fortress');
+ const {e,p,C}=game();p.x=C.DISTRICTS[0].ox+2190;p.y=C.DISTRICTS[0].oy+850;e.action('a',{type:'ride'});e.input('a',-1,0);tick(e,1);assert.ok(p.x<C.DISTRICTS[0].ox+2190);assert.equal(C.areaAt(p.x,p.y),'fortress');
  // The east face of Launch House must not be crossed at hoverboard speed.
- p.x=2820;p.y=300;e.input('a',-1,0);tick(e,3);assert.ok(p.x>=2795);assert.equal(C.blocked(p.x,p.y,p),false);
+ const launch=C.WORLD.buildings.find(b=>b.id==='launch');p.x=launch.x+launch.w+70;p.y=launch.y+140;e.input('a',-1,0);tick(e,3);assert.ok(p.x>=launch.x+launch.w+15);assert.equal(C.blocked(p.x,p.y,p),false);
  e.input('a',0,0);tick(e,.1);assert.equal(p.rising.speed,0);
 });
 test('firing dismounts and active challenges cannot mount a board',()=>{
@@ -38,10 +38,10 @@ test('medkits heal a bounded amount, consume once and require a real restock vis
  assert.throws(()=>e.action('a',{type:'restock'}),/Visit/);at(p,R.GUIDES.find(g=>g.id==='doc'));const before=p.credits;e.action('a',{type:'restock'});assert.equal(p.credits,before-25);assert.equal(p.rising.medkits,2);
 });
 test('HQ upgrades require construction and funds; healing and squad HP are functional',()=>{
- const {e,p}=game();assert.throws(()=>e.action('a',{type:'fortUpgrade'}),/Visit/);at(p,{x:1120,y:1160});e.action('a',{type:'starterfort'});
+ const {e,p,C}=game();at(p,{x:C.HUB.x+1120,y:C.HUB.y+900});assert.throws(()=>e.action('a',{type:'fortUpgrade'}),/Visit/);at(p,{x:C.WORLD.spawn.x,y:C.WORLD.spawn.y});e.action('a',{type:'starterfort'});
  assert.throws(()=>e.action('a',{type:'fortUpgrade'}),/credits/);p.credits=500;e.action('a',{type:'hire',role:'sentry'});e.tick(.05);const g=e.arcade.guards[0];
  e.action('a',{type:'fortUpgrade'});e.tick(.05);assert.equal(g.maxHp,130);assert.equal(g.hp,130);g.hp=0;g.recover=15;e.action('a',{type:'fortUpgrade'});e.tick(.05);assert.equal(g.hp,0,'an upgrade cannot resurrect a downed guard');
- p.x=1120;p.y=960;p.hp=50;p.quiet=10;tick(e,2);assert.ok(p.hp>50);
+ p.x=C.PLOT.x+7*64+32;p.y=C.PLOT.y+5*64+150;p.hp=50;p.quiet=10;tick(e,2);assert.ok(p.hp>50);
 });
 test('survival starts only at the terminal, counts down and excludes other challenges',()=>{
  const {e,p,R}=game();assert.throws(()=>e.action('a',{type:'startSurvival'}),/Walk/);at(p,R.GUIDES.find(g=>g.id==='marshal'));e.action('a',{type:'startSurvival'});assert.equal(p.rising.arena.wave,0);tick(e,3.1);assert.equal(p.rising.arena.wave,1);assert.equal(e.arcade.bots.filter(b=>b.arena).length,3);
@@ -60,7 +60,7 @@ test('arena escalates through ranged waves and boss, then awards exactly one cle
 test('abandoning, leaving or getting busted cleans up enemies and grants no clear reward',()=>{
  for(const mode of ['abandon','leave','busted']){
   const {e,p,R}=game();at(p,R.GUIDES.find(g=>g.id==='marshal'));e.action('a',{type:'startSurvival'});tick(e,3.1);const before=p.credits;
-  if(mode==='abandon')e.action('a',{type:'endSurvival'});if(mode==='leave')at(p,{x:3360,y:2000});if(mode==='busted')p.deaths++;e.tick(.05);
+  if(mode==='abandon')e.action('a',{type:'endSurvival'});if(mode==='leave')at(p,{x:R.GUIDES.find(g=>g.id==='keeper').x,y:R.GUIDES.find(g=>g.id==='keeper').y});if(mode==='busted')p.deaths++;e.tick(.05);
   assert.equal(p.rising.arena,null);assert.equal(e.arcade.bots.some(b=>b.arena),false);assert.equal(p.rising.arenaWins,0);assert.equal(p.credits,before);
  }
 });

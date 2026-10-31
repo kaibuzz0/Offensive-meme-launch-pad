@@ -22,7 +22,7 @@ test('v1 local-area position and every v2-v5 district migrate deterministically 
   assert.equal(a.save.area,id);assert.equal(a.save.x,T.point(C,{x:p.x,y:p.y}).x);
   const legacy={...p,version:1,x:r.w*.4,y:r.h*.5};delete legacy.worldVersion;delete legacy.saveVersion;
   const v1=M.plan(C,T,legacy);assert.equal(v1.status,'preview',id);assert.equal(v1.save.x,a.save.x);}
- assert.equal(C.WORLD.width,6720);assert.equal(ctx.CitySave.WORLD_VERSION,1);assert.equal(T.draft.enabled,false);
+ assert.equal(C.WORLD.width,11200);assert.equal(ctx.CitySave.WORLD_VERSION,1);assert.equal(T.draft.enabled,false);
 });
 test('migration preserves earned progression, all plot/outpost tile indices and inventory with distinct clones',()=>{
  const old=base(),string=JSON.stringify(old),result=M.plan(C,T,old);assert.equal(result.status,'preview');
@@ -37,15 +37,15 @@ test('migration preserves earned progression, all plot/outpost tile indices and 
  assert.ok(result.routeTarget&&Number.isFinite(result.routeTarget.x));
 });
 test('greenbelt recovery does not erase XP, credits or construction, and bad crew posts recover',()=>{
- const original=base();original.x=3200;original.y=2300;original.crew[0].post={x:-50,y:-50};
+ const original=base();original.x=500;original.y=500;original.crew[0].post={x:-50,y:-50};
  const result=M.plan(C,T,original);assert.equal(result.status,'preview');
  assert.equal(result.save.area,'hub');assert.equal(result.save.x,5040);assert.equal(result.save.y,4240);
  assert.equal(result.save.credits,311);assert.equal(result.save.plot[0].kind,'home');
  assert.equal(result.notices.length,2);assert.equal(result.save.crew[0].post.y,T.draft.areas.fortress.y+T.draft.areas.fortress.h-120);
 });
 test('optional world coordinates translate and invalid checkpoints clear with notice',()=>{
- const original=base();original.waypoint={x:3000,y:800,name:'Night Market'};
- original.checkpoint={x:-200,y:50};original.respawn={x:1000,y:1300};
+ const original=base();original.waypoint={x:C.HUB.x+700,y:C.HUB.y+800,name:'Night Market'};
+ original.checkpoint={x:-200,y:50};original.respawn={x:C.WORLD.spawn.x,y:C.WORLD.spawn.y};
  const plan=M.plan(C,T,original);assert.equal(plan.save.waypoint.name,'Night Market');
  assert.equal(plan.save.waypoint.x,T.point(C,original.waypoint).x);
  assert.equal(plan.save.checkpoint,null);assert.ok(plan.notices.some(n=>n.includes('checkpoint')));

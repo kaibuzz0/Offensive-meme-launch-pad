@@ -2,6 +2,15 @@
 'use strict';
 (function(root){
  const C=root.MemeCityCore,P=C.Engine.prototype,base={join:P.join,tick:P.tick,action:P.action,snapshot:P.snapshot};
+ // Translate V1 story contacts with their home districts; their saved chapter
+ // and discovery IDs remain unchanged as the world layout moves around them.
+ const legacyBases={hub:{x:2240,y:0},fortress:{x:0,y:0},
+  creator:{x:4480,y:0},arena:{x:0,y:1660},social:{x:4480,y:1660}};
+ const shift=(point,area=point.area)=>{
+  const from=legacyBases[area],to=area==='hub'?C.HUB:C.DISTRICTS.find(d=>d.id===area);
+  return from&&to?{...point,x:point.x+(to.ox??to.x)-from.x,
+    y:point.y+(to.oy??to.y)-from.y}:point;
+ };
  const LANDMARKS=[
   {id:'plaza',name:'Founder Fountain',area:'hub',x:3360,y:900},
   {id:'launch',name:'First Launch',area:'hub',x:2570,y:590},
@@ -15,14 +24,33 @@
   {id:'champion',name:'Champion Corner',area:'arena',x:1600,y:2600},
   {id:'boardwalk',name:'The Gathering',area:'social',x:5600,y:2780},
   {id:'cafe',name:'Last Light Cafe',area:'social',x:6140,y:2800}
- ];
+ ].map(p=>{
+  const original=shift(p);
+  if(!C.blocked(original.x,original.y))return original;
+  // Some legacy landmarks fall inside scenery or newly relocated shop frontage.
+  // Keep their stable IDs and neighborhood while snapping to a nearby open tile.
+  const area=C.areaAt(original.x,original.y);
+  for(let radius=32;radius<=256;radius+=32){
+   for(const [dx,dy] of [[0,-radius],[radius,0],[0,radius],[-radius,0],[radius,-radius],[-radius,-radius],[radius,radius],[-radius,radius]]){
+    const x=original.x+dx,y=original.y+dy;
+    if(C.areaAt(x,y)===area&&!C.blocked(x,y))return {...original,x,y};
+   }
+  }
+  return original;
+ });
  const GUIDES=[
   {id:'nova',name:'NOVA / CITY GUIDE',x:3390,y:850,panel:'journey',color:'#c1e69c',line:'Every city starts with someone showing up. Make this one yours.'},
   {id:'wrench',name:'WRENCH / MEME MOTORS',x:4020,y:1040,panel:'mobility',color:'#f1be84',line:'The board is a city loaner. Keep moving. Keep your feet on it.'},
   {id:'doc',name:'PATCH / STREET MEDIC',x:2670,y:1040,panel:'supplies',color:'#9be3d1',line:'Stay alive long enough to build something worth defending.'},
   {id:'marshal',name:'MARSHAL / THE ARENA',x:1120,y:2590,panel:'survival',color:'#ffb19a',line:'Three waves. One crew. Leave your ego at the gate.'},
   {id:'keeper',name:'KEEPER / FORTRESS HQ',x:1645,y:1140,panel:'fortress',color:'#c2d99c',line:'Walls make a plot. You and your squad make it home.'}
- ];
+ ].map(p=>{
+  if(p.id==='wrench'||p.id==='doc'){
+   const id=p.id==='doc'?'shop':'garage',station=C.WORLD.stations.find(s=>s.id===id);
+   return {...p,x:station.x+65,y:station.y-25};
+  }
+  return shift(p,p.id==='marshal'?'arena':p.id==='keeper'?'fortress':'hub');
+ });
  const UPGRADE_COSTS=[120,220,350];
  const fresh=()=>({found:[],claimed:0,fortLevel:0,medkits:2,arenaWins:0,bestWave:0,riding:false,speed:0,arena:null,arenaCooldown:0,arenaResult:null});
  const int=(v,max=999999)=>Number.isSafeInteger(v)?Math.max(0,Math.min(max,v)):0;
@@ -30,7 +58,7 @@
  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  const CHAPTERS=[
   {name:'Make an entrance',description:'Discover 3 city landmarks. Their floating diamonds mark the way.',reward:60,xp:60,ready:p=>p.rising.found.length>=3,target:p=>LANDMARKS.find(n=>!p.rising.found.includes(n.id))},
-  {name:'Earn your street cred',description:'Complete any contract in Founder Square or Arena District.',reward:75,xp:80,ready:p=>p.jobs>=1,target:()=>({...C.WORLD.spawn,name:'Founder Square mission board'})},
+  {name:'Earn your street cred',description:'Complete any contract in Founder Square or Arena District.',reward:75,xp:80,ready:p=>p.jobs>=1,target:()=>({x:C.HUB.x+1120,y:C.HUB.y+900,name:'Founder Square mission board'})},
   {name:'A place to call home',description:'Build at least 4 pieces in your Fortress Heights plot.',reward:90,xp:90,ready:p=>p.plot.length>=4,target:()=>({...C.DISTRICTS[0]})},
   {name:'Nobody builds alone',description:'Hire at least one defender at Fortress Heights.',reward:80,xp:90,ready:p=>p.crew.length>=1,target:()=>({...C.DISTRICTS[0]})},
   {name:'Culture across the city',description:'Discover at least one landmark in Creator Quarter and one on Social Boardwalk.',reward:120,xp:120,ready:p=>['creator','social'].every(area=>LANDMARKS.some(n=>n.area===area&&p.rising.found.includes(n.id))),target:p=>LANDMARKS.find(n=>['creator','social'].includes(n.area)&&!LANDMARKS.some(l=>l.area===n.area&&p.rising.found.includes(l.id)))},
@@ -64,8 +92,9 @@
   const count=a.wave+2;
   for(let i=0;i<count;i++){
    const boss=a.wave===3&&i===count-1,ranged=boss||(a.wave>=2&&i===0),side=i%2?-1:1;
-   let x=1120+side*(250+(i%3)*70),y=2590+(i%2?-160:160);
-   if(C.blocked(x,y,p)){x=1120+side*200;y=2750;}
+   const arena=C.DISTRICTS.find(d=>d.id==='arena');
+   let x=arena.x+side*(250+(i%3)*70),y=arena.oy+930+(i%2?-160:160);
+   if(C.blocked(x,y,p)){x=arena.x+side*200;y=arena.oy+1090;}
    const hp=boss?420:ranged?100:70+a.wave*10;
    e.arcade.bots.push({id:`arena-${++e.serial}`,owner:p.id,arena:true,boss,ranged,kind:'gang',x,y,homeX:x,homeY:y,hp,maxHp:hp,cooldown:1.5,respawn:0,phase:i*.9,state:'ready',windup:0,targetId:null,seenAt:-100,aim:null,path:[],pathAt:0});
   }
