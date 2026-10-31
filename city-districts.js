@@ -47,7 +47,7 @@
    box(c,n.x-115,n.y-48,230,96,'#122833',14);text(c,'CLAN TERMINAL',n.x,n.y-10,15,n.color);text(c,'E / JOBS & MEMBERSHIP',n.x,n.y+14,10,'#dce8e5');
   }
   text(c,'FORTRESS COMMONS / CENTER',fort.x,fort.oy-65,15,'#d3e2b9');text(c,'CLAN TERRITORIES / OUTER RING',W.width/2,W.height-100,14,'#d8c5eb');
-  text(c,'ARENA DISTRICT / WEST',C.DISTRICTS.find(d=>d.id==='arena').x,C.DISTRICTS.find(d=>d.id==='arena').oy+1630,13,'#e1bc98');text(c,'SOCIAL BOARDWALK / EAST',C.DISTRICTS.find(d=>d.id==='social').x,C.DISTRICTS.find(d=>d.id==='social').oy+1630,1610,13,'#afd7df');
+  text(c,'ARENA DISTRICT / WEST',C.DISTRICTS.find(d=>d.id==='arena').x,C.DISTRICTS.find(d=>d.id==='arena').oy+1630,13,'#e1bc98');text(c,'SOCIAL BOARDWALK / EAST',C.DISTRICTS.find(d=>d.id==='social').x,C.DISTRICTS.find(d=>d.id==='social').oy+1630,13,'#afd7df');
   c.restore();
  }
  function car(c,x,y,color,reverse){
