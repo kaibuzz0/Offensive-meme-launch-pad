@@ -91,6 +91,7 @@ test('staged character profile and hostile input are isolated and bounded',()=>{
 
 test('purchased boots and upgraded blaster affect world2 gameplay without affecting the original engine',()=>{
  const baseline=sim(),boosted=sim(),terminal={id:'door:shop',...I.ROOM.activity};
+ boosted.player.credits=1000; // Isolated test wallet: buy both listed items.
  for(const pair of [['boots','feet'],['blaster','hand']]){
   const purchase=boosted.services.buyGear(boosted.player,pair[0],terminal);assert.equal(purchase.status,'bought',pair[0]);
   assert.equal(boosted.services.equip(boosted.player,purchase.uid,terminal).status,'equipped');
