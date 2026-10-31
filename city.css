@@ -38,3 +38,8 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 
 /* Square city atlas */
 .large-map{height:auto;aspect-ratio:1;max-width:100%;} .clan-card{border-left:4px solid var(--clan,#b8e88b);padding:16px;margin:12px 0;background:#162a35;border-radius:12px}.clan-card h3{margin-top:0}.clan-card button{margin:5px 5px 0 0}
+
+
+/* Recovery release: clearly identify the restored live solo world. */
+.solo-restore-label{white-space:nowrap;font:700 10px/1.3 monospace;letter-spacing:.7px;color:#b7f464;border:1px solid #55743a;border-radius:4px;padding:7px 9px}
+@media(max-width:760px){.solo-restore-label{font-size:8px;letter-spacing:0;padding:5px 6px}}
