@@ -355,7 +355,7 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
   if(!online)return b;let pos=positions.get(b.id);if(!pos||Math.hypot(pos.x-b.x,pos.y-b.y)>160){pos={x:b.x,y:b.y};positions.set(b.id,pos);}const k=Math.min(1,dt*14);pos.x+=(b.x-pos.x)*k;pos.y+=(b.y-pos.y)*k;return{...b,...pos};
  }
  function drawBot(raw,time,dt){
-  const b=smoothBot(raw,dt),cop=b.kind==='cop',ranged=cop||b.ranged,walk=b.state==='attack'?0:Math.sin(time/95+b.phase)*3;
+  const b=smoothBot(raw,dt),cop=b.kind==='cop',ranged=cop||b.ranged;
   ctx.fillStyle='#0006';ctx.beginPath();ctx.ellipse(b.x,b.y+5,18,7,0,0,Math.PI*2);ctx.fill();
   if(b.state==='attack'){
    const progress=1-b.windup/(b.windupMax||.6);ctx.strokeStyle='#ffb168';ctx.lineWidth=3;ctx.beginPath();ctx.arc(b.x,b.y,58,0,Math.PI*2*progress);ctx.stroke();
@@ -363,7 +363,7 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
   }
   ctx.save();if(b.hitFlash>0){ctx.shadowColor='#ffd3a0';ctx.shadowBlur=18;}
   const resident=b.resident?catalog.get(b.faction):null;
-  V.person(ctx,{image:resident?art.get(b.faction):null,ticker:resident?.ticker,color:resident?.color,id:b.id,x:b.x,y:b.y,role:resident?'player':cop?'cop':'gang',style:{skin:Math.floor(b.phase*3)%6,hair:0,pants:cop?0:1},moving:!['attack','ready','recover'].includes(b.state),phase:b.phase,scale:b.boss?1.28:1,armed:ranged,aim:b.aim?{x:b.aim.x-b.x,y:b.aim.y-b.y}:{x:1,y:0}},time);
+  V.person(ctx,{image:resident?art.get(b.faction):null,ticker:resident?.ticker,color:resident?.color,id:b.id,x:b.x,y:b.y,role:resident?'player':cop?'cop':'gang',style:{skin:Math.floor(b.phase*3)%6,hair:0,pants:cop?0:1},phase:b.phase,armed:ranged,...V.npcPose(b)},time);
 
   ctx.restore();
   if(b.state==='skirmish')label(C.FACTIONS[C.factionOf(b)]?.role.toUpperCase()||'PATROL',b.x,b.y-124,8,cop?'#91c8ff':'#ff91b2');
@@ -374,7 +374,7 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
  function drawGuard(g,time){
   const type=C.CREW_TYPES.find(t=>t.id===g.role),f=g.facing||{x:1,y:0};
   if(g.hp<=0){label(`${g.name} · RECOVERING ${Math.ceil(g.recover)}s`,g.x,g.y-22,9,'#9cb3bd');return;}
-  V.person(ctx,{id:g.id,x:g.x,y:g.y,role:'guard',color:type.color,style:{skin:g.slot%6,hair:g.slot%4,pants:0},armed:!['creator','social'].includes(C.areaAt(g.x,g.y)),aim:f,back:f.y<-.55&&Math.abs(f.x)<.65,moving:g.moving,phase:g.slot,flash:g.flash>0,upgraded:g.role==='heavy'},time);
+  V.person(ctx,{id:g.id,x:g.x,y:g.y,role:'guard',color:type.color,style:{skin:g.slot%6,hair:g.slot%4,pants:0},scale:V.npcScale(),armed:!['creator','social'].includes(C.areaAt(g.x,g.y)),aim:f,back:f.y<-.55&&Math.abs(f.x)<.65,moving:g.moving,phase:g.slot,flash:g.flash>0,upgraded:g.role==='heavy'},time);
   roundRect(g.x-20,g.y-119,40,4,2,'#18333f');roundRect(g.x-20,g.y-119,40*g.hp/g.maxHp,4,2,'#8bd6e1');label(g.name+' · '+g.state.toUpperCase(),g.x,g.y-129,8,'#b7e0e3');
  }
  function drawCombat(time,dt){
