@@ -27,8 +27,8 @@ test('private fortress kit and clan outposts keep their tile-local placement slo
 test('preview is non-destructive and blocks unknown greenbelt positions',()=>{
  const data={version:5,saveVersion:5,worldVersion:1,x:C.WORLD.spawn.x,y:C.WORLD.spawn.y,xp:1200,credits:340,inventory:[{uid:'gear-7',item:'jacket'}],plot:[{col:5,row:5,kind:'home'}],clans:{reputation:{exit:7}},crew:[],rising:{claimed:2}};
  const original=JSON.stringify(data),preview=T.previewSave(C,data);
- assert.equal(preview.status,'preview');assert.equal(preview.worldVersion,2);assert.equal(preview.point.area,'hub');assert.equal(preview.unmodified.credits,340);assert.equal(preview.unmodified.inventory[0].uid,'gear-7');
+ assert.equal(preview.status,'preview');assert.equal(preview.worldVersion,2);assert.equal(preview.point.area,'fortress');assert.equal(preview.unmodified.credits,340);assert.equal(preview.unmodified.inventory[0].uid,'gear-7');
  assert.equal(JSON.stringify(data),original);assert.equal(save.WORLD_VERSION,1,'live topology is not activated');
- assert.equal(T.previewSave(C,{...data,x:3200,y:2300}).status,'blocked');
+ assert.equal(T.previewSave(C,{...data,x:500,y:500}).status,'blocked');
  assert.equal(T.previewSave(C,{...data,worldVersion:3}).status,'invalid');
 });
