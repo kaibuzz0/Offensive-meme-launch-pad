@@ -31,6 +31,18 @@
    for(const side of [-1,1]){for(let i=-3;i<=3;i++)box(c,n.x+side*105-20,n.y+i*16-4,40,7,'#d6dfca99');for(let i=0;i<8;i++)box(c,n.ox+190+i*230,n.oy+1020,100,4,n.color+'77');}
    for(let i=0;i<5;i++){c.strokeStyle=n.color+'30';c.lineWidth=2;c.beginPath();c.arc(n.x-410,n.y+40,20+i*13,0,Math.PI*2);c.stroke();}
    text(c,n.clan.toUpperCase(),n.x-410,n.y+45,13,n.color);
+   // Every clan owns a visibly distinct HQ compound with an open south
+   // entrance; this is a painted territorial boundary, not impassable walls.
+   c.save();c.strokeStyle=n.color;c.lineWidth=5;c.setLineDash([32,16]);
+   c.beginPath();c.moveTo(n.ox+204,n.oy+187);
+   c.lineTo(n.ox+826,n.oy+187);c.lineTo(n.ox+826,n.oy+625);
+   c.moveTo(n.ox+705,n.oy+625);c.lineTo(n.ox+204,n.oy+625);
+   c.lineTo(n.ox+204,n.oy+187);c.stroke();c.setLineDash([]);
+   box(c,n.ox+253,n.oy+210,523,34,'#102734',3);
+   text(c,n.clan.toUpperCase()+' / HQ',n.ox+515,n.oy+233,16,n.color);
+   box(c,n.ox+653,n.oy+584,164,26,'#152b3c',3);
+   text(c,'OPEN ACCESS',n.ox+735,n.oy+602,9,'#d7f0e0');
+   c.restore();
    text(c,n.name,n.x,n.oy+100,30,n.color);text(c,n.clan.toUpperCase()+' / WALKABLE COMMUNITY BLOCK',n.x,n.oy+960,13,n.color);
    box(c,n.x-115,n.y-48,230,96,'#122833',14);text(c,'CLAN TERMINAL',n.x,n.y-10,15,n.color);text(c,'E / JOBS & MEMBERSHIP',n.x,n.y+14,10,'#dce8e5');
   }
