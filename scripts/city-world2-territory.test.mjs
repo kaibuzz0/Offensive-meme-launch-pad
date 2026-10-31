@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const context={};
-for(const f of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-world2.js','city-world2-registry.js','city-world2-territory.js'])
+for(const f of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-world2.js','city-world2-registry.js','city-nav.js','city-world2-territory.js','city-world2-simulation.js'])
  vm.runInNewContext(fs.readFileSync(new URL('../'+f,import.meta.url),'utf8'),context);
 const C=context.MemeCityCore,I=context.CityInteriors,T=context.CityTopology,W=context.CityWorld2.create(C,I,T);
 const registry=context.CityWorld2Registry.create(C,I,context.CityRising,T,W),create=()=>context.CityWorld2Territory.create(C,W,registry);
@@ -48,4 +48,17 @@ test('reset and faction switch clear capture without corrupting owner snapshots'
  assert.equal(z.owner,ids[1].id);
  t.reset();assert.equal(z.owner,z.homeClan);assert.equal(t.active(),null);
  assert.equal(JSON.stringify(t.snapshot()),JSON.stringify(original));
+});
+
+test('territory control is integrated into the isolated world2 simulation and reset lifecycle',()=>{
+ const simulation=context.CityWorld2Simulation.create(C,W,registry,context.CityNav);
+ assert.ok(simulation.territory,'gameplay preview must have faction state');
+ const zone=simulation.territory.zones[0],clan=C.NEIGHBORHOODS.find(n=>n.id!==zone.owner).id;
+ assert.equal(simulation.joinFaction(clan).status,'joined');
+ simulation.player.x=zone.x;simulation.player.y=zone.y;
+ assert.equal(simulation.captureControl(zone.id).status,'capturing');
+ for(let i=0;i<82;i++)simulation.tick(.1);
+ assert.equal(zone.owner,clan);assert.equal(simulation.player.xp,80);assert.equal(simulation.player.credits,230);
+ assert.ok(simulation.events.some(x=>x.includes('Control point secured')));
+ simulation.reset();assert.equal(zone.owner,zone.homeClan);assert.equal(simulation.player.clan,null);
 });
