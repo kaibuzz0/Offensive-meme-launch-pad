@@ -108,3 +108,10 @@ For local QA, checkout the latest `codex/living-blocks-handoff`, run `npm run de
 **Immediate implementation priority:** connect the canonical world2 registry to a feature-flagged *actual engine* and interior/mission/NPC simulation, not only the standalone explorer. Preserve all 47 entrances, 12 landmark points, stage/rollback copies and movement/collision semantics. Verify consistent client+server world topology before enabling online rooms. Have a real-browser specialist capture screenshots and test touch controls, the in-room terminal, construction collision, eight-way avatar poses, and a legacy save reload. Do not merge or deploy until owner review.
 
 **Every batch:** fetch latest branch, test, commit and PUSH; keep the draft PR and `DEVELOPMENT_STATUS.md` current. Never reset newer remote commits. No token burns or Minecraft/BAREIRON runtime.
+
+
+## Latest world2 continuation: shop, market and medkit terminals
+
+PR #2 now includes `city-world2-services.js` (preview-only catalog-based equipment purchases, ownership/equipping, half-price salvage, medkits) wired to indoor terminal buttons in `city-world2-preview.html/js`, with upgraded boots speed and blaster damage actually applied in the world2 offline simulation. World1 live game, wallet payments, Render backend and canonical save key were not altered. Added service protection tests, mock UI tests, and sandbox save-roundtrip coverage.
+
+**Next engineer:** fetch PR #2 head first. Validate actual browser interaction at shop and Night Market rear terminals, verify item equip/unequip and persistence after reload, then design a server-authoritative world2 service protocol (action validation, versioning, ownership, double-spend prevention) without promoting client-only preview rewards. Follow with mobile Android acceptance, multiplayer topology synchronization and reversible migration/rollback. Commit and push focused, passing batches; keep `main` untouched and PR draft until owner authorizes release.
