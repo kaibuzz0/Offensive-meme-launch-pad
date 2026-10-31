@@ -10,7 +10,7 @@ const state=(name='Alice')=>({worldVersion:2,preview:true,revision:2,
   {id:'peer',name:'Bob',x:5050,y:4120,hp:100,clan:null,room:null}],
  guards:[],territory:[],roomInfo:{code:'public-1',private:false,capacity:8,players:2}});
 function mock(){
- const elements=new Map(),frames=[],intervals=[],actions=[],inputs=[];let current=state(),connected=false;
+ const elements=new Map(),frames=[],intervals=[],actions=[],inputs=[],joins=[];let current=state(),connected=false;
  const blankCanvas=new Proxy({}, {get:(o,k)=>k in o?o[k]:()=>{},set:(o,k,v)=>(o[k]=v,true)});
  function el(id){
   if(elements.has(id))return elements.get(id);
@@ -31,13 +31,15 @@ function mock(){
   vm.runInNewContext(read(f),ctx,{filename:f});
  ctx.CityVisuals={person:()=>{}};
  ctx.CityWorld2OnlineTransport={create:()=>({
-  isJoined:()=>connected,join:async({name})=>{connected=true;current=state(name);return current;},
+  isJoined:()=>connected,join:async(args)=>{joins.push(args);connected=true;current=state(args.name);return current;},
+  createProfile:async()=>({recoveryKey:'a'.repeat(43),revision:1}),
+  saveProfile:async()=>({saved:true,revision:2}),
   input:async a=>{inputs.push(a);return {ok:true};},state:async()=>current,
   action:async(type,fields)=>{actions.push({type,fields});return {message:'Server accepted '+type,state:current};},
   leave:async()=>{connected=false;return {ok:true};},disconnect:()=>{connected=false;},
  })};
  vm.runInNewContext(read('city-world2-online.js'),ctx,{filename:'city-world2-online.js'});
- return {el,frames,intervals,actions,inputs,ctx};
+ return {el,frames,intervals,actions,inputs,joins,ctx};
 }
 test('world2 authoritative browser page initializes offline without private storage or network calls',()=>{
  const h=mock();assert.equal(h.frames.length,1);
@@ -125,4 +127,19 @@ test('city orientation UI follows server-supplied goal and never submits claimed
  assert.equal(h.actions.at(-1).fields.credits,undefined);
  assert.equal(h.actions.at(-1).fields.index,undefined);
  assert.doesNotThrow(()=>h.frames[0]());
+});
+
+test('world2 QA recovery UI sends the key only on join and clears the recovery input',async()=>{
+ const h=mock();
+ h.el('avatar').value='offensive';
+ h.el('recovery-key').value='r'.repeat(43);
+ await h.el('join').click();
+ assert.equal(h.joins[0].recoveryKey,'r'.repeat(43));
+ assert.equal(h.el('recovery-key').value,'','credentials must not linger in editable join field');
+ await h.el('create-profile').click();
+ assert.equal(h.el('issued-key').value,'a'.repeat(43),'one-time key displayed only after explicit create');
+ await h.el('save-profile').click();
+ assert.match(h.el('status').textContent,/revision 2/);
+ await h.el('leave').click();
+ assert.equal(h.el('issued-key').value,'','recovery key must be cleared on leaving');
 });
