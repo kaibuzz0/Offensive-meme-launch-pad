@@ -28,7 +28,7 @@ for(const file of ['index.html','creators.html']){
 new vm.Script(read('launchpad.js'));
 console.log('PASS: community pages, lightweight script boundaries, and application JS syntax.');
 
-for(const file of ['city.js','city-map.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js'])new vm.Script(read(file));
+for(const file of ['city.js','city-map.js','city-save.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js'])new vm.Script(read(file));
 for(const file of ['city.html','city-roadmap.html','city.css','server/city-server.mjs'])assert.ok(fs.existsSync(path.join(root,file)),`Missing city release file: ${file}`);
 assert.ok(read('index.html').includes('href="city.html"'),'Homepage must link to the playable city');
 const networkContext={window:{}};vm.runInNewContext(read('city-network.js'),networkContext);const network=networkContext.window.MEME_CITY_NETWORK;assert.equal(typeof network.enabled,'boolean');if(network.enabled)assert.ok(/^https:\/\//.test(network.apiBase),'Public room service must use HTTPS');
@@ -41,6 +41,8 @@ assert.ok(read('city.html').includes('city-visuals.js'),'Clothing renderer must 
 assert.ok(read('.github/workflows/pages.yml').includes('city-visuals.js'),'Clothing renderer must ship in Pages builds');
 console.log('PASS: streetwear renderer and deployment references.');
 
+assert.ok(read('city.html').includes('city-save.js'),'Save version guard must load');
+assert.ok(read('.github/workflows/pages.yml').includes('city-save.js'),'Save version guard must deploy');
 assert.ok(read('city.html').includes('city-map.js'),'World map destinations must load');
 assert.ok(read('.github/workflows/pages.yml').includes('city-map.js'),'World map destinations must deploy');
 assert.ok(read('city.html').includes('city-districts.js'),'District renderer must load');
