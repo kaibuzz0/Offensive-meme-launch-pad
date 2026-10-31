@@ -12,13 +12,13 @@
  function init(e){
   if(e.arcade)return;
   e.arcade={time:0,bots:[],guards:[],bullets:[],effects:[],pickups:[]};
-  for(let i=0;i<8;i++)spawn(e,'gang',spots[i][0]+HUB.x,spots[i][1],`gang-${i}`);
-  for(let i=0;i<4;i++)spawn(e,'cop',patrol[i][0]+HUB.x,patrol[i][1],`cop-${i}`);
+  for(let i=0;i<8;i++)spawn(e,'gang',spots[i][0]+HUB.x,spots[i][1]+HUB.y,`gang-${i}`);
+  for(let i=0;i<4;i++)spawn(e,'cop',patrol[i][0]+HUB.x,patrol[i][1]+HUB.y,`cop-${i}`);
   for(const n of C.NEIGHBORHOODS)for(let i=0;i<4;i++){
    const rug=i%2===1;const b=spawn(e,rug?'gang':'cop',n.x+(rug?170:-170),n.y+200+Math.floor(i/2)*100,'block-'+n.id+'-'+i);b.faction=rug?'exit':'congress';b.ranged=true;b.ambient=true;
   }
   for(const n of C.NEIGHBORHOODS)if(!['congress','exit'].includes(n.id))for(let i=0;i<2;i++){const b=spawn(e,'gang',n.x+(i?230:-230),n.y+260,'resident-'+n.id+'-'+i);b.faction=n.id;b.ranged=true;b.ambient=true;b.resident=true;}
-  for(let i=0;i<12;i++)e.arcade.pickups.push({id:`loot-${i}`,x:HUB.x+180+(i%6)*340,y:i<6?590:910,kind:i%4===0?'med':'credit',ready:0});
+  for(let i=0;i<12;i++)e.arcade.pickups.push({id:`loot-${i}`,x:HUB.x+180+(i%6)*340,y:HUB.y+(i<6?590:910),kind:i%4===0?'med':'credit',ready:0});
  }
  // One bounded street conflict, owned by the shared simulation in both modes.
  const CONFLICT=Object.freeze({x:HUB.x+770,y:HUB.y+1000,name:'Founders Crossing',radius:420});
@@ -132,7 +132,7 @@
   const a=e.arcade,ids=new Set();for(const p of e.players.values())for(let i=0;i<p.crew.length;i++){
    const record=p.crew[i],id=`${p.id}:${record.id}`;ids.add(id);let g=a.guards.find(g=>g.id===id);const role=C.CREW_TYPES.find(t=>t.id===record.role);
    if(!g){const anchor=record.mode==='follow'?p:record.mode==='patrol'?{x:1000+i*80,y:1000}:record.post||{x:1000+i*80,y:1000};const pos=freeSpawn(e,p,anchor.x+35+i*27,anchor.y+45);g={id,owner:p.id,ally:true,role:role.id,name:role.name,...pos,hp:role.hp,maxHp:role.hp,cooldown:0,recover:0,invulnerable:0,heat:0,quiet:0,state:'guarding',facing:{x:1,y:0},path:[],pathAt:0};a.guards.push(g);}
-   g.clan=p.clan;g.outposts=p.outposts;g.mode=record.mode;g.post=record.post||{x:1000+i*80,y:1000};g.plot=p.plot;g.slot=i;if(C.blocked(g.x,g.y,g))Object.assign(g,freeSpawn(e,p,g.x,g.y));
+   g.clan=p.clan;g.outposts=p.outposts;g.mode=record.mode;g.post=record.post||{x:C.PLOT.x+400+i*80,y:C.PLOT.y+600};g.plot=p.plot;g.slot=i;if(C.blocked(g.x,g.y,g))Object.assign(g,freeSpawn(e,p,g.x,g.y));
   }a.guards=a.guards.filter(g=>ids.has(g.id));
  }
  function tickCrew(e,dt){
@@ -142,7 +142,7 @@
    if(enemy){const d=Math.max(1,distance(g,enemy));g.facing={x:(enemy.x-g.x)/d,y:(enemy.y-g.y)/d};g.state='engaging';g.moving=d<95;if(d<95)move(g,-g.facing.x*role.speed*.55*dt,-g.facing.y*role.speed*.55*dt);if(!g.cooldown){const count=e.arcade.bullets.length;bullet(e,g,enemy,'ally',g.id,role.damage);const q=e.arcade.bullets.at(-1);if(e.arcade.bullets.length>count)q.creditOwner=g.owner;g.cooldown=role.cooldown;g.flash=.1;}continue;}
    let target=g.post;
    if(g.mode==='follow'){const f=owner.facing||{x:1,y:0};target={x:owner.x-f.x*(90+g.slot*18)+f.y*(g.slot%2?40:-40),y:owner.y-f.y*(90+g.slot*18)-f.x*(g.slot%2?40:-40)};}
-   if(g.mode==='patrol'){const points=[{x:680,y:390},{x:1690,y:390},{x:1690,y:1150},{x:550,y:1150}];g.patrolIndex??=g.slot%4;target=points[g.patrolIndex];if(distance(g,target)<28)g.patrolIndex=(g.patrolIndex+1)%4;}
+   if(g.mode==='patrol'){const fort=C.DISTRICTS.find(d=>d.id==='fortress'),points=[{x:fort.ox+680,y:fort.oy+390},{x:fort.ox+1690,y:fort.oy+390},{x:fort.ox+1690,y:fort.oy+1150},{x:fort.ox+550,y:fort.oy+1150}];g.patrolIndex??=g.slot%4;target=points[g.patrolIndex];if(distance(g,target)<28)g.patrolIndex=(g.patrolIndex+1)%4;}
    g.state=g.mode==='follow'?'following':g.mode==='patrol'?'patrolling':'guarding';g.moving=distance(g,target)>35;if(g.moving){const dx=target.x-g.x,dy=target.y-g.y,d=Math.max(1,Math.hypot(dx,dy));g.facing={x:dx/d,y:dy/d};steer(e,g,target,role.speed,dt);}
   }
  }
@@ -159,7 +159,7 @@
   if(action.type==='endDefense'){if(!p.defense)throw Error('No active defense drill.');p.defense=null;cleanupRaid(e,p.id);return 'Defense drill cancelled.';}
   if(action.type==='defenseDrill'){
    if(p.area!=='fortress')throw Error('Walk to your fortress to start a defense drill.');if(p.contract||p.defense)throw Error('Finish your current challenge first.');if((p.defenseCooldown||0)>0)throw Error('Defense drill is recharging.');if(e.arcade.bots.length+4>64)throw Error('Too many active enemies.');
-   p.defense={remaining:4,timeLeft:120,countdown:3};for(let i=0;i<4;i++){const b=spawn(e,'gang',850+i*160,1215,`raid-${++e.serial}`,p.id);b.raid=true;b.plot=p.plot;}return 'Defense drill started. Four raiders are approaching your fortress.';
+   p.defense={remaining:4,timeLeft:120,countdown:3};for(let i=0;i<4;i++){const fort=C.DISTRICTS.find(d=>d.id==='fortress'),b=spawn(e,'gang',fort.ox+850+i*160,fort.oy+1215,`raid-${++e.serial}`,p.id);b.raid=true;b.plot=p.plot;}return 'Defense drill started. Four raiders are approaching your fortress.';
   }
   return null;
  }
