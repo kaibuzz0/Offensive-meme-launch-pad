@@ -314,3 +314,11 @@ The local `city-world2-online.html/js` QA client now renders server-sourced priv
 Run `npm test`, `npm run check`, the benchmark, and `npm run qa:world2:browser`. Record the latest green CI commit before calling the round validated; hardware Android input/FPS remains unverified. Keep PR #2 draft, keep `main`/Render/world1 saves unchanged, and never infer token rewards from preview play credits.
 
 Outstanding: NPC waypoint navigation around complex construction, full battle replay/companion commands, defense survivability and server load tests, persistent character state and world1 migration/rollback, moderation and Android device QA.
+
+## Round 9 — four-stage journey, obstacle-aware private NPCs (October 31, 2026)
+
+Following Round 8 (`74d96dab`, 230/230 tests), world2 online now has a canonical four-objective orientation trail. Each guest must approach each destination in order; the server calculates the next target and awards preview XP/credits once, with full position, health and integer-bound validation. Existing courier and squad/raid jobs remain separate and unaffected. Browser controls show the next server objective and offer a visual marker and claim action; client-supplied coordinates/credits never authorize rewards. Cross-guest, HTTP and real Chromium acceptance cases protect the journey boundary.
+
+Private hired defenders and raiders now request bounded waypoint routes when obstacles block direct movement, using the existing canonical `CityNav.plan` module. Failed routes are cached/backed off rather than repeatedly searched at 20 Hz. Deterministic tests verify bypass of a wall and throttling of unreachable-route recomputations. Gameplay source `cb8ef698`, [CI](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41229610070); check final result before declaring all checks green.
+
+The room server, frontend and mission remain **local-only QA**. No production world1 assets, online persistence, Solana token economics, original saves, Render deployment or default website routes changed.

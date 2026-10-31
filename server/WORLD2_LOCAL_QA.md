@@ -75,3 +75,11 @@ The **Personal fortress plot** fieldset on `city-world2-online.html` now lets a 
 **These fortress lots are deliberately private guest instances**, NOT collaboratively visible construction. A different same-room player sees their own empty lot and is not blocked by another guest's walls. Construction exists only for an in-memory authenticated guest and is lost on room expiry/restart. Existing world1 permanent local saves and the separate v2 offline sandbox are not affected.
 
 Verify using `npm test`, `npm run check`, and `npm run qa:world2:browser`. The Chromium script moves an authenticated guest into range using a server-owned test fixture after first proving that remote placement fails. It then exercises the real browser controls and checks a second tab receives no private plot state. Physical Android touch/retina performance was not tested.
+
+### Round 9 — city orientation and waypoint NPC navigation
+
+Once connected to the local online QA world2 client, the **City orientation** display reports the next of four ordered destinations. Press **Mark next objective** to mark the canonical point on the world map, walk there, and use **Claim at destination**. A claim must be made within 135 world units, outdoors and alive. The server privately tracks each guest's progress and awards preview XP/credits exactly once: 45 XP / 35 credits for the first three objectives and 135 XP / 100 credits for the last. The browser cannot supply an alternate step, position or reward. Closing the temporary guest room permanently loses this progress.
+
+Server-owned private squad defenders and fortress raid NPCs now use bounded, cached `CityNav` routes when walls block line of sight. Failed route searches back off, instead of recalculating each frame. This is **not** a full citywide advanced NPC AI, and the CI browser test does not validate physical Android frame pacing.
+
+**Acceptance:** `npm test`, `npm run check`, `npm run qa:world2:browser`. Tests include four-stage ordered claims, double-claim rejection, forged position/funds rejection, HTTP guest isolation, a real Chromium journey control check, and deterministic NPC route/backoff cases. Never activate this browser QA client on public Pages or make payments using preview credits.

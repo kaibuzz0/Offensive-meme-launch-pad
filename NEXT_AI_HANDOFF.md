@@ -1,3 +1,15 @@
+> **ROUND 9 — October 31, 2026:** Pushed a private, server-authoritative **four-stage city orientation journey** and bounded pathfinding for server-owned fortress NPCs. Gameplay head `cb8ef698`; [CI validation](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41229610070). Main, Render world1 and save schemas remain unchanged. Check current workflow conclusion before claiming a clean release gate.
+
+## Round 9 handoff — immediate status and next priorities
+
+**City orientation:** `city-world2-journey.js` defines four canonical stage IDs, in sequence: `checkpoint:0`, `district:arena`, `checkpoint:1`, `checkpoint:2`. Each authenticated guest independently tracks the current stage. The `claimJourney` server command checks the true world2 position (135-unit radius), outdoor/alive state, valid integer credits/XP capacity and exactly-once payout (three ordinary stages: +45 XP / +35 preview credits each; last: +135 XP / +100 preview credits). Final cumulative payout is +270 preview XP / +205 preview credits. The browser uses the server snapshot to show the next stage and mark a route target; no browser code awards credit or changes stage. A separate online/http test covers two-guest state isolation and remote-reward rejection, and a real Chromium test covers a remote attempt and valid first checkpoint using a server-owned fixture.
+
+**Server NPC navigation:** `city-world2-defense.js` now requests `CityNav.plan` for movement when the direct LOS is blocked. Each NPC caches bounded routes/failed routes and retries at most every 1.5 seconds, or on a significant target movement; pathing still verifies unobstructed segments and per-player private plot collision. Two new deterministic tests demonstrate obstacle bypass and bounded unreachable-route attempts. This is a limited server-side prototype: do not claim an advanced citywide NPC job/mission AI, server stress measurement, or a mobile device benchmark.
+
+**Next priorities:** comprehensive online world1-to-v2 feature parity (other missions, arcade, jobs, clan systems, NPC traversal); production-quality server persistence tied to authenticated identities with atomic records and rollback; reversible live-save migration UI; physical Android tests and performance profiles; public beta security/moderation and owner-approved release flag. Keep PR #2 draft; do not merge or deploy Render. Live token economy remains independent.
+
+---
+
 > **Round 7 — authenticated personal fortress construction, October 31 2026:** On draft PR #2, `city-world2-authority.js` now supports private per-guest server-owned fortress structures, validated purchase costs, legal tile/path access, private collision and exactly-once half-price salvage. The opt-in local `city-world2-online.html` offers plot navigation, structure selection, build and demolition. New Node HTTP and browser checks cover forgery, isolation and UI. Current gameplay/Chromium test commit `bb3d2e7b`; verify the latest PR Actions result before reporting a passing release gate. Main and Render are unchanged. No player tokens, real currency, remote v2 deployment or permanent profiles.
 
 ## NEXT AI HANDOFF — after Round 7
