@@ -157,8 +157,39 @@ try{
  }
  await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Return to classic avatar')).click();true");
  await waitFor(()=>evalPage("Array.from(document.querySelectorAll('.clan-skin-tile button')).every(b=>b.getAttribute('aria-pressed')==='false')"),'classic outfit restored');
+ // Wallet theme is a read-only visual change available in both website and installed app.
+ assert.equal(await evalPage("document.querySelectorAll('[data-install-app]').length>0"),true,'install action on game');
+ assert.equal(await evalPage("document.querySelector('.wallet-theme-trigger')!==null"),true,'theme button visible in game');
+ assert.equal(await evalPage("window.MemeCityCore.TOKEN_PLOTS.length"),6,'six expansion plots are present in public game map');
+ await evalPage("document.querySelector('.wallet-theme-trigger').click();true");
+ const themeMock=await evalPage(`(()=>{
+   const wallet='11111111111111111111111111111111';
+   const off=window.LAUNCHPAD_CONFIG.platformToken.mint,insider=window.MEME_TOKENS.find(t=>t.id==='congress').mint;
+   const real=window.fetch.bind(window);
+   window.fetch=(url,options)=>String(url).includes('api.mainnet-beta.solana.com')
+    ?Promise.resolve({ok:true,json:async()=>({result:{value:[
+      {account:{data:{parsed:{info:{owner:wallet,mint:off,tokenAmount:{amount:'10000000',decimals:6}}}}}},
+      {account:{data:{parsed:{info:{owner:wallet,mint:insider,tokenAmount:{amount:'2000000000',decimals:6}}}}}}
+    ]}})})
+    :real(url,options);
+   document.querySelector('.wallet-theme-dialog input').value=wallet;
+   return {open:document.querySelector('.wallet-theme-dialog').open};
+ })()`);
+ assert.equal(themeMock.open,true);
+ await evalPage("Array.from(document.querySelectorAll('.wallet-theme-actions button')).find(b=>b.textContent==='Preview public address').click();true");
+ await waitFor(()=>evalPage("document.documentElement.dataset.walletTheme==='congress'"),'theme follows highest verified chain quantity');
+ assert.match(await evalPage("document.querySelector('.wallet-theme-status').textContent"),/Public-address preview/,'preview is clearly not ownership proof');
+ const persisted=await evalPage("localStorage.getItem('offensive-wallet-theme-v1')");
+ assert.equal(persisted,'congress');
+ await evalPage("document.querySelector('.wallet-theme-dialog').close();true");
+ await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/'});
+ await waitFor(()=>evalPage("document.querySelector('.wallet-theme-trigger')!==null && document.documentElement.dataset.walletTheme==='congress'"),'theme reused on installed-site home');
+ assert.equal(await evalPage("!!document.querySelector('[data-install-app]')"),true,'home installs the same app');
+ await evalPage("document.querySelector('.wallet-theme-trigger').click();true");
+ await evalPage("Array.from(document.querySelectorAll('.wallet-theme-actions button')).find(b=>b.textContent==='Use default').click();true");
+ assert.equal(await evalPage("document.documentElement.dataset.walletTheme"),'default','default theme is restorable');
  assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
- console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six selectable clan skins and wallet-button feedback in Chromium.');
+ console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six clan skins, gated plots, shared site/PWA wallet theme and wallet-button feedback in Chromium.');
 }finally{
  try{ws?.close();}catch{}
  if(chrome){
