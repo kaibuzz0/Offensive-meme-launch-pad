@@ -78,3 +78,29 @@ test('real HTTP fortress commands charge once, verify range and never expose ano
   await Promise.all([a.leave(),b.leave()]);
  }finally{await host.close();}
 });
+
+
+test('real HTTP fortress squad commands isolate hired defenders and server raid rewards',async()=>{
+ const host=createLocalWorld2Server();
+ try{
+  const addr=await host.listen(0),alice=transport(addr.port),bob=transport(addr.port);
+  await alice.join({name:'Fortress owner',avatar:'offensive'});
+  await bob.join({name:'Other guest',avatar:'offensive'});
+  await assert.rejects(alice.action('hireDefender',{role:'sentry',credits:999999}),/private fortress lot/);
+  const p=[...host.rooms.first.engine.players.values()].find(x=>x.name==='Fortress owner');
+  p.x=4536+8*64;p.y=4600+5*64;host.rooms.first.revision++;
+  await alice.action('hireDefender',{role:'sentry',credits:999999});
+  assert.equal((await alice.state()).self.credits,160);
+  assert.equal((await alice.state()).self.defense.crew.length,1);
+  assert.equal((await bob.state()).self.defense.crew.length,0);
+  assert.equal((await bob.state()).players.find(x=>x.name==='Fortress owner').defense,undefined);
+  const start=await alice.action('startRaid',{credits:999999,x:0,y:0});
+  assert.match(start.message,/raid wave 1/);
+  const snap=await alice.state();assert.equal(snap.self.defense.raid.status,'active');
+  assert.ok(snap.self.defense.raiders.length>=2);
+  assert.equal((await bob.state()).self.defense.raid.status,'idle');
+  await assert.rejects(bob.action('damageRaider',{target:snap.self.defense.raiders[0].id,damage:999999}),/unavailable/);
+  assert.equal((await alice.state()).self.credits,160);
+  await Promise.all([alice.leave(),bob.leave()]);
+ }finally{await host.close();}
+});
