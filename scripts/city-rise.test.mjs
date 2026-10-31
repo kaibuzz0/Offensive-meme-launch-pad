@@ -41,7 +41,7 @@ test('HQ upgrades require construction and funds; healing and squad HP are funct
  const {e,p,C}=game();at(p,{x:C.HUB.x+1120,y:C.HUB.y+900});assert.throws(()=>e.action('a',{type:'fortUpgrade'}),/Visit/);at(p,{x:C.WORLD.spawn.x,y:C.WORLD.spawn.y});e.action('a',{type:'starterfort'});
  assert.throws(()=>e.action('a',{type:'fortUpgrade'}),/credits/);p.credits=500;e.action('a',{type:'hire',role:'sentry'});e.tick(.05);const g=e.arcade.guards[0];
  e.action('a',{type:'fortUpgrade'});e.tick(.05);assert.equal(g.maxHp,130);assert.equal(g.hp,130);g.hp=0;g.recover=15;e.action('a',{type:'fortUpgrade'});e.tick(.05);assert.equal(g.hp,0,'an upgrade cannot resurrect a downed guard');
- p.x=C.PLOT.x+3*64+32;p.y=C.PLOT.y+3*64+32;p.hp=50;p.quiet=10;tick(e,2);assert.ok(p.hp>50);
+ p.x=C.PLOT.x+7*64+32;p.y=C.PLOT.y+5*64+150;p.hp=50;p.quiet=10;tick(e,2);assert.ok(p.hp>50);
 });
 test('survival starts only at the terminal, counts down and excludes other challenges',()=>{
  const {e,p,R}=game();assert.throws(()=>e.action('a',{type:'startSurvival'}),/Walk/);at(p,R.GUIDES.find(g=>g.id==='marshal'));e.action('a',{type:'startSurvival'});assert.equal(p.rising.arena.wave,0);tick(e,3.1);assert.equal(p.rising.arena.wave,1);assert.equal(e.arcade.bots.filter(b=>b.arena).length,3);
