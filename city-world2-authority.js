@@ -177,6 +177,69 @@
     if(type==='reload'){p.ammo=24;return 'Server magazine reloaded.';}
     throw Error('Unknown server action.');
    }
+   // Only a trusted server vault calls these functions. Clients cannot submit save payloads.
+   exportProgress(id){
+    const p=this.player(id);
+    return {schema:1,worldVersion:2,player:{
+      name:p.name,avatar:p.avatar,x:p.x,y:p.y,hp:p.hp,xp:p.xp,credits:p.credits,ammo:p.ammo,
+      kills:p.kills,jobs:p.jobs,clan:p.clan,reputation:{...p.reputation},
+      inventory:p.inventory.map(i=>({...i})),equipped:{...p.equipped},
+      rising:{medkits:p.rising.medkits},plot:p.plot.map(o=>({...o}))},
+      journey:this.journeys.get(id).snapshot().index,
+      defense:this.privateDefense.get(id).progress()};
+   }
+   restoreProgress(id,raw){
+    // Stage and validate before mutating any room state, so corrupted records fail closed.
+    const fail=()=>{throw Error('Saved world2 character is incompatible.');};
+    const obj=x=>x&&typeof x==='object'&&!Array.isArray(x);
+    const integer=(x,min,max)=>Number.isSafeInteger(x)&&x>=min&&x<=max;
+    if(!obj(raw)||raw.schema!==1||raw.worldVersion!==2||!obj(raw.player))fail();
+    const p=this.player(id),v=raw.player;
+    if(typeof v.name!=='string'||v.name.length>22||!C.validIds.includes(v.avatar)||
+      !integer(v.hp,0,100)||!integer(v.xp,0,1000000000)||!integer(v.credits,0,1000000)||
+      !integer(v.ammo,0,24)||!integer(v.kills,0,1000000)||!integer(v.jobs,0,1000000)||
+      !Number.isFinite(v.x)||!Number.isFinite(v.y)||
+      (v.clan!==null&&!C.NEIGHBORHOODS.some(z=>z.id===v.clan))||
+      !obj(v.reputation)||!obj(v.rising)||!integer(v.rising.medkits,0,9)||
+      !Array.isArray(v.inventory)||v.inventory.length>100||!obj(v.equipped)||
+      !Array.isArray(v.plot)||v.plot.length>C.PLOT.cols*C.PLOT.rows)fail();
+    const reputation={};
+    for(const [k,value] of Object.entries(v.reputation)){
+     if(!C.NEIGHBORHOODS.some(z=>z.id===k)||!integer(value,0,1000000))fail();
+     reputation[k]=value;
+    }
+    const taken=new Set(),inventory=v.inventory.map(i=>{
+     if(!obj(i)||typeof i.uid!=='string'||!/^gear-[1-9][0-9]{0,6}$/.test(i.uid)||
+       taken.has(i.uid)||!C.ITEMS.some(g=>g.id===i.item))fail();
+     taken.add(i.uid);return {uid:i.uid,item:i.item};
+    });
+    const equipped={};
+    for(const [slot,uid] of Object.entries(v.equipped)){
+     if(!['head','outfit','hand','feet'].includes(slot)||typeof uid!=='string')fail();
+     const owned=inventory.find(i=>i.uid===uid),item=C.ITEMS.find(i=>i.id===owned?.item);
+     if(!item||item.slot!==slot)fail();
+     equipped[slot]=uid;
+    }
+    const cells=new Set(),plot=v.plot.map(o=>{
+     if(!obj(o)||!integer(o.col,0,C.PLOT.cols-1)||!integer(o.row,0,C.PLOT.rows-1)||
+       !C.BUILD_KIT.some(k=>k.id===o.kind)||!integer(o.rotation,0,3))fail();
+     const key=o.row*C.PLOT.cols+o.col;if(cells.has(key))fail();cells.add(key);
+     return {col:o.col,row:o.row,kind:o.kind,rotation:o.rotation};
+    });
+    if(C.buildAccess(plot,C.PLOT.cols,C.PLOT.rows))fail();
+    const stageJourney=journey.session(),stageDefense=defense.session();
+    try{stageJourney.restore(raw.journey);stageDefense.restore(raw.defense);}catch{fail();}
+    const staged={...p,plot};
+    const position=!W.blocked(v.x,v.y,staged)?{x:v.x,y:v.y}:neutral;
+    if(W.blocked(position.x,position.y,staged))fail();
+    Object.assign(p,{name:v.name,avatar:v.avatar,x:position.x,y:position.y,
+     hp:v.hp>0?v.hp:100,xp:v.xp,credits:v.credits,ammo:v.ammo,kills:v.kills,jobs:v.jobs,
+     clan:v.clan,reputation,inventory,equipped,rising:{medkits:v.rising.medkits},plot,
+     room:null,input:{x:0,y:0},fireHeld:false,fireCooldown:0});
+    this.journeys.set(id,stageJourney);
+    this.privateDefense.set(id,stageDefense);
+    return {restored:true,relocated:position.x!==v.x||position.y!==v.y};
+   }
    snapshot(id){
     const p=this.player(id),other=[...this.players.values()].map(x=>({
      id:x.id,name:x.name,avatar:x.avatar,x:x.x,y:x.y,hp:x.hp,clan:x.clan,
