@@ -1,12 +1,11 @@
-## Public release: Living Blocks + world-v2 sandbox (October 31, 2026)
+## Live game: Meme City World V1 restored (October 31, 2026)
 
-**Current release scope:** the live `city.html` continues to use world1, preserving the existing 47 buildings, solo save and temporary online room model. World1 receives improvements to collision-aware navigation, NPC weapon rigs, faction behavior, interiors, map touch targets and safe save backups. The separate `city-world2-preview.html` is an explicitly experimental, browser-accessible demonstration of the central fortress, four cardinal roads, collision geometry, navigation, prototype NPC fights, Insider-police pursuit, defense waves and in-memory construction. **It is not the new production game engine, has no persistent world2 ownership/rewards, and never grants token rewards.**
+**Current public release:** the original playable Living Blocks / Alpha 12 game. **[Enter Meme City — solo gameplay](city.html?release=world1)** from the homepage's visible Play button, then press **Enter Meme City** on the original in-game welcome screen. Original camera, movement, combat, HUD, six neighborhoods, NPCs, buildings, fortress construction and versioned local browser saves are preserved. The optional **Together** panel uses the existing world1 public room service; no server account is required for the solo game.
 
-- [Play the existing Meme City](city.html)
-- [Try the experimental central fortress preview](city-world2-preview.html)
-- [Read current development limitations and handoff](NEXT_AI_HANDOFF.md)
+The experimental World V2 production client and its prototype backend are **not the public game**. Previous v2 URLs are redirected to the restored world1 game. The v2 browser preview is retired from GitHub Pages, while historical code remains in Git for audit. Do not replace the public game with an experimental multiplayer dashboard again without equivalent solo gameplay, mobile visual acceptance and explicit owner approval.
 
-Browser/Android acceptance and full live multiplayer world2 authority remain outstanding. Optional swap presets always require wallet review and approval; no mint, burn or purchase occurs automatically.
+**Save safety:** no script in this restoration deletes, clears or migrates `localStorage`. Solo progress remains stored in the current browser/profile under the original schema. Keep your browser data intact; clearing website data or private-mode storage can still lose local progress. Play credits have no cash or token value.
+
 
 ---
 
