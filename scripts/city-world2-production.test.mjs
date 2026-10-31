@@ -18,7 +18,9 @@ test('production server refuses missing durability marker; accepts explicit mark
  // workspace for the ephemeral test fixture; do not loosen production disk guards.
  const dir=await mkdtemp(path.join(process.cwd(),'.world2-prod-test-'));
  try{
-  const opts={saveDir:dir,durableConfirmed:'yes',allowedOrigin:'https://kaibuzz0.github.io',bindHost:'127.0.0.1'};
+  // Only the controlled test call can opt out of rejecting ephemeral checkout paths.
+  const opts={saveDir:dir,durableConfirmed:'yes',allowedOrigin:'https://kaibuzz0.github.io',bindHost:'127.0.0.1',testOnlyAllowEphemeralSaveDir:true};
+  await assert.rejects(createWorld2PublicServer({...opts,testOnlyAllowEphemeralSaveDir:false}),/durable absolute/);
   await assert.rejects(createWorld2PublicServer(opts),/marker missing/);
   await writeFile(path.join(dir,'.durable-world2-volume'),'world2-persistent-volume-approved-v1\n');
   const service=await createWorld2PublicServer(opts);
