@@ -1,17 +1,22 @@
-## Live game: Meme City World V1 restored (October 31, 2026)
+## Live game: Meme City Center City (October 31, 2026)
 
-**Current public release:** the original playable Living Blocks / Alpha 12 game. **[Enter Meme City — solo gameplay](city.html?release=world1)** from the homepage's visible Play button, then press **Enter Meme City** on the original in-game welcome screen. Original camera, movement, combat, HUD, six neighborhoods, NPCs, buildings, fortress construction and versioned local browser saves are preserved. The optional **Together** panel uses the existing world1 public room service; no server account is required for the solo game.
+**Public release:** the full playable World V1 game now uses the expanded **Center City** map, 11,200 × 11,200 units, with the player's private fortress at the map center, six separately identified clan headquarters and surrounding territories, and equipment, trading, vehicles and entertainment spread across multiple districts.
 
-The experimental World V2 production client and its prototype backend are **not the public game**. Previous v2 URLs are redirected to the restored world1 game. The v2 browser preview is retired from GitHub Pages, while historical code remains in Git for audit. Do not replace the public game with an experimental multiplayer dashboard again without equivalent solo gameplay, mobile visual acceptance and explicit owner approval.
+**[Play Meme City now](city.html?release=center-city-v1).** From the homepage select **Enter Meme City**. The original camera, combat, full-circle character renderer, movement controls, HUD, building interiors, fortress construction and NPCs are retained.
 
-**Save safety:** no script in this restoration deletes, clears or migrates `localStorage`. Solo progress remains stored in the current browser/profile under the original schema. Keep your browser data intact; clearing website data or private-mode storage can still lose local progress. Play credits have no cash or token value.
+**Save protection:** Center City saves to `offensive-meme-city-v1-center`, while the old `offensive-meme-city-v1` data remains unchanged. The first import creates a protected original backup. Do not clear browser site data; saved progress is local to the same device and browser. Game credits have no cash or token value.
 
+**Multiplayer:** online guest rooms run the matching map version 2 backend and reject outdated clients to avoid coordinate desynchronization. Progress remains temporary between server restarts. If joining fails after an update, reload the game to update the client.
+
+**Release verification:** 182 automated tests, static checks, a deterministic room benchmark, and real Chromium phone/desktop viewport smoke tests passed before merging [PR #12](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/12). Real Android hardware FPS and a migrated save in the user's own browser have not yet been independently verified.
+
+The separate, abandoned World V2 client is **not** being deployed: this release modifies the original playable World V1 game.
 
 ---
 
 ## Living Blocks / Alpha 12
 
-The city keeps its square 6,720 × 6,720 footprint and 47 public interiors. This update adds faction-aware targeting, two resident patrol members for each of the four non-police/non-Rug clans, and private 3 × 3 outposts in every token neighborhood. Residents wear their faction's meme. Each district has colored curb markings, crosswalks and a clan plaza mural. Ambient NPCs beyond 1,300 units of every outdoor player skip navigation/combat; nearby crews remain active while spectators watch. There are 44 ambient NPCs and a 64-NPC total mission admission cap.
+The city keeps its square 11,200 × 11,200 Center City footprint and 47 public interiors. This update adds faction-aware targeting, two resident patrol members for each of the four non-police/non-Rug clans, and private 3 × 3 outposts in every token neighborhood. Residents wear their faction's meme. Each district has colored curb markings, crosswalks and a clan plaza mural. Ambient NPCs beyond 1,300 units of every outdoor player skip navigation/combat; nearby crews remain active while spectators watch. There are 44 ambient NPCs and a 64-NPC total mission admission cap.
 
 Movement no longer overwrites an active firing pose. Recoil decays instead of toggling between two positions, and online peers receive firing/recoil state. The existing full-circle rig, fixed arm lengths and depth ordering remain. Active clan jobs now retain the HUD instead of being overwritten by journey guidance.
 
