@@ -61,7 +61,8 @@ try{
  await new Promise((resolve,reject)=>{site.once('error',reject);site.listen(port,'127.0.0.1',()=>{site.off('error',reject);resolve();});});
  qa=createLocalWorld2Server();await qa.listen(apiPort);
  chrome=spawn(browser,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--remote-debugging-port=0',
-  '--user-data-dir='+profile,'--no-first-run','--no-default-browser-check','about:blank'],{stdio:'ignore'});
+  '--user-data-dir='+profile,'--no-first-run','--no-default-browser-check',
+  '--disable-background-timer-throttling','--disable-renderer-backgrounding','--disable-backgrounding-occluded-windows','about:blank'],{stdio:'ignore'});
  const debuggerPort=await waitFor(async()=>{
   try{const lines=(await readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n');return Number(lines[0])||null;}catch{return null;}
  },'Chrome debugging port',9000);
@@ -76,9 +77,10 @@ try{
  await waitFor(()=>first.evaluate("document.getElementById('peer-summary').textContent.includes('Bob')"),'first guest sees Bob');
  assert.equal(await second.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth+3"),true,
   'emulated phone viewport must have no horizontal overflow');
+ await first.send('Page.bringToFront');
  const start=numberAfter(await first.evaluate("document.getElementById('hud').textContent"),'pos');
  await first.evaluate("document.dispatchEvent(new KeyboardEvent('keydown',{key:'d',bubbles:true}));true");
- await delay(500);
+ await delay(1100);
  await first.evaluate("document.dispatchEvent(new KeyboardEvent('keyup',{key:'d',bubbles:true}));true");
  await waitFor(async()=>numberAfter(await first.evaluate("document.getElementById('hud').textContent"),'pos').x>start.x+5,
   'server-driven movement in first browser');
