@@ -29,7 +29,7 @@ jobs:
       - name: Assemble public files
         run: |
           mkdir _site
-          cp city.html city-roadmap.html city-world2-preview.html city-world2-preview.js city-world2-simulation.js city-world2-territory.js city-topology.js city-migration.js city-world2.js city-world2-registry.js city.css city.js city-map.js city-nav.js city-save.js city-core.js city-arcade.js city-rise.js city-interiors.js city-clans.js city-monk.js city-room-visuals.js city-rise-visuals.js city-visuals.js city-districts.js city-network.js city-room-client.js index.html beta.html creators.html launchpad.css launchpad.js styles.css app.js tokens.js launchpad-config.js trade-core.js trade.js share-core.js social.js pwa.js sw.js manifest.webmanifest offline.html .nojekyll _site/
+          cp city.html city-roadmap.html city-world2-preview.html city-world2-preview.js city-world2-simulation.js city-world2-territory.js city-world2-contracts.js city-topology.js city-migration.js city-world2.js city-world2-registry.js city.css city.js city-map.js city-nav.js city-save.js city-core.js city-arcade.js city-rise.js city-interiors.js city-clans.js city-monk.js city-room-visuals.js city-rise-visuals.js city-visuals.js city-districts.js city-network.js city-room-client.js index.html beta.html creators.html launchpad.css launchpad.js styles.css app.js tokens.js launchpad-config.js trade-core.js trade.js share-core.js social.js pwa.js sw.js manifest.webmanifest offline.html .nojekyll _site/
           cp -r assets tokens _site/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

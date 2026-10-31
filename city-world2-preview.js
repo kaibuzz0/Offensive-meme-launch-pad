@@ -72,7 +72,12 @@
  for(const b of touchButtons){const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);held.add(k);});for(const ev of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(ev,()=>held.delete(k));}
  function nearestDoor(){let match=null,d=95;for(const p of pois.doors){const delta=Math.hypot(player.x-p.x,player.y-p.y);if(delta<d){d=delta;match=p;}}return match;}
  function interact(){
-  if(room){if(Math.hypot(room.x-I.ROOM.exit.x,room.y-I.ROOM.exit.y)<95){const old=room.name;room=null;say('Exited '+old+' to the world2 street (preview only).');}else if(Math.hypot(room.x-I.ROOM.activity.x,room.y-I.ROOM.activity.y)<110){say(room.name+' activity terminal is present. Real market/shop/mission actions require full engine migration.');}else say('Walk to the front exit or the highlighted terminal.');return;}
+  if(room){if(Math.hypot(room.x-I.ROOM.exit.x,room.y-I.ROOM.exit.y)<95){const old=room.name;room=null;say('Exited '+old+' to the world2 street (preview only).');}
+   else if(Math.hypot(room.x-I.ROOM.activity.x,room.y-I.ROOM.activity.y)<110){
+    if(room.id==='door:launch')startCourier();
+    else say(room.name+' activity terminal is present; full shop/market transactions remain disabled in preview.');
+   }else say('Walk to the front exit or the highlighted terminal.');return;}
+  if(simulation.courier.state.status==='active'&&Math.hypot(player.x-simulation.courier.target.x,player.y-simulation.courier.target.y)<125){deliverCourier();return;}
   const door=nearestDoor();if(door){const orig=I.BUILDINGS.find(b=>b.roomId===door.id.slice(5));room={...I.ROOM.spawn,id:door.id,name:door.name,theme:orig?.theme||'shop'};travel=waypoint=null;say('Entered '+room.name+'. Walk to the activity terminal or the exit. No credits or items change.');return;}
   for(const p of pois.checkpoints)if(Math.hypot(player.x-p.x,player.y-p.y)<100){claim();return;}
   for(const z of simulation.territory.zones)if(Math.hypot(player.x-z.x,player.y-z.y)<130){$('control-select').value=z.id;captureControl();return;}
@@ -89,6 +94,16 @@
  $('reload').addEventListener('click',()=>say(simulation.reload()));
  $('defend').addEventListener('click',defend);
  $('claim-checkpoint').addEventListener('click',claim);
+ function startCourier(){if(room&&room.id!=='door:launch'){say('Use the Launch House courier desk.');return;}
+  const r=simulation.startCourier();
+  if(r.status==='active'){choose(simulation.courier.state.targetId);say(r.message+' Walking path marked in cyan.');}
+  else say(r.message);
+ }
+ function deliverCourier(){if(room){say('Deliver from the street at the marked destination.');return;}
+  const r=simulation.deliverCourier();if(r.status==='delivered')waypoint=travel=null;say(r.message);
+ }
+ $('start-courier').addEventListener('click',startCourier);
+ $('deliver-courier').addEventListener('click',deliverCourier);
  function step(dt){
   const {x,y}=vec();
   if(room){simulation.setInput(0,0);const dx=x*220*dt,dy=y*220*dt,px=room.x,py=room.y;
@@ -132,6 +147,7 @@
     if(travel?.length>1){c.save();c.beginPath();travel.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.setLineDash([16,9]);c.strokeStyle='#7df5ff';c.lineWidth=6;c.stroke();c.restore();}
   if(waypoint){c.strokeStyle='#a4f3e4';c.lineWidth=5;c.beginPath();c.arc(waypoint.x,waypoint.y,26,0,Math.PI*2);c.stroke();}
   for(const p of pois.checkpoints){c.beginPath();c.arc(p.x,p.y,15,0,Math.PI*2);c.strokeStyle=seen.has(p.id)?'#668b81':'#ffcf86';c.lineWidth=3;c.stroke();}
+  if(simulation.courier.state.status==='active'){const target=simulation.courier.target;c.save();c.strokeStyle='#ffd381';c.lineWidth=5;c.beginPath();c.arc(target.x,target.y,28,0,Math.PI*2);c.stroke();c.restore();}
   avatar(c,player.x,player.y,'player',player.id,'#b4e88b',!!(vec().x||vec().y),time);
   label(c,'YOU',player.x,player.y+32,'#fff',17);
  }
@@ -164,7 +180,7 @@
   ctx.restore();
   const p=Object.values(T.draft.areas).find(a=>player.x>=a.x&&player.x<a.x+a.w&&player.y>=a.y&&player.y<a.y+a.h);
   $('location').textContent=room?room.name+' / TEST INTERIOR':(p?.id||'Connecting roads').toUpperCase()+' · '+Math.round(player.x)+' / '+Math.round(player.y);
-  $('combat-hud').textContent='Faction '+(player.clan||'none')+' · Captures '+simulation.territory.zones.filter(z=>z.owner===player.clan&&z.homeClan!==player.clan).length+' · HP '+Math.ceil(player.hp)+'/100 · Ammo '+player.ammo+'/24 · Heat '+Math.ceil(player.heat)+
+  $('combat-hud').textContent='Courier '+simulation.courier.state.status+(simulation.courier.state.status==='active'?' '+Math.ceil(simulation.courier.state.remaining)+'s':'')+' · Faction '+(player.clan||'none')+' · Captures '+simulation.territory.zones.filter(z=>z.owner===player.clan&&z.homeClan!==player.clan).length+' · HP '+Math.ceil(player.hp)+'/100 · Ammo '+player.ammo+'/24 · Heat '+Math.ceil(player.heat)+
    ' · XP '+player.xp+' · Credits '+player.credits+' · Defense '+simulation.mission.status+
    (simulation.mission.status==='active'?' ('+simulation.mission.remaining+' raiders)':'');
   const recent=simulation.events.at(-1);
