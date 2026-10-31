@@ -67,3 +67,12 @@ Then open `http://127.0.0.1:8787/city-world2-online.html` in Android Chrome on t
 ### Remaining release conditions
 
 This QA client still does not provide durable accounts, save migration, complete world1 gameplay parity, player moderation, rate/load benchmarking on real hardware, or production Render deployment. Keep draft PR #2 independent of main and world1 stored saves until reviewed.
+
+### Round 7: private fortress construction QA
+
+The **Personal fortress plot** fieldset on `city-world2-online.html` now lets a guest select a column (1–16), row (1–10), and a structure from the established `BUILD_KIT`, mark its canonical world2 location, and ask the server to build or demolish it. Game credits are debited server-side once; demolition refunds half the original cost, floored. Stand within 245 world units of the selected tile, not merely near the fortress district. The server enforces valid geometry, ownership, sufficient funds, blocked access, and the owner's own collision map. Client-supplied owner/credits/coordinates cannot authorize a remote purchase.
+
+**These fortress lots are deliberately private guest instances**, NOT collaboratively visible construction. A different same-room player sees their own empty lot and is not blocked by another guest's walls. Construction exists only for an in-memory authenticated guest and is lost on room expiry/restart. Existing world1 permanent local saves and the separate v2 offline sandbox are not affected.
+
+Verify using `npm test`, `npm run check`, and `npm run qa:world2:browser`. The Chromium script moves an authenticated guest into range using a server-owned test fixture after first proving that remote placement fails. It then exercises the real browser controls and checks a second tab receives no private plot state. Physical Android touch/retina performance was not tested.
+

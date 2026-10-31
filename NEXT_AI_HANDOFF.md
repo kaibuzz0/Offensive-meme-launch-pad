@@ -1,3 +1,15 @@
+> **Round 7 — authenticated personal fortress construction, October 31 2026:** On draft PR #2, `city-world2-authority.js` now supports private per-guest server-owned fortress structures, validated purchase costs, legal tile/path access, private collision and exactly-once half-price salvage. The opt-in local `city-world2-online.html` offers plot navigation, structure selection, build and demolition. New Node HTTP and browser checks cover forgery, isolation and UI. Current gameplay/Chromium test commit `bb3d2e7b`; verify the latest PR Actions result before reporting a passing release gate. Main and Render are unchanged. No player tokens, real currency, remote v2 deployment or permanent profiles.
+
+## NEXT AI HANDOFF — after Round 7
+
+Fetch current PR #2 head and latest CI state first. The existing world2 QA multiplayer client now includes a **temporary, PRIVATE 16×10 fortress plot**, authored using canonical world2 `fortress:plot` position and `C.BUILD_KIT` pricing. Players must physically approach an individual grid tile within 245 world units to build/remove; unknown structures, malformed coordinates, unaffordable purchases, path-blocking builds, overlapping placements and enclosing the guest are rejected. Structures affect only the owning guest's local collision instance and appear only in their own authenticated snapshot; another player's view deliberately does not show them. There is no persistent room construction, shared clan ownership, online stored balances, real-money settlement or plot durability.
+
+The new frontend offers plot col/row/kit selectors and a marker, sends only `buildPlot`/`removePlot` commands, draws structures returned from `self.plot`, and never calculates payouts client-side. Regression suites verify trusted costs and half-cost refunds, separation of same-room guest plots, HTTP auth, anti-teleport and multi-tab Chromium build/refund. `npm test`, `npm run check`, `npm run qa:world2:browser` and the draft PR workflow remain required release gates.
+
+**Still missing before production replacement:** authoritative fortress squad roles, defense raids and cooperative construction policy; remaining world1 missions and arcade games, server-combat parity, persistent users and saves with rollback; physical Android input/FPS; security and room load audits; production feature flags and owner-approved deployment. Production world1, separate offline preview and real token economy must remain unaffected by this QA feature.
+
+---
+
 > **Round 5 server-authored world2 QA — October 31, 2026:** Draft PR #2 on branch codex/world2-territory-foundation now includes an unexposed, server-authoritative room prototype. Gameplay commit d508f757; [full Node 22 CI](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41226269497) **206/206 passed**. Production main and Render service unchanged.
 
 ## Next development priorities after Round 5
