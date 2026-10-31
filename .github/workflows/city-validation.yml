@@ -27,3 +27,5 @@ jobs:
         run: npm run check
       - name: Run deterministic room benchmark
         run: node scripts/city-benchmark.mjs
+      - name: Exercise two real Chrome world2 QA tabs
+        run: npm run qa:world2:browser
