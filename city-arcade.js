@@ -21,7 +21,7 @@
   for(let i=0;i<12;i++)e.arcade.pickups.push({id:`loot-${i}`,x:HUB.x+180+(i%6)*340,y:i<6?590:910,kind:i%4===0?'med':'credit',ready:0});
  }
  // One bounded street conflict, owned by the shared simulation in both modes.
- const CONFLICT=Object.freeze({x:WORLD.spawn.x-350,y:1000,name:'Founders Crossing',radius:420});
+ const CONFLICT=Object.freeze({x:HUB.x+770,y:HUB.y+1000,name:'Founders Crossing',radius:420});
  function conflictState(e){return e.conflict??=( {id:0,phase:'cooldown',remaining:90,winner:null,participants:new Map(),reinforced:false,summary:'Next street conflict is gathering.'});}
  function conflictWave(e,c,count){for(const faction of ['congress','exit'])for(let i=0;i<count;i++){
   if(e.arcade.bots.length>=64)return;
@@ -127,7 +127,7 @@
   const d=Math.max(1,distance(b,goal));move(b,(goal.x-b.x)/d*speed*dt,(goal.y-b.y)/d*speed*dt);
  }
  function cleanupRaid(e,id){e.arcade.bots=e.arcade.bots.filter(b=>!(b.raid&&b.owner===id));}
- function freeSpawn(e,p,x,y){for(let r=0;r<6;r++)for(const [dx,dy]of [[0,1],[1,0],[-1,0],[0,-1]]){const pos={x:x+dx*r*32,y:y+dy*r*32};if(!C.blocked(pos.x,pos.y,p))return pos;}return {x:1120,y:1220};}
+ function freeSpawn(e,p,x,y){for(let r=0;r<6;r++)for(const [dx,dy]of [[0,1],[1,0],[-1,0],[0,-1]]){const pos={x:x+dx*r*32,y:y+dy*r*32};if(!C.blocked(pos.x,pos.y,p))return pos;}return {...WORLD.spawn};}
  function syncCrew(e){
   const a=e.arcade,ids=new Set();for(const p of e.players.values())for(let i=0;i<p.crew.length;i++){
    const record=p.crew[i],id=`${p.id}:${record.id}`;ids.add(id);let g=a.guards.find(g=>g.id===id);const role=C.CREW_TYPES.find(t=>t.id===record.role);
@@ -237,7 +237,7 @@
     b.state='search';steer(this,b,b.lastSeen,115,dt);
    }else{
     b.state='patrol';b.targetId=null;b.windup=0;
-    const home=b.raid?{x:1120,y:970}:{x:b.homeX,y:b.homeY};
+    const home=b.raid?{x:C.PLOT.x+C.PLOT.cols*C.PLOT.tile/2,y:C.PLOT.y+C.PLOT.rows*C.PLOT.tile/2}:{x:b.homeX,y:b.homeY};
     const target={x:home.x+Math.sin(a.time*.45+b.phase)*65,y:home.y+Math.cos(a.time*.4+b.phase)*35};
     if(distance(b,target)>8)steer(this,b,target,42,dt);
    }
