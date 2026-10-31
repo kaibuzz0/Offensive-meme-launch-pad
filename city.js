@@ -295,7 +295,7 @@
     const verifyButton=button(online?'Verify OFFENDED wallet for OFFENDER skin →':'Join Together to verify OFFENDED →',()=>online?verifyHoldings('offensive'):panel('multiplayer'));
     verifyButton.id='offender-wallet-verify';verifyButton.disabled=walletCheckBusy;content.append(verifyButton);
     const feedback=node('p','wallet-inline-status',offenderWalletStatus);feedback.id='offender-wallet-status';feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite');content.append(feedback);
-    if(online&&!walletProvider()?.signMessage){
+    if(online&&(!walletProvider()?.connect||!walletProvider()?.signMessage)){
      content.append(node('p','wallet-browser-help','No wallet detected here. On Android, wallet verification must be opened inside a supported wallet browser, such as Phantom or Solflare. Rejoin Together there before verifying.'));
      const gameUrl=new URL('city.html?release=offender-skin',location.href).href;
      const choices=node('div','wallet-open-options');
