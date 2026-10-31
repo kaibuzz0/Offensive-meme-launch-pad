@@ -61,3 +61,63 @@ test('NPCs and players share continuous depth-sorted weapon geometry with differ
   assert.ok(small.some(f=>f.color==='#829aa4'),'all roles keep the same rifle');
  }
 });
+
+
+test('every character uses one depth-sorted solid body whether holding a rifle or not',()=>{
+ const {rigSurfaces}=context.window.CityVisuals;
+ const roles=['player','cop','gang','guard','civilian'];
+ const gunColor='#829aa4';
+ for(const role of roles)for(let d=0;d<360;d+=15){
+  const angle=d*Math.PI/180;
+  const base={role,style:{skin:2,hair:1,pants:3,print:1},stridePose:6,travel:{x:Math.cos(angle+.7),y:Math.sin(angle+.7)},simplified:role!=='player'};
+  const armed=rigSurfaces({...base,armed:true},angle),relaxed=rigSurfaces({...base,armed:false},angle);
+  assert.ok(armed.length>0&&relaxed.length>0,role+' should use solid polygons');
+  assert.ok(armed.some(f=>f.color===gunColor),'armed '+role+' keeps canonical gun');
+  assert.ok(!relaxed.some(f=>f.color===gunColor),'unarmed '+role+' must not show a phantom rifle');
+  const body=color=>relaxed.filter(f=>f.color===color).length;
+  assert.equal(body('#303e4d'),armed.filter(f=>f.color==='#303e4d').length,'same body for armed/unarmed player');
+  assert.equal(relaxed.filter(f=>f.color==='#8d583e').length,armed.filter(f=>f.color==='#8d583e').length,'same skin model geometry');
+  assert.equal(relaxed.filter(f=>f.print==='meme').length,armed.filter(f=>f.print==='meme').length,'same meme prints');
+  assert.equal(relaxed.filter(f=>f.print==='insignia').length,armed.filter(f=>f.print==='insignia').length,'same role insignias');
+  for(const faces of [armed,relaxed]){
+   for(let i=0;i<faces.length;i++){
+    if(i)assert.ok(faces[i].depth>=faces[i-1].depth,'shared rig must be painter depth sorted');
+    for(const point of faces[i].points)assert.ok(Number.isFinite(point.x)&&Number.isFinite(point.y)&&Number.isFinite(point.depth),'unarmed and armed yaw must remain finite');
+   }
+  }
+ }
+});
+test('V1 player, civilians and NPCs use the shooting-era solid renderer for every animation state',()=>{
+ const {person}=context.window.CityVisuals;
+ function canvas(){
+  let faces=0,save=0,restore=0;
+  const gradient={addColorStop(){}};
+  const c=new Proxy({},{
+   get(target,key){
+    if(key==='createRadialGradient'||key==='createLinearGradient')return ()=>gradient;
+    if(key==='fill')return ()=>{faces++;};
+    if(key==='save')return ()=>{save++;};
+    if(key==='restore')return ()=>{restore++;};
+    return ()=>{};
+   },
+   set(){return true;}
+  });
+  return {c,counts:()=>({faces,save,restore})};
+ }
+ for(const role of ['player','cop','gang','guard','civilian']){
+  for(const armed of [true,false]){
+   for(let a=0;a<Math.PI*2;a+=Math.PI/4){
+    const spy=canvas();
+    assert.doesNotThrow(()=>person(spy.c,{
+     id:role+'-'+armed+'-'+a,x:100,y:200,role,
+     scale:role==='player'?1:.9,armed,aim:{x:Math.cos(a),y:Math.sin(a)},
+     style:{skin:2,hair:1,pants:2},moving:true,phase:.5,
+     gesture:!armed&&a===0
+    },1100),'same solid rendering path at any direction for '+role);
+    const {faces,save,restore}=spy.counts();
+    assert.ok(faces>60,'solid polygon model was rendered, not a flat cached sprite');
+    assert.equal(save,restore,'canvas state balanced');
+   }
+  }
+ }
+});

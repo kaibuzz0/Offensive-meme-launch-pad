@@ -116,30 +116,19 @@
   if(ak){aimStates.set(ak,{angle,time});if(aimStates.size>160)aimStates.delete(aimStates.keys().next().value);}
   const facing={x:Math.cos(angle),y:Math.sin(angle)},back=facing.y<0,profile=facing.x;
   o={...o,aim:facing,back,travel:state?.travel||{x:1,y:0}};
-  let sprite=null;
-  if(!o.armed){
-   const ready=!!o.image?.complete&&!!o.image?.naturalWidth,style=o.style||{},gear=o.gear||{};
-   const key=[o.role||'player',o.ticker||'',o.color||'',style.skin||0,style.hair||0,style.pants||0,o.coinName||'',gear.outfit||'',gear.head||'',back,ready].join('|');
-   sprite=cache.get(key);
-   if(!sprite){const surface=document.createElement('canvas');surface.width=260;surface.height=288;const g=surface.getContext('2d');g.scale(2,2);drawBody(g,{...o,upperOnly:true},0);sprite=surface;cache.set(key,sprite);if(cache.size>64)cache.delete(cache.keys().next().value);}
-  }
-  const style=o.style||{};
-  const scale=o.scale??(o.role&&o.role!=='player'?NPC_SCALE:1);c.save();c.translate(o.x,o.y);c.scale(scale,scale);
+  // All world1 people share the solid 360-degree shooting-era character rig.
+  // The rifle is a held item, not a different character drawing style: civilians,
+  // unarmed players and peaceful residents use the identical face/body/legs.
+  const scale=o.scale??(o.role&&o.role!=='player'?NPC_SCALE:1);
+  c.save();c.translate(o.x,o.y);c.scale(scale,scale);
   const shadow=c.createRadialGradient(0,2,2,0,2,25);shadow.addColorStop(0,'#03081090');shadow.addColorStop(1,'#03081000');c.save();c.scale(1,.4);c.fillStyle=shadow;c.beginPath();c.arc(0,5,25,0,7);c.fill();c.restore();
   if(o.holderTier>=3){c.strokeStyle=o.color||'#b7ef84';c.globalAlpha=.5;c.lineWidth=2;c.beginPath();c.ellipse(0,2,29,11,0,0,7);c.stroke();c.globalAlpha=1;}
-  if(!o.armed)drawLegs(c,o,pose);
   if(o.holderTier>=2)rounded(c,5,-14,13,4,1,o.color||'#b7ef84');
-  c.save();const bob=-Math.abs(Math.cos(cycle*2))*1.1*amount+(1-amount)*Math.sin(time/950+(o.phase||0))*.3;
+  c.save();
+  const bob=-Math.abs(Math.cos(cycle*2))*1.1*amount+(1-amount)*Math.sin(time/950+(o.phase||0))*.3;
   c.translate(profile*amount*.9,bob);c.rotate((o.dashing?profile*.09:profile*.025)*amount);
-  if(o.armed){drawSolidRig(c,{...o,stridePose:pose,simplified:scale<1},angle);c.restore();c.restore();return;}
-  // Unarmed actors keep the lightweight 2-D costume sprites.
-
-  c.save();c.scale(.32+.68*Math.abs(facing.y),1);drawArms(c,o,pose);c.restore();
-  // Continuous yaw: torso depth remains visible in profile, with the shirt wrapping around it.
-  rounded(c,-13,-77,26,36,9,o.gear?.outfit?'#5e7654':'#303e4d');
-  rounded(c,-7+facing.x*3,-105,14,22,6,skin[style.skin||0]);
-  c.save();c.translate(facing.x*4,0);c.scale(Math.max(.025,Math.abs(facing.y)),1);if(scale>=2){c.translate(-65,-132);drawBody(c,{...o,upperOnly:true},0);}else c.drawImage(sprite,-65,-132,130,144);c.restore();
-  if(o.clanRank){for(let i=0;i<o.clanRank;i++)rounded(c,-21,-68+i*4,8,2,1,['#c89560','#c4d4dd','#f0d17c'][o.clanRank-1]);}c.restore();c.restore();
+  drawSolidRig(c,{...o,armed:!!o.armed,stridePose:pose,simplified:scale<1},angle);
+  c.restore();c.restore();
  }
  // Fixed-length, two-bone arms. Hands and rifle share one transform at every yaw.
  function armElbow(shoulder,hand){
@@ -205,12 +194,29 @@
    limb(hip,knee,6,denim[style.pants||0]);limb(knee,ankle,5,denim[style.pants||0]);
    face([[stride*.15-4,side*14.2,36],[stride*.15+4,side*14.2,36],[stride*.65+4,side*14.2,16],[stride*.65-4,side*14.2,16]],'#263949',style.print===1?'pattern':'ticker');box([ankle[0]+3,ankle[1],ankle[2]-2],[15,11,6],o.gear?.feet?'#375c66':'#202a35');box([ankle[0]+3,ankle[1],ankle[2]-4],[16,12,2],'#a7b3bd');
   }
-  const joints=weaponPose(angle,o.recoil??o.flash).joints;
-  for(let i=0;i<2;i++){limb(joints.shoulders[i],joints.elbows[i],4,coat);limb(joints.elbows[i],joints.hands[i],3,tone);box(joints.hands[i],[6,6,6],tone);if(o.holderTier>=2)box(joints.hands[i].map((v,k)=>v+(k===2?3:0)),[7,7,2],o.color||'#b7ef84');}
-  const recoil=Math.max(0,Math.min(1,o.recoil??(o.flash?1:0)))*2;
-  const gun=(f,l,h,size,color)=>box([f-recoil,l,h],size,color);
-  gun(-6,0,56,[15,7,8],'#405765');gun(16,0,58,[28,7,9],o.upgraded?'#9cabc0':'#829aa4');gun(32,0,58,[16,5,6],'#304957');gun(44,0,58,[12,3,3],'#bac8cf');gun(49,0,58,[3,5,5],'#253e4d');gun(11,0,50,[5,5,10],'#243944');gun(14,0,65,[13,4,3],'#253e4d');
-  if(o.flash)gun(55,0,58,[10,5,5],'#ffedb5');
+  // A weapon changes the pose and adds a rifle, never the character model.
+  // Keep direct rigSurfaces() callers backward-compatible with the armed model,
+  // while person() explicitly provides the true armed/unarmed state.
+  const armed=o.armed!==false;
+  if(armed){
+   const joints=weaponPose(angle,o.recoil??o.flash).joints;
+   for(let i=0;i<2;i++){limb(joints.shoulders[i],joints.elbows[i],4,coat);limb(joints.elbows[i],joints.hands[i],3,tone);box(joints.hands[i],[6,6,6],tone);if(o.holderTier>=2)box(joints.hands[i].map((v,k)=>v+(k===2?3:0)),[7,7,2],o.color||'#b7ef84');}
+   const recoil=Math.max(0,Math.min(1,o.recoil??(o.flash?1:0)))*2;
+   const gun=(f,l,h,size,color)=>box([f-recoil,l,h],size,color);
+   gun(-6,0,56,[15,7,8],'#405765');gun(16,0,58,[28,7,9],o.upgraded?'#9cabc0':'#829aa4');gun(32,0,58,[16,5,6],'#304957');gun(44,0,58,[12,3,3],'#bac8cf');gun(49,0,58,[3,5,5],'#253e4d');gun(11,0,50,[5,5,10],'#243944');gun(14,0,65,[13,4,3],'#253e4d');
+   if(o.flash)gun(55,0,58,[10,5,5],'#ffedb5');
+  }else{
+   // Relaxed two-segment arms swing opposite the legs but keep identical body
+   // proportions, shading, yaw transform and depth sorting as the rifle pose.
+   for(const side of [-1,1]){
+    const swing=(o.stridePose||0)*side;
+    const shoulder=[0,side*17,73];
+    const raised=!!o.gesture&&side===1;
+    const elbow=raised?[-2,side*22,91]:[-3-swing*.25,side*22,55];
+    const hand=raised?[1,side*22,108]:[-4-swing*.65,side*19,40];
+    limb(shoulder,elbow,4,coat);limb(elbow,hand,3,tone);box(hand,[6,6,6],tone);
+   }
+  }
   return faces.sort((a,b)=>a.depth-b.depth);
  }
  function drawSolidRig(c,o,angle){

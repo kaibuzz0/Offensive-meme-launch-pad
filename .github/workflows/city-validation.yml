@@ -27,3 +27,5 @@ jobs:
         run: npm run check
       - name: Run deterministic room benchmark
         run: node scripts/city-benchmark.mjs
+      - name: Verify original World V1 graphics and mobile entry in real Chromium
+        run: node scripts/city-avatar-browser-smoke.mjs
