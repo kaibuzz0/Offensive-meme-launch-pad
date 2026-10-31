@@ -47,7 +47,7 @@ test('saved crew is bounded and discards forged roles, orders and invalid posts'
 });
 
 test('being busted during defense cancels the raid without falsely paying a victory reward',()=>{
- const {e,p}=game();fort(p);p.hp=1;p.invulnerable=0;e.action('a',{type:'defenseDrill'});p.defense.countdown=0;
+ const {e,p}=game();fort(p);Object.assign(p,{x:C.DISTRICTS[0].ox+1400,y:C.DISTRICTS[0].oy+1300});p.hp=1;p.invulnerable=0;e.action('a',{type:'defenseDrill'});p.defense.countdown=0;
  const b=e.arcade.bots.find(b=>b.raid);Object.assign(b,{x:p.x+10,y:p.y,cooldown:0});tick(e,.8);
  assert.equal(p.defense,null);assert.equal(p.credits,155);assert.equal(p.xp,0);assert.equal(e.arcade.bots.filter(b=>b.raid).length,0);assert.equal(p.x,C.WORLD.spawn.x);
 });
