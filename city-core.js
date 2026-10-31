@@ -140,7 +140,7 @@
   const TOKEN_PLOTS=Object.freeze([
    ['offensive','OFFENDED / Founder Reserve',0,0,'#bdff56'],
    ['redacted','FINEPRINT / Vault Lot',4,0,'#be69ec'],
-   ['exit','RUGGEDAF / Exit Lot',2,0,'#38dcbf'],
+   ['exit','RUGGEDAF / Exit Lot',4,1,'#38dcbf'],
    ['you-missed','SHOOTER / Rally Lot',0,4,'#ee9c70'],
    ['maduro','TAKEN / Drop Lot',2,4,'#d7575e'],
    ['congress','CUNTS / Insider Lot',4,4,'#f2c94c']
