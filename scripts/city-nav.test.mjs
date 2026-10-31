@@ -24,7 +24,7 @@ test('unreachable routes and exhausted work budgets never invent a path',()=>{
  assert.equal(context.CityNav.createRouter(mock,{cell:40,budget:1}).plan({x:140,y:160},{x:520,y:160}).status,'budget');
 });
 test('core service doors have valid collision-aware approaches from spawn',()=>{
- for(const b of I.BUILDINGS.filter(b=>['market','shop','supplies'].includes(b.activity)).slice(0,8)){
+ for(const b of I.BUILDINGS.filter(b=>['market','shop','supplies'].includes(b.activity))){
   const to=I.door(b),p=nav.plan(C.WORLD.spawn,to);
   assert.equal(p.status,'ok',b.roomId+': '+p.status);
   for(let i=1;i<p.points.length;i++)assert.equal(nav.clear(p.points[i-1],p.points[i]),true,b.roomId);
