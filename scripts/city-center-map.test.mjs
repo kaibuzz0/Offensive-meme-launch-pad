@@ -79,3 +79,51 @@ test('migration fails closed on malformed, conflicting and inaccessible original
  const corrupted=makeStore({[keys[0]]:'{not-json'});
  assert.equal(Save.prepare(corrupted,...keys,C).blocked,true);
 });
+
+test('Founder Square scenery, ambient enemies and pickups actually move with the hub',()=>{
+ const plazaTrees=C.SCENERY.filter(o=>o.kind==='tree'&&o.x>=C.HUB.x&&o.x<C.HUB.x+C.HUB.width&&o.y>=C.HUB.y&&o.y<C.HUB.y+C.HUB.height);
+ assert.ok(plazaTrees.length>=8,'the new Founder Square keeps its planted scenery');
+ const sim={};for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js'])
+  vm.runInNewContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),sim);
+ const G=sim.MemeCityCore,e=new G.Engine(),p=e.join('solo','Guest','offensive');
+ assert.equal(p.area,'fortress','new players start at their central fortress');
+ for(const b of e.arcade.bots.filter(b=>/^gang-\\d+$|^cop-\\d+$/.test(b.id)))
+  assert.equal(G.areaAt(b.x,b.y),'hub','ambient '+b.id+' stays in Founder Square');
+ for(const o of e.arcade.pickups)assert.equal(G.areaAt(o.x,o.y),'hub','pickup '+o.id+' is in Founder Square');
+});
+test('fortress defense raiders use the centered plot rather than the retired map origin',()=>{
+ const sim={};for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js'])
+  vm.runInNewContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),sim);
+ const G=sim.MemeCityCore,e=new G.Engine(),p=e.join('solo','Guest','offensive');p.credits=1000;
+ e.action('solo',{type:'defenseDrill'});
+ const raiders=e.arcade.bots.filter(b=>b.raid&&b.owner==='solo');
+ assert.equal(raiders.length,4);
+ for(const b of raiders){assert.equal(G.areaAt(b.x,b.y),'fortress');assert.equal(G.blocked(b.x,b.y,p),false);}
+});
+test('arena survival waves spawn within the relocated arena',()=>{
+ const sim={};for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js'])
+  vm.runInNewContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),sim);
+ const G=sim.MemeCityCore,e=new G.Engine(),p=e.join('solo','Guest','offensive');
+ const marshal=sim.CityRising.GUIDES.find(g=>g.id==='marshal');
+ p.x=marshal.x;p.y=marshal.y;p.area=G.areaAt(p.x,p.y);
+ assert.equal(p.area,'arena');
+ e.action('solo',{type:'startSurvival'});
+ for(let i=0;i<31;i++)e.tick(.1);
+ const wave=e.arcade.bots.filter(b=>b.arena&&b.owner==='solo');
+ assert.ok(wave.length>=3,'first survival wave appears');
+ for(const b of wave)assert.equal(G.areaAt(b.x,b.y),'arena',b.id+' uses current arena coordinates');
+});
+test('the scattered equipment shop still sells gear from its indoor counter',()=>{
+ const sim={};for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js'])
+  vm.runInNewContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),sim);
+ const G=sim.MemeCityCore,e=new G.Engine(),p=e.join('solo','Guest','offensive'),I=sim.CityInteriors;
+ const shop=I.BUILDINGS.find(b=>b.roomId==='shop'),door=I.door(shop);
+ assert.equal(G.areaAt(door.x,door.y),'arena');
+ p.x=door.x;p.y=door.y;p.area=G.areaAt(p.x,p.y);p.credits=1000;
+ e.action('solo',{type:'enterBuilding',building:'shop'});
+ p.room.x=I.ROOM.activity.x;p.room.y=I.ROOM.activity.y;
+ e.action('solo',{type:'buy',item:'jacket'});
+ assert.equal(p.inventory.length,1);
+ assert.equal(p.inventory[0].item,'jacket');
+ assert.equal(p.area,'interior','buying does not teleport the player out of the store');
+});
