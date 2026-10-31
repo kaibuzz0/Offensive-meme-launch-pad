@@ -2,15 +2,10 @@
   "name": "offensive-meme-launchpad",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": ">=22"
-  },
+  "engines": { "node": ">=22" },
   "scripts": {
     "dev": "node server/city-server.mjs",
     "test": "node --test scripts/*.test.mjs",
-    "check": "node scripts/check.mjs",
-    "dev:world2": "node server/city-world2-local.mjs",
-    "qa:world2:browser": "node scripts/city-world2-browser-smoke.mjs",
-    "start:world2:production": "node server/city-world2-production.mjs"
+    "check": "node scripts/check.mjs"
   }
 }

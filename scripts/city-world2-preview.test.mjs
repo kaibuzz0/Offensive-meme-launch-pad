@@ -17,7 +17,7 @@ function load(){
  }
  context.document={getElementById:element,querySelectorAll(){return ['up','down','left','right'].map(k=>Object.assign(element('key-'+k),{dataset:{key:k}}));},createElement:()=>({}),addEventListener(){}};
  context.localStorage={getItem:()=>null,setItem(){throw Error('Unexpected write to live storage');}};
- for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-migration.js','city-world2-territory.js','city-world2-contracts.js','city-world2-services.js','city-world2-simulation.js','city-world2-session.js'])
+ for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-migration.js','city-world2-simulation.js'])
   vm.runInNewContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),context,{filename:file});
  context.CityVisuals={person(){}};
  vm.runInNewContext(fs.readFileSync(new URL('../city-world2-preview.js',import.meta.url),'utf8'),context,{filename:'city-world2-preview.js'});
@@ -52,51 +52,4 @@ test('world2 preview offers working combat, defense, checkpoint and HUD controls
  element('reload').onclick();assert.match(element('status').textContent,/reloaded/);
  assert.doesNotThrow(()=>frames[0](1050));assert.match(element('combat-hud').textContent,/HP \d+\/100/);
  element('reset').onclick();assert.match(element('status').textContent,/unchanged/);
-});
-
-test('world2 browser preview has real faction, route and capture controls',()=>{
- const {element,frames}=load();
- assert.equal(element('control-select').children.length,6);
- assert.equal(element('faction-select').children.length,6);
- assert.equal(typeof element('capture-control').onclick,'function');
- element('faction-select').value='congress';element('join-faction').onclick();
- assert.match(element('status').textContent,/Preview faction selected/);
- element('route-control').onclick();assert.match(element('status').textContent,/Safe walking path/);
- element('capture-control').onclick();assert.match(element('status').textContent,/155 units/);
- assert.doesNotThrow(()=>frames[0](1050));
- assert.match(element('combat-hud').textContent,/Faction congress/);
-});
-
-test('courier UI is wired to preview simulation and refuses remote starts',()=>{
- const {element,frames}=load();
- assert.equal(typeof element('start-courier').onclick,'function');
- assert.equal(typeof element('deliver-courier').onclick,'function');
- element('start-courier').onclick();assert.match(element('status').textContent,/Launch House entrance/);
- element('deliver-courier').onclick();assert.match(element('status').textContent,/No active courier/);
- assert.doesNotThrow(()=>frames[0](1050));
- assert.match(element('combat-hud').textContent,/Courier idle/);
-});
-
-test('world2 sandbox save buttons refuse unexpected writes to original world1 storage',()=>{
- const {element}=load();
- assert.equal(typeof element('save-world2').onclick,'function');
- assert.equal(typeof element('load-world2').onclick,'function');
- element('save-world2').onclick();
- assert.match(element('status').textContent,/Sandbox storage/);
- element('load-world2').onclick();
- assert.match(element('status').textContent,/No world2 sandbox/);
-});
-
-test('world2 browser preview exposes shop, salvage and medkit buttons with no remote credit mutations',()=>{
- const {element,frames}=load();
- for(const id of ['buy-gear','equip-gear','sell-gear','buy-medkit','use-medkit'])
-  assert.equal(typeof element(id).onclick,'function',id);
- assert.equal(element('shop-item').children.length,4);
- element('shop-item').value='jacket';element('buy-gear').onclick();
- assert.match(element('status').textContent,/Bad Taste Supply/);
- element('buy-medkit').onclick();assert.match(element('status').textContent,/Bad Taste Supply/);
- element('sell-gear').onclick();assert.match(element('status').textContent,/Night Market/);
- element('use-medkit').onclick();assert.match(element('status').textContent,/Health already full/);
- assert.doesNotThrow(()=>frames[0](1030));
- assert.match(element('combat-hud').textContent,/Medkits 0/);
 });
