@@ -4,7 +4,7 @@
  // V1 Center City: preserve all original district dimensions, local building
  // offsets, private plot tile coordinates and in-game features, but relocate
  // complete districts around a central private fortress.
- const CELL=2240;
+ const CELL=2240,LAYOUT_VERSION=2;
  const REGION_CELLS=Object.freeze({
   fortress:[2,2],hub:[2,1],creator:[3,1],arena:[1,2],social:[3,2],
   offensive:[1,1],congress:[3,0],exit:[3,3],
@@ -216,6 +216,7 @@
  }
  const CAPABILITIES=Object.freeze({online:Object.freeze({actions:Object.freeze(['joinConflict','deliver','joinClan','blockJob','abandonBlock','avatar','style','checkpoint','buy','equip','list','purchase','cancel','chat','fire','dash','contract','abandon','ride','medkit','restock','claimChapter','enterBuilding','exitBuilding']),soloPanels:Object.freeze(['build','outposts','crew','fortress','survival'])}),solo:Object.freeze({persistent:'browser-local'})});
  Engine.CAPABILITIES=CAPABILITIES;
+ Engine.LAYOUT_VERSION=LAYOUT_VERSION;
  const RELEASE=Object.freeze({name:'Living Blocks',version:'Alpha 12'});
- root.MemeCityCore=Object.freeze({buildAccess,WEAPON,weaponAnchor,CAPABILITIES,RELEASE,WORLD,HUB,SCENERY,ITEMS,DISTRICTS,NEIGHBORHOODS,FACTIONS,factionOf,rivals,npcHostile,outpostLot,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
+ root.MemeCityCore=Object.freeze({LAYOUT_VERSION,buildAccess,WEAPON,weaponAnchor,CAPABILITIES,RELEASE,WORLD,HUB,SCENERY,ITEMS,DISTRICTS,NEIGHBORHOODS,FACTIONS,factionOf,rivals,npcHostile,outpostLot,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
 })(typeof window==='undefined'?globalThis:window);
