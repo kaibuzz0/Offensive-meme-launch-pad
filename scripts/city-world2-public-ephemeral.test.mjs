@@ -40,9 +40,9 @@ test('single existing Render host exposes public v2 ephemeral rooms and retains 
   assert.equal(other.status,403,'public API only grants official frontend CORS origin');
   const page=await fetch(base+'/city-world2-production.html');
   assert.equal(page.status,200);assert.match(await page.text(),/PROGRESS IS TEMPORARY/);
-  const v1=await fetch(base+'/city.html');
-  assert.equal(v1.status,200);
-  assert.match(await v1.text(),/city-v2-release-gate.js/);
+  const entrance=await fetch(base+'/city.html',{redirect:'manual'});
+  assert.equal(entrance.status,302);
+  assert.equal(entrance.headers.get('location'),'https://kaibuzz0.github.io/Offensive-meme-launch-pad/city.html');
   const leave=await fetch(base+'/api/world2/leave',{method:'POST',headers:{...headers,'Content-Type':'application/json',Authorization:'Bearer '+result.session},body:'{}'});
   assert.equal(leave.status,200);
  }finally{
