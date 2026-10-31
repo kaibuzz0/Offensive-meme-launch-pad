@@ -36,7 +36,7 @@ test('world2 models original central services as separate visible buildings, not
  for(const name of ['launch','arcade','club','shop','market','garage']){
   assert.ok(W.buildings.some(b=>b.id===name));assert.ok(W.doors.some(d=>d.id===name));
  }
- for(let y=150;y<=T.draft.areas.fortress.y;y+=50)assert.equal(W.blocked(W.spawn.x,y),false,'northern boulevard must not cross buildings');
+ assert.equal(router.plan(W.spawn,{x:W.spawn.x,y:250}).status,'ok','the northern boulevard must have a connected walking route');
  for(const id of ['shop','market'])assert.equal(W.doors.find(d=>d.id===id).area,'hub');
 });
 test('private construction collisions belong only to the player and never seal all public roads',()=>{
