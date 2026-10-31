@@ -23,15 +23,29 @@
  for(const kind of C.CREW_TYPES)option($('defender-role'),kind.id,kind.name+' / '+kind.cost+' credits');
  $('plot-col').value='5';$('plot-row').value='3';$('plot-kind').value='wall';
  $('destination').value='door:shop';
+ function publicScreen(){
+  if(root.MEME_CITY_WORLD2_PUBLIC!==true)return;
+  // The public game enters directly from the visible canvas; the room
+  // configuration and development controls stay tucked into the menu.
+  $('game-entry').hidden=joined;
+  $('play-controls').hidden=!joined;
+  $('live-hud').hidden=!joined;
+  $('enter-game').disabled=busy;
+  const p=latest?.self;
+  if(joined&&p)$('live-hud').textContent='WORLD V2 · HP '+Math.ceil(p.hp)+
+    ' · '+p.credits+' credits · '+p.xp+' XP · '+(latest.players?.length||1)+' online';
+ }
  function authState(){
   $('server-state').textContent=joined?(root.MEME_CITY_WORLD2_PUBLIC===true?'Connected to World V2 — temporary multiplayer':'Connected to loopback QA server'):'Disconnected';
   $('join').disabled=joined;$('create-private').disabled=joined;$('leave').disabled=!joined;
   const savingDisabled=root.MEME_CITY_WORLD2_PUBLIC===true;
   $('create-profile').disabled=!joined||savingDisabled;$('save-profile').disabled=!joined||savingDisabled;
+  publicScreen();
  }
  function adapt(raw){if(!raw||raw.worldVersion!==2||!raw.self||!Array.isArray(raw.players))throw Error('Invalid authoritative snapshot.');return raw;}
  function updated(s){
   latest=adapt(s);
+  publicScreen();
   const self=s.self,room=s.roomInfo;
   $('room-info').textContent='Room: '+(room?.code||'unknown')+' · '+(room?.players||0)+' / '+(room?.capacity||8)+' guests'+(room?.private?' · private':' · public');
   $('hud').textContent='Server XP '+self.xp+' · credits '+self.credits+' · HP '+Math.ceil(self.hp)+' · ammo '+self.ammo+
@@ -61,6 +75,10 @@
  async function join(privateRoom=false){
   if(joined||busy)return;
   busy=true;
+  if(root.MEME_CITY_WORLD2_PUBLIC===true){
+   $('entry-message').textContent='Connecting to the city…';
+   $('enter-game').disabled=true;
+  }
   try{
    const code=$('room-code').value.trim();
    const recoveryKey=$('recovery-key').value.trim();$('recovery-key').value='';
@@ -68,7 +86,15 @@
    joined=true;updated(snap);authState();tell(root.MEME_CITY_WORLD2_PUBLIC===true?
     'Welcome to Meme City V2! Your multiplayer progress is temporary until durable saving is available.':
     'Joined server-owned world2 room. Open another browser tab to verify peer movement.');
-  }catch(e){tell('Join refused: '+e.message);}finally{busy=false;}
+   if(root.MEME_CITY_WORLD2_PUBLIC===true)$('entry-message').textContent='';
+  }catch(e){
+   tell('Join refused: '+e.message);
+   if(root.MEME_CITY_WORLD2_PUBLIC===true)$('entry-message').textContent=
+    'Cannot enter the city: '+e.message+' Tap ENTER MEME CITY to retry.';
+  }finally{busy=false;publicScreen();}
+ }
+ if(root.MEME_CITY_WORLD2_PUBLIC===true){
+  $('enter-game').addEventListener('click',()=>join(false));
  }
  $('join').addEventListener('click',()=>join(false));
  $('create-private').addEventListener('click',()=>join(true));
@@ -288,6 +314,18 @@
     g.save();g.scale(zoom,zoom);g.translate(-(loc.x-box.width/zoom/2),-(loc.y-box.height/zoom/2));
     if(inRoom)interiorPaint(g,s,p);else worldPaint(g,s,p);g.restore();
     miniPaint(s);
+   }else if(root.MEME_CITY_WORLD2_PUBLIC===true){
+    // Show actual V2 geography behind the start screen rather than a blank
+    // local development-server instruction.
+    const zoom=Math.max(.14,Math.min(box.width/1450,box.height/1550));
+    const midX=W.fortress.x+W.fortress.w/2,midY=W.fortress.y+W.fortress.h/2;
+    g.save();g.scale(zoom,zoom);
+    g.translate(-(midX-box.width/zoom/2),-(midY-box.height/zoom/2));
+    for(const road of W.roads)rect(g,road,'#3c5961');
+    rect(g,W.fortress,'#446e5d');
+    for(const wall of W.walls)rect(g,wall,'#87b0a0');
+    for(const building of W.buildings)rect(g,building,building.protected?'#ba9866':'#5c8793');
+    g.restore();
    }else{g.fillStyle='#b2d4d2';g.textAlign='center';g.font='18px system-ui';
     g.fillText('Join the local world2 server to explore together',box.width/2,box.height/2);}
   }
