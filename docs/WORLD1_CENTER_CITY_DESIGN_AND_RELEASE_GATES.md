@@ -1,10 +1,10 @@
 # World V1 — Center City Map Redesign
 
-Status: **IMPLEMENTED ON PR #12 / NOT LIVE — OWNER VISUAL REVIEW REQUIRED** — see [PR #12](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/12).
+Status: **RELEASED TO `main` AND GITHUB PAGES ON 2026-10-31; automated CI passed, hardware testing remains open** — see [PR #12](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/12).
 
 ## Verified implementation and build status (2026-10-31)
 
-- The center-city branch is pushed, with the player-owned 16×10 fortress plot at the city center, six separately identifiable clan headquarters/territories, and six major businesses spread across four districts.
+- The center-city branch was merged as commit `f143cbf9d7311f7659c5439b0f3d7573ce8d6c3f`, with the player-owned 16×10 fortress plot at the city center, six separately identifiable clan headquarters/territories, and six major businesses spread across four districts.
 - Fixed hub scenery and NPC offsets, relocated fortress raid and arena wave spawns, defender patrols, and indoor shop services. Landmarks are snapped to accessible points within their original district.
 - Existing World V1 browser saves are never overwritten: version 6 center-city data uses a separate key with an immutable original snapshot backup, plus fail-closed unsupported/corrupt-save handling.
 - Shared multiplayer room joins now exchange and enforce `layoutVersion: 2`. The server rejects absent or mismatched layouts before admission, while the browser rejects incompatible room snapshots.
@@ -44,9 +44,9 @@ Every clan still has its own **HQ building**, clan terminal, outfit exchange, ar
 
 ### Save safety
 
-The existing `offensive-meme-city-v1` browser key and original World V1 gameplay remain untouched on the deployed website while this branch is under review. The draft introduces a separate `offensive-meme-city-v1-center` slot with schema v6, `worldVersion:1`, and `layoutVersion:2`; source raw bytes are copied to `offensive-meme-city-v1-center-source-backup` before migration. The new reader projects positions and defender posts by old district ID into the corresponding new district without changing earned XP, credits, purchased items, chapter claims, clan reputation, saved private plot tiles or outpost tiles. Unknown coordinates start at a safe central base spawn rather than writing old-world coordinates into new-world state.
+The original `offensive-meme-city-v1` browser key stays untouched on the deployed website, while the playable World V1 code uses the Center City layout. The draft introduces a separate `offensive-meme-city-v1-center` slot with schema v6, `worldVersion:1`, and `layoutVersion:2`; source raw bytes are copied to `offensive-meme-city-v1-center-source-backup` before migration. The new reader projects positions and defender posts by old district ID into the corresponding new district without changing earned XP, credits, purchased items, chapter claims, clan reputation, saved private plot tiles or outpost tiles. Unknown coordinates start at a safe central base spawn rather than writing old-world coordinates into new-world state.
 
-The original game/source key continues to work after an emergency rollback. A fully qualified export/import and multi-tab conflict policy still need review before release. No automated test may run on a real player's browser save. Do not clear browser storage or remove any save slot.
+The original game/source key continues to work after an emergency rollback. Full export/import support, multi-tab conflicts, and actual-user save migration remain follow-up validation items. No automated test may run on a real player's browser save. Do not clear browser storage or remove any save slot.
 
 ### Release gates — automated checks passed; manual acceptance still required
 
@@ -58,7 +58,7 @@ The original game/source key continues to work after an emergency rollback. A fu
 6. **Rendering performance:** the 11.2k×11.2k map is larger. Cache/draw only visible district scenery, road mesh and terrain layers. Do not add 25 empty chunks worth of rendering on every frame.
 7. **Gameplay continuity:** player's solo start, original 360° avatars/NPCs, joystick, gun, HUD, fortress editor, clans, police behavior, missions, save recovery and return-to-solo button must all remain usable.
 
-**Important:** Do not merge this PR, switch GitHub Pages, or redeploy Render unless these pass and the owner has reviewed the map visually. The previous attempted World V2 release failed by replacing a finished game with an incomplete prototype; do not repeat that.
+**Release decision:** The owner explicitly requested immediate publication on 2026-10-31 after automated validation. PR #12 was merged into `main`; GitHub Pages deployed, and Render's matching room server reported Live. Real Android-device frame-rate, a genuine pre-release saved profile migration, and long-term online stability require post-release monitoring. If these regress, revert to the preserved main branch history and original save slot.
 
 ## Design follow-ups
 
@@ -72,6 +72,6 @@ The original game/source key continues to work after an emergency rollback. A fu
 
 Repository: https://github.com/kaibuzz0/Offensive-meme-launch-pad
 
-Draft map work: https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/12
+Merged map implementation: https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/12
 
-Stable original live game: https://kaibuzz0.github.io/Offensive-meme-launch-pad/city.html?release=world1
+Live Center City game: https://kaibuzz0.github.io/Offensive-meme-launch-pad/city.html?release=center-city-v1
