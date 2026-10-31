@@ -45,10 +45,10 @@ test('server grants the OFFENDER skin identity only for an unexpired verified OF
 });
 
 test('six clan cosmetics are server-authorized, visible to peers and distinct from holder status',()=>{
- const {r,join}=setup(),a=join(),b=join(),s=r.auth(a.session),other=r.auth(b.session);
+ const {r,join,step}=setup(),a=join(),b=join(),s=r.auth(a.session),other=r.auth(b.session);
  const skinIds=['redacted','congress','exit','you-missed','maduro','rug'];
  for(const id of skinIds){
-  const res=r.action(s,{type:'clanSkin',skin:id});
+  step(1100);const res=r.action(s,{type:'clanSkin',skin:id});
   assert.match(res.message,/skin equipped/);
   assert.equal(r.snapshot(s).self.clanSkin,id);
   assert.equal(r.snapshot(other).players.find(p=>p.id===s.id).clanSkin,id,'peer can see cosmetic '+id);
