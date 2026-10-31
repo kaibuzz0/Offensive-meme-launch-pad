@@ -60,3 +60,26 @@ test('six clan cosmetics are server-authorized, visible to peers and distinct fr
  assert.equal(r.snapshot(s).self.clanSkin,null);
  assert.equal(r.snapshot(other).players.find(p=>p.id===s.id).clanSkin,null);
 });
+
+test('empty corner expansion parcels require signed-token entitlement; regular map remains free',()=>{
+ const {r,join,C}=setup(),a=join(),session=r.auth(a.session),p=r.first.engine.player(session.id);
+ assert.equal(C.TOKEN_PLOTS.length,6,'six visible reserved plots');
+ assert.equal(new Set(C.TOKEN_PLOTS.map(x=>x.id)).size,6,'unique token entry rules');
+ for(const lot of C.TOKEN_PLOTS){
+  const at={x:lot.x+lot.w/2,y:lot.y+lot.h/2};
+  p.holder=null;assert.equal(C.blocked(at.x,at.y,p),true,'not owned: '+lot.id);
+  p.holder={clan:lot.id,tier:1,expires:Date.now()+100000};
+  assert.equal(C.blocked(at.x,at.y,p),false,'matching signed holder: '+lot.id);
+  p.holder={clan:'wrong',tier:3,expires:Date.now()+100000};
+  assert.equal(C.blocked(at.x,at.y,p),true,'a different token cannot open '+lot.id);
+  p.holder={clan:lot.id,tier:1,expires:Date.now()-100};
+  assert.equal(C.blocked(at.x,at.y,p),true,'expired proof revokes '+lot.id);
+ }
+ p.holder=null;
+ const plot=C.TOKEN_PLOTS[0],y=plot.y+plot.h/2;
+ p.x=plot.x-4;p.y=y;p.input={x:1,y:0};r.first.engine.tick(.1);
+ assert.ok(p.x<plot.x,'unverified player cannot cross reserved plot boundary');
+ p.holder={clan:plot.id,tier:1,expires:Date.now()+100000};
+ r.first.engine.tick(.1);assert.ok(p.x>plot.x,'verified holder can physically enter the same plot');
+ assert.equal(C.blocked(C.WORLD.spawn.x,C.WORLD.spawn.y,{holder:null}),false,'free main city spawn is not gated');
+});
