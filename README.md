@@ -1,10 +1,50 @@
+## Public release: Living Blocks + world-v2 sandbox (October 31, 2026)
+
+**Current release scope:** the live `city.html` continues to use world1, preserving the existing 47 buildings, solo save and temporary online room model. World1 receives improvements to collision-aware navigation, NPC weapon rigs, faction behavior, interiors, map touch targets and safe save backups. The separate `city-world2-preview.html` is an explicitly experimental, browser-accessible demonstration of the central fortress, four cardinal roads, collision geometry, navigation, prototype NPC fights, Insider-police pursuit, defense waves and in-memory construction. **It is not the new production game engine, has no persistent world2 ownership/rewards, and never grants token rewards.**
+
+- [Play the existing Meme City](city.html)
+- [Try the experimental central fortress preview](city-world2-preview.html)
+- [Read current development limitations and handoff](NEXT_AI_HANDOFF.md)
+
+Browser/Android acceptance and full live multiplayer world2 authority remain outstanding. Optional swap presets always require wallet review and approval; no mint, burn or purchase occurs automatically.
+
+---
+
+## Living Blocks / Alpha 12
+
+The city keeps its square 6,720 × 6,720 footprint and 47 public interiors. This update adds faction-aware targeting, two resident patrol members for each of the four non-police/non-Rug clans, and private 3 × 3 outposts in every token neighborhood. Residents wear their faction's meme. Each district has colored curb markings, crosswalks and a clan plaza mural. Ambient NPCs beyond 1,300 units of every outdoor player skip navigation/combat; nearby crews remain active while spectators watch. There are 44 ambient NPCs and a 64-NPC total mission admission cap.
+
+Movement no longer overwrites an active firing pose. Recoil decays instead of toggling between two positions, and online peers receive firing/recoil state. The existing full-circle rig, fixed arm lengths and depth ordering remain. Active clan jobs now retain the HUD instead of being overwritten by journey guidance.
+
+### District construction and access
+
+Open Clans → Build a district outpost, follow the marker and build walls, towers, flags, lights or paving with play credits. Each of six private lots has nine cells; placement, collision, range, costs and one-time refunds are validated by the simulation. Solo saves include lots, reputation and preferred styles. Construction is solo-only. Shared rooms reject construction actions and explain this limitation before opening the workshop. The original fortress and squad remain available in solo.
+
+Earned clan rank 1 unlocks neon outpost trim; rank 2 unlocks holographic trim. These earned appearances do not require token ownership. Wallet changes/disconnects request immediate server revocation; failed connections retain only the prior bounded expiry. In-flight checks cannot re-grant access after disconnect. Clan membership remains free.
+
+### Purchases and dependencies
+
+The Tokens menu includes 0.50 and 1.00 **USDC** quote links (not guaranteed USD totals). These prefill the existing Jupiter plugin in token atomic units and lock the selected output mint. Live routes, received tokens, network/account costs and fees are shown by the provider before wallet approval. A valid route or economical micro-purchase is not guaranteed, and no real transaction was executed during QA. Provider reference: https://plugin.jup.ag/index and https://github.com/jup-ag/docs/blob/main/tool-kits/plugin/customization.mdx .
+
+Solo progress survives browser reloads in local storage. Online progress is still temporary: persistent authenticated accounts require a durable backend datastore; the free Render instance does not provide one. The browser never supplies authoritative token balances. Public Solana RPC remains subject to availability and rate limits.
+
+### Adding a meme content package
+
+Add the verified mint/art to tokens.js, a neighborhood row to city-core.js NEIGHBORHOODS, and its explicit allies/enemies/role in FACTIONS. Rows generate district coordinates, terminals, six venues, a private lot and a square world extent. Extend the resident spawn rules if a new role needs different behavior. Validate mint IDs, reachable doors/checkpoints, faction relationships and server holdings allowlists before publishing. Visuals, job templates and shops consume the same registry; avoid hardcoding a separate map.
+
+Validation coverage includes full-circle input, fixed weapon geometry, faction relationships, NPC sleeping/waking, outpost collision/cost/refund/save behavior, holder expiry/revocation and small-purchase configuration. Browser review covers faction menus and outpost workshop. Live wallet settlement and physical-device performance remain untested.
+
+Online service repairs: courier delivery is permitted with shared validation; Night Market interiors trade at their terminal; all six neighborhood medics sell supplies. Online players have an eight-chapter journey without solo construction or arena requirements. Capabilities, release metadata and discovery counts come from shared configuration.
+
+Earlier release notes below describe their respective versions. See DEVELOPMENT_STATUS.md for unfinished milestones and verification limits.
+
 ## Street Life / Alpha 11
 
 Armed avatars now retain meme prints on front, back and sides, trouser ticker/pattern panels, earned clan stripes and verified holder cuffs. Directional surface shading improves depth, and walking strides follow movement while strafing. The existing fixed-length grip rig remains depth-sorted through a full turn; a weapon is correctly occluded when aimed away.
 
 Twelve walk-in Token Outfitters and Street Medic annexes bring the city to 47 public interiors, plus the player-built HQ. Each of the six neighborhoods now has two Insider security officers and two Rugmasters. The Clans menu can track a live NPC skirmish. Salvage Scramble adds four two-second crate stops and a return to the terminal; it pays 45 play credits, 35 XP and one clan reputation exactly once. Leaving a crate resets its collection progress.
 
-The 6,720-square map, free clans, existing construction plot and server-verified holder tiers remain. Token purchases use live provider quotes and explicit wallet approval; $0.50/$1 token prices cannot be guaranteed. Construction outside the original fortress plot is not yet supported. Existing saves are retained.
+The 6,720-square map, free clans, existing construction plot and server-verified holder tiers remain. Token purchases use live provider quotes and explicit wallet approval; $0.50/$1 token prices cannot be guaranteed. At the Alpha 11 release, construction outside the original fortress plot was not supported. Existing saves are retained.
 
 Validation: 105 simulation, rendering-geometry, server and security tests; syntax/asset checks; browser review of solo scene and clan controls.
 

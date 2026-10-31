@@ -70,3 +70,4 @@ test('resetting a platform mint to null removes it from wallet purchasing',()=>{
   assert.equal(withoutPlatform.length,5);
   assert.throws(()=>core.swapConfig(beforeLaunch,withoutPlatform));
 });
+test('small USDC presets use atomic units, retain exact mint and require wallet approval',()=>{for(const [budget,units]of [['0.50','500000'],['1.00','1000000']]){const cfg=core.swapConfig(listed[0],listed,{}, {budget});assert.equal(cfg.formProps.initialAmount,units);assert.equal(cfg.formProps.initialInputMint,'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');assert.equal(cfg.formProps.fixedMint,listed[0].mint);assert.equal(cfg.autoConnect,false);}assert.ok(!core.swapConfig(listed[0],listed,{}, {budget:'99999'}).formProps.initialAmount);});

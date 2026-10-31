@@ -17,8 +17,42 @@
   for(const n of C.NEIGHBORHOODS)for(let i=0;i<4;i++){
    const rug=i%2===1;const b=spawn(e,rug?'gang':'cop',n.x+(rug?170:-170),n.y+200+Math.floor(i/2)*100,'block-'+n.id+'-'+i);b.faction=rug?'exit':'congress';b.ranged=true;b.ambient=true;
   }
+  for(const n of C.NEIGHBORHOODS)if(!['congress','exit'].includes(n.id))for(let i=0;i<2;i++){const b=spawn(e,'gang',n.x+(i?230:-230),n.y+260,'resident-'+n.id+'-'+i);b.faction=n.id;b.ranged=true;b.ambient=true;b.resident=true;}
   for(let i=0;i<12;i++)e.arcade.pickups.push({id:`loot-${i}`,x:HUB.x+180+(i%6)*340,y:i<6?590:910,kind:i%4===0?'med':'credit',ready:0});
  }
+ // One bounded street conflict, owned by the shared simulation in both modes.
+ const CONFLICT=Object.freeze({x:WORLD.spawn.x-350,y:1000,name:'Founders Crossing',radius:420});
+ function conflictState(e){return e.conflict??=( {id:0,phase:'cooldown',remaining:90,winner:null,participants:new Map(),reinforced:false,summary:'Next street conflict is gathering.'});}
+ function conflictWave(e,c,count){for(const faction of ['congress','exit'])for(let i=0;i<count;i++){
+  if(e.arcade.bots.length>=64)return;
+  const b=spawn(e,faction==='congress'?'cop':'gang',CONFLICT.x+(faction==='congress'?-180:180),CONFLICT.y+(i-.5)*65,'conflict-'+c.id+'-'+(++e.serial));
+  Object.assign(b,{eventId:c.id,faction,ranged:true,ambient:true,cooldown:2,hp:100,maxHp:100});
+ }}
+ function finishConflict(e,c,winner){
+  c.phase='resolution';c.remaining=12;c.winner=winner;c.summary=winner?(winner==='congress'?'Insider security holds the crossing.':'Rugmasters take the crossing.'):'Stalemate. Both crews withdraw.';
+  for(const [id,entry]of c.participants){const p=e.players.get(id);if(!p||entry.paid)continue;entry.paid=true;
+   const qualified=entry.damage>=60&&entry.active>=10,reward=qualified?(entry.side===winner?80:40):0;
+   if(reward){p.credits+=reward;p.xp+=50;}p.conflictResult={event:c.id,outcome:winner===null?'timeout':entry.side===winner?'victory':'defeat',reward,damage:Math.round(entry.damage)};
+   notify(p,c.summary+(reward?` +${reward} play credits / +50 XP.`:' No event reward: contribute 60 damage and stay active for 10 seconds.'));
+  }
+  e.arcade.bullets=e.arcade.bullets.filter(q=>!e.arcade.bots.some(b=>b.eventId===c.id&&b.id===q.sourceId));
+  for(const b of e.arcade.bots.filter(b=>b.eventId===c.id)){b.windup=0;b.cooldown=99;b.state='withdraw';}
+ }
+ function tickConflict(e,dt){
+  const c=conflictState(e);if(!e.players.size)return;c.remaining-=dt;
+  if(c.phase==='cooldown'&&c.remaining<=0){c.id++;c.phase='announced';c.remaining=15;c.winner=null;c.participants.clear();c.reinforced=false;c.summary='Insider security and Rugmasters contest Founders Crossing. Join through Clans or watch from outside the ring.';for(const p of e.players.values())notify(p,c.summary);}
+  else if(c.phase==='announced'&&c.remaining<=0){c.phase='gathering';c.remaining=10;conflictWave(e,c,2);}
+  else if(c.phase==='gathering'&&c.remaining<=0){c.phase='active';c.remaining=75;}
+  else if(c.phase==='active'){
+   for(const [id,entry]of c.participants){const p=e.players.get(id);if(p&&!p.room&&p.hp>0&&distance(p,CONFLICT)<=CONFLICT.radius&&(p.fireHeld||Math.hypot(p.input.x,p.input.y)>.1))entry.active+=dt;}
+   if(c.remaining<=50&&!c.reinforced){c.reinforced=true;conflictWave(e,c,1);}
+   const living=e.arcade.bots.filter(b=>b.eventId===c.id&&b.hp>0),insiders=living.filter(b=>b.faction==='congress').length,rugs=living.filter(b=>b.faction==='exit').length;
+   if(c.reinforced&&(!insiders||!rugs))finishConflict(e,c,insiders?'congress':rugs?'exit':null);
+   else if(c.remaining<=0)finishConflict(e,c,null);
+  }else if(c.phase==='resolution'&&c.remaining<=0){e.arcade.bots=e.arcade.bots.filter(b=>b.eventId!==c.id);c.phase='cooldown';c.remaining=180;c.participants.clear();}
+ }
+ function conflictSnapshot(e,id){const c=conflictState(e),entry=c.participants.get(id),bots=e.arcade.bots.filter(b=>b.eventId===c.id&&b.hp>0);return {id:c.id,phase:c.phase,remaining:c.remaining,winner:c.winner,summary:c.summary,...CONFLICT,insiders:bots.filter(b=>b.faction==='congress').length,rugs:bots.filter(b=>b.faction==='exit').length,entry:entry?{...entry}:null};}
+ root.CityConflict=Object.freeze({location:CONFLICT});
  function spawn(e,kind,x,y,id,owner=null){
   const b={id,kind,x,y,homeX:x,homeY:y,hp:kind==='cop'?100:70,maxHp:kind==='cop'?100:70,cooldown:1.2,respawn:0,phase:e.arcade.bots.length*.9,state:'patrol',windup:0,targetId:null,seenAt:-100,aim:null,path:[],pathAt:0,owner};
   e.arcade.bots.push(b);return b;
@@ -62,10 +96,9 @@
   }
  }
  function bullet(e,source,target,side,owner,damage){
-  const d=Math.max(1,distance(source,target)),dx=(target.x-source.x)/d,dy=(target.y-source.y)/d,muzzle=Math.min(50,Math.max(0,d-18));
-  // Collision begins at the weapon, after checking the whole barrel path against cover.
-  for(let n=8;n<=muzzle;n+=7)if(C.blocked(source.x+dx*n,source.y-18+dy*n,source))return;
-  e.arcade.bullets.push({id:++e.serial,x:source.x+dx*muzzle,y:source.y-18+dy*muzzle,vx:dx*650,vy:dy*650,side,owner,damage,ttl:.8});
+  const d=Math.max(.001,distance(source,target)),dx=(target.x-source.x)/d,dy=(target.y-source.y)/d;
+  const anchor=C.weaponAnchor(Math.atan2(dy,dx));
+  e.arcade.bullets.push({id:++e.serial,x:source.x+anchor.x,y:source.y+anchor.y,launch:{x:source.x,y:source.y},height:anchor.height,vx:dx*650,vy:dy*650,side,owner,sourceId:source.id,sourceFaction:C.factionOf(source),damage,ttl:.8});
  }
  // A bounded grid search gives pursuers a route around solid scenery.
  function route(e,from,to){
@@ -99,13 +132,13 @@
   const a=e.arcade,ids=new Set();for(const p of e.players.values())for(let i=0;i<p.crew.length;i++){
    const record=p.crew[i],id=`${p.id}:${record.id}`;ids.add(id);let g=a.guards.find(g=>g.id===id);const role=C.CREW_TYPES.find(t=>t.id===record.role);
    if(!g){const anchor=record.mode==='follow'?p:record.mode==='patrol'?{x:1000+i*80,y:1000}:record.post||{x:1000+i*80,y:1000};const pos=freeSpawn(e,p,anchor.x+35+i*27,anchor.y+45);g={id,owner:p.id,ally:true,role:role.id,name:role.name,...pos,hp:role.hp,maxHp:role.hp,cooldown:0,recover:0,invulnerable:0,heat:0,quiet:0,state:'guarding',facing:{x:1,y:0},path:[],pathAt:0};a.guards.push(g);}
-   g.mode=record.mode;g.post=record.post||{x:1000+i*80,y:1000};g.plot=p.plot;g.slot=i;if(C.blocked(g.x,g.y,g))Object.assign(g,freeSpawn(e,p,g.x,g.y));
+   g.clan=p.clan;g.outposts=p.outposts;g.mode=record.mode;g.post=record.post||{x:1000+i*80,y:1000};g.plot=p.plot;g.slot=i;if(C.blocked(g.x,g.y,g))Object.assign(g,freeSpawn(e,p,g.x,g.y));
   }a.guards=a.guards.filter(g=>ids.has(g.id));
  }
  function tickCrew(e,dt){
   for(const g of e.arcade.guards){const owner=e.players.get(g.owner),role=C.CREW_TYPES.find(t=>t.id===g.role);g.cooldown=Math.max(0,g.cooldown-dt);g.flash=Math.max(0,(g.flash||0)-dt);
    if(g.hp<=0){g.recover-=dt;if(g.recover<=0){Object.assign(g,freeSpawn(e,owner,g.post.x,g.post.y));g.hp=role.hp;g.state='guarding';}continue;}
-   const enemy=!peaceful(g)&&e.arcade.bots.filter(b=>b.hp>0&&b.kind==='gang'&&!(b.owner&&(e.players.get(b.owner)?.contract?.countdown>0||b.raid&&e.players.get(b.owner)?.defense?.countdown>0))&&distance(g,b)<role.range&&visible(g,b)).sort((a,b)=>distance(g,a)-distance(g,b))[0];
+   const enemy=!peaceful(g)&&e.arcade.bots.filter(b=>b.hp>0&&C.npcHostile(b,e.players.get(g.owner))&&!(b.owner&&(e.players.get(b.owner)?.contract?.countdown>0||b.raid&&e.players.get(b.owner)?.defense?.countdown>0))&&distance(g,b)<role.range&&visible(g,b)).sort((a,b)=>distance(g,a)-distance(g,b))[0];
    if(enemy){const d=Math.max(1,distance(g,enemy));g.facing={x:(enemy.x-g.x)/d,y:(enemy.y-g.y)/d};g.state='engaging';g.moving=d<95;if(d<95)move(g,-g.facing.x*role.speed*.55*dt,-g.facing.y*role.speed*.55*dt);if(!g.cooldown){const count=e.arcade.bullets.length;bullet(e,g,enemy,'ally',g.id,role.damage);const q=e.arcade.bullets.at(-1);if(e.arcade.bullets.length>count)q.creditOwner=g.owner;g.cooldown=role.cooldown;g.flash=.1;}continue;}
    let target=g.post;
    if(g.mode==='follow'){const f=owner.facing||{x:1,y:0};target={x:owner.x-f.x*(90+g.slot*18)+f.y*(g.slot%2?40:-40),y:owner.y-f.y*(90+g.slot*18)-f.x*(g.slot%2?40:-40)};}
@@ -125,7 +158,7 @@
   }
   if(action.type==='endDefense'){if(!p.defense)throw Error('No active defense drill.');p.defense=null;cleanupRaid(e,p.id);return 'Defense drill cancelled.';}
   if(action.type==='defenseDrill'){
-   if(p.area!=='fortress')throw Error('Walk to your fortress to start a defense drill.');if(p.contract||p.defense)throw Error('Finish your current challenge first.');if((p.defenseCooldown||0)>0)throw Error('Defense drill is recharging.');if(e.arcade.bots.length+4>48)throw Error('Too many active enemies.');
+   if(p.area!=='fortress')throw Error('Walk to your fortress to start a defense drill.');if(p.contract||p.defense)throw Error('Finish your current challenge first.');if((p.defenseCooldown||0)>0)throw Error('Defense drill is recharging.');if(e.arcade.bots.length+4>64)throw Error('Too many active enemies.');
    p.defense={remaining:4,timeLeft:120,countdown:3};for(let i=0;i<4;i++){const b=spawn(e,'gang',850+i*160,1215,`raid-${++e.serial}`,p.id);b.raid=true;b.plot=p.plot;}return 'Defense drill started. Four raiders are approaching your fortress.';
   }
   return null;
@@ -134,13 +167,13 @@
   init(this);const p=base.join.apply(this,args);
   Object.assign(p,{hp:100,heat:0,fireCooldown:0,dashCooldown:0,dashTime:0,invulnerable:3,quiet:0,kills:0,jobs:0,deaths:0,contract:null,notice:'',noticeSeq:0,missionCooldown:0,facing:{x:1,y:0},dashVector:{x:1,y:0},policeSeen:false,lockTarget:null,combo:0,comboUntil:0,resultSeq:0,lastResult:null,fireHeld:false,fireAim:{x:1,y:0},shots:0});return p;
  };
- P.input=function(id,x,y){base.input.call(this,id,x,y);const p=this.player(id);if(Math.hypot(x,y)>.1){const n=Math.hypot(x,y);p.facing={x:x/n,y:y/n};}};
+ P.input=function(id,x,y){base.input.call(this,id,x,y);const p=this.player(id);if(Math.hypot(x,y)>.1&&!p.fireHeld&&p.fireCooldown<.13){const n=Math.hypot(x,y);p.facing={x:x/n,y:y/n};}};
  P.trigger=function(id,held,x=1,y=0,manual=false){
   if(typeof held!=='boolean'||!Number.isFinite(x)||!Number.isFinite(y))throw Error('Invalid fire control.');
   const p=this.player(id);p.fireHeld=held;p.manualAim=manual===true;const n=Math.max(1,Math.hypot(x,y));p.fireAim={x:x/n,y:y/n};
  };
  P.tick=function(dt){
-  init(this);syncCrew(this);dt=Math.max(0,Math.min(.1,dt));base.tick.call(this,dt);const a=this.arcade;a.time+=dt;
+  init(this);syncCrew(this);dt=Math.max(0,Math.min(.1,dt));base.tick.call(this,dt);const a=this.arcade;a.time+=dt;tickConflict(this,dt);
   for(const p of this.players.values()){
    for(const k of ['fireCooldown','dashCooldown','invulnerable','missionCooldown'])p[k]=Math.max(0,p[k]-dt);
    p.quiet+=dt;
@@ -169,14 +202,16 @@
    p.fireCooldown=0;this.action(p.id,{type:'fire',x:p.fireAim.x,y:p.fireAim.y});
   }
   for(const b of [...a.bots]){
-   if(b.hp<=0){if(!b.owner){b.respawn-=dt;if(b.respawn<=0)Object.assign(b,{x:b.homeX,y:b.homeY,hp:b.maxHp,cooldown:1.2,state:'patrol',windup:0,targetId:null});}continue;}
+   if(b.eventId&&this.conflict?.phase!=='active'){b.state=this.conflict?.phase==='resolution'?'withdraw':'ready';continue;}
+   if(b.hp<=0){if(!b.owner&&!b.eventId){b.respawn-=dt;if(b.respawn<=0)Object.assign(b,{x:b.homeX,y:b.homeY,hp:b.maxHp,cooldown:1.2,state:'patrol',windup:0,targetId:null});}continue;}
+   if(!b.owner&&![...this.players.values()].some(p=>!p.room&&distance(b,p)<1300)){b.state='dormant';b.windup=0;b.targetId=null;b.attackTarget=null;b.aim=null;b.path=[];b.cooldown=Math.max(b.cooldown,1.2);continue;}
    if(b.owner&&(this.players.get(b.owner)?.contract?.countdown>0||b.raid&&this.players.get(b.owner)?.defense?.countdown>0)){b.state='ready';continue;}
    b.cooldown=Math.max(0,b.cooldown-dt);
-   b.plot=[...this.players.values()].find(p=>p.plot?.length)?.plot||[];
+   const builder=[...this.players.values()].find(p=>p.plot?.length||p.outposts?.length);b.plot=builder?.plot||[];b.outposts=builder?.outposts||[];
    const old=this.players.get(b.targetId)||a.guards.find(g=>g.id===b.targetId&&g.hp>0);
-   const candidates=[...this.players.values(),...a.guards.filter(g=>g.hp>0)].filter(p=>!safe(p)&&!(p.clan==='exit'&&b.kind==='gang'&&!b.owner)&&p.invulnerable<3&&(!b.owner||b.owner===(p.ally?p.owner:p.id))&&(b.kind==='gang'||p.heat>=22)&&distance(b,p)<(b.kind==='cop'?700:390)&&visible(b,p)).sort((p,q)=>distance(b,p)-distance(b,q));
+   const candidates=[...this.players.values(),...a.guards.filter(g=>g.hp>0)].filter(p=>!safe(p)&&C.npcHostile(b,p)&&p.invulnerable<3&&(!b.owner||b.owner===(p.ally?p.owner:p.id))&&distance(b,p)<(b.kind==='cop'?700:390)&&visible(b,p)).sort((p,q)=>distance(b,p)-distance(b,q));
    // Nearby rivals create street battles independent of player aggression.
-   const rival=!b.owner&&a.bots.filter(q=>q.hp>0&&!q.owner&&q.kind!==b.kind&&distance(b,q)<440&&visible(b,q)).sort((x,y)=>distance(b,x)-distance(b,y))[0];
+   const rival=!b.owner&&a.bots.filter(q=>q.hp>0&&!q.owner&&C.rivals(C.factionOf(b),C.factionOf(q))&&distance(b,q)<440&&visible(b,q)).sort((x,y)=>distance(b,x)-distance(b,y))[0];
    if(rival&&(!candidates[0]||distance(b,rival)<distance(b,candidates[0]))){
     b.state='skirmish';b.aim={x:rival.x,y:rival.y};b.windup=0;
     if(distance(b,rival)>180)steer(this,b,rival,105,dt);
@@ -189,8 +224,8 @@
     b.windup=Math.max(0,b.windup-dt);b.state='attack';
     if(b.windup===0){
      const victim=this.players.get(b.attackTarget)||a.guards.find(g=>g.id===b.attackTarget&&g.hp>0);
-     if(victim&&!peaceful(victim)&&(b.kind==='cop'||b.ranged)&&b.aim)bullet(this,b,b.aim,'bot',victim.id,b.boss?14:b.ranged?8:10);
-     else if(victim&&!peaceful(victim)&&distance(b,victim)<64&&visible(b,victim))hurt(this,victim,12);
+     if(victim&&C.npcHostile(b,victim)&&!peaceful(victim)&&(b.kind==='cop'||b.ranged)&&b.aim)bullet(this,b,b.aim,'bot',victim.id,b.boss?14:b.ranged?8:10);
+     else if(victim&&C.npcHostile(b,victim)&&!peaceful(victim)&&distance(b,victim)<64&&visible(b,victim))hurt(this,victim,12);
      b.cooldown=b.kind==='cop'?1.15:1.05;b.state='recover';
     }
    }else if(p){
@@ -198,7 +233,7 @@
     if(b.cooldown===0&&(((b.kind==='cop'||b.ranged)&&d<410)||(b.kind==='gang'&&!b.ranged&&d<52))){
      b.windup=b.ranged?.8:b.kind==='cop'?.65:.48;b.windupMax=b.windup;b.attackTarget=p.id;b.aim={x:p.x,y:p.y};b.state='attack';
     }else if(d>(b.kind==='cop'||b.ranged?150:43))steer(this,b,p,b.boss?86:b.kind==='cop'||b.ranged?158:113,dt);
-   }else if(old&&!peaceful(old)&&b.lastSeen&&a.time-b.seenAt<5&&!safe(old)&&(!b.owner||old.contract)){
+   }else if(old&&C.npcHostile(b,old)&&!peaceful(old)&&b.lastSeen&&a.time-b.seenAt<5&&!safe(old)&&(!b.owner||old.contract)){
     b.state='search';steer(this,b,b.lastSeen,115,dt);
    }else{
     b.state='patrol';b.targetId=null;b.windup=0;
@@ -218,30 +253,31 @@
   }
   for(let i=a.bullets.length-1;i>=0;i--){
    const q=a.bullets[i];q.ttl-=dt;let hit=false;
-   const steps=Math.max(1,Math.ceil(650*dt/9));
+   const launch=q.launch,travel=650*dt+(launch?C.WEAPON.barrel:0),steps=Math.max(1,Math.ceil(travel/9));if(launch){q.x=launch.x;q.y=launch.y;delete q.launch;}
    for(let j=0;j<steps&&!hit;j++){
-    q.x+=q.vx*dt/steps;q.y+=q.vy*dt/steps;
+    q.x+=q.vx/650*travel/steps;q.y+=q.vy/650*travel/steps;
     if(C.blocked(q.x,q.y,this.players.get(q.creditOwner||q.owner)||a.guards.find(g=>g.id===q.owner))){hit=true;break;}
     if(q.side==='faction'){
-     const rival=a.bots.find(b=>b.id===q.owner&&b.hp>0);
-     if(rival&&Math.hypot(q.x-rival.x,q.y-(rival.y-18))<22){rival.hp-=q.damage;rival.hitFlash=.12;hit=true;if(rival.hp<=0){rival.respawn=18;rival.windup=0;effect(this,rival.x,rival.y,'FACTION KO','#a9cadf');}}
+     const rival=a.bots.find(b=>b.id===q.owner&&b.hp>0&&!b.owner&&C.rivals(q.sourceFaction,C.factionOf(b)));
+     if(rival&&Math.hypot(q.x-rival.x,q.y-rival.y)<22){rival.hp-=q.damage;rival.hitFlash=.12;hit=true;if(rival.hp<=0){rival.respawn=18;rival.windup=0;effect(this,rival.x,rival.y,'FACTION KO','#a9cadf');}}
     }else if(q.side==='player'||q.side==='ally'){
-     const b=a.bots.find(b=>b.hp>0&&(q.side!=='ally'||b.kind==='gang')&&Math.hypot(q.x-b.x,q.y-(b.y-18))<22);
+     const b=a.bots.find(b=>b.hp>0&&(!b.eventId||this.conflict?.phase==='active')&&C.npcHostile(b,this.players.get(q.creditOwner||q.owner))&&Math.hypot(q.x-b.x,q.y-b.y)<22);
      if(b){
-      b.hp-=q.damage;hit=true;b.hitFlash=.12;
+      const actual=Math.min(b.hp,q.damage);b.hp-=q.damage;hit=true;b.hitFlash=.12;
+      const event=this.conflict,entry=event?.participants.get(q.owner);if(q.side==='player'&&b.eventId===event?.id&&event.phase==='active'&&entry&&entry.side!==b.faction){const contributor=this.players.get(q.owner);if(contributor&&!contributor.room&&distance(contributor,CONFLICT)<=CONFLICT.radius)entry.damage+=actual;}
       const p=this.players.get(q.creditOwner||q.owner);effect(this,b.x,b.y,String(q.damage),'#ffcc71');
       if(p&&b.kind==='cop'){p.heat=Math.max(p.heat,75);p.quiet=0;}
       if(b.hp<=0){
        b.respawn=18;b.windup=0;
        if(p){
         if(q.side==='ally')p.crewKills++;
-        if(q.side!=='ally'){p.kills++;p.credits+=b.kind==='gang'?18:10;p.xp+=20;
+        if(q.side!=='ally'&&!b.eventId){p.kills++;p.credits+=b.kind==='gang'?18:10;p.xp+=20;
         p.combo=p.comboUntil>a.time?p.combo+1:1;p.comboUntil=a.time+4;
         }
         if(q.side!=='ally')p.heat=Math.min(100,p.heat+(b.kind==='cop'?20:9));p.quiet=0;
         if(b.kind==='gang'){
          const owner=b.owner?this.players.get(b.owner):p;
-         if(owner?.contract?.type==='bounty'){owner.contract.progress++;if(owner.contract.progress>=4)win(this,owner);}
+         if(b.owner&&owner?.contract?.type==='bounty'){owner.contract.progress++;if(owner.contract.progress>=4)win(this,owner);}
         }
        }
        effect(this,b.x,b.y,'KO','#ff8fa7');
@@ -249,7 +285,8 @@
      }
     }else{
      const p=this.players.get(q.owner)||a.guards.find(g=>g.id===q.owner);
-     if(p&&!peaceful(p)&&Math.hypot(q.x-p.x,q.y-(p.y-18))<20){hurt(this,p,q.damage);hit=true;}
+     const shooter=a.bots.find(b=>b.id===q.sourceId);
+     if(p&&shooter&&C.npcHostile(shooter,p)&&!peaceful(p)&&Math.hypot(q.x-p.x,q.y-p.y)<20){hurt(this,p,q.damage);hit=true;}
     }
    }
    if(hit||q.ttl<=0)a.bullets.splice(i,1);
@@ -265,11 +302,20 @@
   if(peaceful(p)&&['fire','contract'].includes(action.type))throw Error('This district is a peaceful zone.');
   if(action.type==='contract'&&!['hub','arena'].includes(C.areaAt(p.x,p.y)))throw Error('Visit Founder Square or Arena District to start contracts.');
   const crewResult=crewAction(this,p,action);if(crewResult!==null)return crewResult;
+  if(action.type==='joinConflict'){
+   const c=conflictState(this);if(!['announced','gathering','active'].includes(c.phase)||c.phase==='active'&&c.remaining<60)throw Error('Enrollment is closed. Watch this round or return for the next one.');
+   if(p.room||distance(p,CONFLICT)>CONFLICT.radius)throw Error('Walk to Founders Crossing to join.');
+   if(!['congress','exit'].includes(p.clan))throw Error('Join Insider Cunts or Rugmasters first.');
+   if(p.contract||p.blockJob||p.defense||p.rising?.arena)throw Error('Finish your current challenge first.');
+   if(c.participants.has(id))throw Error('Already enrolled in this conflict.');
+   c.participants.set(id,{side:p.clan,damage:0,active:0,paid:false});return 'Enrolled. Deal 60 damage to rival event troops and actively play in the ring for 10 seconds. Rewards arrive once at resolution.';
+  }
   if(action.type==='fire'){
    let x=Number(action.x),y=Number(action.y);if(!Number.isFinite(x)||!Number.isFinite(y))throw Error('Invalid aim.');const aimLength=Math.max(1,Math.hypot(x,y));x/=aimLength;y/=aimLength;
    if(p.contract?.countdown>0||p.defense?.countdown>0)throw Error('Get ready — the job is starting.');
    if(p.fireCooldown>0)throw Error('Blaster cooling down.');p.fireCooldown=.25;p.shots++;
-   const enemies=a.bots.filter(b=>b.hp>0&&((b.kind==='gang'&&p.clan!=='exit')||b.kind==='cop'&&(p.heat>=22||p.clan==='exit'))&&distance(b,p)<470&&visible(p,b)&&(!p.manualAim||((b.x-p.x)*x+(b.y-p.y)*y)/Math.max(1,distance(p,b))>.86)).sort((b,c)=>distance(p,b)-distance(p,c));
+   const enemies=a.bots.filter(b=>b.hp>0&&C.npcHostile(b,p)&&distance(b,p)<470&&visible(p,b)&&(!p.manualAim||((b.x-p.x)*x+(b.y-p.y)*y)/Math.max(1,distance(p,b))>.86)).sort((b,c)=>distance(p,b)-distance(p,c));
+   const locked=enemies.find(b=>b.id===p.lockTarget);if(locked&&distance(p,locked)<=distance(p,enemies[0])+75){enemies.splice(enemies.indexOf(locked),1);enemies.unshift(locked);}
    const target=enemies[0]||{x:p.x+x*400,y:p.y+y*400};p.lockTarget=enemies[0]?.id||null;
    const d=Math.max(1,distance(p,target));p.facing={x:(target.x-p.x)/d,y:(target.y-p.y)/d};
    bullet(this,p,target,'player',id,gear(p,'hand')==='blaster'?36:25);p.quiet=0;
@@ -286,7 +332,7 @@
    if(p.contract)throw Error('Finish or abandon your current contract first.');
    if(p.missionCooldown>0)throw Error('Give the mission board a moment to refresh.');
    const job=jobs[action.job];if(!job)throw Error('Unknown contract.');
-   if(action.job==='bounty'&&a.bots.length+4>48)throw Error('Street Sweep is busy. Try another contract.');
+   if(action.job==='bounty'&&a.bots.length+4>64)throw Error('Street Sweep is busy. Try another contract.');
    cleanup(this,id);p.missionCooldown=5;p.lastResult=null;
    p.contract={type:action.job,remaining:job.duration,duration:job.duration,progress:0,countdown:2.5,started:a.time,startKills:p.kills,startCrewKills:p.crewKills||0};
    if(action.job==='bounty'){
@@ -314,6 +360,6 @@
  P.leave=function(id){if(this.arcade){cleanup(this,id);this.arcade.guards=this.arcade.guards.filter(g=>g.owner!==id);}return base.leave.call(this,id);};
  P.snapshot=function(id){
   init(this);const s=base.snapshot.call(this,id);
-  s.arcade={guards:this.arcade.guards.map(({plot,path,...g})=>({...g})),time:this.arcade.time,bots:this.arcade.bots.map(({path,plot,...b})=>({...b})),bullets:this.arcade.bullets.map(b=>({...b})),effects:this.arcade.effects.map(e=>({...e})),pickups:this.arcade.pickups.map(i=>({...i}))};return s;
+  s.conflict=conflictSnapshot(this,id);s.arcade={guards:this.arcade.guards.map(({plot,path,...g})=>({...g})),time:this.arcade.time,bots:this.arcade.bots.map(({path,plot,...b})=>({...b})),bullets:this.arcade.bullets.map(b=>({...b})),effects:this.arcade.effects.map(e=>({...e})),pickups:this.arcade.pickups.map(i=>({...i}))};return s;
  };
 })(typeof window==='undefined'?globalThis:window);

@@ -7,7 +7,7 @@
  const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  const outside=p=>!p.room&&!['creator','social'].includes(C.areaAt(p.x,p.y));
  function clear(a,b,p){const d=distance(a,b),steps=Math.ceil(d/12);for(let i=1;i<=steps;i++)if(C.blocked(a.x+(b.x-a.x)*i/steps,a.y+(b.y-a.y)*i/steps,p))return false;return true;}
- function hostile(b,p){return b.hp>0&&!b.owner&&(b.kind==='gang'?p.clan!=='exit':b.kind==='cop'&&p.heat>=22);}
+ function hostile(b,p){return !b.owner&&C.npcHostile(b,p);}
  function init(e){e.monkEvent??={wait:180,active:null};return e.monkEvent;}
  P.tick=function(dt){base.tick.call(this,dt);dt=Math.max(0,Math.min(.1,dt));const event=init(this);if(!this.players.size)return;
   if(!event.active){event.wait-=dt;if(event.wait>0)return;event.wait=60;

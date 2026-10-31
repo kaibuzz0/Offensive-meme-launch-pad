@@ -28,7 +28,8 @@
     if (!mintValid(mint)) throw new Error('Invalid token mint.');
     return `https://pump.fun/coin/${encodeURIComponent(mint)}`;
   }
-  function swapConfig(token, listed, handlers = {}) {
+  function swapConfig(token, listed, handlers = {}, options = {}) {
+    const budget=['0.50','1.00'].includes(options.budget)?options.budget:null;
     requireListed(token, listed);
     return {
       displayMode: 'integrated',
@@ -39,7 +40,8 @@
       localStoragePrefix: 'offensive-jupiter',
       formProps: {
         swapMode: 'ExactIn',
-        initialInputMint: SOL,
+        initialInputMint: budget?'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v':SOL,
+        ...(budget?{initialAmount:budget==='0.50'?'500000':'1000000'}:{}),
         initialOutputMint: token.mint,
         fixedMint: token.mint
       },
