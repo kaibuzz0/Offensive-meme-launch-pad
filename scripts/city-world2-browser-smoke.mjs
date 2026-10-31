@@ -143,6 +143,25 @@ try{
  assert.match(await second.evaluate("document.getElementById('raid-summary').textContent"),/Raid: idle/,
   'Bob does not join Alice private raid');
 
+ // Verify real browser journey controls against server-owned location and per-guest progress.
+ await first.send('Page.bringToFront');
+ await first.evaluate("document.getElementById('claim-journey').click();true");
+ await waitFor(()=>first.evaluate("document.getElementById('status').textContent.includes('Server refused claimJourney')"),
+  'browser cannot claim a distant orientation objective');
+ const journeyGoal=qa.rooms.first.engine.snapshot(builder.id).self.journey.target;
+ assert.equal(journeyGoal.id,'checkpoint:0');
+ builder.x=journeyGoal.x;builder.y=journeyGoal.y;builder.hp=100;builder.input={x:0,y:0};builder.fireHeld=false;
+ qa.rooms.first.revision++;
+ await waitFor(()=>first.evaluate("document.getElementById('hud').textContent.includes('pos '+Math.round(journeyGoal.x)+','+Math.round(journeyGoal.y))"),
+  'server-provided journey position visible in browser');
+ await first.evaluate("document.getElementById('mark-journey').click();true");
+ assert.match(await first.evaluate("document.getElementById('status').textContent"),/Next journey destination marked/);
+ await first.evaluate("document.getElementById('claim-journey').click();true");
+ await waitFor(()=>first.evaluate("document.getElementById('journey-summary').textContent.includes('1 / 4')"),
+  'city journey first checkpoint awarded server-side');
+ await second.send('Page.bringToFront');
+ await waitFor(()=>second.evaluate("document.getElementById('journey-summary').textContent.includes('0 / 4')"),
+  'second guest retains independent city objectives');
  assert.equal(await first.evaluate('localStorage.length'),0,'client cannot store guest credentials');
  const shot=await second.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
  assert.ok(shot.data?.length>1000,'real mobile-viewport browser canvas screenshot must render');
