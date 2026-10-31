@@ -137,7 +137,33 @@
    function snapshot(){return {crew:crew.map(u=>({id:u.id,role:u.role,mode:u.mode,x:u.x,y:u.y,hp:u.hp,maxHp:u.maxHp,kills:u.kills})),
     raiders:raid.status==='active'?raiders.filter(r=>r.alive).map(r=>({id:r.id,x:r.x,y:r.y,hp:r.hp,maxHp:r.maxHp})):[],
     raid:{...raid}};}
-   return Object.freeze({hire,order,start,hit,tick,snapshot,crew,raiders,raid,abort});
+   function restore(saved){
+    if(!saved||typeof saved!=='object'||Array.isArray(saved)||!Array.isArray(saved.crew)||
+      saved.crew.length>4||!Number.isSafeInteger(saved.wave)||saved.wave<0||saved.wave>10000||
+      !Number.isSafeInteger(saved.earned)||saved.earned<0||saved.earned>saved.wave)
+     throw Error('Saved fortress defense is incompatible.');
+    const seen=new Set(),restored=saved.crew.map((unit,i)=>{
+     const kind=C.CREW_TYPES.find(k=>k.id===unit?.role);
+     if(!kind||!['guard','follow'].includes(unit?.mode)||typeof unit.id!=='string'||
+       !/^defender-[1-9][0-9]{0,5}$/.test(unit.id)||seen.has(unit.id)||
+       !Number.isFinite(unit.x)||!Number.isFinite(unit.y)||!Number.isFinite(unit.home?.x)||
+       !Number.isFinite(unit.home?.y)||!Number.isSafeInteger(unit.hp)||unit.hp<0||unit.hp>kind.hp||
+       !Number.isSafeInteger(unit.kills)||unit.kills<0||unit.kills>1000000)
+      throw Error('Invalid saved defender.');
+     seen.add(unit.id);
+     if(W.blocked(unit.x,unit.y)||W.blocked(unit.home.x,unit.home.y))
+      throw Error('Saved defender location is blocked.');
+     return {id:unit.id,role:unit.role,mode:unit.mode,x:unit.x,y:unit.y,
+      home:{x:unit.home.x,y:unit.home.y},hp:unit.hp,maxHp:kind.hp,cooldown:0,kills:unit.kills};
+    });
+    crew.splice(0,crew.length,...restored);raiders.length=0;
+    raid.status='idle';raid.wave=saved.wave;raid.earned=saved.earned;raid.remaining=0;raid.cooldown=0;
+    serial=Math.max(0,...restored.map(u=>Number(u.id.slice(9))));
+    return snapshot();
+   }
+   function progress(){return {crew:crew.map(u=>({id:u.id,role:u.role,mode:u.mode,
+     x:u.x,y:u.y,home:{...u.home},hp:u.hp,kills:u.kills})),wave:raid.wave,earned:raid.earned};}
+   return Object.freeze({hire,order,start,hit,tick,snapshot,progress,restore,crew,raiders,raid,abort});
   }
   return Object.freeze({session,center});
  }
