@@ -6,8 +6,8 @@
  const planner=window.CityNav.createRouter({WORLD:W.world,blocked:W.blocked},{cell:80,budget:17000});
  const V=window.CityVisuals,$=id=>document.getElementById(id),canvas=$('world'),ctx=canvas.getContext('2d'),mini=$('overview'),mc=mini.getContext('2d');
  if(!ctx||!mc){$('status').textContent='This browser needs 2D Canvas.';return;}
- const player={id:'world2-preview-player',x:W.spawn.x,y:W.spawn.y,aim:{x:0,y:1},plot:[],outposts:[]};
- let room=null,travel=null,waypoint=null,last=performance.now(),zoom=.8,seen=new Set(),message='Walk through the fortress gates in four directions. This is a nonpersistent preview.';
+ const simulation=window.CityWorld2Simulation.create(C,W,pois,window.CityNav),player=simulation.player;
+ let room=null,travel=null,waypoint=null,last=performance.now(),zoom=.8,seen=new Set(),lastSimEvent='',message='Walk through the fortress gates in four directions. This is a nonpersistent preview.';
  const held=new Set(),image=new Image();image.src='assets/coins/offensive.webp';
  const touchButtons=[...document.querySelectorAll('[data-key]')];
  function say(s){message=s;$('status').textContent=s;}
@@ -20,8 +20,8 @@
  };
  $('route').addEventListener('click',()=>{if(room){say('Exit the building before requesting a street route.');return;}choose($('nav-select').value);});
  $('clear-route').addEventListener('click',()=>{travel=waypoint=null;say('Walking route cleared.');});
- function reset(){player.x=W.spawn.x;player.y=W.spawn.y;player.plot=[];player.outposts=[];room=null;seen=new Set();waypoint=travel=null;say('Reset in-memory preview. Your real save and protected backup remain unchanged.');}
- $('reset').addEventListener('click',reset);
+ function reset(){simulation.reset();room=null;seen=new Set();waypoint=travel=null;say('Reset in-memory preview. Your real save and protected backup remain unchanged.');}
+  $('reset').addEventListener('click',reset);
  const backupKey='offensive-meme-city-v1-world2-recovery',stageKey='offensive-meme-city-v1-world2-staged';
  $('load-preview').addEventListener('click',()=>{
   const keys={active:'offensive-meme-city-v1',backup:backupKey,preview:stageKey};
@@ -29,27 +29,29 @@
   if(staged.status!=='staged'){say('Saved-character preview unavailable: '+(staged.reason||staged.status));return;}
   const inspected=window.CityMigration.inspectStage(localStorage,keys);
   if(inspected.status!=='ready-for-review'){say('Staged data rejected: '+inspected.status);return;}
-  const saved=inspected.save;
-  player.plot=C.restorePlot(saved.plot);player.outposts=(saved.clans?.outposts||[]).filter(o=>o&&C.outpostLot(o.clan)&&C.BUILD_KIT.some(k=>k.id===o.kind));
-  if(W.blocked(saved.x,saved.y,player)){player.x=W.spawn.x;player.y=W.spawn.y;say('Saved location blocked by prototype geometry. Preview spawned safely; original save is unchanged.');}
-  else {player.x=saved.x;player.y=saved.y;say('Loaded staged character POSITION and construction preview only. '+(staged.notices||[]).join(' '));}
+  const loaded=simulation.loadStage(inspected.save);
+  if(loaded.status!=='loaded'){say('Staged character incompatible.');return;}
+  say((loaded.relocated?'Blocked old position safely relocated. ':'')+'Staged XP, credits, inventory, construction and crew loaded in memory only. '+(staged.notices||[]).join(' '));
   room=null;travel=waypoint=null;
  });
  function wall(place){
-  const near=Math.hypot(player.x-(T.draft.plot.x+512),player.y-(T.draft.plot.y+320))<700;
-  if(room||!near){say('Walk to the center fortress building plot to place a test wall.');return;}
-  const col=3,row=3,index=player.plot.findIndex(p=>p.col===col&&p.row===row);
-  if(place){if(index>=0){say('Test wall already exists.');return;}player.plot.push({col,row,kind:'wall',rotation:0});}
-  else {if(index<0){say('No test wall is placed.');return;}player.plot.splice(index,1);}
+  if(room){say('Exit the building before changing construction.');return;}
+  const result=place?simulation.build(3,3,'wall'):simulation.demolish(3,3);
+  if(!['built','removed'].includes(result.status)){say('Test wall unchanged: '+result.status+'.');return;}
   if(waypoint)choose(waypoint.id);
-  say((place?'Placed':'Removed')+' temporary plot wall. It affects collision; no play credits or saves were changed.');
+  say((place?'Placed':'Removed')+' in-memory wall, subject to build-access checks; no saved credits changed.');
  }
- $('test-wall').addEventListener('click',()=>wall(true));
+  $('test-wall').addEventListener('click',()=>wall(true));
  $('remove-wall').addEventListener('click',()=>wall(false));
  const vec=()=>{let x=Number(held.has('right')||held.has('d'))-Number(held.has('left')||held.has('a')),y=Number(held.has('down')||held.has('s'))-Number(held.has('up')||held.has('w'));const d=Math.hypot(x,y)||1;return{x:x/d,y:y/d};};
  const keyMap={arrowup:'up',arrowdown:'down',arrowleft:'left',arrowright:'right',w:'w',a:'a',s:'s',d:'d'};
  document.addEventListener('keydown',e=>{if(/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target?.tagName||''))return;
-  const key=keyMap[e.key.toLowerCase()];if(key){held.add(key);e.preventDefault();}if(e.key.toLowerCase()==='e'&&!e.repeat)interact();
+  const k=e.key.toLowerCase(),key=keyMap[k];if(key){held.add(key);e.preventDefault();}
+  if(k==='e'&&!e.repeat)interact();
+  if((k===' '||k==='f')&&!e.repeat){e.preventDefault();fire();}
+  if(k==='r'&&!e.repeat)say(simulation.reload());
+  if(k==='g'&&!e.repeat)defend();
+  if(k==='c'&&!e.repeat)claim();
  });
  document.addEventListener('keyup',e=>{let key=keyMap[e.key.toLowerCase()];if(key)held.delete(key);});
  addEventListener('blur',()=>held.clear());
@@ -58,21 +60,32 @@
  function interact(){
   if(room){if(Math.hypot(room.x-I.ROOM.exit.x,room.y-I.ROOM.exit.y)<95){const old=room.name;room=null;say('Exited '+old+' to the world2 street (preview only).');}else if(Math.hypot(room.x-I.ROOM.activity.x,room.y-I.ROOM.activity.y)<110){say(room.name+' activity terminal is present. Real market/shop/mission actions require full engine migration.');}else say('Walk to the front exit or the highlighted terminal.');return;}
   const door=nearestDoor();if(door){const orig=I.BUILDINGS.find(b=>b.roomId===door.id.slice(5));room={...I.ROOM.spawn,id:door.id,name:door.name,theme:orig?.theme||'shop'};travel=waypoint=null;say('Entered '+room.name+'. Walk to the activity terminal or the exit. No credits or items change.');return;}
-  for(const p of pois.checkpoints)if(Math.hypot(player.x-p.x,player.y-p.y)<100&&!seen.has(p.id)){seen.add(p.id);say('Prototype checkpoint visited: '+p.name+' ('+seen.size+'/3). No real reward awarded.');return;}
+  for(const p of pois.checkpoints)if(Math.hypot(player.x-p.x,player.y-p.y)<100){claim();return;}
   say('Walk to a highlighted building entrance or checkpoint to interact.');
  }
  $('interact').addEventListener('click',interact);
+ function fire(){if(room){say('Exit indoors to test combat.');return;}
+  const r=simulation.fire();
+  say(r.status==='hit'?(r.defeated?'Enemy defeated.':'Target hit.')+' Preview only.':r.status==='miss'?'Shot missed.':
+   r.status==='cooldown'?'Weapon cooling down.':r.status==='empty'?'Preview ammo empty; reload (R).':'Cannot fire: '+r.status);}
+ function defend(){if(room){say('Exit the building to start a defense.');return;}say(simulation.startDefense().message);}
+ function claim(){if(room){say('Exit the building to claim a checkpoint.');return;}say(simulation.checkpoint().message);}
+ $('fire').addEventListener('click',fire);
+ $('reload').addEventListener('click',()=>say(simulation.reload()));
+ $('defend').addEventListener('click',defend);
+ $('claim-checkpoint').addEventListener('click',claim);
  function step(dt){
-  const {x,y}=vec();if(x||y)player.aim={x,y};
-  const speed=240,dx=x*speed*dt,dy=y*speed*dt,px=room?room.x:player.x,py=room?room.y:player.y;
-  if(room){if(!I.roomBlocked(px+dx,py,room.theme))room.x+=dx;if(!I.roomBlocked(room.x,py+dy,room.theme))room.y+=dy;}
-  else {
-   if(!W.blocked(px+dx,py,player))player.x+=dx;
-   if(!W.blocked(player.x,py+dy,player))player.y+=dy;
+  const {x,y}=vec();
+  if(room){simulation.setInput(0,0);const dx=x*220*dt,dy=y*220*dt,px=room.x,py=room.y;
+   if(x||y)player.aim={x,y};
+   if(!I.roomBlocked(px+dx,py,room.theme))room.x+=dx;
+   if(!I.roomBlocked(room.x,py+dy,room.theme))room.y+=dy;
+  }else{
+   simulation.setInput(x,y);simulation.tick(dt);
    if(waypoint&&Math.hypot(player.x-waypoint.x,player.y-waypoint.y)<70){say('Destination reached: '+waypoint.name+'. Press E near a doorway to enter.');waypoint=travel=null;}
   }
  }
- function rect(c,b,fill,stroke){c.fillStyle=fill;c.fillRect(b.x,b.y,b.w,b.h);if(stroke){c.strokeStyle=stroke;c.lineWidth=3;c.strokeRect(b.x,b.y,b.w,b.h);}}
+  function rect(c,b,fill,stroke){c.fillStyle=fill;c.fillRect(b.x,b.y,b.w,b.h);if(stroke){c.strokeStyle=stroke;c.lineWidth=3;c.strokeRect(b.x,b.y,b.w,b.h);}}
  function label(c,s,x,y,color='#d8ebed',size=17){c.fillStyle=color;c.font='600 '+size+'px system-ui';c.textAlign='center';c.fillText(s,x,y);}
  function avatar(c,x,y,role,id,color,moving,time){
   V.person(c,{id,x,y,scale:role==='player'?.85:.72,role,armed:true,moving,aim:role==='player'?player.aim:{x:0,y:1},color,ticker:role==='player'?'OFFENDED':undefined,coinName:'OFFENSIVE',image:role==='player'?image:null},time);
@@ -87,8 +100,14 @@
   for(const tile of player.plot)rect(c,{x:plot.x+tile.col*64,y:plot.y+tile.row*64,w:60,h:60},'#899da2','#dae1c6');
   for(const b of W.buildings)rect(c,b,b.protected?'#8d7953':'#516779','#b5d2ca');
   for(const d of pois.doors){const visible=Math.hypot(d.x-player.x,d.y-player.y)<1050;if(visible){c.beginPath();c.arc(d.x,d.y,12,0,Math.PI*2);c.fillStyle='#a3eed1';c.fill();if(Math.hypot(d.x-player.x,d.y-player.y)<260)label(c,d.name,d.x,d.y+41,'#d5f3e5',18);}}
-  for(const n of C.NEIGHBORHOODS){const p=pois.resolve('neighborhood:'+n.id);if(!p)continue;const offset=20*Math.sin(time/1000+n.id.length);if(Math.hypot(p.x-player.x,p.y-player.y)<1000){avatar(c,p.x+offset,p.y,'gang','npc-'+n.id,n.color,true,time);label(c,n.clan,p.x,p.y+31,n.color,19);}}
-  if(travel?.length>1){c.save();c.beginPath();travel.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.setLineDash([16,9]);c.strokeStyle='#7df5ff';c.lineWidth=6;c.stroke();c.restore();}
+  for(const bot of simulation.agents){if(!bot.alive||Math.hypot(bot.x-player.x,bot.y-player.y)>1100)continue;
+   const role=bot.kind==='defender'?'guard':bot.kind==='police'?'police':'gang',shade=bot.kind==='defender'?'#80e8a7':bot.kind==='police'?'#79a9f4':'#f0848e';
+   avatar(c,bot.x,bot.y,role,bot.id,shade,true,time);
+   c.fillStyle='#182831';c.fillRect(bot.x-28,bot.y+16,56,6);
+   c.fillStyle=shade;c.fillRect(bot.x-28,bot.y+16,56*Math.max(0,bot.hp/bot.maxHp),6);
+   label(c,bot.kind==='police'?'INSIDER POLICE':bot.raid?'RAIDER':bot.kind==='defender'?'FORT DEFENDER':'GANG',bot.x,bot.y+42,shade,13);
+  }
+    if(travel?.length>1){c.save();c.beginPath();travel.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.setLineDash([16,9]);c.strokeStyle='#7df5ff';c.lineWidth=6;c.stroke();c.restore();}
   if(waypoint){c.strokeStyle='#a4f3e4';c.lineWidth=5;c.beginPath();c.arc(waypoint.x,waypoint.y,26,0,Math.PI*2);c.stroke();}
   for(const p of pois.checkpoints){c.beginPath();c.arc(p.x,p.y,15,0,Math.PI*2);c.strokeStyle=seen.has(p.id)?'#668b81':'#ffcf86';c.lineWidth=3;c.stroke();}
   avatar(c,player.x,player.y,'player',player.id,'#b4e88b',!!(vec().x||vec().y),time);
@@ -122,6 +141,11 @@
   ctx.restore();
   const p=Object.values(T.draft.areas).find(a=>player.x>=a.x&&player.x<a.x+a.w&&player.y>=a.y&&player.y<a.y+a.h);
   $('location').textContent=room?room.name+' / TEST INTERIOR':(p?.id||'Connecting roads').toUpperCase()+' · '+Math.round(player.x)+' / '+Math.round(player.y);
+  $('combat-hud').textContent='HP '+Math.ceil(player.hp)+'/100 · Ammo '+player.ammo+'/24 · Heat '+Math.ceil(player.heat)+
+   ' · XP '+player.xp+' · Credits '+player.credits+' · Defense '+simulation.mission.status+
+   (simulation.mission.status==='active'?' ('+simulation.mission.remaining+' raiders)':'');
+  const recent=simulation.events.at(-1);
+  if(recent&&recent!==lastSimEvent){lastSimEvent=recent;say(recent);}
   if(!room&&Math.round(now)%400<18)overview();
   requestAnimationFrame(draw);
  }
