@@ -52,3 +52,29 @@ test('private world2 QA rooms isolate separate browser transports',async()=>{
   await Promise.all([a.leave(),b.leave(),third.leave()]);
  }finally{await host.close();}
 });
+
+test('real HTTP fortress commands charge once, verify range and never expose another guest private plot',async()=>{
+ const host=createLocalWorld2Server();
+ try{
+  const addr=await host.listen(0),a=transport(addr.port),b=transport(addr.port);
+  await a.join({name:'Builder',avatar:'offensive'});
+  await b.join({name:'Observer',avatar:'offensive'});
+  await assert.rejects(a.action('buildPlot',{col:4,row:3,kind:'wall',credits:999999}),/245/);
+  const player=[...host.rooms.first.engine.players.values()].find(p=>p.name==='Builder');
+  player.x=4536+4*64+32+90;player.y=4600+3*64+32;host.rooms.first.revision++;
+  await a.action('buildPlot',{col:4,row:3,kind:'banner',credits:999999});
+  const built=await a.state();
+  assert.equal(built.self.credits,174);
+  assert.equal(built.self.plot.length,1);
+  assert.deepEqual(built.self.plot[0],{col:4,row:3,kind:'banner',rotation:0});
+  const peer=await b.state();
+  assert.equal(peer.self.plot.length,0);
+  assert.equal(peer.players.find(p=>p.name==='Builder').plot,undefined);
+  await assert.rejects(a.action('buildPlot',{col:4,row:3,kind:'banner'}),/occupied/);
+  await a.action('removePlot',{col:4,row:3,credits:999999});
+  assert.equal((await a.state()).self.credits,177);
+  await assert.rejects(a.action('removePlot',{col:4,row:3}),/No structure/);
+  assert.equal((await b.state()).self.credits,180);
+  await Promise.all([a.leave(),b.leave()]);
+ }finally{await host.close();}
+});
