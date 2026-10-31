@@ -94,3 +94,8 @@ assert.ok(read('server/city-world2-prototype.mjs').includes("'city-world2-journe
 assert.ok(online.includes('id="claim-journey"')&&online.includes('id="mark-journey"'),'QA client must expose city journey controls');
 assert.ok(!read('.github/workflows/pages.yml').includes('city-world2-journey.js'),'Local-only server journey cannot deploy publicly yet');
 console.log('PASS: server-authoritative orientation journey and isolated QA controls.');
+
+assert.ok(read('city-world2-production.html').includes('city-world2-public-config.js'),'Public v2 candidate requires explicit HTTPS API opt-in');
+assert.ok(!read('.github/workflows/pages.yml').includes('city-world2-production.html'),'Public v2 candidate cannot deploy before backend acceptance');
+assert.ok(read('server/city-world2-production.mjs').includes('WORLD2_DURABLE_VOLUME_CONFIRMED'),'Public v2 must require explicit durable storage approval');
+console.log('PASS: world2 public candidate isolated from production until explicit promotion.');

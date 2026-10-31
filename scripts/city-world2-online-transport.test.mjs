@@ -8,9 +8,9 @@ const token='f'.repeat(64);
 const snapshot=(revision=1)=>({worldVersion:2,revision,self:{id:'alice',x:1,credits:180},players:[],guards:[],territory:[]});
 const fake=(status,data)=>({ok:status>=200&&status<300,status,json:async()=>data});
 test('local authoritative transport rejects every non-loopback API',()=>{
- assert.throws(()=>API(async()=>fake(200,{}),'https://bad.example/api/world2'),/loopback/);
- assert.throws(()=>API(async()=>fake(200,{}),'http://192.168.1.2:8788/api/world2'),/loopback/);
- assert.throws(()=>API(async()=>fake(200,{}),'http://127.0.0.1:8788/api/world2/evil'),/loopback/);
+ assert.throws(()=>API(async()=>fake(200,{}),'https://bad.example/api/world2'),/approved/);
+ assert.throws(()=>API(async()=>fake(200,{}),'http://192.168.1.2:8788/api/world2'),/approved/);
+ assert.throws(()=>API(async()=>fake(200,{}),'http://127.0.0.1:8788/api/world2/evil'),/approved/);
 });
 test('temporary bearer token stays in header, not URL or storage, and leaves cleanly',async()=>{
  const calls=[];const t=API(async(url,options)=>{calls.push({url,...options});if(url.endsWith('/join'))return fake(201,{session:token,state:snapshot()});
