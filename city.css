@@ -52,3 +52,45 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 .wallet-open-options{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 18px}
 .wallet-open-options .panel-button{display:inline-flex;align-items:center;text-align:center;justify-content:center;min-height:43px}
 #offender-wallet-verify:disabled{opacity:.65;cursor:progress}
+
+
+/* Six lightweight token-art-based skins; previews reuse existing coin artwork. */
+.clan-skin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0 16px}
+.clan-skin-tile{display:flex;flex-direction:column;gap:7px;padding:9px;background:#1d2934;border:1px solid #54617b;border-radius:8px;min-width:0}
+.clan-skin-tile:has(button[aria-pressed=true]){border-color:#bdff56;box-shadow:inset 0 0 0 1px #bdff5655}
+.clan-skin-tile img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:5px}
+.clan-skin-tile strong{font:700 11px/1.3 Arial,sans-serif;min-height:28px;overflow-wrap:anywhere}
+.clan-skin-tile button{width:100%;padding:10px 5px;min-height:40px;font-size:11px}
+@media(max-width:450px){.clan-skin-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Wallet-based visual themes are shared by browser and installed PWA. */
+.wallet-theme-trigger{border:1px solid var(--green,#b7f464);color:var(--green,#b7f464);background:#17211b;font-weight:700;padding:10px 13px;border-radius:5px;font-size:12px;min-height:40px}
+.wallet-theme-dialog{width:min(95vw,560px);max-height:min(90vh,720px);overflow:auto;z-index:999999;background:#192535;color:#edf2e9;border:2px solid var(--green,#b7f464);border-radius:13px;padding:22px;box-shadow:0 30px 90px #000b}
+.wallet-theme-dialog::backdrop{background:#020811b8}
+.wallet-theme-dialog h2{font:900 26px/1.2 Impact,Arial,sans-serif;margin:0 0 12px;color:var(--green,#b7f464)}
+.wallet-theme-dialog p{line-height:1.55;font-size:14px}
+.wallet-theme-dialog input{width:100%;min-height:46px;border:1px solid #718276;padding:10px 12px;border-radius:4px;background:#0b1919;color:#f2f7e8;margin:9px 0 12px;overflow-wrap:anywhere}
+.wallet-theme-actions{display:flex;flex-wrap:wrap;gap:8px}
+.wallet-theme-actions button{border:1px solid var(--green,#b7f464);background:#20312c;color:#e7f4d9;font-weight:700;padding:11px;border-radius:5px;flex:1 1 140px;min-height:43px}
+.wallet-theme-status{min-height:24px;margin:12px 0 0;color:#d3e8c7;overflow-wrap:anywhere}
+:root[data-wallet-theme="redacted"] body.launch-home{background:#161020}
+:root[data-wallet-theme="congress"] body.launch-home{background:#1b160d}
+:root[data-wallet-theme="exit"] body.launch-home{background:#0d201f}
+:root[data-wallet-theme="you-missed"] body.launch-home{background:#23140f}
+:root[data-wallet-theme="maduro"] body.launch-home{background:#201017}
+:root[data-wallet-theme="offensive"] body.launch-home{background:#121510}
+:root[data-wallet-theme="rug"] body.launch-home{background:#1e1120}
+:root[data-wallet-theme]:not([data-wallet-theme="default"]) .launch-home .home-portal{border-color:var(--green,#b7f464)}
+
+.city-header>.wallet-theme-trigger{flex-shrink:0}
+@media(max-width:620px){.city-header>.wallet-theme-trigger{font-size:10px;padding:6px 8px;min-height:34px}}
+
+
+/* Wallet theme + install buttons must not stretch the mobile game viewport. */
+@media(max-width:700px){
+ .city-header{height:auto;min-height:62px;flex-wrap:wrap;justify-content:center;gap:6px;padding:8px 10px}
+ .city-header .city-brand{margin-right:auto}
+ .city-header #pause-toggle{margin-left:0}
+ .city-header .solo-restore-label{display:none}
+ .city-header>[data-install-app],.city-header>.wallet-theme-trigger{min-height:33px;max-width:100%;white-space:normal;overflow-wrap:anywhere;flex-shrink:1;font-size:10px;padding:7px 8px}
+}
