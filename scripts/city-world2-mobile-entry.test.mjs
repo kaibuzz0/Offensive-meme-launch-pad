@@ -19,7 +19,7 @@ test('public gameplay uses a compact viewport and keeps loss-of-progress disclos
  assert.match(page, /@media\(max-width:800px\)/);
  assert.match(page, /#game\{height:min\(67dvh,700px\)/);
  assert.match(page, /<details class="release-note">/);
- assert.match(page,/Progress is temporary/);
+ assert.match(page,/PROGRESS IS TEMPORARY/);
  assert.match(page,/may reset when the server restarts/);
  assert.doesNotMatch(page,/Join the local world2 server/);
  assert.match(client,/Show actual V2 geography behind the start screen/);
