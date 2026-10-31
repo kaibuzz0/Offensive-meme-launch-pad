@@ -43,6 +43,8 @@
     const len=Math.hypot(aimX,aimY);if(len>0.05)p.aim={x:aimX/len,y:aimY/len};
     p.fireHeld=fire===true;
    }
+   hasEquipped(p,id){const item=C.ITEMS.find(x=>x.id===id);if(!item)return false;
+    const uid=p.equipped?.[item.slot];return !!uid&&p.inventory.some(x=>x.uid===uid&&x.item===id);}
    shoot(p){
     if(p.room||p.hp<=0||!p.fireHeld||p.fireCooldown>0||p.ammo<=0)return;
     p.ammo--;p.fireCooldown=C.WEAPON.shotInterval;
@@ -51,14 +53,14 @@
      return {a,len,dot};
     }).filter(x=>x.dot>=.93&&nav.clear(p,x.a)).sort((a,b)=>a.len-b.len);
     const target=victims[0]?.a;if(!target)return;
-    target.hp=Math.max(0,target.hp-35);
+    target.hp=Math.max(0,target.hp-(this.hasEquipped(p,'blaster')?36:35));
     if(!target.hp){target.alive=false;target.respawn=35;p.kills++;}
    }
    tick(step){
     const dt=Math.min(.1,Math.max(0,Number.isFinite(step)?step:0));this.time+=dt;
     for(const p of this.players.values()){
      p.fireCooldown=Math.max(0,p.fireCooldown-dt);
-     const dx=p.input.x*205*dt,dy=p.input.y*205*dt;
+     const speed=205+(this.hasEquipped(p,'boots')?25:0),dx=p.input.x*speed*dt,dy=p.input.y*speed*dt;
      if(p.room){
       const r=p.room;if(!I.roomBlocked(r.x+dx,r.y,r.theme))r.x+=dx;
       if(!I.roomBlocked(r.x,r.y+dy,r.theme))r.y+=dy;
