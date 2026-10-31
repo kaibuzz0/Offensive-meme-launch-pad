@@ -33,3 +33,31 @@ test('solid avatar surfaces are depth sorted and the rifle crosses behind the bo
 
 test('armed clothing has visible meme surfaces at every yaw and keeps pants patterns',()=>{const {rigSurfaces}=context.window.CityVisuals;for(let deg=0;deg<360;deg+=10){const faces=rigSurfaces({style:{print:1},clanRank:3,holderTier:2},deg*Math.PI/180);const prints=faces.filter(f=>f.print==='meme');assert.equal(prints.length,4);assert.ok(prints.some(f=>{const [a,b,,d]=f.points;return Math.abs((b.x-a.x)*(d.y-a.y)-(b.y-a.y)*(d.x-a.x))>150;}));assert.equal(faces.filter(f=>f.print==='pattern').length,2);assert.ok(faces.some(f=>f.color==='#f0d17c'));}});
 test('shared muzzle maps ground-plane shots to visual height in every direction',()=>{const C=context.window.MemeCityCore;for(let d=0;d<360;d++){const a=d*Math.PI/180;for(const recoil of [0,.5,1]){const ground=C.weaponAnchor(a,recoil),pose=weaponPose(a,recoil);assert.ok(Math.abs(ground.x-pose.muzzle.x)<1e-9);assert.ok(Math.abs(ground.y-ground.height-pose.muzzle.y)<1e-9);}}});
+
+test('NPC animations preserve moving aim and release stale pursuit targets',()=>{
+ const {npcPose,npcScale,motion}=context.window.CityVisuals;
+ assert.equal(npcScale(),.9);
+ assert.equal(npcScale(true),1.15);
+ const shooting=npcPose({state:'attack',x:40,y:55,aim:{x:90,y:30}});
+ assert.deepEqual(shooting.aim,{x:50,y:-25});
+ assert.equal(shooting.moving,true,'firing does not forcibly disable the walking pose');
+ assert.equal(npcPose({state:'skirmish',x:10,y:20,aim:{x:40,y:60}}).moving,true);
+ assert.equal(npcPose({state:'chase',x:10,y:20,aim:{x:200,y:200}}).aim,undefined,'chasing faces travel, not the last shot');
+ for(const state of ['ready','dormant','withdraw'])assert.equal(npcPose({state,x:0,y:0}).moving,false);
+ const first=motion('test-moving-armed',0,0,1000,true);
+ const moved=motion('test-moving-armed',12,0,1100,shooting.moving);
+ assert.ok(moved.amount>first.amount,'actual travel animates legs during armed attacks');
+});
+
+test('NPCs and players share continuous depth-sorted weapon geometry with different uniforms',()=>{
+ const {rigSurfaces}=context.window.CityVisuals;
+ for(const role of ['player','cop','gang','guard'])for(let d=0;d<360;d+=15){
+  const angle=d*Math.PI/180,full=rigSurfaces({role,style:{},stridePose:5,travel:{x:.6,y:.8},recoil:.5},angle);
+  const small=rigSurfaces({role,style:{},simplified:true,stridePose:5,travel:{x:.6,y:.8},recoil:.5},angle);
+  assert.ok(small.length<full.length,'small NPC rig uses fewer polygons');
+  assert.ok(small.every((face,i)=>face.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)&&Number.isFinite(p.depth))&&(i===0||face.depth>=small[i-1].depth)));
+  assert.equal(small.filter(f=>f.print==='meme').length,role==='player'?4:0);
+  assert.equal(small.filter(f=>f.print==='insignia').length,role==='player'?0:4);
+  assert.ok(small.some(f=>f.color==='#829aa4'),'all roles keep the same rifle');
+ }
+});
