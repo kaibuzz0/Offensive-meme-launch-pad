@@ -1,34 +1,15 @@
-# Desired paid single-instance Render configuration for a durable world-v2 backend.
-# Blueprint changes require explicit Render Dashboard application/sync; editing
-# this file alone does not attach a disk to the existing free web service.
-# V1 continues by default until the operator verifies the disk and flips
-# WORLD2_PRODUCTION_BACKEND to "yes". Never set the public release flag early.
+# Optional room host. One instance: all room state is in memory.
 services:
   - type: web
     name: offensive-meme-city-rooms
     runtime: node
-    plan: starter
-    region: ohio
-    disk:
-      name: world2-player-profiles
-      mountPath: /var/data
-      sizeGB: 1
+    plan: free
     buildCommand: node scripts/check.mjs && npm test
-    startCommand: node server/city-world2-guarded-entry.mjs
+    startCommand: node server/city-server.mjs
     healthCheckPath: /api/city/health
     autoDeploy: false
     envVars:
       - key: NODE_VERSION
-        value: "22"
+        value: 22
       - key: CITY_ALLOWED_ORIGINS
         value: https://kaibuzz0.github.io
-      - key: WORLD2_PROD_ORIGIN
-        value: https://kaibuzz0.github.io
-      - key: WORLD2_PROD_SAVE_DIR
-        value: /var/data/world2
-      - key: WORLD2_DURABLE_VOLUME_CONFIRMED
-        value: "no"
-      - key: WORLD2_PRODUCTION_BACKEND
-        value: "no"
-      - key: WORLD2_PUBLIC_RELEASE_APPROVED
-        value: "no"

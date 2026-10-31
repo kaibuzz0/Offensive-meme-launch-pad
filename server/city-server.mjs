@@ -11,7 +11,7 @@ const {Engine}=scope.MemeCityCore;
 const tokenScope={window:{}};for(const f of ['tokens.js','launchpad-config.js'])vm.runInNewContext(await fs.readFile(path.join(root,f),'utf8'),tokenScope);
 const mints=Object.fromEntries([tokenScope.window.LAUNCHPAD_CONFIG.platformToken,...tokenScope.window.MEME_TOKENS.filter(t=>t.mint)].map(t=>[t.id,t.mint]));
 const contentTypes={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mp4':'video/mp4','.jpg':'image/jpeg','.webp':'image/webp','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
-const files=new Set(['index.html','beta.html','creators.html','city.html','city-roadmap.html','city-world2-online.html','city-world2-online.js','city-world2-online-transport.js','city-world2-production.html','city-world2-public-config.js','city-v2-release-gate.js','city-world2-preview.html','city-world2-preview.js','city-world2-services.js','city-world2-simulation.js','city-world2-territory.js','city-world2-contracts.js','city-world2-session.js','city-topology.js','city-nav.js','city-map.js','city-save.js','city-migration.js','city-world2.js','city-world2-registry.js','city.css','city.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js','styles.css','app.js','tokens.js','launchpad-config.js','trade-core.js','trade.js','share-core.js','social.js','pwa.js','sw.js','manifest.webmanifest','offline.html','launchpad.js','launchpad.css']);
+const files=new Set(['index.html','beta.html','creators.html','city.html','city-roadmap.html','city-world2-preview.html','city-world2-preview.js','city-world2-simulation.js','city-topology.js','city-nav.js','city-map.js','city-save.js','city-migration.js','city-world2.js','city-world2-registry.js','city.css','city.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js','styles.css','app.js','tokens.js','launchpad-config.js','trade-core.js','trade.js','share-core.js','social.js','pwa.js','sw.js','manifest.webmanifest','offline.html','launchpad.js','launchpad.css']);
 export function createCityServer({origins=[],now=()=>Date.now()}={}){
  const holdings=holdingsService({mints,now});
  const service=createRooms(Engine,{now}),engine=service.first.engine,sessions=service.sessions,streams=new Map();
@@ -80,10 +80,5 @@ export function createCityServer({origins=[],now=()=>Date.now()}={}){
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const portFlag=process.argv.indexOf('--port');
  const port=Number(process.env.PORT||(portFlag>=0?process.argv[portFlag+1]:8787)),origins=String(process.env.CITY_ALLOWED_ORIGINS||'https://kaibuzz0.github.io').split(',').filter(Boolean);
- // Serve only the new world-v2 game at the public entry point. The old API is
- // retained for compatibility; browser-local world-v1 saves are untouched.
- // This free-tier room host has NO durable player storage. A restart resets guests.
- const {createWorld2EphemeralPublicServer}=await import('./city-world2-ephemeral-public.mjs');
- const {server}=createWorld2EphemeralPublicServer({origins,createLegacy:createCityServer});
- server.listen(port,'0.0.0.0',()=>console.log(`Meme City world-v2 TEMPORARY public rooms listening on port ${port}; no persistent player storage.`));
+ const {server}=createCityServer({origins});server.listen(port,'0.0.0.0',()=>console.log(`Meme City room server listening on port ${port}. Open /city.html. Temporary play-credit accounts only.`));
 }
