@@ -75,10 +75,29 @@
     if(raid.status!=='active')return;
     raid.status='failed';raid.remaining=0;raid.cooldown=15;raiders.length=0;
    }
+   // Server-side bounded waypoint pursuit. Cache failed or successful A* plans briefly
+   // so the 20-Hz room tick cannot run an unbounded path search every frame.
+   const routes=new WeakMap();
    function move(u,target,speed,dt,p){
-    if(distance(u,target)<18)return;
-    if(!nav.clear(u,target,p))return;
-    const d=Math.max(1,distance(u,target)),sx=(target.x-u.x)*speed*dt/d,sy=(target.y-u.y)*speed*dt/d;
+    if(distance(u,target)<18){routes.delete(u);return;}
+    let waypoint=target;
+    if(!nav.clear(u,target,p)){
+     let route=routes.get(u);
+     if(!route||route.ttl<=0||distance(route.target,target)>90||route.index>=route.points.length){
+      const result=nav.plan(u,target,p);
+      route={target:{x:target.x,y:target.y},
+       points:result.status==='ok'?result.points.slice(1):[],index:0,ttl:1.5};
+      routes.set(u,route);
+     }
+     route.ttl-=dt;
+     if(!route.points.length)return;
+     while(route.index<route.points.length-1&&distance(u,route.points[route.index])<25)route.index++;
+     waypoint=route.points[route.index];
+     if(!nav.clear(u,waypoint,p)){route.ttl=0;return;}
+    }else routes.delete(u);
+    const dist=distance(u,waypoint);
+    if(dist<.01)return;
+    const travel=Math.min(dist,speed*dt),sx=(waypoint.x-u.x)*travel/dist,sy=(waypoint.y-u.y)*travel/dist;
     if(safe(u.x+sx,u.y,p))u.x+=sx;
     if(safe(u.x,u.y+sy,p))u.y+=sy;
    }
