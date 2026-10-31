@@ -14,7 +14,14 @@ export function createWorld2EphemeralPublicServer({origins=[ORIGIN]}={}){
   origins,saveDir:null,bindHost:'127.0.0.1',productionMode:false,releaseReady:false
  });
  const server=http.createServer({requestTimeout:15000,headersTimeout:10000,maxHeaderSize:8192},(req,res)=>{
-  if(String(req.url||'').split('?')[0].startsWith('/api/world2/'))v2.server.emit('request',req,res);
+  const target=String(req.url||'').split('?')[0];
+  // Visiting the Render hostname cannot bypass the v2-only game entrance.
+  // The GitHub Pages frontend is the only authorized public game origin.
+  if((req.method==='GET'||req.method==='HEAD')&&target==='/city.html'){
+   res.writeHead(302,{'Location':'https://kaibuzz0.github.io/Offensive-meme-launch-pad/city.html',
+    'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end();return;
+  }
+  if(target.startsWith('/api/world2/'))v2.server.emit('request',req,res);
   else legacy.server.emit('request',req,res);
  });
  let running=false;
