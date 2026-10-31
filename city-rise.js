@@ -31,7 +31,13 @@
   {id:'doc',name:'PATCH / STREET MEDIC',x:2670,y:1040,panel:'supplies',color:'#9be3d1',line:'Stay alive long enough to build something worth defending.'},
   {id:'marshal',name:'MARSHAL / THE ARENA',x:1120,y:2590,panel:'survival',color:'#ffb19a',line:'Three waves. One crew. Leave your ego at the gate.'},
   {id:'keeper',name:'KEEPER / FORTRESS HQ',x:1645,y:1140,panel:'fortress',color:'#c2d99c',line:'Walls make a plot. You and your squad make it home.'}
- ].map(p=>shift(p,p.id==='marshal'?'arena':p.id==='keeper'?'fortress':'hub'));
+ ].map(p=>{
+  if(p.id==='wrench'||p.id==='doc'){
+   const id=p.id==='doc'?'shop':'garage',station=C.WORLD.stations.find(s=>s.id===id);
+   return {...p,x:station.x+65,y:station.y-25};
+  }
+  return shift(p,p.id==='marshal'?'arena':p.id==='keeper'?'fortress':'hub');
+ });
  const UPGRADE_COSTS=[120,220,350];
  const fresh=()=>({found:[],claimed:0,fortLevel:0,medkits:2,arenaWins:0,bestWave:0,riding:false,speed:0,arena:null,arenaCooldown:0,arenaResult:null});
  const int=(v,max=999999)=>Number.isSafeInteger(v)?Math.max(0,Math.min(max,v)):0;
