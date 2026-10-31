@@ -60,7 +60,7 @@ test('saved world2 guest restores mission, credits, gear, fortress, squad after 
    assert.equal((await first.call('/action',{token,body:{type:'exitBuilding'}})).status,200);
    const firstStop=R.resolve('checkpoint:0');p.x=firstStop.x;p.y=firstStop.y;
    assert.equal((await first.call('/action',{token,body:{type:'claimJourney',xp:999999}})).status,200);
-   p.x=4536+8*64;p.y=4600+5*64;
+   p.x=4536+3*64+32+90;p.y=4600+3*64+32;
    assert.equal((await first.call('/action',{token,body:{type:'buildPlot',col:3,row:3,kind:'banner'}})).status,200);
    assert.equal((await first.call('/action',{token,body:{type:'hireDefender',role:'sentry'}})).status,200);
    const saved=await first.call('/profile/save',{token,body:{}});
