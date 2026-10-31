@@ -26,7 +26,7 @@ small{color:#9baeb4;line-height:1.45}#journal{font-size:.8rem;color:#a7e6ce}#nav
 <script src="city-migration.js" defer></script><script src="city-world2-territory.js" defer></script><script src="city-world2-contracts.js" defer></script><script src="city-world2-simulation.js" defer></script><script src="city-world2-session.js" defer></script><script src="city-visuals.js" defer></script>
 <script src="city-world2-preview.js" defer></script></head>
 <body><header><div><div class="tag">OFFENSIVE / DEVELOPMENT ONLY</div><h1>Meme City — Center-Out World v2</h1></div><a href="city.html">Return to existing game</a></header>
-<div class="warning"><b>Isolated geometry playtest with local combat — not the full game.</b> Walk, test gates, navigate 47 entrances, inspect rooms and place temporary fortress walls. Local-only combat, autonomous gang AI, Insider-police pursuit, defender combat, clan territory captures, defense waves and checkpoint rewards are experimental. Online authority, real markets and permanent v2 saving remain disabled. The existing game and its save stay untouched.</div>
+<div class="warning"><b>Isolated geometry playtest with local combat — not the full game.</b> Walk, test gates, navigate 47 entrances, inspect rooms and place temporary fortress walls. Local-only combat, autonomous gang AI, Insider-police pursuit, defender combat, clan territory captures, defense waves and checkpoint rewards are experimental. Online authority, player-to-player markets and production v2 saves remain disabled. Preview-only gear and medkit counters use earned game credits, not cryptocurrency. The existing game and its save stay untouched.</div>
 <main><section aria-label="Interactive prototype city canvas"><canvas id="world" tabindex="0" aria-label="Explore prototype city with WASD or touch direction controls">Canvas required.</canvas>
 <small>WASD / arrows to walk. E to enter or exit a doorway. Space/F to fire, R to reload, G to start a defense and C to claim a checkpoint. Touch direction controls below. The blue path indicates a walkable route, not automatic movement.</small></section>
 <aside><div id="location">Center fortress / initializing</div><div id="status" role="status" aria-live="polite">Loading preview geometry...</div><div id="combat-hud" role="status" aria-live="polite">Preview combat initializing...</div>
@@ -39,6 +39,12 @@ small{color:#9baeb4;line-height:1.45}#journal{font-size:.8rem;color:#a7e6ce}#nav
 <h2>Courier delivery — offline mission</h2>
 <div class="actions"><button id="start-courier">Start at Launch House</button><button id="deliver-courier">Deliver parcel</button></div>
 <small>Begin near the Launch House door or its interior desk. Reach the creator-district marker before the timer expires. A successful delivery grants only temporary preview XP and play credits.</small>
+<h2>Indoor services — preview credits only</h2>
+<small>Walk into Bad Taste Supply or Night Market, then approach the room's rear activity terminal. Gear and medkit purchases debit only local preview credits. Salvage gives half the original item price. No wallet connection or real transaction is used.</small>
+<label for="shop-item">Shop equipment</label><select id="shop-item" aria-label="Select equipment"></select>
+<div class="actions"><button id="buy-gear">Buy gear</button><button id="buy-medkit">Buy medkit (25 credits)</button></div>
+<label for="owned-gear">Owned gear</label><select id="owned-gear" aria-label="Select owned equipment"></select>
+<div class="actions"><button id="equip-gear">Equip at shop</button><button id="sell-gear">Salvage at market</button><button id="use-medkit">Use medkit (H)</button></div>
 <h2>Clan territory — offline playtest</h2>
 <label for="faction-select">Choose your preview faction</label><select id="faction-select"></select>
 <div class="actions"><button id="join-faction">Join faction</button></div>
