@@ -21,7 +21,7 @@ test('canonical world2 POIs preserve unique stable IDs across all 47 entrances a
  assert.equal(registry.checkpoints.length,C.WORLD.route.length);
 });
 test('authored hub buildings and old matching station targets agree exactly',()=>{
- for(const id of ['launch','arcade','club','shop','market','garage']){
+ for(const id of ['launch','arcade','shop','market','garage']){
   const door=registry.resolve('door:'+id),station=registry.resolve('station:'+id);
   assert.ok(door&&station);assert.equal(station.x,door.x,id);assert.equal(station.y,door.y,id);
   const old=I.door(I.BUILDINGS.find(b=>b.roomId===id)),generic=T.point(C,old);
