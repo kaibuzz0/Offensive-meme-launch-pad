@@ -84,6 +84,6 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
  // retained for compatibility; browser-local world-v1 saves are untouched.
  // This free-tier room host has NO durable player storage. A restart resets guests.
  const {createWorld2EphemeralPublicServer}=await import('./city-world2-ephemeral-public.mjs');
- const {server}=createWorld2EphemeralPublicServer({origins});
+ const {server}=createWorld2EphemeralPublicServer({origins,createLegacy:createCityServer});
  server.listen(port,'0.0.0.0',()=>console.log(`Meme City world-v2 TEMPORARY public rooms listening on port ${port}; no persistent player storage.`));
 }
