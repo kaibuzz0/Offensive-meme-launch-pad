@@ -84,9 +84,11 @@ try{
  await first.evaluate("document.dispatchEvent(new KeyboardEvent('keyup',{key:'d',bubbles:true}));true");
  await waitFor(async()=>numberAfter(await first.evaluate("document.getElementById('hud').textContent"),'pos').x>start.x+5,
   'server-driven movement in first browser');
- const moved=numberAfter(await first.evaluate("document.getElementById('hud').textContent"),'pos');
- await waitFor(async()=>String(await second.evaluate("document.getElementById('peer-summary').textContent")).includes('Alice ('+moved.x+','),
-  'other browser sees authoritative movement');
+ await waitFor(async()=>{
+  const text=String(await second.evaluate("document.getElementById('peer-summary').textContent"));
+  const match=text.match(/Alice \\(([0-9]+),([0-9]+)\\)/);
+  return !!match&&Number(match[1])>start.x+5;
+ },'other browser sees authoritative movement');
  await first.evaluate("document.getElementById('gear').value='jacket';document.getElementById('buy').click();true");
  await waitFor(()=>first.evaluate("document.getElementById('status').textContent.includes('Server refused buyGear')"),
   'server rejects remote shop purchase');
