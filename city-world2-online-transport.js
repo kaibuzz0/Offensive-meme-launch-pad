@@ -4,8 +4,14 @@
 'use strict';
 (function(root){
  const allowed=new Set(['http://127.0.0.1:8788/api/world2','http://localhost:8788/api/world2']);
- function create({base='http://127.0.0.1:8788/api/world2',request=root.fetch?.bind(root)}={}){
-  if(!allowed.has(base)||typeof request!=='function')throw Error('World2 QA requires a loopback API and fetch.');
+ const officialOrigin='https://kaibuzz0.github.io';
+ const officialAPI='https://offensive-meme-city-rooms.onrender.com/api/world2';
+ function productionAllowed(){
+  return root.MEME_CITY_WORLD2_PUBLIC===true&&root.location?.origin===officialOrigin&&root.location?.protocol==='https:';
+ }
+ function create({base=productionAllowed()?officialAPI:'http://127.0.0.1:8788/api/world2',request=root.fetch?.bind(root)}={}){
+  if(!(allowed.has(base)||(productionAllowed()&&base===officialAPI))||typeof request!=='function')
+   throw Error('World2 requires an approved loopback QA or verified official HTTPS API.');
   let token=null,snapshot=null,seq=0,epoch=0,joining=false;
   function clear(){token=null;snapshot=null;seq=0;epoch++;}
   async function call(path,method='GET',body,secured=true){
@@ -15,7 +21,7 @@
    if(method==='POST')headers['Content-Type']='application/json';
    let response;
    try{response=await request(base+path,{method,headers,cache:'no-store',...(method==='POST'?{body:JSON.stringify(body||{})}:{})});}
-   catch{throw Error('Local world2 QA server unavailable. Start npm run dev:world2.');}
+   catch{throw Error('World2 API unavailable. Check service readiness before continuing.');}
    let data;try{data=await response.json();}catch{throw Error('World2 QA server sent invalid JSON.');}
    if(current!==epoch)throw Error('World2 QA session changed during request.');
    if(!response.ok){if(response.status===401&&secured)clear();throw Error(String(data?.error||'World2 request rejected.').slice(0,180));}
