@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const ctx={};
-for(const f of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-world2-simulation.js'])
+for(const f of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-world2-territory.js','city-world2-contracts.js','city-world2-services.js','city-world2-simulation.js'])
  vm.runInNewContext(fs.readFileSync(new URL('../'+f,import.meta.url),'utf8'),ctx,{filename:f});
 const C=ctx.MemeCityCore,T=ctx.CityTopology,I=ctx.CityInteriors,W=ctx.CityWorld2.create(C,I,T);
 const R=ctx.CityWorld2Registry.create(C,I,ctx.CityRising,T,W),sim=()=>ctx.CityWorld2Simulation.create(C,W,R,ctx.CityNav);
 test('real world2 prototype simulation spawns collision-safe defender, gangs and police',()=>{
  const s=sim();assert.equal(s.agents.filter(a=>a.kind==='defender').length,1);
- assert.equal(s.agents.filter(a=>a.kind==='gang').length,3);
+ assert.equal(s.agents.filter(a=>a.kind==='gang').length,3+C.NEIGHBORHOODS.length);
+ assert.equal(s.agents.filter(a=>a.territory).length,6);
  assert.equal(s.agents.filter(a=>a.kind==='police').length,1);
  for(const a of s.agents)assert.equal(W.blocked(a.x,a.y,s.player),false,a.id);
  assert.equal(T.draft.enabled,false);
@@ -86,4 +87,21 @@ test('staged character profile and hostile input are isolated and bounded',()=>{
  assert.equal(s.player.equipped[C.ITEMS[0].slot],'gear-8');assert.equal(s.player.rising.claimed,2);
  assert.equal(JSON.stringify(staged),raw);s.player.reputation[C.NEIGHBORHOODS[0].id]=9;
  assert.equal(staged.clans.reputation[C.NEIGHBORHOODS[0].id],7);
+});
+
+test('purchased boots and upgraded blaster affect world2 gameplay without affecting the original engine',()=>{
+ const baseline=sim(),boosted=sim(),terminal={id:'door:shop',...I.ROOM.activity};
+ boosted.player.credits=1000; // Isolated test wallet: buy both listed items.
+ for(const pair of [['boots','feet'],['blaster','hand']]){
+  const purchase=boosted.services.buyGear(boosted.player,pair[0],terminal);assert.equal(purchase.status,'bought',pair[0]);
+  assert.equal(boosted.services.equip(boosted.player,purchase.uid,terminal).status,'equipped');
+ }
+ baseline.setInput(1,0);boosted.setInput(1,0);baseline.tick(.1);boosted.tick(.1);
+ assert.ok(boosted.player.x>baseline.player.x+2.4,'equipped boots must add +25 units/second');
+ const enemy1=baseline.agents.find(a=>a.kind==='gang'),enemy2=boosted.agents.find(a=>a.kind==='gang');
+ baseline.player.x=enemy1.x;baseline.player.y=enemy1.y+200;
+ boosted.player.x=enemy2.x;boosted.player.y=enemy2.y+200;
+ assert.equal(baseline.fire({x:0,y:-1}).status,'hit');assert.equal(boosted.fire({x:0,y:-1}).status,'hit');
+ assert.equal(enemy1.hp,25);assert.equal(enemy2.hp,24,'upgraded blaster increases damage from 35 to 36');
+ assert.equal(C.WORLD.spawn.x,3360,'original world geometry is unchanged');
 });

@@ -221,3 +221,119 @@ A full Node 22 PR validation passed at the preview integration commit `b0cf229a`
 2. **Mission/interior scope is narrow.** Only canonical three-stop checkpoint progression and a simple timed-free defense wave are supported in the new preview. Existing courier, escort, district contracts, interior shop/medic/market transactions, arcade, team control points, factions, gang destructibility and missions still require a reviewed world2 implementation. Preview gangs are intentionally small and the Insider police/fortress defender behavior is a basic bounded prototype.
 3. **Real browser QA still required:** load `http://localhost:8787/city-world2-preview.html` via `npm run dev` on the PR branch. Test WASD, arrows and touch simultaneously, all 47 doors, four gates, avatar facing/fire while walking, keyboard focus, interior enter/exit, NPC motion and wall collision, defense-wave completion/respawn, staging and two-tab backup conflicts. Capture screenshots and frame time on mid-range Android. The mock-DOM tests are not actual browser evidence.
 4. **Preserve safe migration:** separate stage/backup/inspect keys never activate world2 or overwrite the active v5/world1 save. Implement an explicit review + reversible activation UI only after complete engine, server and mobile acceptance. Never merge/deploy or run wallet transactions without user approval.
+
+## World-v2 post-release development — October 31, 2026 (draft PR #2)
+
+The previous PR #1 is now merged into deployed `main` (`08e6d169`); **new work happens only in `codex/world2-territory-foundation`**. The live world1 client, legacy user save key and Render server have not changed in this round. No wallet actions were performed.
+
+### Implemented and pushed
+
+- New six-clan territorial state machine with safe world2 neighborhood control markers, distance/health/hostile contest rules, eight-second capture, reset and preview-only one-time progress rewards. Each control now has a faction-identified gang NPC capable of contesting captures. The browser preview shows control markers, route options, capture progress, faction selection, nearby action and clan ownership. All six control points are verified walkable from the central fortress spawn.
+- New small `city-world2-contracts.js` delivery contract: accepting at Launch House, walking the canonical route to Creator District under a 210-second deadline, receiving one reward, aborting or expiring. Guards against distant acceptance, repeated payout and incompatible active fortress-defense duties. Browser preview includes mission buttons, in-room launch terminal, street delivery and HUD countdown.
+- New `city-world2-session.js`: manual save/load of `worldVersion:2/saveVersion:6` under distinct `offensive-meme-city-world2-preview-v1` key only, including character progression, gear, build tiles, outposts, clan reputation and claimed territory ownership. It requires reviewing/loading existing sandbox saves before overwrite, detects stale-tab writes and rejects malformed/future schema or invalid territory ownership. It never writes the original world1 localStorage key. Incomplete raids/couriers do not persist.
+- Updated preview wiring, mock-DOM tests, static validation, local server allowlist and future Pages asset manifest. `city-world2-preview.html` remains a preview—not a server-authoritative game.
+
+### Verified
+
+[GitHub Actions run 41224951450](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41224951450) on code `70f9a6ca`: **189 / 189 tests passed**, static resource validation, diff whitespace and deterministic world1 server benchmark completed successfully. Earlier intermediate CI runs revealed floating-point timer boundary handling and old test fixture omissions; these were fixed before this green run. Automated testing does **not** establish actual Chrome/Android behavior, real render quality, or multi-client authoritative security.
+
+### Still missing before any production v2 release
+
+- Verified browser+mobile loop across four gates, six capture points, 47 interior entrances, courier, fire while moving, equipment and two-tab save conflict.
+- Full integration of the world2 simulation with core and Render online room authority. Territory and contract progression currently exist only in an isolated browser prototype and are not safe as real server-validated rewards.
+- Production-grade clan raid factions and private fortress persistence with staging/rollback and cross-device identity; actual interior medicine/trading/arcade; world2 automatic save migration and server parity. No real-world token/fee integrations in this PR.
+
+
+## World2 indoor service slice — October 31, 2026
+
+Continued on draft PR #2 from `fa1610c0`; production `main`, the existing world1 game, wallets and live Render multiplayer authority remain unchanged.
+
+### Added and pushed
+- `city-world2-services.js`: a **sandbox-only** indoor service API backed by the original `MemeCityCore.ITEMS` item IDs and prices. An actual room's rear activity terminal is required: buy/equip `jacket`, `visor`, `blaster`, `boots` inside `door:shop`; buy a capped medkit (25 play credits, capacity nine); and sell owned gear at `door:market` for half its catalog price. Salvage removes equipped gear and refuses duplicate sales. Purchases have item/credit/serial limits and never use real currency or wallet operations.
+- `city-world2-preview.html/js`: responsive selector/buttons to buy, equip, salvage, purchase/use medkits; explicit indoor guidance and HUD medkit counter. Press H for a medkit. Shop/market actions refuse remote locations. No real-money marketplace, multiplayer escrow, or blockchain interaction.
+- `city-world2-simulation.js`: optional services adapter; equipped boots provide the original listed +25 running speed and equipped blaster does 36 damage vs 35 base in offline combat; the original world1 engine stays unchanged.
+- `scripts/city-world2-services.test.mjs`, additional browser mock and game tests: protected indoor proximity, balance debit, one-time salvage, medkit capacity, upgraded equipment effects, and isolation. `city-world2-session` already stores validated preview inventory/equipped gear and `rising` medical counts; a new save-roundtrip regression verifies the values survive isolated reload and leave the world1 key byte-for-byte unchanged.
+- Added the module to the future Pages asset bundle, local static server allowlist, preview script order and static-file validation.
+
+### Verification and limits
+An initial new test fixture needed enough *preview* credits to purchase both upgraded items; its corrected version passed **195/195 tests** at commit `dddfd5d`, [GitHub Actions run 41225483294](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41225483294). The final added gear/medkit save-reload test has its own follow-up CI run; check the latest branch status before claiming a new count.
+
+**Still not validated:** real Chrome/Android visual, touch and performance QA; authenticated server-authoritative world2 services; two clients observing identical commerce and NPC events; atomic concurrent browser save commits; production world2 rollout. The above is a functional **offline game prototype only**, not onchain or production multiplayer. Keep PR #2 draft and do not deploy to main without explicit owner review.
+
+**Next vertical slice:** add server-compatible action schema and authoritative validation for world2 service commands, then real online integration tests and actual mobile gameplay acceptance. Protect public interior services and refund/inventory invariants. Finish a reversible world2 activation/rollback procedure before replacing world1. No BAREIRON Minecraft-server port or token burning.
+
+## Round 5 — isolated world-v2 authoritative rooms (October 31, 2026)
+
+Following Round 4 at a012ae4b (196/196 passing tests), new development on PR #2 added city-world2-authority.js, server/city-world2-prototype.mjs and server/city-world2-local.mjs. The new server-owned world2 Engine uses canonical collision/buildings/services/territory/courier definitions, shared guest rooms and server-calculated movement, NPC damage and rewards. Peer snapshots redact private inventories/credits; server actions reject forged client coordinates and balances.
+
+The local HTTP endpoint is loopback-only (127.0.0.1:8788), separate from Render and the existing world1 service; browser preview connectivity is not implemented yet. New Node test suites cover actual HTTP join/auth/input/leave, two guests/room isolation, invalid actions/origins, server-validated purchases, courier and faction capture.
+
+**CI:** [206 tests passed, 0 failed](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41226269497) at d508f757. Whitespace, static and world1 server benchmark checks passed. No production merge, Render redeploy, physical browser or Android tests were performed. Next work: opt-in room client, real browser acceptance, authoritative gameplay parity, and production release authorization.
+
+
+## Round 6 — Local authoritative browser multiplayer client, October 31, 2026
+
+Continued from verified world2 server prototype commit `560d68c1` on the **same draft PR #2**, preserving deployed `main` and all live world1 saves. No Render deployment or real-wallet operations.
+
+### Development batches pushed
+- `city-world2-online-transport.js`: strict **loopback-only** server API transport; per-guest session bearer credential held only in memory (never URL/storage), sequenced movement/fire input, server-owned actions and snapshots, timeout/401 fail-closed behavior, duplicate-join rejection, no stale poll rollback.
+- `city-world2-online.html` / `city-world2-online.js`: standalone local-only browser QA page alongside the offline preview, exposing public/private room join/leave, shared real player/guard rendering with 360-degree armed avatar rigs, directional keyboard/touch movement and aim, two-client positional HUD, server-sourced six control points, manual POI targets, interior entry/exit, server-validated gear/medic actions and courier controls. Peer inventory and credentials are not displayed. **It does not synthesize real XP/credits or write local saves.**
+- The production `city.html` remains world1. Local static server allows the new test assets; the GitHub Pages deployment manifest intentionally excludes them.
+- `city-world2-authority.js`: server now checks actual owned/equipped boots and blaster before applying their listed movement/weapon modifiers; no client-provided damage/speed or balances accepted.
+- `scripts/city-world2-online-transport.test.mjs`, `scripts/city-world2-online.test.mjs`, `scripts/city-world2-online-http.test.mjs`, expanded authoritative equipment regression: protected bearer tokens, monotonic snapshots, CORS/forgery refusal, two real HTTP guest sessions, isolated private room, server position synchronization and browser control mock.
+- `scripts/city-world2-browser-smoke.mjs`: new real Chromium DevTools Protocol two-tab test; local backend and static host run on loopback, browser tests authenticated join, movement, room synchronization, denied remote purchase, mobile-sized viewport and no runtime exceptions. Added to CI as `npm run qa:world2:browser`. Earlier intermediate CI exposed a test-only background-tab timing and exact asynchronous snapshot comparison issue. Both harness assertions were refined; **latest branch CI must be checked before treating full real-Chrome acceptance as passed**.
+- `server/WORLD2_LOCAL_QA.md`: exact two-terminal local QA instructions, headless Chrome command, Android adb-reverse procedure, and explicit remaining blockers.
+
+### Release gates still open
+This is a **local-only, server-authoritative multiplayer QA path**, not a production service. Browser-based tests do not equal a real mid-range Android hardware run. Server guest progress is still in-memory, world1-to-world2 irreversible save activation is not enabled, and complete world1 missions/arcade/fortress/companions/moderation remain unported. The offline preview's sandbox credits are a different simulation; **do not route them into temporary shared-room credits**. Never merge to `main`, expose loopback API publicly, trigger wallet operations or deploy Render without explicit owner approval.
+
+Next prioritize real-device QA and server feature-parity, then safe migration with per-player rollback and multi-tab protections. Commit and push focused validated batches on `codex/world2-territory-foundation`, keep PR #2 draft, and preserve all newer commits.
+
+
+### Verified Round 6 final result — October 31, 2026
+
+**Code commit `4aec1c8754855b43e95ac2be5b2678fe40e89c82` passed the complete CI pipeline:** [run 41227746512](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41227746512), **219 tests passed / zero failures**, static checks, regression benchmark and the new **real Chromium two-tab/mobile-viewport smoke test** all successful. Chromium verified joining public world2 rooms in two tabs, that Bob saw Alice's server-owned position change from the original spawn, no unexpected horizontal overflow at 412px emulated phone width, an unauthorized shop purchase rejected by the server, guest-session cleanup and no uncaught browser exceptions. Test harness intermediate failures were due to background tab scheduling and a mis-escaped position regex; corrected before this green result.
+
+This real-browser milestone is **not** proof of Android hardware FPS or reliable mobile touch gestures. No durable shared gameplay backend was deployed, no existing game save was migrated, and no production `main` file was changed by PR #2. Keep developer QA local; the browser QA page is intentionally excluded from Pages production artifacts.
+
+## Round 7 — server-authoritative personal fortress construction (October 31, 2026)
+
+Draft PR #2 advances beyond Round 6's 219-test Chromium multiplayer bridge. Players in a temporary v2 guest room can build/demolish 7 familiar kinds of fortress items in a 16×10 personal plot using game-only credits. The server checks canonical plot locations and distance, bounds, collision/trapped player, C.buildAccess pathing, cost, maximum inventory, overlapping tiles and a one-time half-price demolition refund. Structures do **not** affect peers' collisions or reveal private state. Closing an ephemeral session loses the guest's plot.
+
+The opt-in loopback multiplayer client gained marker/selectors, server-bound actions and owner-only plot rendering. Automated suites include Node engine security cases, actual HTTP requests and an expanded real Chromium two-tab test that rejects remote builds, exercises placement/refund and checks the second guest's plot remains empty. Latest gameplay/QA source: `bb3d2e7b`. Check the final CI outcome before describing browser QA as passed. The public game main, Render service, Solana payments and world1 saves were not changed.
+
+
+## Round 8 — private world2 defenders and fortress raid QA (October 31, 2026)
+
+Development-only draft PR #2 now includes server-authoritative squad hiring, guard/follow orders, and finite raid waves. The `city-world2-defense.js` module creates a **separate temporary defender roster and raid instance for each authenticated guest**. The canonical `MemeCityCore.CREW_TYPES` prices, HP, damage, cooldown, range and speed determine server-owned defender performance. The server validates alive/outdoor/home-range status, at most four defenders, affordability, roster ownership and allowed orders. No browser-supplied damage, coordinates, currency or owner is trusted.
+
+`city-world2-authority.js` owns squad/raid sessions and server rewards. Starting a raid requires at least one defender and home proximity; hostile spawns are bounded and collision checked, raiders can damage players and hired defenders, equipped weapons can shoot them, and surviving defenders retaliate automatically. A cleared wave pays 125 **temporary preview XP** and 95 **temporary preview credits** once, subject to value caps, then waits for a 45-second cooldown. Walking away, going indoors, death, or session departure fails/clears the encounter without a payout. This is a limited combat/defense prototype, **not** permanent land, a player-to-player combat economy, or real-money game rewards.
+
+The local `city-world2-online.html/js` QA client now renders server-sourced private NPCs and raid health, allows authenticated hiring, orders and raid starts, and displays wave/cooldown status. Other guests cannot inspect another player's private squad or raiders. Automated direct-engine, mocked browser, real HTTP guest and headless Chromium two-tab tests were expanded. See `server/WORLD2_LOCAL_QA.md`.
+
+Run `npm test`, `npm run check`, the benchmark, and `npm run qa:world2:browser`. Record the latest green CI commit before calling the round validated; hardware Android input/FPS remains unverified. Keep PR #2 draft, keep `main`/Render/world1 saves unchanged, and never infer token rewards from preview play credits.
+
+Outstanding: NPC waypoint navigation around complex construction, full battle replay/companion commands, defense survivability and server load tests, persistent character state and world1 migration/rollback, moderation and Android device QA.
+
+## Round 9 — four-stage journey, obstacle-aware private NPCs (October 31, 2026)
+
+Following Round 8 (`74d96dab`, 230/230 tests), world2 online now has a canonical four-objective orientation trail. Each guest must approach each destination in order; the server calculates the next target and awards preview XP/credits once, with full position, health and integer-bound validation. Existing courier and squad/raid jobs remain separate and unaffected. Browser controls show the next server objective and offer a visual marker and claim action; client-supplied coordinates/credits never authorize rewards. Cross-guest, HTTP and real Chromium acceptance cases protect the journey boundary.
+
+Private hired defenders and raiders now request bounded waypoint routes when obstacles block direct movement, using the existing canonical `CityNav.plan` module. Failed routes are cached/backed off rather than repeatedly searched at 20 Hz. Deterministic tests verify bypass of a wall and throttling of unreachable-route recomputations. Gameplay source `cb8ef698`, [CI](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41229610070); check final result before declaring all checks green.
+
+The room server, frontend and mission remain **local-only QA**. No production world1 assets, online persistence, Solana token economics, original saves, Render deployment or default website routes changed.
+
+
+## Round 10 — opt-in world2 QA progression vault (October 31, 2026)
+
+**Implementation:** `server/city-world2-vault.mjs` writes HMAC-verified private records with 256-bit recovery secrets, SHA-256 secret-derived profile IDs, private permissions, atomic temp-file renames, previous-revision backups and sequenced updates. The server only enables this behavior when `WORLD2_QA_SAVE_DIR` is explicitly set to an absolute local path; the default world2 guest session remains ephemeral. `.local-world2-qa/` is Git-ignored.
+
+`server/city-world2-local.mjs` provides authenticated `/profile/create` and `/profile/save`, plus optional recovery-key room joining, periodic checkpoints, checkpoints after successful actions, on orderly leave and shutdown, active-profile exclusivity, and unauthorized account refusal. The local-only `city-world2-online.html/js` client now offers explicit key creation, copy, save, and recovery input; no browser storage or URLs contain session or recovery credentials.
+
+`city-world2-authority.js` exports a bounded schema and stages a restore before mutating a player. It validates permitted items/equipped slots, credits/XP, medkit bounds, legal construction, position safety, faction/reputation and restored defender kits. `city-world2-journey.js` restores only an integer completed objective index, blocking duplicate payouts. `city-world2-defense.js` restores a valid private roster and completed raid statistics, but intentionally **never resumes active raids**. Current shared territory capture, other players, current courier timers and live session tokens remain transient.
+
+**Verification:** [CI run 41230578678](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41230578678) passed **246/246 automated tests**, static checks, benchmark and real two-tab Chromium browser acceptance. Tests explicitly verify corrupted-file HMAC rejection, replay-safe revisions, no raw secret in disk files, profile exclusivity, an actual local HTTP server restart restoring earned mission steps, inventory/equipment, fortress structures and defenders, and Chromium guest create-save-leave-rejoin. The first expanded HTTP test used an out-of-range fortress fixture and was corrected before green validation.
+
+**Release limitations:** This is local single-process QA persistence, **not** an encrypted production account database or migration from world1. Save files contain readable profile data (HMAC authentication only), do not guarantee durability against arbitrary power failure, and a lost recovery key cannot be replaced. There is no production profile credential lifecycle, multi-process locking, public abuse controls, full arcade/missions parity, Android hardware acceptance, Render deployment or world1 rollback. Maintain `main` and world1 saves unchanged; keep PR #2 draft until explicit owner review.
+
+See `server/WORLD2_LOCAL_QA.md` for opt-in startup and safe recovery instructions.
