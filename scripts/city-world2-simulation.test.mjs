@@ -41,7 +41,7 @@ test('insider police only pursue after player heat escalates, and mission awards
  for(const enemy of defense.agents.filter(a=>a.raid)){enemy.hp=0;enemy.alive=false;defense.mission.remaining--;}
  defense.tick(.05);assert.equal(defense.mission.status,'complete');
  assert.equal(defense.player.credits,initial+70);assert.equal(defense.player.xp,90);
- assert.equal(C.WORLD.spawn.x,3360,'legacy engine world unchanged');
+ assert.equal(C.WORLD.spawn.x,5600,'the current center-city spawn remains unchanged by archived world2 simulation');
 });
 test('world2 checkpoint rewards require canonical location, build checks access, staged state is not mutated',()=>{
  const s=sim(),p=R.resolve('checkpoint:0');
