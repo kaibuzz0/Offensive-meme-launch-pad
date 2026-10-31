@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const ctx={};
-for(const file of ['city-core.js','city-center-save.js','city-interiors.js'])
+for(const file of ['city-core.js','city-center-save.js','city-interiors.js','city-nav.js'])
  vm.runInNewContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),ctx);
 const C=ctx.MemeCityCore,Save=ctx.CityCenterSave,I=ctx.CityInteriors;
 const plain=x=>JSON.parse(JSON.stringify(x));
@@ -126,4 +126,19 @@ test('the scattered equipment shop still sells gear from its indoor counter',()=
  assert.equal(p.inventory.length,1);
  assert.equal(p.inventory[0].item,'jacket');
  assert.equal(p.area,'interior','buying does not teleport the player out of the store');
+});
+
+test('center-city routes reach each public shop and all six clan headquarters without teleporting',()=>{
+ const nav=ctx.CityNav.createRouter(C,{cell:100,budget:15000}),from={...C.WORLD.spawn};
+ const names=['launch','arcade','club','shop','market','garage',
+  ...C.NEIGHBORHOODS.map(n=>n.id+'-0')];
+ for(const name of names){
+  const b=I.BUILDINGS.find(b=>b.roomId===name),door=I.door(b);
+  assert.equal(C.blocked(door.x,door.y),false,name+' entrance must be physically open');
+  const route=nav.plan(from,door);
+  assert.equal(route.status,'ok',name+' must be reachable along connected walking streets');
+  assert.ok(route.points.length>=2,name+' should provide a walking route');
+  for(let i=1;i<route.points.length;i++)
+   assert.ok(nav.clear(route.points[i-1],route.points[i]),name+' walking route crosses an obstacle');
+ }
 });
