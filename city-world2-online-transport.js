@@ -26,11 +26,12 @@
    if(snapshot&&snapshot.self?.id===s.self.id&&Number.isInteger(s.revision)&&Number.isInteger(snapshot.revision)&&s.revision<snapshot.revision)return snapshot;
    snapshot=s;return s;
   }
-  async function join({name='Guest',avatar='offensive',code,createRoom=false}={}){
+  async function join({name='Guest',avatar='offensive',code,createRoom=false,recoveryKey}={}){
    if(token||joining)throw Error('A world2 QA join is already active.');
    joining=true;
    try{
-    const data=await call('/join','POST',{name,avatar,...(code?{code}:{}),...(createRoom?{create:true}:{})},false);
+    const data=await call('/join','POST',{name,avatar,...(code?{code}:{}),...(createRoom?{create:true}:{}),
+     ...(recoveryKey?{recoveryKey}:{})},false);
     if(!/^[a-f0-9]{64}$/i.test(data?.session||''))throw Error('World2 QA server did not issue a valid session.');
     token=data.session;seq=0;
     try{return accept(data.state);}catch(e){clear();throw e;}
@@ -47,11 +48,19 @@
    if(result?.state)accept(result.state);
    return result;
   }
+  async function createProfile(){
+   const data=await call('/profile/create','POST',{});
+   if(!/^[A-Za-z0-9_-]{43}$/.test(data?.recoveryKey||''))throw Error('QA profile server returned an invalid recovery credential.');
+   return data;
+  }
+  async function saveProfile(){return call('/profile/save','POST',{});}
   async function leave(){
    if(!token)return;
-   try{await call('/leave','POST',{});}finally{clear();}
+   await call('/leave','POST',{});
+   clear();
   }
-  return Object.freeze({join,state,input,action,leave,isJoined:()=>!!token,lastSnapshot:()=>snapshot,disconnect:clear});
+  return Object.freeze({join,state,input,action,leave,createProfile,saveProfile,
+   isJoined:()=>!!token,lastSnapshot:()=>snapshot,disconnect:clear});
  }
  root.CityWorld2OnlineTransport=Object.freeze({create});
 })(typeof window==='undefined'?globalThis:window);
