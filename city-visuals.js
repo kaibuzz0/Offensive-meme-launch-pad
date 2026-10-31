@@ -266,7 +266,12 @@
     else if(typeof f.print==='string'&&f.print.startsWith('clan-')){
      const id=f.print.slice(5),fit=CLAN_FITS[id];c.fillStyle=fit?.coat||'#20242e';c.fillRect(0,0,30,28);c.fillStyle=fit?.trim||'#d2dfc2';c.fillRect(0,0,30,3);
      if(id==='redacted'){for(const y of [9,15,21])c.fillRect(4,y,22,3);}
-     else if(id==='congress')text(c,'c.fillStyle='#142733';c.fillRect(0,0,30,28);c.fillStyle=o.role==='cop'?'#8db9e4':o.role==='gang'?'#c56d83':'#9bdcca';c.fillRect(1,1,28,4);text(c,o.role==='cop'?'INSIDER':o.role==='gang'?'RUG':'DEFENDER',15,18,o.role==='guard'?5:7,'#f1f6ef');}
+     else if(id==='congress')text(c,String.fromCharCode(36),15,22,21,fit.trim);
+     else if(id==='exit'||id==='rug')text(c,'↗',15,22,23,fit.trim);
+     else if(id==='you-missed')text(c,'!',15,23,24,fit.trim);
+     else if(id==='maduro')text(c,'↓',15,22,23,fit.trim);
+    }
+    else if(f.print==='insignia'){c.fillStyle='#142733';c.fillRect(0,0,30,28);c.fillStyle=o.role==='cop'?'#8db9e4':o.role==='gang'?'#c56d83':'#9bdcca';c.fillRect(1,1,28,4);text(c,o.role==='cop'?'INSIDER':o.role==='gang'?'RUG':'DEFENDER',15,18,o.role==='guard'?5:7,'#f1f6ef');}
     else {c.fillStyle='#132332';c.fillRect(0,0,30,28);const logo=logoTexture(o.image);if(logo){c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(logo,1,0,28,28);}else{text(c,'o!',15,19,19,'#e7f6cc');}c.strokeStyle='#e7f6cc88';c.lineWidth=1;c.strokeRect(.5,.5,29,27);}c.restore();
    }
   }
