@@ -88,9 +88,9 @@ test('fortress construction controls submit tile and kit to server without a cli
  assert.equal(h.el('plot-kind').children.length,7);
  h.el('plot-col').value='4';h.el('plot-row').value='6';h.el('plot-kind').value='banner';
  await h.el('build-plot').click();
- assert.deepEqual(h.actions.at(-1),{type:'buildPlot',fields:{col:4,row:6,kind:'banner'}});
+ assert.deepEqual(JSON.parse(JSON.stringify(h.actions.at(-1))),{type:'buildPlot',fields:{col:4,row:6,kind:'banner'}});
  await h.el('remove-plot').click();
- assert.deepEqual(h.actions.at(-1),{type:'removePlot',fields:{col:4,row:6}});
+ assert.deepEqual(JSON.parse(JSON.stringify(h.actions.at(-1))),{type:'removePlot',fields:{col:4,row:6}});
  assert.equal(h.actions.some(a=>a.fields?.credits!==undefined||a.fields?.x!==undefined),false);
  h.el('mark-plot').click();
  assert.match(h.el('status').textContent,/Private fortress tile marked/);
