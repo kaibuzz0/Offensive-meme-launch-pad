@@ -35,7 +35,11 @@
       '. +'+xp+' preview XP, +'+credits+' preview credits.'+
       (final?' Orientation complete.':'');
    }
-   return Object.freeze({claim,snapshot});
+   function restore(value){
+    if(!Number.isSafeInteger(value)||value<0||value>targets.length)throw Error('Invalid saved journey progress.');
+    index=value;return snapshot();
+   }
+   return Object.freeze({claim,snapshot,restore});
   }
   return Object.freeze({session,targets});
  }
