@@ -24,7 +24,20 @@
   {id:'champion',name:'Champion Corner',area:'arena',x:1600,y:2600},
   {id:'boardwalk',name:'The Gathering',area:'social',x:5600,y:2780},
   {id:'cafe',name:'Last Light Cafe',area:'social',x:6140,y:2800}
- ].map(p=>shift(p));
+ ].map(p=>{
+  const original=shift(p);
+  if(!C.blocked(original.x,original.y))return original;
+  // Some legacy landmarks fall inside scenery or newly relocated shop frontage.
+  // Keep their stable IDs and neighborhood while snapping to a nearby open tile.
+  const area=C.areaAt(original.x,original.y);
+  for(let radius=32;radius<=256;radius+=32){
+   for(const [dx,dy] of [[0,-radius],[radius,0],[0,radius],[-radius,0],[radius,-radius],[-radius,-radius],[radius,radius],[-radius,radius]]){
+    const x=original.x+dx,y=original.y+dy;
+    if(C.areaAt(x,y)===area&&!C.blocked(x,y))return {...original,x,y};
+   }
+  }
+  return original;
+ });
  const GUIDES=[
   {id:'nova',name:'NOVA / CITY GUIDE',x:3390,y:850,panel:'journey',color:'#c1e69c',line:'Every city starts with someone showing up. Make this one yours.'},
   {id:'wrench',name:'WRENCH / MEME MOTORS',x:4020,y:1040,panel:'mobility',color:'#f1be84',line:'The board is a city loaner. Keep moving. Keep your feet on it.'},
