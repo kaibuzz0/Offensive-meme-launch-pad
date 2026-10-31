@@ -53,12 +53,25 @@ assert.ok(read('.github/workflows/pages.yml').includes('city-districts.js'),'Dis
 for(const file of ['city-rise.js','city-interiors.js','city-clans.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js']){assert.ok(read('city.html').includes(file));assert.ok(read('.github/workflows/pages.yml').includes(file));}
 console.log('PASS: City Rising simulation and activity renderer ship with the game.');
 
-for(const script of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-migration.js','city-world2-simulation.js','city-visuals.js','city-world2-preview.js'])
- assert.ok(read('city-world2-preview.html').includes('src="'+script+'"'),'Preview missing script '+script);
-for(const p of ['city-world2-preview.html','city-world2-preview.js','city-world2-simulation.js','city-topology.js','city-migration.js','city-world2.js','city-world2-registry.js'])
- assert.ok(read('.github/workflows/pages.yml').includes(p),'Preview resource missing from future Pages package: '+p);
-assert.ok(read('city-world2-preview.html').includes('Isolated geometry playtest'),'Preview must disclose isolated behavior');
-console.log('PASS: world2 isolated preview script wiring, future deployment assets and limitations.');
-assert.ok(read('city.html').includes('href="city-world2-preview.html"'),'Public city must label and link its optional world2 preview');
-assert.ok(read('README.md').includes('world-v2 sandbox'),'Release notes must distinguish experimental preview from live game');
-console.log('PASS: Public website links to clearly labeled world2 sandbox and release documentation.');
+// The public game is the original polished V1 solo release, not a V2 prototype.
+const city=read('city.html'),landing=read('index.html'),pages=read('.github/workflows/pages.yml');
+for(const id of ['city-canvas','start-button','city-intro','room-mode','hud-credits','hud-level','mission-title','health-value','joystick','fire'])
+ assert.ok(city.includes('id="'+id+'"'),'Original playable V1 HUD or control missing: '+id);
+assert.ok(city.includes('SOLO / LOCAL SAVE'),'Original V1 solo gameplay must be the default');
+assert.ok(city.includes('city.js?v=17'),'Original playable engine must be loaded');
+assert.ok(!city.includes('city-v2-release-gate.js'),'V1 entry must never force world2');
+assert.ok(!city.includes('href="city-world2-preview.html"'),'Do not advertise V2 preview in the restored game');
+const cardStart=landing.indexOf('<article class="home-portal game-portal"'),detailsStart=landing.indexOf('<details class="portal-details"',cardStart);
+const soloCta=landing.indexOf('class="button primary game-direct-play"',cardStart);
+assert.ok(cardStart>=0&&soloCta>cardStart&&detailsStart>soloCta,'Homepage must show an immediate Solo Play button without expanding the card');
+assert.ok(landing.includes('href="city.html?release=world1"'),'Homepage Solo Play must open the restored game');
+assert.ok(pages.includes('city.html')&&pages.includes('city.js'),'Pages must publish original playable game files');
+for(const oldPage of ['city-world2-preview.html','city-world2-production.html']){
+ const redirect=read(oldPage);
+ assert.ok(pages.includes(oldPage),'Old v2 URL redirect must be deployed: '+oldPage);
+ assert.ok(redirect.includes('location.replace(\'city.html?release=world1\')'),'Old v2 URL must redirect to original V1: '+oldPage);
+ assert.ok(!redirect.includes('localStorage'),'Redirect must not alter original browser saves');
+}
+for(const oldAsset of ['city-world2-preview.js','city-world2-simulation.js','city-world2.js','city-world2-registry.js'])
+ assert.ok(!pages.includes(' '+oldAsset+' '),'Prototype script must not be published: '+oldAsset);
+console.log('PASS: V1-only public homepage and game, visible Solo Play, stable save data, and retired V2 redirects.');
