@@ -13,13 +13,26 @@
  function say(s){message=s;$('status').textContent=s;}
  const items=pois.all.filter(p=>['door','district','checkpoint','landmark','guide'].includes(p.kind));
  for(const p of items){const opt=document.createElement('option');opt.value=p.id;opt.textContent=p.kind.toUpperCase()+' · '+p.name;$('nav-select').append(opt);}
+ for(const n of C.NEIGHBORHOODS){const o=document.createElement('option');o.value=n.id;o.textContent=n.clan;$('faction-select').append(o);}
+ for(const z of simulation.territory.zones){
+  const o=document.createElement('option');o.value=z.id;o.textContent=z.name;$('control-select').append(o);
+  const map=document.createElement('option');map.value=z.id;map.textContent='CONTROL · '+z.name;$('nav-select').append(map);
+ }
+ $('faction-select').value=C.NEIGHBORHOODS[0].id;
+ $('control-select').value=simulation.territory.zones[0].id;
  $('nav-select').value='door:market';
- const choose=id=>{waypoint=pois.resolve(id);if(!waypoint){travel=null;say('Unknown destination.');return;}
+ const choose=id=>{waypoint=pois.resolve(id)||simulation.territory.zones.find(z=>z.id===id)||null;if(!waypoint){travel=null;say('Unknown destination.');return;}
   const path=planner.plan(player,waypoint,player);travel=path.status==='ok'?path.points:null;
   say(travel?'Safe walking path to '+waypoint.name+' marked. Walk along the cyan line.':'No safe path to '+waypoint.name+' from this position ('+path.status+').');
  };
  $('route').addEventListener('click',()=>{if(room){say('Exit the building before requesting a street route.');return;}choose($('nav-select').value);});
  $('clear-route').addEventListener('click',()=>{travel=waypoint=null;say('Walking route cleared.');});
+ function joinFaction(){say(simulation.joinFaction($('faction-select').value).message);}
+ function captureControl(){if(room){say('Return outdoors to claim a control point.');return;}
+  say(simulation.captureControl($('control-select').value).message);}
+ $('join-faction').addEventListener('click',joinFaction);
+ $('route-control').addEventListener('click',()=>{if(room){say('Exit the building before planning a route.');return;}choose($('control-select').value);});
+ $('capture-control').addEventListener('click',captureControl);
  function reset(){simulation.reset();room=null;seen=new Set();waypoint=travel=null;say('Reset in-memory preview. Your real save and protected backup remain unchanged.');}
   $('reset').addEventListener('click',reset);
  const backupKey='offensive-meme-city-v1-world2-recovery',stageKey='offensive-meme-city-v1-world2-staged';
@@ -31,6 +44,7 @@
   if(inspected.status!=='ready-for-review'){say('Staged data rejected: '+inspected.status);return;}
   const loaded=simulation.loadStage(inspected.save);
   if(loaded.status!=='loaded'){say('Staged character incompatible.');return;}
+  if(player.clan)$('faction-select').value=player.clan;
   say((loaded.relocated?'Blocked old position safely relocated. ':'')+'Staged XP, credits, inventory, construction and crew loaded in memory only. '+(staged.notices||[]).join(' '));
   room=null;travel=waypoint=null;
  });
@@ -61,6 +75,7 @@
   if(room){if(Math.hypot(room.x-I.ROOM.exit.x,room.y-I.ROOM.exit.y)<95){const old=room.name;room=null;say('Exited '+old+' to the world2 street (preview only).');}else if(Math.hypot(room.x-I.ROOM.activity.x,room.y-I.ROOM.activity.y)<110){say(room.name+' activity terminal is present. Real market/shop/mission actions require full engine migration.');}else say('Walk to the front exit or the highlighted terminal.');return;}
   const door=nearestDoor();if(door){const orig=I.BUILDINGS.find(b=>b.roomId===door.id.slice(5));room={...I.ROOM.spawn,id:door.id,name:door.name,theme:orig?.theme||'shop'};travel=waypoint=null;say('Entered '+room.name+'. Walk to the activity terminal or the exit. No credits or items change.');return;}
   for(const p of pois.checkpoints)if(Math.hypot(player.x-p.x,player.y-p.y)<100){claim();return;}
+  for(const z of simulation.territory.zones)if(Math.hypot(player.x-z.x,player.y-z.y)<130){$('control-select').value=z.id;captureControl();return;}
   say('Walk to a highlighted building entrance or checkpoint to interact.');
  }
  $('interact').addEventListener('click',interact);
@@ -100,6 +115,13 @@
   for(const tile of player.plot)rect(c,{x:plot.x+tile.col*64,y:plot.y+tile.row*64,w:60,h:60},'#899da2','#dae1c6');
   for(const b of W.buildings)rect(c,b,b.protected?'#8d7953':'#516779','#b5d2ca');
   for(const d of pois.doors){const visible=Math.hypot(d.x-player.x,d.y-player.y)<1050;if(visible){c.beginPath();c.arc(d.x,d.y,12,0,Math.PI*2);c.fillStyle='#a3eed1';c.fill();if(Math.hypot(d.x-player.x,d.y-player.y)<260)label(c,d.name,d.x,d.y+41,'#d5f3e5',18);}}
+  for(const z of simulation.territory.zones){if(Math.hypot(z.x-player.x,z.y-player.y)>1150)continue;
+   c.save();c.strokeStyle=z.owner===player.clan&&player.clan?'#80e9a2':z.state==='contested'?'#fc777c':'#ffd28b';c.lineWidth=5;
+   c.beginPath();c.arc(z.x,z.y,42,0,Math.PI*2);c.stroke();
+   if(z.progress>0){c.strokeStyle='#65e9ec';c.lineWidth=7;c.beginPath();c.arc(z.x,z.y,48,-Math.PI/2,-Math.PI/2+2*Math.PI*z.progress/8);c.stroke();}
+   if(Math.hypot(z.x-player.x,z.y-player.y)<320)label(c,z.name+' / '+z.owner,z.x,z.y+66,'#f6e9c0',16);
+   c.restore();
+  }
   for(const bot of simulation.agents){if(!bot.alive||Math.hypot(bot.x-player.x,bot.y-player.y)>1100)continue;
    const role=bot.kind==='defender'?'guard':bot.kind==='police'?'police':'gang',shade=bot.kind==='defender'?'#80e8a7':bot.kind==='police'?'#79a9f4':'#f0848e';
    avatar(c,bot.x,bot.y,role,bot.id,shade,true,time);
@@ -127,6 +149,7 @@
   mc.fillStyle='#567f64';const f=W.fortress;mc.fillRect(f.x*sx,f.y*sy,f.w*sx,f.h*sy);
   for(const n of C.NEIGHBORHOODS){const a=T.draft.areas[n.id];mc.fillStyle=n.color+'88';mc.fillRect(a.x*sx,a.y*sy,a.w*sx,a.h*sy);}
   mc.strokeStyle='#b8ead4';for(const d of W.doors){mc.beginPath();mc.arc(d.x*sx,d.y*sy,1.3,0,Math.PI*2);mc.stroke();}
+  for(const z of simulation.territory.zones){mc.fillStyle=z.owner===player.clan&&player.clan?'#80e9a2':'#ffd28b';mc.beginPath();mc.arc(z.x*sx,z.y*sy,3,0,Math.PI*2);mc.fill();}
   if(waypoint){mc.strokeStyle='#7df5ff';mc.beginPath();mc.arc(waypoint.x*sx,waypoint.y*sy,4,0,Math.PI*2);mc.stroke();}
   mc.fillStyle='#fff';mc.beginPath();mc.arc(player.x*sx,player.y*sy,5,0,Math.PI*2);mc.fill();
  }
@@ -141,7 +164,7 @@
   ctx.restore();
   const p=Object.values(T.draft.areas).find(a=>player.x>=a.x&&player.x<a.x+a.w&&player.y>=a.y&&player.y<a.y+a.h);
   $('location').textContent=room?room.name+' / TEST INTERIOR':(p?.id||'Connecting roads').toUpperCase()+' · '+Math.round(player.x)+' / '+Math.round(player.y);
-  $('combat-hud').textContent='HP '+Math.ceil(player.hp)+'/100 · Ammo '+player.ammo+'/24 · Heat '+Math.ceil(player.heat)+
+  $('combat-hud').textContent='Faction '+(player.clan||'none')+' · Captures '+simulation.territory.zones.filter(z=>z.owner===player.clan&&z.homeClan!==player.clan).length+' · HP '+Math.ceil(player.hp)+'/100 · Ammo '+player.ammo+'/24 · Heat '+Math.ceil(player.heat)+
    ' · XP '+player.xp+' · Credits '+player.credits+' · Defense '+simulation.mission.status+
    (simulation.mission.status==='active'?' ('+simulation.mission.remaining+' raiders)':'');
   const recent=simulation.events.at(-1);
