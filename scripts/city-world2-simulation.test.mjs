@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const ctx={};
-for(const f of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-world2-simulation.js'])
+for(const f of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-world2-territory.js','city-world2-contracts.js','city-world2-simulation.js'])
  vm.runInNewContext(fs.readFileSync(new URL('../'+f,import.meta.url),'utf8'),ctx,{filename:f});
 const C=ctx.MemeCityCore,T=ctx.CityTopology,I=ctx.CityInteriors,W=ctx.CityWorld2.create(C,I,T);
 const R=ctx.CityWorld2Registry.create(C,I,ctx.CityRising,T,W),sim=()=>ctx.CityWorld2Simulation.create(C,W,R,ctx.CityNav);
