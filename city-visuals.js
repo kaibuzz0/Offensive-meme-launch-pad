@@ -3,6 +3,15 @@
 (function(root){
  const cache=new Map(),logoCache=new WeakMap(),W=root.MemeCityCore.WEAPON,NPC_SCALE=.9;
  const skin=['#c38f6c','#e5b898','#8d583e','#5b382b','#d3a17d','#a4775c'];
+  // Six cosmetic outfits mapped to the artwork. Same character rig and animations.
+  const CLAN_FITS=Object.freeze({
+   redacted:{coat:'#452453',pants:'#2b1b39',trim:'#b957e6',hair:'#382334',tone:'#d39b78',tie:'#ad5ae4'},
+   congress:{coat:'#1b1b24',pants:'#242126',trim:'#f6cc54',hair:'#b59a6a',tone:'#e4ae81',tie:'#be303c'},
+   exit:{coat:'#6b7069',pants:'#373e3c',trim:'#17dcbb',hair:'#352b2d',tone:'#c68d71',tie:'#1adbc0'},
+   'you-missed':{coat:'#223356',pants:'#1e2946',trim:'#eec36c',hair:'#f4cc68',tone:'#e8a26c',tie:'#dd333e'},
+   maduro:{coat:'#a52b33',pants:'#8d282f',trim:'#f3e9e7',hair:'#191e21',tone:'#b68f6c',tie:'#cf2b37'},
+   rug:{coat:'#241d2b',pants:'#1d1c27',trim:'#ed48ac',hair:'#69412c',tone:'#d6a17b',tie:'#dcb65e'}
+  });
  const hair=['#242329','#4d352d','#171e25','#9b7750'];
  const denim=['#27394f','#363b43','#4c5345','#466079'];
  function rounded(c,x,y,w,h,r,fill){c.fillStyle=fill;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
@@ -169,8 +178,16 @@
    const rings=o.simplified?4:8,sides=o.simplified?8:12;
    for(let j=0;j<rings;j++)for(let k=0;k<sides;k++){const a=low+(high-low)*j/rings,b=low+(high-low)*(j+1)/rings,u=k*Math.PI*2/sides,v=(k+1)*Math.PI*2/sides;face([point(a,u),point(a,v),point(b,v),point(b,u)],color);}
   }
-  const style=o.style||{},offender=o.offenderSkin===true&&(o.role||'player')==='player',tone=offender?'#c6f916':skin[style.skin||0],coat=offender?'#20172c':o.role==='cop'?'#324c68':o.role==='gang'?'#4b293c':o.role==='guard'?(o.color||'#6e8e78'):o.gear?.outfit?'#5e7654':'#303e4d';
-  box([0,0,59],[18,34,36],coat);if(offender){for(const side of [-1,1])box([0,side*17.6,62],[11,1.2,17],'#9226e8');box([-9.4,0,55],[1.3,9,5],'#c6f916');}
+  const style=o.style||{},offender=o.offenderSkin===true&&(o.role||'player')==='player',fit=!offender&&(o.role||'player')==='player'?CLAN_FITS[o.clanSkin]:null,tone=offender?'#c6f916':fit?.tone||skin[style.skin||0],coat=offender?'#20172c':fit?.coat||(o.role==='cop'?'#324c68':o.role==='gang'?'#4b293c':o.role==='guard'?(o.color||'#6e8e78'):o.gear?.outfit?'#5e7654':'#303e4d');
+  box([0,0,59],[18,34,36],coat);
+  if(fit){
+   for(const side of [-1,1]){box([1,side*17.6,64],[10,1.5,20],fit.trim);box([-1,side*13,43],[10,1.5,2],fit.trim);}
+   box([9.6,0,69],[1.2,3.7,21],fit.tie);
+   if(o.clanSkin==='maduro')for(const side of [-1,1])box([0,side*16.8,70],[13,1.6,2],'#f3e9e7');
+   if(o.clanSkin==='redacted')box([10,0,56],[1.3,19,3],'#b957e6');
+   if(o.clanSkin==='rug')box([10,-9,68],[1.5,6,3],'#ed48ac');
+  }
+  if(offender){for(const side of [-1,1])box([0,side*17.6,62],[11,1.2,17],'#9226e8');box([-9.4,0,55],[1.3,9,5],'#c6f916');}
   box([0,0,80],[9,10,9],offender?'#15121f':tone);
   oval([0,0,94],[8,9,12],tone);
   if(offender){
