@@ -177,3 +177,28 @@ GitHub Actions validation for integrated walking paths succeeded at `6317cd9` (r
 2. **Add real playable engine+renderer integration under an explicit isolated preview flag.** Current gameplay, client saves, room authority, map and textures still use world1. Migrate `C.WORLD`, `C.PLOT`, `blocked`, buildings, faction spawns, guard/raid anchors, collision, interiors, encounters, missions and guides as a coherent world2 config; do not simply flip the topology flag.
 3. Validate legacy saves in actual browser reloads, including reconstruction of plot and outposts with physical collision, reliable rollback UI, conflict behavior with two tabs, inaccessible entrances and bad coordinates. All current 47-door proofs are **Node model** tests; they are not browser proof.
 4. Test a real first-five-minute playthrough, all 47 doors, two online guests, eight-direction combat posing, and mid-range Android. Keep wallet/trading code unchanged and production `main` untouched.
+
+
+## Continued development — October 31, 2026: canonical world2 destinations and isolated playable browser shell
+
+**Branch:** `codex/living-blocks-handoff`, draft PR #1. Continues directly after the reported `6bc8508c` baseline. The active world1 game, production `main`, and active solo-save key are **not migrated or replaced**.
+
+### Pushed code
+
+- `city-world2-registry.js`: one stable-ID index for **47** world2 building doors plus district anchors, all station names, 12 landmarks, five guides, three journey checkpoints, and fortress plot. Six authored hub building positions are canonical, rather than deriving mission/market entrances from old proportions; shop/market/arcade/garage street stations use the actual front-door points where those station IDs exist. Projected legacy markers snap only to walkable world2 coordinates.
+- `city-migration.js`: optional registry-aware waypoint/checkpoint/respawn resolution by stable ID and journey route target. Without the optional argument, previous staging behavior is retained. The raw active save remains unchanged.
+- `scripts/city-world2-registry.test.mjs`: direct equality to authored entrance coordinates (including half-pixel centers), all 47 walk routes, service station alignment, registry coverage, stable-ID waypoint migration and source immutability. Initial CI caught two test/precision assumptions; fixed in later commits before the green result.
+- `city-world2-preview.html` and `city-world2-preview.js`: review-only responsive browser geometry explorer with manual keyboard/touch movement, actual world2 wall/building/plot collision, four cardinal gates, on-demand A* street routes, entry/exit to existing interior room geometry, static faction figure markers, temporary test walls, three orientation checkpoint markers, and opt-in `CityMigration.stage()` loading to a separate preview. It does **not** use the live combat, mission or economy simulation, pay prizes, mint tokens, host real multiplayer or activate a world2 save.
+- Preview resources included in the future Pages copy list, static deployment checks and local `server/city-server.mjs` allowlist, so the page can be tested locally on the development branch at `http://localhost:8787/city-world2-preview.html` via `npm run dev`. The production Pages deployment is still gated on `main`; no live preview URL was deployed.
+- `scripts/city-world2-preview.test.mjs`: mock-DOM rendering/control smoke checks and no-production-save-write guard. **Mock DOM is not actual browser acceptance**.
+
+### Verification
+
+A full Node 22 PR validation passed at the preview integration commit `b0cf229a`; subsequent registry and mock-preview smoke cases passed in GitHub Actions (see branch check history). These checks validate JavaScript syntax, route/model coordinates, gameplay regression compatibility, local file availability and a simulated initial preview render. **No real Chrome/Android screenshots, physical 47-door walkthrough, multiplayer room session or phone FPS measurement were performed here.**
+
+### Remaining hard constraints / next batches
+
+1. Run browser QA on the isolated preview with mouse, keyboard and real touch controls: four gates, all 47 interior entries, nearby interaction, in-room movement, construction collisions and reload; verify actual avatar 360-degree animation and geometry. Fix browser-only errors. Test a genuine old solo save and multi-tab update conflict with backup restoration.
+2. Introduce a feature-flagged world2 *engine* adapter mapping shared server/client physics, spawn, interiors, 12 landmark locations, guides, NPC gangs/Insider police, mission beacons and construction; do not mutate `C.WORLD` after initialization or import the isolated preview as if it were an authoritative game engine.
+3. Implement explicitly reversible solo world2 save activation and rollback only after the entire engine and UI support world2. Keep world1 as default until acceptance. Shared rooms must use neutral central commons, not a single eight-owner private plot.
+4. Once playable world2 semantics are proven, expand autonomous fortress defenses, gang raids and Insider-controlled police, territory/building damage, zombies, arcade activities, and holder-cosmetic avatar forms. **No BAREIRON Minecraft server, on-chain burn or speculative holder payout mechanics.**
