@@ -102,6 +102,31 @@ try{
  await waitFor(()=>first.evaluate("document.getElementById('status').textContent.includes('Server refused buyGear')"),
   'server rejects remote shop purchase');
  assert.match(await first.evaluate("document.getElementById('hud').textContent"),/credits 180/);
+ // Private fortress construction is authenticated. Remote button presses cannot bypass distance;
+ // after a controlled server-side test fixture places Alice near the lot, only Alice's own
+ // sandbox balance and private plot can change.
+ await first.evaluate("document.getElementById('plot-col').value='4';document.getElementById('plot-row').value='3';document.getElementById('plot-kind').value='banner';document.getElementById('build-plot').click();true");
+ await waitFor(()=>first.evaluate("document.getElementById('status').textContent.includes('Server refused buildPlot')"),
+  'server rejects remote fortress placement');
+ assert.match(await first.evaluate("document.getElementById('hud').textContent"),/credits 180/);
+ const builder=[...qa.rooms.first.engine.players.values()].find(p=>p.name==='Alice');
+ assert.ok(builder,'Alice owns an authenticated server guest');
+ builder.x=4536+4*64+32+90;builder.y=4600+3*64+32;qa.rooms.first.revision++;
+ await first.send('Page.bringToFront');
+ await waitFor(()=>first.evaluate("document.getElementById('hud').textContent.includes('pos 4909,4824')"),
+  'fortress test fixture reflected by server snapshot');
+ await first.evaluate("document.getElementById('build-plot').click();true");
+ await waitFor(()=>first.evaluate("document.getElementById('plot-summary').textContent.includes('1 / 160')"),
+  'server accepted first private fortress banner');
+ assert.match(await first.evaluate("document.getElementById('hud').textContent"),/credits 174/);
+ await second.send('Page.bringToFront');
+ await waitFor(()=>second.evaluate("document.getElementById('plot-summary').textContent.includes('0 / 160')"),
+  'other tab does not receive Alice private fortress structures');
+ await first.send('Page.bringToFront');
+ await first.evaluate("document.getElementById('remove-plot').click();true");
+ await waitFor(()=>first.evaluate("document.getElementById('plot-summary').textContent.includes('0 / 160')"),
+  'server removed Alice fortress structure');
+ assert.match(await first.evaluate("document.getElementById('hud').textContent"),/credits 177/);
  assert.equal(await first.evaluate('localStorage.length'),0,'client cannot store guest credentials');
  const shot=await second.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
  assert.ok(shot.data?.length>1000,'real mobile-viewport browser canvas screenshot must render');
