@@ -37,7 +37,7 @@ test('world2 models original central services as separate visible buildings, not
   assert.ok(W.buildings.some(b=>b.id===name));assert.ok(W.doors.some(d=>d.id===name));
  }
  assert.equal(router.plan(W.spawn,{x:W.spawn.x,y:250}).status,'ok','the northern boulevard must have a connected walking route');
- for(const id of ['shop','market'])assert.equal(W.doors.find(d=>d.id===id).area,'hub');
+ for(const [id,area] of [['shop','arena'],['market','creator']])assert.equal(W.doors.find(d=>d.id===id).area,area);
 });
 test('private construction collisions belong only to the player and never seal all public roads',()=>{
  const p={plot:[{kind:'wall',col:3,row:3}],outposts:[]},b={x:T.draft.plot.x+3*64+30,y:T.draft.plot.y+3*64+30};
