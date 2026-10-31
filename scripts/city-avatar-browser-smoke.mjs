@@ -121,8 +121,35 @@ try{
  await delay(250);
  const desktopMapShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
  assert.ok(desktopMapShot.data.length>2000,'desktop expanded-city map rendered in Chrome');
+ // Regression: the Avatar wallet button must report missing providers INSIDE its modal.
+ // Previously the only error notification was behind the modal and appeared inert on phones.
+ await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?release=wallet-feedback-qa'});
+ await waitFor(()=>evalPage("!!window.CityRoomClient && !!document.querySelector('[data-panel=multiplayer]')"),'online game scripts');
+ await evalPage("document.getElementById('start-button').click();true");
+ await evalPage("document.querySelector('[data-panel=multiplayer]').click();true");
+ await waitFor(()=>evalPage("document.querySelector('#panel-content .panel-button')!==null"),'room join action');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Quick play')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('#room-mode').textContent.startsWith('ONLINE /') && !document.querySelector('#city-panel').open"),'online room connected');
+ await evalPage("document.querySelector('[data-panel=avatar]').click();true");
+ await waitFor(()=>evalPage("!!document.querySelector('#offender-wallet-verify')"),'OFFENDED holder wallet button');
+ const initial=await evalPage("({open:document.querySelector('#city-panel').open,missing:document.querySelector('.wallet-browser-help')?.textContent,solflare:document.querySelector('.wallet-open-options a')?.href})");
+ assert.equal(initial.open,true);assert.match(initial.missing,/No wallet detected/);
+ const target=new URL(initial.solflare);
+ assert.equal(target.hostname,'solflare.com');assert.ok(target.pathname.startsWith('/ul/v1/browse/'),'official mobile wallet browse link');
+ assert.equal(decodeURIComponent(target.pathname.slice('/ul/v1/browse/'.length)), 'http://127.0.0.1:'+server.address().port+'/city.html?release=offender-skin');
+ await evalPage("document.getElementById('offender-wallet-verify').click();true");
+ const status=await waitFor(()=>evalPage("document.querySelector('#offender-wallet-status')?.textContent.includes('No compatible Solana wallet found')"),'visible missing-wallet message in Avatar modal');
+ assert.equal(status,true);
+ assert.equal(await evalPage("document.querySelector('#offender-wallet-status').getAttribute('aria-live')"),'polite','accessible inline status announces errors');
+ assert.equal(await evalPage("document.querySelector('#offender-wallet-status').closest('dialog').open"),true,'wallet errors stay visible inside the open modal');
+ // A wallet popup rejection is reported inline too; button returns to usable state.
+ await evalPage("window.phantom={solana:{connect:async()=>{throw Error('Wallet permission cancelled');},signMessage:async()=>({signature:new Uint8Array(64)})}};document.querySelector('[data-panel=avatar]').click();true");
+ await waitFor(()=>evalPage("!!document.querySelector('#offender-wallet-verify') && !document.querySelector('.wallet-browser-help')"),'detected wallet state');
+ await evalPage("document.getElementById('offender-wallet-verify').click();true");
+ await waitFor(()=>evalPage("document.querySelector('#offender-wallet-status')?.textContent.includes('Wallet permission cancelled')"),'wallet rejection shown inline');
+ assert.equal(await evalPage("document.getElementById('offender-wallet-verify').disabled"),false,'retry works after a rejected wallet connection');
  assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
- console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, 360 yaw and mobile solo gameplay screenshot.');
+ console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map and functional inline wallet-button feedback in Chromium.');
 }finally{
  try{ws?.close();}catch{}
  if(chrome){
