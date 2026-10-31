@@ -1,3 +1,16 @@
+> **Latest pushed and verified — October 31, 2026:** world2 offline gameplay preview is now wired to a limited collision-aware simulation with gangs, police heat response, fortress defender, simple raids, directional combat, preview-only checkpoint XP/credits and guarded staged character loading. Latest code `777a924b`. [Node 22 CI https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41223390175](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41223390175) **170/170 passed**. Draft PR #1 remains open. **Do not confuse this with integration into the production core/server, or claim physical browser/Android testing.**
+
+## Immediate engineering priorities after round 3
+
+1. **Verify the preview in a real browser and on Android:** run `npm run dev`, open `http://localhost:8787/city-world2-preview.html`, walk through all four fortress gates and around the 47 doors; enter/exit rooms, run the simple defense wave, try combat input while moving in all 8 directions, wall construction, staged old saves, phone touch and two-tab race recovery. Check for console errors, clipping, time spikes and inaccessible stations. Our last test was a Node mock-DOM, not a physical browser.
+2. **Plan the authoritative engine transition:** the new `city-world2-simulation.js` is a *nonpersistent, local preview simulator*, not a replacement for `MemeCityCore.Engine` and not server-authoritative. Design a shared dependency-injected world2 geometry/POI contract for engine + online room server with synchronized movement, NPC police/factions, contracts, construction and interior activity, then verify genuine cross-client updates.
+3. Finish real missions (courier, arena, gang raids, checkpoints), interior services and outpost/fortress defense in the authoritative world2 engine; avoid porting a client-only reward into real online room authority. Holder transformations, zombie waves, territorial warfare and arcade follow after the base world is actually playable.
+4. Preserve world1 as default; do not activate a world2 save or overwrite recovery keys. A rollback/review UI, live collision-fallback and transactional multi-tab safeguards must precede any migration, merge or production deployment. Keep investor/holder claims noncustodial and no burns.
+
+**Round 3 detailed test evidence and limitations:** see final section in `DEVELOPMENT_STATUS.md`. Always fetch latest remote branch head and preserve other agents' work. Commit and PUSH each tested batch to the existing draft PR; no main merge or Pages deployment without owner approval.
+
+---
+
 > **LATEST VERIFIED CODE — October 31, 2026:** draft PR `codex/living-blocks-handoff`, commit `bba9ef203f7d418a6ad6edce6f5629833fd3f28b`. World2 staged-save migration (`city-migration.js`) and inactive geometric world2 model (`city-world2.js`) implemented. CI [run 41221761283](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41221761283) **156/156 green** including 47 world2 door routes and four fortress gate routes. **No world2 browser integration, no merge/deploy.** Continue from latest actual remote head.
 
 ## Next engineer — execution priorities after world2 staging
