@@ -27,7 +27,7 @@ function mock(){
  ctx.document={getElementById:el,createElement:()=>({}),querySelectorAll:()=>['up','down','left','right'].map(k=>Object.assign(el('move-'+k),{dataset:{move:k}})),
   addEventListener(){}};
  Object.defineProperty(ctx,'localStorage',{get(){throw Error('World2 online client must never access localStorage.')}});
- for(const f of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js'])
+ for(const f of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-world2-territory.js'])
   vm.runInNewContext(read(f),ctx,{filename:f});
  ctx.CityVisuals={person:()=>{}};
  ctx.CityWorld2OnlineTransport={create:()=>({
@@ -72,4 +72,11 @@ test('every gameplay button submits type-scoped authoritative actions, not clien
  assert.equal(h.actions.find(a=>a.type==='joinFaction').fields.clan,'exit');
  assert.equal(h.actions.find(a=>a.type==='startCapture').fields.zone,'control:exit');
  assert.equal(h.actions.some(a=>a.fields?.credits!==undefined||a.fields?.x!==undefined),false,'UI cannot supply balances or teleport coordinates');
+});
+
+test('canonical capture-point marker uses matching world2 geography without fake rewards',async()=>{
+ const h=mock();h.el('avatar').value='offensive';await h.el('join').click();
+ h.el('zone').value='control:exit';h.el('mark-zone').click();
+ assert.match(h.el('status').textContent,/Control point marked/);
+ assert.equal(h.actions.length,0,'marking a local point must not award anything');
 });
