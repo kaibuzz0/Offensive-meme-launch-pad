@@ -25,7 +25,7 @@
   {id:'market',x:1060,y:1070,name:'Night Market',hint:'Open player market',kind:'market'},
   {id:'arcade',x:1060,y:455,name:'Chaos Arcade',hint:'Get a daily route',kind:'mission'},
   {id:'garage',x:1800,y:1050,name:'Meme Motors',hint:'See the development plan',kind:'roadmap'}
- ],route:[{x:330,y:510,name:'Launch House'},{x:1800,y:520,name:'Creator Alley'},{x:1060,y:1000,name:'Night Market'}]};
+ ],route:[{x:330,y:510,name:'Launch House'},{x:1800,y:900,name:'Creator Alley'},{x:1060,y:1000,name:'Night Market'}]};
  const NEIGHBORHOODS=[
   ['offensive','OFFENDED COMMONS','Offensive Union','#b6e87a'],
   ['congress','INSIDER HEIGHTS','Insider Cunts','#83b8ed'],
@@ -132,7 +132,7 @@
  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  const level=xp=>1+Math.floor(Math.sqrt(Math.max(0,xp)/50));
  WORLD.obstacles=[{x:978,y:677,w:135,h:110},...[[820,820],[1210,820],[1650,850],[430,850]].map(([x,y])=>({x,y,w:55,h:20}))];
- for(const o of WORLD.obstacles)o.x+=HUB.x;
+ for(const o of WORLD.obstacles){o.x+=HUB.x;o.y+=HUB.y;}
  for(const o of SCENERY.filter(o=>o.kind==='tree'))WORLD.obstacles.push({x:o.x-6,y:o.y-7,w:12,h:12});
  const districtSolids=DISTRICTS.flatMap(d=>districtBlocks(d.id).map(b=>({...b,x:b.x+d.ox,y:b.y+d.oy})));
  function blocked(x,y,p){
