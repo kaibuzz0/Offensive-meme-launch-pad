@@ -96,7 +96,13 @@
   c.strokeStyle='#c4f3eb66';c.lineWidth=1;for(let i=0;i<5;i++){c.beginPath();c.ellipse(1046,724,16+i*8,9+i*5,0,0,7);c.stroke();}box(c,1040,703,13,36,'#becbc1',3);c.fillStyle='#d9f4e7';c.beginPath();c.ellipse(1046,703,17,8,0,0,7);c.fill();
   for(const [x,y]of [[775,640],[1303,640],[775,830],[1303,830]]){box(c,x-18,y-8,36,27,'#172b33',4);box(c,x-20,y-11,40,22,'#83938a',4);}
   text(c,'FOUNDER SQUARE',1045,850,13,'#e3e8df');
-  for(const d of C.DISTRICTS){const x=d.gate.x,y=d.gate.y;box(c,x-52,y-48,104,84,'#152735',12);box(c,x-47,y-52,94,75,grad(c,x,y,90,70,'#405965','#223a49'),9);box(c,x-39,y-43,78,4,d.color,1);text(c,d.name.toUpperCase().split(' ')[0],x,y-13,10,d.color);text(c,'WALK THIS WAY',x,y+6,8,'#d8e2df');}
+  // These signs point to the new surrounding districts, not the retired map gates.
+   for(const [title,hint,x,y,color] of [
+    ['PLAYER FORTRESS','SOUTH / CENTER',1120,1490,'#b6cd8c'],
+    ['CREATOR QUARTER','EAST',1930,860,'#c5a2e2'],
+    ['OFFENDED COMMONS','WEST',300,860,'#b6e87a'],
+    ['SIX CLAN HQs','EXPLORE THE RING',1120,205,'#83b8ed']
+   ]){box(c,x-100,y-48,200,84,'#152735',12);box(c,x-95,y-52,190,75,grad(c,x-95,y-52,190,75,'#405965','#223a49'),9);box(c,x-83,y-43,166,4,color,1);text(c,title,x,y-13,13,color);text(c,hint,x,y+12,10,'#d8e2df');}
 
   c.restore();
  }
@@ -115,6 +121,18 @@
    box(g,P.x-17,P.y-17,P.cols*64+34,P.rows*64+34,'#162f3c',12);box(g,P.x-8,P.y-8,P.cols*64+16,P.rows*64+16,'#87968b',8);box(g,P.x,P.y,P.cols*64,P.rows*64,'#455d53');
    for(let row=0;row<P.rows;row++)for(let col=0;col<P.cols;col++){g.fillStyle=(row+col)%2?'#7795790c':'#172d3510';g.fillRect(P.x+col*64,P.y+row*64,64,64);g.strokeStyle='#acc5a424';g.lineWidth=.7;g.strokeRect(P.x+col*64,P.y+row*64,64,64);}
    text(g,'YOUR PRIVATE PLOT / 16 × 10',1120,402,13,'#c7ddb7');text(g,'OPEN BUILD TO SHAPE YOUR CITY',1120,1160,12,'#c7ddb7');
+    // A visual central base landmark, at the open entrance near player spawn.
+    // It is a paint-only decoration; collision and walking paths are unchanged.
+    g.save();g.translate(1120,1315);
+    g.fillStyle='#152e3a';g.beginPath();g.ellipse(0,0,250,126,0,0,Math.PI*2);g.fill();
+    g.strokeStyle='#b6e87a';g.lineWidth=7;g.beginPath();g.ellipse(0,0,238,117,0,0,Math.PI*2);g.stroke();
+    g.strokeStyle='#8eb7b570';g.lineWidth=3;g.beginPath();g.moveTo(-210,0);g.lineTo(210,0);g.moveTo(0,-96);g.lineTo(0,96);g.stroke();
+    text(g,'CENTER CITY',0,-32,27,'#d8f4c0');
+    text(g,'YOUR FORTRESS HQ',0,6,19,'#b6e87a');
+    text(g,'SIX CLAN TERRITORIES · SHOPS ALL AROUND',0,38,11,'#c0d2cc');
+    g.restore();
+    text(g,'↑ FOUNDER SQUARE',1120,1118,14,'#b6e87a');
+    text(g,'CENTER CITY / PLAYER SPAWN',1120,1570,15,'#d8ead1');
   }
   if(area==='social'){
    box(g,185,1110,740,415,'#23495e',0);for(let i=0;i<45;i++){const x=210+(i*197)%690,y=1130+(i*71)%360;g.strokeStyle='#97c9d324';g.beginPath();g.moveTo(x,y);g.lineTo(x+25+i%30,y);g.stroke();}
