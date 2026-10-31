@@ -83,7 +83,7 @@
     let waypoint=target;
     if(!nav.clear(u,target,p)){
      let route=routes.get(u);
-     if(!route||route.ttl<=0||distance(route.target,target)>90||route.index>=route.points.length){
+     if(!route||route.ttl<=0||distance(route.target,target)>90||(route.points.length>0&&route.index>=route.points.length)){
       const result=nav.plan(u,target,p);
       route={target:{x:target.x,y:target.y},
        points:result.status==='ok'?result.points.slice(1):[],index:0,ttl:1.5};
