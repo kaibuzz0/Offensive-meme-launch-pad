@@ -111,9 +111,9 @@ try{
  assert.match(await first.evaluate("document.getElementById('hud').textContent"),/credits 180/);
  const builder=[...qa.rooms.first.engine.players.values()].find(p=>p.name==='Alice');
  assert.ok(builder,'Alice owns an authenticated server guest');
- builder.x=4536+4*64+32+90;builder.y=4600+3*64+32;qa.rooms.first.revision++;
+ builder.x=4536+4*64+32+90;builder.y=4600+3*64+32;builder.input={x:0,y:0};qa.rooms.first.revision++;
  await first.send('Page.bringToFront');
- await waitFor(()=>first.evaluate("document.getElementById('hud').textContent.includes('pos 4909,4824')"),
+ await waitFor(()=>first.evaluate("document.getElementById('hud').textContent.includes('pos 4914,4824')"),
   'fortress test fixture reflected by server snapshot');
  await first.evaluate("document.getElementById('build-plot').click();true");
  await waitFor(()=>first.evaluate("document.getElementById('plot-summary').textContent.includes('1 / 160')"),
