@@ -24,7 +24,15 @@ test('production server refuses missing durability marker; accepts explicit mark
    const address=await service.listen(0);
    const url='http://127.0.0.1:'+address.port+'/api/world2/health';
    const ok=await fetch(url,{headers:{Origin:'https://kaibuzz0.github.io'}});
-   assert.equal(ok.status,200);assert.equal((await ok.json()).persistence,true);
+   assert.equal(ok.status,200);
+   const health=await ok.json();assert.equal(health.persistence,true);
+   assert.equal(health.preview,false);assert.equal(health.releaseReady,false);
+   const legacy=await fetch('http://127.0.0.1:'+address.port+'/api/city/health');
+   assert.equal(legacy.status,200);
+   assert.equal((await legacy.json()).protocol,2);
+   const html=await fetch('http://127.0.0.1:'+address.port+'/city.html');
+   assert.equal(html.status,200);
+   assert.match(await html.text(),/Meme City/);
    const no=await fetch(url,{headers:{Origin:'https://evil.example'}});
    assert.equal(no.status,403);
   }finally{await service.close();}

@@ -6,7 +6,7 @@ import {createWorld2PrototypeRooms} from './city-world2-prototype.mjs';
 import {createWorld2Vault} from './city-world2-vault.mjs';
 
 export function createLocalWorld2Server({now=Date.now,origins=['http://localhost:8787','http://127.0.0.1:8787'],
- saveDir=process.env.WORLD2_QA_SAVE_DIR||null,bindHost='127.0.0.1'}={}){
+ saveDir=process.env.WORLD2_QA_SAVE_DIR||null,bindHost='127.0.0.1',productionMode=false,releaseReady=false}={}){
  if(!['127.0.0.1','0.0.0.0'].includes(bindHost))throw Error('Invalid world2 bind interface.');
  const {rooms}=createWorld2PrototypeRooms({now,capacity:8,maxRooms:8});
  const vault=saveDir?createWorld2Vault(saveDir):null;
@@ -44,7 +44,8 @@ export function createLocalWorld2Server({now=Date.now,origins=['http://localhost
   const path=url.pathname.slice('/api/world2'.length);
   if(req.method!=='GET'&&req.method!=='POST')return respond(res,405,{error:'Method unavailable.'});
   if(path==='/health'&&req.method==='GET')
-   return respond(res,200,{status:'ok',protocol:2,worldVersion:2,preview:true,persistence:!!vault,...rooms.health()});
+   return respond(res,200,{status:'ok',protocol:2,worldVersion:2,preview:!productionMode,persistence:!!vault,
+    releaseReady:productionMode&&releaseReady&&!!vault,...rooms.health()});
   if(!['/join','/state','/input','/action','/leave','/profile/create','/profile/save'].includes(path))return respond(res,404,{error:'Unknown world2 action.'});
   let body={};
   if(req.method==='POST'){
@@ -121,7 +122,7 @@ export function createLocalWorld2Server({now=Date.now,origins=['http://localhost
   if(interval){clearInterval(interval);interval=null;}
   if(checkpoint){clearInterval(checkpoint);checkpoint=null;}
  });
- return {server,rooms,listen:(port=8788)=>new Promise((resolve,reject)=>{
+ return {server,rooms,flush,listen:(port=8788)=>new Promise((resolve,reject)=>{
   if(server.listening)return resolve(server.address());
   server.once('error',reject);server.listen(port,bindHost,()=>{
    server.removeListener('error',reject);resolve(server.address());
