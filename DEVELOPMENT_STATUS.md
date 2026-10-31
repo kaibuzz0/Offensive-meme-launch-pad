@@ -261,3 +261,11 @@ An initial new test fixture needed enough *preview* credits to purchase both upg
 **Still not validated:** real Chrome/Android visual, touch and performance QA; authenticated server-authoritative world2 services; two clients observing identical commerce and NPC events; atomic concurrent browser save commits; production world2 rollout. The above is a functional **offline game prototype only**, not onchain or production multiplayer. Keep PR #2 draft and do not deploy to main without explicit owner review.
 
 **Next vertical slice:** add server-compatible action schema and authoritative validation for world2 service commands, then real online integration tests and actual mobile gameplay acceptance. Protect public interior services and refund/inventory invariants. Finish a reversible world2 activation/rollback procedure before replacing world1. No BAREIRON Minecraft-server port or token burning.
+
+## Round 5 — isolated world-v2 authoritative rooms (October 31, 2026)
+
+Following Round 4 at a012ae4b (196/196 passing tests), new development on PR #2 added city-world2-authority.js, server/city-world2-prototype.mjs and server/city-world2-local.mjs. The new server-owned world2 Engine uses canonical collision/buildings/services/territory/courier definitions, shared guest rooms and server-calculated movement, NPC damage and rewards. Peer snapshots redact private inventories/credits; server actions reject forged client coordinates and balances.
+
+The local HTTP endpoint is loopback-only (127.0.0.1:8788), separate from Render and the existing world1 service; browser preview connectivity is not implemented yet. New Node test suites cover actual HTTP join/auth/input/leave, two guests/room isolation, invalid actions/origins, server-validated purchases, courier and faction capture.
+
+**CI:** [206 tests passed, 0 failed](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41226269497) at d508f757. Whitespace, static and world1 server benchmark checks passed. No production merge, Render redeploy, physical browser or Android tests were performed. Next work: opt-in room client, real browser acceptance, authoritative gameplay parity, and production release authorization.

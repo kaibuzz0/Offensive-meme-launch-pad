@@ -1,3 +1,5 @@
+> World2 authoritative QA runs as a separate local-only proof of concept, not the active Render world1 server. See WORLD2_LOCAL_QA.md.
+
 # Meme City / Play Together (Alpha 09)
 
 An authoritative Node 22+ service serves the game and up to eight separate rooms of eight guests each. GitHub Pages connects to the deployed free service at https://offensive-meme-city-rooms.onrender.com. No tokens, wallet transactions, blockchain rewards or client-supplied balances are accepted.

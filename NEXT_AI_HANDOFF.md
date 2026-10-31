@@ -1,3 +1,17 @@
+> **Round 5 server-authored world2 QA — October 31, 2026:** Draft PR #2 on branch codex/world2-territory-foundation now includes an unexposed, server-authoritative room prototype. Gameplay commit d508f757; [full Node 22 CI](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41226269497) **206/206 passed**. Production main and Render service unchanged.
+
+## Next development priorities after Round 5
+
+The new city-world2-authority.js implements a separate world2 Engine with authoritative shared movement/collision, guards/health, one active territory capture per room, private courier timers, indoor shop/medical validation and server-owned preview credits/gear. The server/city-world2-prototype.mjs VM-isolated loader passes this engine to the existing authenticated createRooms guest manager. Guest room state, session expiry, rate limits, input sequencing and filtered peer snapshots are tested with two guests.
+
+The independent server/city-world2-local.mjs exposes an opt-in loopback-only QA API, 127.0.0.1:8788, with join/state/input/action/leave, origin and JSON body checks, and temporary bearer sessions. Start using npm run dev:world2; inspect server/WORLD2_LOCAL_QA.md. This local API is NOT mounted on Render, the main world1 server, or the current offline browser preview.
+
+**Next:** (1) develop an explicit browser opt-in client that actually connects to the local v2 rooms, including real avatar/guard rendering and reconciliation of server snapshots; (2) prove two physical browsers and Android touch/camera/fire; (3) align service and combat behavior between client and server, improve per-player simultaneous capture and NPC movement; (4) gate an actual v2 online server route behind owner-reviewed feature flags, anti-cheat/privacy/rate testing and stable room persistence. Never automatically merge, deploy Render, overwrite world1 saves or conduct crypto transactions.
+
+**Limitations:** the existing city-world2-preview.html still runs its own offline simulation. The new engine has server-owned mechanics but not a deployed v2 multiplayer client. Online guest progress remains nonpersistent and world2 server load/phone FPS have not been measured.
+
+---
+
 > **UPDATED October 31, 2026 — post-release world-v2 continuation:** PR #1 was merged into `main` at `08e6d169`, and GitHub Pages published the original world1 game with a separate experimental v2 preview. The next development branch is **`codex/world2-territory-foundation`**, **draft PR #2**: https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/2. Latest tested code `70f9a6ca`; [Node 22 CI](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41224951450) **189/189 tests passed**. This new PR is not merged or deployed.
 
 ## NEXT AI HANDOFF — post-release world2 work

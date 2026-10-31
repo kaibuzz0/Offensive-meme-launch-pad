@@ -66,3 +66,10 @@ console.log('PASS: Public website links to clearly labeled world2 sandbox and re
 assert.ok(read('city-world2-preview.html').includes('src="city-world2-services.js"'),'Preview must load indoor services before the simulation');
 assert.ok(read('.github/workflows/pages.yml').includes('city-world2-services.js'),'Future Pages preview package must ship services');
 console.log('PASS: Preview-only indoor services load and ship with sandbox assets.');
+
+assert.ok(fs.existsSync(path.join(root,'city-world2-authority.js')),'World2 authority must exist');
+assert.ok(fs.existsSync(path.join(root,'server/city-world2-prototype.mjs')),'World2 server factory must exist');
+assert.ok(fs.existsSync(path.join(root,'server/city-world2-local.mjs')),'World2 local HTTP harness must exist');
+assert.ok(!read('server/city-server.mjs').includes('city-world2-prototype.mjs'),'Unreviewed world2 activation in production server');
+new vm.Script(read('city-world2-authority.js'));
+console.log('PASS: World2 authority and local QA remain isolated from production.');
