@@ -109,3 +109,7 @@ To restore after a fresh QA server start, paste the key into **Existing private 
 Test coverage includes `scripts/city-world2-vault.test.mjs` and `scripts/city-world2-persistence-http.test.mjs` for stored-record integrity, recovery secrets, rejected overlapping sessions, full server-restart restoration and bad saves; browser controls plus real Chrome are checked by `npm run qa:world2:browser`.
 
 **Remaining release gates:** power-loss-grade durability (fsync/journaling), encrypted backups and credential reset, hardened public identity and moderation, concurrent durable account transactions across processes, migration/rollback of real world1 saves, and physical Android input/FPS measurements. Never deploy this local vault/API to Render or public Pages.
+
+### Production cutover staging — not local QA
+
+A separate production bootstrap (`npm run start:world2:production`) co-hosts original world1 and world2 APIs only after an explicit persistent-volume marker and approved HTTPS origin. It is **not** activated by `npm run dev:world2` or current `render.yaml`. The public static `city.html` only redirects when the production API reports explicit `releaseReady:true`; otherwise it stays on world1. See `docs/WORLD2_PRODUCTION_ROLLOUT.md`. Existing `offensive-meme-city-v1` saves must remain untouched until a safe migration and rollback policy is established.
