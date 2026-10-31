@@ -59,3 +59,14 @@ Validation: full PR CI green on the integrated navigation batch and topology tes
 5. Then expand autonomous defensive squads, faction wars and Insider-controlled police, hostile clan attacks, damageable control points/buildings (not protected services), zombie systems, accessible arcade games and verified holder cosmetics, before adding optional OFFENDED block-building play area. BAREIRON remains an efficiency reference only.
 
 Run `npm test`, `npm run check`, `git diff --check`, benchmark and browser/device acceptance as appropriate; commit and **push** to the existing draft PR branch after each usable batch. Never merge/deploy or execute financial operations without owner review. Keep the website's existing 47 interiors and tokens, and retain backup compatibility.
+
+
+## NEW: world2 canonical destinations and isolated preview (October 31, 2026)
+
+Current work now includes `city-world2-registry.js` (canonical ID registry), stable-ID-aware optional staging in `city-migration.js`, and a new `city-world2-preview.html` / `city-world2-preview.js` **review-only browser explorer**. Its controls allow manual movement across world2 fortress gates and streets, selecting one of the actual 47 door destinations, entering a nontransactional room mock using the existing interior collision model, temporary preview-only wall placement, and safe read of a staged solo character. It is **not** a full gameplay release, server simulation, economy or proof of Android acceptance.
+
+For local QA, checkout the latest `codex/living-blocks-handoff`, run `npm run dev`, open `http://localhost:8787/city-world2-preview.html`. Use the on-page controls and browser developer tools. Do not treat the page as a live/deployed URL while the PR is draft.
+
+**Immediate implementation priority:** connect the canonical world2 registry to a feature-flagged *actual engine* and interior/mission/NPC simulation, not only the standalone explorer. Preserve all 47 entrances, 12 landmark points, stage/rollback copies and movement/collision semantics. Verify consistent client+server world topology before enabling online rooms. Have a real-browser specialist capture screenshots and test touch controls, the in-room terminal, construction collision, eight-way avatar poses, and a legacy save reload. Do not merge or deploy until owner review.
+
+**Every batch:** fetch latest branch, test, commit and PUSH; keep the draft PR and `DEVELOPMENT_STATUS.md` current. Never reset newer remote commits. No token burns or Minecraft/BAREIRON runtime.
