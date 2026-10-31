@@ -221,3 +221,25 @@ A full Node 22 PR validation passed at the preview integration commit `b0cf229a`
 2. **Mission/interior scope is narrow.** Only canonical three-stop checkpoint progression and a simple timed-free defense wave are supported in the new preview. Existing courier, escort, district contracts, interior shop/medic/market transactions, arcade, team control points, factions, gang destructibility and missions still require a reviewed world2 implementation. Preview gangs are intentionally small and the Insider police/fortress defender behavior is a basic bounded prototype.
 3. **Real browser QA still required:** load `http://localhost:8787/city-world2-preview.html` via `npm run dev` on the PR branch. Test WASD, arrows and touch simultaneously, all 47 doors, four gates, avatar facing/fire while walking, keyboard focus, interior enter/exit, NPC motion and wall collision, defense-wave completion/respawn, staging and two-tab backup conflicts. Capture screenshots and frame time on mid-range Android. The mock-DOM tests are not actual browser evidence.
 4. **Preserve safe migration:** separate stage/backup/inspect keys never activate world2 or overwrite the active v5/world1 save. Implement an explicit review + reversible activation UI only after complete engine, server and mobile acceptance. Never merge/deploy or run wallet transactions without user approval.
+
+## World-v2 post-release development — October 31, 2026 (draft PR #2)
+
+The previous PR #1 is now merged into deployed `main` (`08e6d169`); **new work happens only in `codex/world2-territory-foundation`**. The live world1 client, legacy user save key and Render server have not changed in this round. No wallet actions were performed.
+
+### Implemented and pushed
+
+- New six-clan territorial state machine with safe world2 neighborhood control markers, distance/health/hostile contest rules, eight-second capture, reset and preview-only one-time progress rewards. Each control now has a faction-identified gang NPC capable of contesting captures. The browser preview shows control markers, route options, capture progress, faction selection, nearby action and clan ownership. All six control points are verified walkable from the central fortress spawn.
+- New small `city-world2-contracts.js` delivery contract: accepting at Launch House, walking the canonical route to Creator District under a 210-second deadline, receiving one reward, aborting or expiring. Guards against distant acceptance, repeated payout and incompatible active fortress-defense duties. Browser preview includes mission buttons, in-room launch terminal, street delivery and HUD countdown.
+- New `city-world2-session.js`: manual save/load of `worldVersion:2/saveVersion:6` under distinct `offensive-meme-city-world2-preview-v1` key only, including character progression, gear, build tiles, outposts, clan reputation and claimed territory ownership. It requires reviewing/loading existing sandbox saves before overwrite, detects stale-tab writes and rejects malformed/future schema or invalid territory ownership. It never writes the original world1 localStorage key. Incomplete raids/couriers do not persist.
+- Updated preview wiring, mock-DOM tests, static validation, local server allowlist and future Pages asset manifest. `city-world2-preview.html` remains a preview—not a server-authoritative game.
+
+### Verified
+
+[GitHub Actions run 41224951450](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41224951450) on code `70f9a6ca`: **189 / 189 tests passed**, static resource validation, diff whitespace and deterministic world1 server benchmark completed successfully. Earlier intermediate CI runs revealed floating-point timer boundary handling and old test fixture omissions; these were fixed before this green run. Automated testing does **not** establish actual Chrome/Android behavior, real render quality, or multi-client authoritative security.
+
+### Still missing before any production v2 release
+
+- Verified browser+mobile loop across four gates, six capture points, 47 interior entrances, courier, fire while moving, equipment and two-tab save conflict.
+- Full integration of the world2 simulation with core and Render online room authority. Territory and contract progression currently exist only in an isolated browser prototype and are not safe as real server-validated rewards.
+- Production-grade clan raid factions and private fortress persistence with staging/rollback and cross-device identity; actual interior medicine/trading/arcade; world2 automatic save migration and server parity. No real-world token/fee integrations in this PR.
+

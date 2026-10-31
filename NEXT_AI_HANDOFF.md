@@ -1,3 +1,28 @@
+> **UPDATED October 31, 2026 — post-release world-v2 continuation:** PR #1 was merged into `main` at `08e6d169`, and GitHub Pages published the original world1 game with a separate experimental v2 preview. The next development branch is **`codex/world2-territory-foundation`**, **draft PR #2**: https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/2. Latest tested code `70f9a6ca`; [Node 22 CI](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41224951450) **189/189 tests passed**. This new PR is not merged or deployed.
+
+## NEXT AI HANDOFF — post-release world2 work
+
+**First task:** Fetch the current PR #2 head; preserve any newer commits. This supersedes old instructions to keep working on already-merged PR #1.
+
+### What is implemented on PR #2
+
+- **Six-neighborhood territorial gameplay** (`city-world2-territory.js`): selectable temporary faction, six canonical collision-safe control nodes, proximity-limited capture requiring an uninterrupted eight-second hold, nearby rival gang interruption, damage/distance cancellation, bounded one-time preview rewards and reset. Routes from fortress spawn to all six sites are covered by pathfinding regression tests. Public interiors and protected service buildings are never damaged or captured.
+- **Confrontable NPC control guards:** each control node now has an actual gang NPC with corresponding neighborhood clan identity, HP and collision movement/attack. The player must defeat guards to remove contesting pressure. This is simulated only in the offline browser preview.
+- **Courier contract** (`city-world2-contracts.js`): explicit acceptance near canonical `door:launch`, destination `checkpoint:1`, 210-second delivery window, exactly-once preview XP/play-credit payout, timeout, abort/cooldown and strict proximity. UI enables acceptance at the Launch House terminal, a route and street completion, but full world1 contracts are not ported.
+- **Separate opt-in world2 preview persistence** (`city-world2-session.js`): explicit Save/Load buttons use `offensive-meme-city-world2-preview-v1` only. Round trips preserve validated world2-only character XP, preview play credits, inventory, plot/outposts, crew, clan and completed territory claims. The original `offensive-meme-city-v1` save key is untouched. Unsupported/corrupt saves fail closed, multi-tab writes use optimistic revision checks, incomplete courier/raids never resume. This is **not** a transactional multi-tab lock and **not** real world2 save activation.
+- Updated `city-world2-preview.js/html`, local development server asset list and future Pages manifest. The original `city.html` production client remains unchanged.
+
+### Required next vertical slices
+
+1. **Actual browser/device acceptance:** use a checkout of PR #2 and `npm run dev` → `http://localhost:8787/city-world2-preview.html`. Verify six capture nodes, visible clan guards, shooting while walking, courier from Launch House interior to creator checkpoint, all 47 doors, four gates, mobile touch/keyboard and sandbox save/reload with two tabs. Inspect runtime console and handset frame pacing, not merely Node VM tests.
+2. **Real gameplay server integration:** centralize world2 geometry/POI and authoritative combat, territory, contract timers, snapshots and state transitions under a shared server/client contract. Do not copy the current client-only preview reward logic into online rooms. Keep separate neutral online commons and instanced private solo fortresses.
+3. **Finish functional services and durable play:** implement actual world2 shop/medic/arcade interactions, NPC/faction raids and defense cooldowns, protected public service terminals, safe plot/outpost load and rollback UI. Build idempotent world1-to-world2 migration with a user-facing review/restore procedure before a production replacement.
+4. Only after parity and browser/multi-client tests: optional zombies, expanded territory destruction (never protected public services), live platform economy and verified holder cosmetics. No real token transactions, burns, or BAREIRON/Minecraft runtime.
+
+**Required checks after each batch:** `npm test`, `npm run check`, diff whitespace, room benchmark and explicit browser/device QA when relevant. Commit and PUSH in reviewed batches to PR #2. **Do not merge/deploy `main`, overwrite world1 saves or redeploy the Render backend without user approval.** A passing Node benchmark on world1 is not handset FPS or multiplayer world2 proof.
+
+---
+
 > **Latest pushed and verified — October 31, 2026:** world2 offline gameplay preview is now wired to a limited collision-aware simulation with gangs, police heat response, fortress defender, simple raids, directional combat, preview-only checkpoint XP/credits and guarded staged character loading. Latest code `777a924b`. [Node 22 CI https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41223390175](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41223390175) **170/170 passed**. Draft PR #1 remains open. **Do not confuse this with integration into the production core/server, or claim physical browser/Android testing.**
 
 ## Immediate engineering priorities after round 3
