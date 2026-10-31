@@ -127,6 +127,22 @@ try{
  await waitFor(()=>first.evaluate("document.getElementById('plot-summary').textContent.includes('0 / 160')"),
   'server removed Alice fortress structure');
  assert.match(await first.evaluate("document.getElementById('hud').textContent"),/credits 177/);
+ // Local-only real browser acceptance of private server-authoritative squads and raids.
+ await first.evaluate("document.getElementById('defender-role').value='sentry';document.getElementById('hire-defender').click();true");
+ await waitFor(()=>first.evaluate("document.getElementById('raid-summary').textContent.includes('Squad: 1 / 4')"),
+  'server hires Alice private sentry');
+ assert.match(await first.evaluate("document.getElementById('hud').textContent"),/credits 157/);
+ await second.send('Page.bringToFront');
+ await waitFor(()=>second.evaluate("document.getElementById('raid-summary').textContent.includes('Squad: 0 / 4')"),
+  'Bob cannot see Alice private defender');
+ await first.send('Page.bringToFront');
+ await first.evaluate("document.getElementById('start-raid').click();true");
+ await waitFor(()=>first.evaluate("document.getElementById('raid-summary').textContent.includes('Raid: active')"),
+  'server starts Alice private fortress raid');
+ await second.send('Page.bringToFront');
+ assert.match(await second.evaluate("document.getElementById('raid-summary').textContent"),/Raid: idle/,
+  'Bob does not join Alice private raid');
+
  assert.equal(await first.evaluate('localStorage.length'),0,'client cannot store guest credentials');
  const shot=await second.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
  assert.ok(shot.data?.length>1000,'real mobile-viewport browser canvas screenshot must render');
