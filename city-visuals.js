@@ -210,8 +210,10 @@
    // proportions, shading, yaw transform and depth sorting as the rifle pose.
    for(const side of [-1,1]){
     const swing=(o.stridePose||0)*side;
-    const shoulder=[0,side*17,73],elbow=[-3-swing*.25,side*22,55];
-    const hand=o.gesture&&side===1?[1,side*22,105]:[-4-swing*.65,side*19,40];
+    const shoulder=[0,side*17,73];
+    const raised=!!o.gesture&&side===1;
+    const elbow=raised?[-2,side*22,91]:[-3-swing*.25,side*22,55];
+    const hand=raised?[1,side*22,108]:[-4-swing*.65,side*19,40];
     limb(shoulder,elbow,4,coat);limb(elbow,hand,3,tone);box(hand,[6,6,6],tone);
    }
   }
