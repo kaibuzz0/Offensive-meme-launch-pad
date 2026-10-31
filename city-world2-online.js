@@ -24,9 +24,10 @@
  $('plot-col').value='5';$('plot-row').value='3';$('plot-kind').value='wall';
  $('destination').value='door:shop';
  function authState(){
-  $('server-state').textContent=joined?'Connected to loopback QA server':'Disconnected';
+  $('server-state').textContent=joined?(root.MEME_CITY_WORLD2_PUBLIC===true?'Connected to World V2 — temporary multiplayer':'Connected to loopback QA server'):'Disconnected';
   $('join').disabled=joined;$('create-private').disabled=joined;$('leave').disabled=!joined;
-  $('create-profile').disabled=!joined;$('save-profile').disabled=!joined;
+  const savingDisabled=root.MEME_CITY_WORLD2_PUBLIC===true;
+  $('create-profile').disabled=!joined||savingDisabled;$('save-profile').disabled=!joined||savingDisabled;
  }
  function adapt(raw){if(!raw||raw.worldVersion!==2||!raw.self||!Array.isArray(raw.players))throw Error('Invalid authoritative snapshot.');return raw;}
  function updated(s){
@@ -64,7 +65,9 @@
    const code=$('room-code').value.trim();
    const recoveryKey=$('recovery-key').value.trim();$('recovery-key').value='';
    const snap=await transport.join({name:$('name').value.trim()||'Explorer',avatar:$('avatar').value,createRoom:privateRoom,...(!privateRoom&&code?{code}:{}),...(recoveryKey?{recoveryKey}:{})});
-   joined=true;updated(snap);authState();tell('Joined server-owned world2 room. Open another browser tab to verify peer movement.');
+   joined=true;updated(snap);authState();tell(root.MEME_CITY_WORLD2_PUBLIC===true?
+    'Welcome to Meme City V2! Your multiplayer progress is temporary until durable saving is available.':
+    'Joined server-owned world2 room. Open another browser tab to verify peer movement.');
   }catch(e){tell('Join refused: '+e.message);}finally{busy=false;}
  }
  $('join').addEventListener('click',()=>join(false));
@@ -76,7 +79,9 @@
    $('issued-key').value='';$('recovery-key').value='';
    latest=null;$('room-info').textContent='Room: —';$('hud').textContent='No server snapshot';
    $('peer-summary').textContent='Peers: —';
-   tell('Room left. Saved accounts were checkpointed; ephemeral guest token revoked.');
+   tell(root.MEME_CITY_WORLD2_PUBLIC===true?
+    'You left World V2. Temporary guest progress is not saved.':
+    'Room left. Saved accounts were checkpointed; ephemeral guest token revoked.');
   }catch(e){tell('Leave refused: '+e.message+'. Retry saving before leaving.');}
   finally{busy=false;}
  });
