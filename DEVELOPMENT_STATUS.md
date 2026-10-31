@@ -73,3 +73,21 @@ Reproduce simulation profiling with `node scripts/city-benchmark.mjs`. Shared Li
 4. Obstacle-aware route guidance, world-space construction preview, continuous collision/access audits and legacy layout repair UX. Do not describe the conservative tile test as complete world navigation validation.
 
 PR remains draft because these acceptance items are unfinished, not because pushing is blocked. Continue pushing verified batches; do not merge/deploy merely to satisfy a push request.
+
+## Visual parity follow-up — October 31, 2026
+
+### Armed-NPC visual parity and avatar clarity
+
+- All armed human roles (players, faction residents, Insider security, Rugmasters, and hired guards) now render through the same full-body, depth-sorted weapon/arm/leg rig. The old NPC-specific 2-D held-gun overlay is removed, avoiding disconnected hands and differently ordered limbs during turns.
+- Rendering movement no longer freezes bot gait solely because the enemy is in its attack state. The shared travel-distance tracker animates legs only when the actor actually changes position; guards retain their target-facing aim while retreating.
+- NPC combat pose resolves aim in attack/skirmish states and movement-facing during chase/patrol rather than continuing to stare toward an old shot target. Shared NPC visual scaling is 0.9 for regular bots/guards (including other civilian roles by default); boss visuals are 1.15 versus the prior 1.28.
+- NPC uniforms retain faction-specific cloth color and visible insignia rather than accidentally showing meme prints when using the common armed rig. Player and faction-resident meme logos stay on torso and sleeve panels.
+- Meme icons on the rig preserve a square 28×28 print with a contrast outline instead of distorting the art into a 30×23 rectangle. Ready images are prefiltered to a 128×128 cached thumbnail for subsequent draws. The unarmed top print is also square.
+- Small armed NPCs use a reduced polygon count (316 instead of 684 surfaces in a representative rig pose) and skip per-face outlines. Unused offscreen civilian costume sprites are no longer built for armed actors.
+
+### Verification and limits
+
+- Six dedicated avatar/unit tests passed under an isolated JavaScript compatibility harness, including two new NPC gait/target/LOD regressions. (This is not a complete Node `npm test` execution.)
+- Syntax compilation passed for seven central game/rendering files; 576 simulated role/yaw/LOD geometry combinations passed depth/finiteness checks; 64 mock-canvas rendering poses completed without exceptions. A representative logo mock used one thumbnail canvas and one original-image downsampling operation across repeated renders.
+- The actual GitHub Pages release is still on `main`. This code is committed and pushed to the draft PR branch, **not deployed**.
+- Remaining acceptance: real browser/phone screenshots in all eight directions, walking while firing for player/guard/Insider/Rugmaster/resident, frame-time and memory measurements on mid-range Android, clothing/insignia legibility at 0.72 world zoom, recoil and muzzle/cover alignment, collision silhouettes after the modest NPC scale change, and multiplayer interpolation under packet delay.
