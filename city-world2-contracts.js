@@ -31,7 +31,8 @@
    if(state.status==='complete'&&state.cooldown===0)state.status='idle';
    if(state.status!=='active')return null;
    state.remaining=Math.max(0,state.remaining-d);
-   if(state.remaining>0)return null;
+   if(state.remaining>1e-8)return null;
+   state.remaining=0;
    state.status='failed';state.cooldown=20;
    return {status:'expired',message:'Courier delivery expired. No preview reward was awarded.'};
   }
