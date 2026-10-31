@@ -28,7 +28,8 @@
   const self=s.self,room=s.roomInfo;
   $('room-info').textContent='Room: '+(room?.code||'unknown')+' · '+(room?.players||0)+' / '+(room?.capacity||8)+' guests'+(room?.private?' · private':' · public');
   $('hud').textContent='Server XP '+self.xp+' · credits '+self.credits+' · HP '+Math.ceil(self.hp)+' · ammo '+self.ammo+
-   ' · medkits '+(self.rising?.medkits||0)+' · faction '+(self.clan||'none')+' · courier '+(self.courier?.status||'idle');
+   ' · medkits '+(self.rising?.medkits||0)+' · faction '+(self.clan||'none')+' · courier '+(self.courier?.status||'idle')+' · pos '+Math.round(self.x)+','+Math.round(self.y);
+  $('peer-summary').textContent='Other guests: '+s.players.filter(p=>p.id!==self.id).map(p=>p.name+' ('+Math.round(p.x)+','+Math.round(p.y)+')').join(' · ');
   const prev=$('owned').value;$('owned').textContent='';
   for(const i of self.inventory||[]){const item=C.ITEMS.find(x=>x.id===i.item);option($('owned'),i.uid,(item?.name||i.item)+' / '+i.uid);}
   if((self.inventory||[]).some(i=>i.uid===prev))$('owned').value=prev;
@@ -52,7 +53,7 @@
   if(!joined)return;joined=false;held.clear();firePointer=false;authState();
   try{await transport.leave();tell('Room left. Ephemeral guest token revoked.');}
   catch(e){transport.disconnect();tell('Disconnected: '+e.message);}
-  finally{latest=null;$('room-info').textContent='Room: —';$('hud').textContent='No server snapshot';}
+  finally{latest=null;$('room-info').textContent='Room: —';$('hud').textContent='No server snapshot';$('peer-summary').textContent='Peers: —';}
  });
  async function command(type,fields={}){
   if(!joined){tell('Join a local QA room first.');return;}
