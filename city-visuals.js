@@ -1,13 +1,20 @@
 /* Streetwear character art and environment finishing, rendered locally in canvas. */
 'use strict';
 (function(root){
- const cache=new Map(),W=root.MemeCityCore.WEAPON,NPC_SCALE=.9;
+ const cache=new Map(),logoCache=new WeakMap(),W=root.MemeCityCore.WEAPON,NPC_SCALE=.9;
  const skin=['#c38f6c','#e5b898','#8d583e','#5b382b','#d3a17d','#a4775c'];
  const hair=['#242329','#4d352d','#171e25','#9b7750'];
  const denim=['#27394f','#363b43','#4c5345','#466079'];
  function rounded(c,x,y,w,h,r,fill){c.fillStyle=fill;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
  function gradient(c,x,y,w,h,a,b){const g=c.createLinearGradient(x,y,x+w,y+h);g.addColorStop(0,a);g.addColorStop(1,b);return g;}
  function text(c,value,x,y,size,color,weight='700'){c.fillStyle=color;c.font=`${weight} ${size}px Arial`;c.textAlign='center';c.fillText(value,x,y);}
+ function logoTexture(image){
+  if(!image?.complete||!image.naturalWidth)return null;
+  let thumb=logoCache.get(image);if(thumb)return thumb;
+  thumb=document.createElement('canvas');thumb.width=128;thumb.height=128;
+  const g=thumb.getContext('2d');g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.drawImage(image,0,0,128,128);
+  logoCache.set(image,thumb);return thumb;
+ }
  function drawLegs(c,o,pose){
   const style=o.style||{},role=o.role||'player',civilian=role==='civilian',cop=role==='cop',gang=role==='gang',gear=o.gear||{},pants=denim[style.pants||0];
   // A planted foot alternates with a lifted swing foot. Travel distance drives the stride.
@@ -204,14 +211,14 @@
  }
  function drawSolidRig(c,o,angle){
   for(const f of rigSurfaces(o,angle)){
-   const p=f.points;c.beginPath();c.moveTo(p[0].x,p[0].y);for(let i=1;i<p.length;i++)c.lineTo(p[i].x,p[i].y);c.closePath();const lit=/^#[0-9a-f]{6}$/i.test(f.color)?'#'+[1,3,5].map(i=>Math.round(parseInt(f.color.slice(i,i+2),16)*f.shade).toString(16).padStart(2,'0')).join(''):f.color;c.fillStyle=lit;c.fill();c.strokeStyle=lit;c.lineWidth=.35;c.stroke();
+   const p=f.points;c.beginPath();c.moveTo(p[0].x,p[0].y);for(let i=1;i<p.length;i++)c.lineTo(p[i].x,p[i].y);c.closePath();const lit=/^#[0-9a-f]{6}$/i.test(f.color)?'#'+[1,3,5].map(i=>Math.round(parseInt(f.color.slice(i,i+2),16)*f.shade).toString(16).padStart(2,'0')).join(''):f.color;c.fillStyle=lit;c.fill();if(!o.simplified){c.strokeStyle=lit;c.lineWidth=.35;c.stroke();}
    if(f.print){
     const a=p[0],b=p[1],d=p[3],det=(b.x-a.x)*(d.y-a.y)-(b.y-a.y)*(d.x-a.x);if(Math.abs(det)<.01)continue;
     c.save();c.clip();c.transform((b.x-a.x)/30,(b.y-a.y)/30,(d.x-a.x)/28,(d.y-a.y)/28,a.x,a.y);
     if(f.print==='ticker'){c.fillStyle='#142733';c.fillRect(0,0,30,28);c.save();c.translate(15,14);c.rotate(Math.PI/2);text(c,'$'+(o.ticker||'MEME'),0,2,5,'#eaf3e7');c.restore();}
     else if(f.print==='pattern'){for(let y=0;y<28;y+=9)for(let x=0;x<30;x+=10){if(o.image?.complete&&o.image.naturalWidth)c.drawImage(o.image,x,y,9,8);else{c.fillStyle=o.color||'#b7ef84';c.fillRect(x,y,7,6);}}}
     else if(f.print==='insignia'){c.fillStyle='#142733';c.fillRect(0,0,30,28);c.fillStyle=o.role==='cop'?'#8db9e4':o.role==='gang'?'#c56d83':'#9bdcca';c.fillRect(1,1,28,4);text(c,o.role==='cop'?'INSIDER':o.role==='gang'?'RUG':'DEFENDER',15,18,o.role==='guard'?5:7,'#f1f6ef');}
-    else {c.fillStyle='#132332';c.fillRect(0,0,30,28);if(o.image?.complete&&o.image.naturalWidth){c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(o.image,1,0,28,28);}else{text(c,'o!',15,19,19,'#e7f6cc');}c.strokeStyle='#e7f6cc88';c.lineWidth=1;c.strokeRect(.5,.5,29,27);}c.restore();
+    else {c.fillStyle='#132332';c.fillRect(0,0,30,28);const logo=logoTexture(o.image);if(logo){c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(logo,1,0,28,28);}else{text(c,'o!',15,19,19,'#e7f6cc');}c.strokeStyle='#e7f6cc88';c.lineWidth=1;c.strokeRect(.5,.5,29,27);}c.restore();
    }
   }
  }
