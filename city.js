@@ -3,13 +3,14 @@
  const C=window.MemeCityCore,{WORLD,ITEMS,HUB}=C,V=window.CityVisuals,D=window.CityDistricts,R=window.CityRising,RV=window.CityRisingVisuals,I=window.CityInteriors,IV=window.CityRoomVisuals;
  const tokens=[window.LAUNCHPAD_CONFIG.platformToken,...window.MEME_TOKENS.filter(t=>t.mint)];
  const catalog=new Map(tokens.map(t=>[t.id,t]));
- const M=window.CityMap,mapPoints=M.catalog(C,I,R);
+ const M=window.CityMap,mapPoints=M.catalog(C,I,R),navigator=window.CityNav.createRouter(C);
  const art=new Map(tokens.map(t=>{const img=new Image();img.src=t.art;return[t.id,img];}));
  const $=s=>document.querySelector(s),canvas=$('#city-canvas');let ctx=canvas.getContext('2d');
  $('.alpha-tag').textContent=`${C.RELEASE.name} / ${C.RELEASE.version}`;
  if(!ctx){$('#start-button').textContent='Canvas is unavailable in this browser.';return;}
  const engine=new C.Engine();let me=engine.join('solo','Guest','offensive'),state=engine.snapshot('solo'),online=false,roomClient=null,roomBusy=false,roomStatus='',entered=false,activePanel='',tracked=null,toastTimer,lastFrame=0,lastDrawUI=0,saveAt=0,paintX=me.x,paintY=me.y;
  const keys=new Set(),held=new Set(),sparks=[];let aim={x:1,y:0},stick={x:0,y:0},firing=false,mouseFiring=false,shotBusy=false,lastNotice=0,lastHP=100,soundOn=false,audio=null,lastResult=0,shotFlash=0,lastShots=0,cameraZoom=1,manualAim=false,worldView=null,emoteText='',emoteUntil=0;
+ let routePath=null,lastRouteCalc=0;
  let groundCache=null;const buildingCache=new Map(),particles=[],seenEffects=new Set(),positions=new Map();
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  const saveKey='offensive-meme-city-v1',backupKey=saveKey+'-legacy-backup',Save=window.CitySave;let saveBlocked=false;
@@ -37,7 +38,7 @@
    }}
   shell.append(info);render();const image=art.get(me.avatar);if(!image?.complete)image?.addEventListener('load',render,{once:true});return shell;
  }
- function track(s){tracked=s;closePanel();toast(`Follow the blue marker to ${s.name}.`);}
+ function track(s){tracked=s;const route=navigator.plan(me,s,online?null:me);routePath=route.status==='ok'?route.points:null;lastRouteCalc=performance.now();closePanel();toast(routePath?`Walking route to ${s.name} marked. Follow the cyan path.`:`No safe street route found to ${s.name}. Try a different entrance.`);}
  function markDistrict(area){const d=area==='hub'?{...WORLD.spawn,name:'Founder Square'}:C.DISTRICTS.find(d=>d.id===area);if(d)track(d);}
  function buildEditor(content){
   if(online){districtsPanel(content);return;}
@@ -216,12 +217,13 @@
    }
   }
   if(type==='map'){
-   content.append(node('p','','One connected map. White is you; blue is your defenders. Tap an entrance or location marker, or use the accessible destination buttons. The current waypoint points toward a location; obstacle-aware routing is still under development.'));
+   content.append(node('p','','One connected map. White is you; blue is your defenders. Tap an entrance or location marker, or use the accessible destination buttons. Walking routes avoid solid buildings. No automatic movement; rerouting is available when you leave the path.'));
    const map=node('canvas','large-map');map.width=840;map.height=840;map.setAttribute('aria-label','Square Meme City map with six clan neighborhoods, four original districts and your position');const g=map.getContext('2d'),sx=840/WORLD.width,sy=840/WORLD.height;g.fillStyle='#243e40';g.fillRect(0,0,840,840);
    for(const d of [...C.DISTRICTS,...C.NEIGHBORHOODS,{id:'hub',name:'Founder Square',ox:HUB.x,oy:0,color:'#e0dfca'}]){g.fillStyle=d.color+'22';g.fillRect(d.ox*sx,d.oy*sy,2240*sx,1660*sy);g.strokeStyle=d.color+'55';g.strokeRect(d.ox*sx,d.oy*sy,2240*sx,1660*sy);g.fillStyle=d.color;g.font='600 12px Arial';g.textAlign='center';g.fillText(d.name,(d.ox+1120)*sx,(d.oy+220)*sy);}
    g.strokeStyle='#b8c6b65c';g.lineWidth=8;for(const yy of [870,2530,4190,5850]){g.beginPath();g.moveTo(0,yy*sy);g.lineTo(840,yy*sy);g.stroke();}for(const xx of [1120,3360,5600]){g.beginPath();g.moveTo(xx*sx,0);g.lineTo(xx*sx,840);g.stroke();}
    for(const b of WORLD.buildings){g.fillStyle=b.hue;g.fillRect(b.x*sx,b.y*sy,b.w*sx,b.h*sy);}g.strokeStyle='#bed7a9';g.lineWidth=2;g.strokeRect(C.PLOT.x*sx,C.PLOT.y*sy,1024*sx,640*sy);
-   for(const guard of state.arcade?.guards||[]){g.fillStyle='#86d4ef';g.beginPath();g.arc(guard.x*sx,guard.y*sy,3,0,7);g.fill();}g.fillStyle='#fff';g.beginPath();g.arc(me.x*sx,me.y*sy,5,0,7);g.fill();content.append(map);
+   if(routePath?.length>1){g.save();g.beginPath();routePath.forEach((p,i)=>i?g.lineTo(p.x*sx,p.y*sy):g.moveTo(p.x*sx,p.y*sy));g.strokeStyle='#6ee5f3';g.lineWidth=3;g.setLineDash([8,6]);g.stroke();g.restore();}
+    for(const guard of state.arcade?.guards||[]){g.fillStyle='#86d4ef';g.beginPath();g.arc(guard.x*sx,guard.y*sy,3,0,7);g.fill();}g.fillStyle='#fff';g.beginPath();g.arc(me.x*sx,me.y*sy,5,0,7);g.fill();content.append(map);
    for(const n of R.LANDMARKS){g.fillStyle=me.rising.found.includes(n.id)?'#728b86':'#9af3db';g.beginPath();g.arc(n.x*sx,n.y*sy,3,0,7);g.fill();}
    content.append(node('p','beta-note','Legend: white = you · cyan + = medic · gold square = shop / market · orange ring = conflict · mint diamond = landmark. Online menus do not pause the city.'));
    for(const b of I.BUILDINGS.filter(b=>['supplies','shop','market'].includes(b.activity))){const d=I.door(b);g.fillStyle=b.activity==='supplies'?'#79e3d0':'#ffd187';g.fillText(b.activity==='supplies'?'+':'■',d.x*sx,d.y*sy);}
@@ -229,13 +231,13 @@
    // All tappable markers come from stable IDs for actual doors, stations, landmarks and districts.
    for(const place of mapPoints)if(place.kind==='door'){g.fillStyle=['shop','market','supplies'].includes(place.activity)?'#fbd083':'#b7c8d2';g.beginPath();g.arc(place.x*sx,place.y*sy,place.activity==='supplies'?3.8:2.2,0,Math.PI*2);g.fill();}
    if(tracked){g.strokeStyle='#6ee5f3';g.lineWidth=3;g.beginPath();g.arc(tracked.x*sx,tracked.y*sy,7,0,Math.PI*2);g.stroke();}
-   const note=node('p','beta-note',tracked?'Current waypoint: '+tracked.name+' · tap another marker to change it.':'Tap a location marker to set your waypoint.');content.append(note);
+   const note=node('p','beta-note',tracked?(routePath?'Safe route to ':'No safe path found to ')+tracked.name+' · tap another marker to change it.':'Tap a location marker to set your waypoint.');content.append(note);
    map.addEventListener('click',event=>{const point=M.fromCanvas(event.clientX,event.clientY,map.getBoundingClientRect(),WORLD),place=M.closest(mapPoints,point,190);if(place)track(place);else note.textContent='No nearby destination marker. Tap a marked location or use the buttons below.';});
    const links=node('div','map-destinations');if(state.conflict)links.append(button('Founders Crossing conflict →',()=>track(state.conflict)));
    for(const place of mapPoints.filter(p=>p.kind==='door'&&['supplies','shop','market'].includes(p.activity)))links.append(button(place.name+' →',()=>track(place)));
    for(const place of mapPoints.filter(p=>p.kind==='district'))links.append(button(place.name+' →',()=>track(place)));
    links.append(button('Next journey objective →',()=>{const o=R.objective(me);if(o?.target)track(o.target);else panel('journey');}));
-   if(tracked)links.append(button('Clear waypoint ×',()=>{tracked=null;panel('map');toast('Waypoint cleared.');}));
+   if(tracked)links.append(button('Clear waypoint ×',()=>{tracked=null;routePath=null;panel('map');toast('Waypoint cleared.');}));
    content.append(links);
   }
   if(type==='missions'&&!['hub','arena'].includes(me.area)){content.append(node('p','','Walk to Founder Square or Arena District to start a challenge. Mark a walking route on the map.'),button('Open challenge terminal →',()=>panel('arena')));}
@@ -319,7 +321,7 @@
   if(p.clan){const clan=C.NEIGHBORHOODS.find(n=>n.id===p.clan);label(`${clan?.clan||''} ${'◆'.repeat(p.clanRank||0)}${p.holderTier?' / HOLDER '+p.holderTier:''}`,x,y-134,9,clan?.color||'#cce4ca');}if(isMe){ctx.strokeStyle='#d1e3c688';ctx.lineWidth=1.3;ctx.beginPath();ctx.ellipse(x,y+3,21,8,0,0,Math.PI*2);ctx.stroke();}
  }
  function beacon(t,time,color){const pulse=1+Math.sin(time/240)*.1;ctx.strokeStyle=color;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(t.x,t.y,32*pulse,17*pulse,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle=color+'22';ctx.beginPath();ctx.moveTo(t.x-23,t.y);ctx.lineTo(t.x-10,t.y-95);ctx.lineTo(t.x+10,t.y-95);ctx.lineTo(t.x+23,t.y);ctx.fill();label('↓',t.x,t.y-58+Math.sin(time/300)*7,30,color);label(t.name,t.x,t.y+37,12,color);}
- function draw(time,dt){if(me.room){drawInterior(time,dt);return;}const rect=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height,zoom=(w<600?.72:.88)*cameraZoom;ctx.fillStyle='#13232d';ctx.fillRect(0,0,w,h);paintX+=(me.x-paintX)*Math.min(1,dt*18);paintY+=(me.y-paintY)*Math.min(1,dt*18);const camX=paintX-w/(2*zoom),camY=paintY-h*.61/zoom;ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camX,-camY);worldView={x:camX,y:camY,zoom};D.land(ctx);
+ function draw(time,dt){if(me.room){drawInterior(time,dt);return;}const rect=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height,zoom=(w<600?.72:.88)*cameraZoom;ctx.fillStyle='#13232d';ctx.fillRect(0,0,w,h);paintX+=(me.x-paintX)*Math.min(1,dt*18);paintY+=(me.y-paintY)*Math.min(1,dt*18);const camX=paintX-w/(2*zoom),camY=paintY-h*.61/zoom;ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camX,-camY);worldView={x:camX,y:camY,zoom};D.land(ctx);if(routePath?.length>1){ctx.save();ctx.beginPath();routePath.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.strokeStyle="#6ee5f3bc";ctx.lineWidth=5;ctx.setLineDash([16,14]);ctx.stroke();ctx.restore();}
  const visible=(x,y,bw=200,bh=200)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150;
  const layers=[];
  for(const n of C.NEIGHBORHOODS){const lot=C.outpostLot(n.id);if(!visible(lot.x,lot.y,220,220))continue;ctx.strokeStyle=n.color+'88';ctx.lineWidth=1;for(let row=0;row<3;row++)for(let col=0;col<3;col++)ctx.strokeRect(lot.x+col*64,lot.y+row*64,62,62);label('YOUR OUTPOST / MENU → WORKSHOP',lot.x+96,lot.y+215,10,n.color);}
@@ -406,7 +408,7 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
   ctx.strokeStyle='#ffd698';ctx.lineWidth=2;const r=26;for(let i=0;i<4;i++){ctx.beginPath();ctx.arc(b.x,b.y-58,r,i*Math.PI/2+.15,i*Math.PI/2+.75);ctx.stroke();}
  }
  function movement(){let x=stick.x,y=stick.y;if(keys.has('a')||keys.has('arrowleft')||held.has('left'))x--;if(keys.has('d')||keys.has('arrowright')||held.has('right'))x++;if(keys.has('w')||keys.has('arrowup')||held.has('up'))y--;if(keys.has('s')||keys.has('arrowdown')||held.has('down'))y++;if(!entered||activePanel||document.hidden)x=y=0;if((x||y)&&!manualAim){const n=Math.hypot(x,y);aim={x:x/n,y:y/n};}return{x,y};}
- function frame(time){if(tracked&&entered&&!activePanel&&Math.hypot(tracked.x-me.x,tracked.y-me.y)<60){tracked=null;toast('Destination reached. Press E for nearby activities.');}const dt=Math.min(1,(time-lastFrame)/1000||.016);lastFrame=time;if(!online){const m=movement();engine.input('solo',m.x,m.y);engine.trigger('solo',entered&&!activePanel&&!document.hidden&&(firing||keys.has(' ')),aim.x,aim.y,mouseFiring);if(entered&&!activePanel&&!document.hidden)for(let remaining=dt;remaining>0;remaining-=.05)engine.tick(Math.min(.05,remaining));refreshState();}draw(time,dt);if(time-lastDrawUI>150){updateUI();lastDrawUI=time;}if(time-saveAt>2500){save();saveAt=time;}requestAnimationFrame(frame);}
+ function frame(time){if(tracked&&entered&&!activePanel&&Math.hypot(tracked.x-me.x,tracked.y-me.y)<60){tracked=null;routePath=null;toast('Destination reached. Press E for nearby activities.');}if(tracked&&routePath&&time-lastRouteCalc>6000&&navigator.distanceToRoute(me,routePath)>150){const path=navigator.plan(me,tracked,online?null:me);routePath=path.status==='ok'?path.points:null;lastRouteCalc=time;}const dt=Math.min(1,(time-lastFrame)/1000||.016);lastFrame=time;if(!online){const m=movement();engine.input('solo',m.x,m.y);engine.trigger('solo',entered&&!activePanel&&!document.hidden&&(firing||keys.has(' ')),aim.x,aim.y,mouseFiring);if(entered&&!activePanel&&!document.hidden)for(let remaining=dt;remaining>0;remaining-=.05)engine.tick(Math.min(.05,remaining));refreshState();}draw(time,dt);if(time-lastDrawUI>150){updateUI();lastDrawUI=time;}if(time-saveAt>2500){save();saveAt=time;}requestAnimationFrame(frame);}
  function multiplayerPanel(content){
   content.append(node('p','district-kicker','PLAY TOGETHER / SERVER-CONTROLLED ROOMS'),node('h3','district-heading',online?'Your crew is here.':'A shared city for your crew.'),node('p','', 'Up to eight players share streets, interiors, enemy bots, room chat and play-credit trading. Solo fortresses and squads remain in your separate solo save. Online guests reset when the room service restarts.'));
   if(online){const info=state.roomInfo;content.append(node('p','room-code',`${info.private?'FRIEND ROOM':'PUBLIC ROOM'} / ${info.code} · ${info.players}/${info.capacity}`),node('p','',roomStatus==='reconnecting'?'Reconnecting to your existing character…':'Connected. The server validates movement, equipment and rewards.'),button('Copy friend invite',async()=>{const u=new URL(location.href);u.search='';u.hash='';u.searchParams.set('room',info.code);try{await navigator.clipboard.writeText(u.href);toast('Invite copied. It contains the room code, never a session key.');}catch{toast('Room code: '+info.code);}}),button('Room chat →',()=>panel('chat')),button('Return to my solo city',async()=>{await roomClient.leave();disconnect('Left the room. Back in your solo city.');closePanel();}));return;}
