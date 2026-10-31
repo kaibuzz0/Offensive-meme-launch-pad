@@ -96,6 +96,31 @@ try{
  assert.ok(gameCanvas.width>300&&gameCanvas.height>300,'original playable world canvas active');
  const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
  assert.ok(shot.data.length>2000,'real mobile-viewport screenshot captured');
+ // Center City must also render the playable map with a home plot, independent
+ // clan regions, scattered shops and accessible mobile/desktop map controls.
+ assert.equal(await evalPage("document.querySelector('[data-panel=map]')!==null"),true,'world map control exists');
+ await evalPage("document.querySelector('[data-panel=map]').click();true");
+ await waitFor(()=>evalPage("document.querySelector('canvas.large-map')!==null"),'interactive expanded city map');
+ const mapData=await evalPage(`(()=>{
+  const C=window.MemeCityCore,fort=C.DISTRICTS.find(d=>d.id==='fortress');
+  const map=document.querySelector('canvas.large-map'),g=map.getContext('2d'),center=g.getImageData(map.width/2,map.height/2,1,1).data;
+  return {width:C.WORLD.width,height:C.WORLD.height,fort:[fort.ox,fort.oy],
+   plot:[C.PLOT.x,C.PLOT.y],clans:C.NEIGHBORHOODS.length,
+   shopRegions:new Set(['launch','arcade','club','shop','market','garage'].map(id=>{
+    const b=C.WORLD.buildings.find(b=>b.id===id);return C.areaAt(b.x+b.w/2,b.y+b.h/2);
+   })).size,painted:Array.from(center).some(x=>x>0),mapWidth:map.width,mapHeight:map.height};
+ })()`);
+ assert.equal(mapData.width,11200);assert.equal(mapData.height,11200);
+ assert.deepEqual(mapData.fort,[4480,4480]);assert.equal(mapData.clans,6);
+ assert.ok(mapData.plot[0]>mapData.fort[0]&&mapData.plot[0]<mapData.fort[0]+2240);
+ assert.ok(mapData.shopRegions>=4);assert.ok(mapData.painted);
+ assert.ok(mapData.mapWidth>=800&&mapData.mapHeight>=800);
+ const mobileMapShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+ assert.ok(mobileMapShot.data.length>2000,'mobile expanded-city map rendered in Chrome');
+ await send('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+ await delay(250);
+ const desktopMapShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+ assert.ok(desktopMapShot.data.length>2000,'desktop expanded-city map rendered in Chrome');
  assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
  console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, 360 yaw and mobile solo gameplay screenshot.');
 }finally{
