@@ -90,6 +90,8 @@
   catch(e){tell('World2 connection: '+e.message);if(!transport.isJoined()){joined=false;held.clear();authState();}}
   finally{polling=false;}
  }
+ document.addEventListener('visibilitychange',()=>{if(joined&&!document.hidden)poll();});
+ root.addEventListener('focus',()=>{if(joined)poll();});
  const dir=()=>{
   const n=s=>Number(held.has(s)),x=n('right')+n('d')-n('left')-n('a'),y=n('down')+n('s')-n('up')-n('w'),len=Math.max(1,Math.hypot(x,y));
   return {x:x/len,y:y/len};
