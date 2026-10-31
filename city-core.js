@@ -135,6 +135,17 @@
  const validIds=['offensive','you-missed','maduro','redacted','congress','exit'];
   // Cosmetic avatar outfits: Rug Me Harder is a second Rugmasters design, not a seventh clan.
   const CLAN_SKINS=Object.freeze(['redacted','congress','exit','you-missed','maduro','rug']);
+  // Empty corners of Center City reserved as optional social/creative expansions.
+  // They have no missions, item rewards or combat bonuses. Public roads remain open.
+  const TOKEN_PLOTS=Object.freeze([
+   ['offensive','OFFENDED / Founder Reserve',0,0,'#bdff56'],
+   ['redacted','FINEPRINT / Vault Lot',4,0,'#be69ec'],
+   ['exit','RUGGEDAF / Exit Lot',2,0,'#38dcbf'],
+   ['you-missed','SHOOTER / Rally Lot',0,4,'#ee9c70'],
+   ['maduro','TAKEN / Drop Lot',2,4,'#d7575e'],
+   ['congress','CUNTS / Insider Lot',4,4,'#f2c94c']
+  ].map(([id,name,col,row,color])=>Object.freeze({id,name,x:col*CELL+630,y:row*CELL+500,w:980,h:750,color})));
+  function plotAccess(p,id){return !!(p?.holder?.clan===id&&p.holder.tier>=1&&p.holder.expires>Date.now());}
  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  const level=xp=>1+Math.floor(Math.sqrt(Math.max(0,xp)/50));
  WORLD.obstacles=[{x:978,y:677,w:135,h:110},...[[820,820],[1210,820],[1650,850],[430,850]].map(([x,y])=>({x,y,w:55,h:20}))];
@@ -143,7 +154,8 @@
  const districtSolids=DISTRICTS.flatMap(d=>districtBlocks(d.id).map(b=>({...b,x:b.x+d.ox,y:b.y+d.oy})));
  function blocked(x,y,p){
   if(!Number.isFinite(x)||!Number.isFinite(y)||x<28||y<35||x>WORLD.width-28||y>WORLD.height-28)return true;
-  if(WORLD.obstacles.some(o=>x>o.x-10&&x<o.x+o.w+10&&y>o.y-8&&y<o.y+o.h+8))return true;
+  if(TOKEN_PLOTS.some(o=>x>o.x&&x<o.x+o.w&&y>o.y&&y<o.y+o.h&&!plotAccess(p,o.id)))return true;
+   if(WORLD.obstacles.some(o=>x>o.x-10&&x<o.x+o.w+10&&y>o.y-8&&y<o.y+o.h+8))return true;
   if([...WORLD.buildings,...districtSolids].some(b=>x>b.x-15&&x<b.x+b.w+15&&y>b.y-12&&y<b.y+b.h+22))return true;
   const social=DISTRICTS.find(d=>d.id==='social');if(x>social.ox+180&&x<social.ox+925&&y>social.oy+1260&&y<social.oy+1525)return true;
   if((p?.outposts||[]).some(o=>{const lot=outpostLot(o.clan);return lot&&BUILD_KIT.find(k=>k.id===o.kind)?.solid&&x>lot.x+o.col*64-4&&x<lot.x+o.col*64+60&&y>lot.y+o.row*64-4&&y<lot.y+o.row*64+60;}))return true;
@@ -221,5 +233,5 @@
  Engine.CAPABILITIES=CAPABILITIES;
  Engine.LAYOUT_VERSION=LAYOUT_VERSION;
  const RELEASE=Object.freeze({name:'Living Blocks',version:'Alpha 12'});
- root.MemeCityCore=Object.freeze({LAYOUT_VERSION,buildAccess,WEAPON,weaponAnchor,CAPABILITIES,RELEASE,WORLD,HUB,SCENERY,ITEMS,DISTRICTS,NEIGHBORHOODS,FACTIONS,CLAN_SKINS,factionOf,rivals,npcHostile,outpostLot,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
+ root.MemeCityCore=Object.freeze({LAYOUT_VERSION,buildAccess,WEAPON,weaponAnchor,CAPABILITIES,RELEASE,WORLD,HUB,SCENERY,ITEMS,DISTRICTS,NEIGHBORHOODS,FACTIONS,CLAN_SKINS,TOKEN_PLOTS,plotAccess,factionOf,rivals,npcHostile,outpostLot,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
 })(typeof window==='undefined'?globalThis:window);
