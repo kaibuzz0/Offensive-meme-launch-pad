@@ -91,3 +91,28 @@ PR remains draft because these acceptance items are unfinished, not because push
 - Syntax compilation passed for seven central game/rendering files; 576 simulated role/yaw/LOD geometry combinations passed depth/finiteness checks; 64 mock-canvas rendering poses completed without exceptions. A representative logo mock used one thumbnail canvas and one original-image downsampling operation across repeated renders.
 - The actual GitHub Pages release is still on `main`. This code is committed and pushed to the draft PR branch, **not deployed**.
 - Remaining acceptance: real browser/phone screenshots in all eight directions, walking while firing for player/guard/Insider/Rugmaster/resident, frame-time and memory measurements on mid-range Android, clothing/insignia legibility at 0.72 world zoom, recoil and muzzle/cover alignment, collision silhouettes after the modest NPC scale change, and multiplayer interpolation under packet delay.
+
+## Stage 0 validation and Stage 1 map vertical slice — October 31, 2026
+
+**Working branch:** `codex/living-blocks-handoff`; [draft PR #1](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/1). No merge into `main`, no production deployment and no wallet transactions.
+
+### Implemented and pushed
+
+- `9057626` / `a4e8043`: added a Node 22 PR/branch validation workflow with full `npm test`, `npm run check`, patch whitespace verification and the room benchmark. Corrected the initial shallow-checkout workflow failure.
+- `8eb83eb`: reproduced and corrected the VM-cross-realm `deepStrictEqual` assertion in the recent NPC animation regression test; this was a test harness failure, not evidence of malformed player/NPC aim geometry.
+- `575bb620`: introduced `city-map.js`, a stable and validated POI compatibility catalog of the existing hub, districts, neighborhoods, stations, 47 actual building entrance definitions and journey landmarks. The map now supports click/touch destination selection, real service-counter building route buttons, visible entrances, current-waypoint highlighting and waypoint clearing. Source coordinates and saved player data remain unchanged.
+- Added 3 navigation tests for POI reference/destination integrity, phone/desktop coordinate mapping and safe marker hit testing. Deployment/script validation includes the new map helper.
+
+### Actual verification of code commit `575bb620`
+
+- GitHub Actions [Node 22 validation run](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41219364022): **131 tests passed, 0 failed**, `npm run check` passed, patch whitespace check passed.
+- GitHub runner: Node 22, shared AMD EPYC 7763, 8 simulated players, 44 ambient bots and maximum 6 event troops, 2,400 ticks / 120 simulated seconds. Median tick **0.688 ms**, p95 **1.630 ms**, maximum **18.780 ms**; snapshot **22,536 bytes**; process heap **9,435,520 bytes**, RSS **94,298,112 bytes**. These are one-run server simulation metrics only.
+- Full physical browser pointer/tap validation **NOT RUN**. Two-client playthrough **NOT RUN** this round. Physical Android/frame pacing/battery validation **NOT RUN**; do not treat the successful Node benchmark as phone FPS.
+
+### Open design boundaries and next steps
+
+- The current map shows **directional waypoints**, not collision-safe A* routes; the navigation panel now explicitly discloses that. Obstacle-aware routing, door reachability and route recalculation are the next navigation slice.
+- Legacy solo saves use version 1–4 with no separate world schema/versioned rollback snapshot. Before repositioning the city, design and test `worldVersion` and safe recovery plus an old-POI-to-new-POI migration table. **Do not recenter the world by editing constants first.**
+- `city-core.js` remains the canonical simulation/authority; the new map helper is an adapter for the current world data, not an independent terrain or combat authority.
+- Existing online guest rooms remain temporary. The public release and financial UI on `main` are unchanged. No persistent online personal-land, new holder entitlements, token burns or purchases are implemented here.
+- See `docs/CITY_ARCHITECTURE_AUDIT.md` and `NEXT_AI_HANDOFF.md` for source locations and the next testable increments.
