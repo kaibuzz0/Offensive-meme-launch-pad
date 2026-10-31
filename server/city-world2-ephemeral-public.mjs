@@ -4,12 +4,12 @@
  * The original /api/city/* host remains for compatibility and an emergency rollback.
  */
 import http from 'node:http';
-import {createCityServer} from './city-server.mjs';
 import {createLocalWorld2Server} from './city-world2-local.mjs';
 
 const ORIGIN='https://kaibuzz0.github.io';
-export function createWorld2EphemeralPublicServer({origins=[ORIGIN]}={}){
- const legacy=createCityServer({origins});
+export function createWorld2EphemeralPublicServer({origins=[ORIGIN],createLegacy}={}){
+ if(typeof createLegacy!=='function')throw Error('An explicit legacy service factory is required.');
+ const legacy=createLegacy({origins});
  const v2=createLocalWorld2Server({
   origins,saveDir:null,bindHost:'127.0.0.1',productionMode:false,releaseReady:false
  });
