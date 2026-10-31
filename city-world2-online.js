@@ -26,6 +26,7 @@
  function authState(){
   $('server-state').textContent=joined?'Connected to loopback QA server':'Disconnected';
   $('join').disabled=joined;$('create-private').disabled=joined;$('leave').disabled=!joined;
+  $('create-profile').disabled=!joined;$('save-profile').disabled=!joined;
  }
  function adapt(raw){if(!raw||raw.worldVersion!==2||!raw.self||!Array.isArray(raw.players))throw Error('Invalid authoritative snapshot.');return raw;}
  function updated(s){
@@ -61,17 +62,49 @@
   busy=true;
   try{
    const code=$('room-code').value.trim();
-   const snap=await transport.join({name:$('name').value.trim()||'Explorer',avatar:$('avatar').value,createRoom:privateRoom,...(!privateRoom&&code?{code}:{})});
+   const recoveryKey=$('recovery-key').value.trim();$('recovery-key').value='';
+   const snap=await transport.join({name:$('name').value.trim()||'Explorer',avatar:$('avatar').value,createRoom:privateRoom,...(!privateRoom&&code?{code}:{}),...(recoveryKey?{recoveryKey}:{})});
    joined=true;updated(snap);authState();tell('Joined server-owned world2 room. Open another browser tab to verify peer movement.');
   }catch(e){tell('Join refused: '+e.message);}finally{busy=false;}
  }
  $('join').addEventListener('click',()=>join(false));
  $('create-private').addEventListener('click',()=>join(true));
  $('leave').addEventListener('click',async()=>{
-  if(!joined)return;joined=false;held.clear();firePointer=false;authState();
-  try{await transport.leave();tell('Room left. Ephemeral guest token revoked.');}
-  catch(e){transport.disconnect();tell('Disconnected: '+e.message);}
-  finally{latest=null;$('room-info').textContent='Room: —';$('hud').textContent='No server snapshot';$('peer-summary').textContent='Peers: —';}
+  if(!joined||busy)return;busy=true;
+  try{
+   await transport.leave();joined=false;held.clear();firePointer=false;authState();
+   $('issued-key').value='';$('recovery-key').value='';
+   latest=null;$('room-info').textContent='Room: —';$('hud').textContent='No server snapshot';
+   $('peer-summary').textContent='Peers: —';
+   tell('Room left. Saved accounts were checkpointed; ephemeral guest token revoked.');
+  }catch(e){tell('Leave refused: '+e.message+'. Retry saving before leaving.');}
+  finally{busy=false;}
+ });
+ $('create-profile').addEventListener('click',async()=>{
+  if(!joined||busy)return tell('Join a local QA room first.');
+  busy=true;
+  try{
+   const result=await transport.createProfile();
+   $('issued-key').value=result.recoveryKey;
+   tell('Saved world2 QA character created. Copy the recovery key immediately; it is not stored in this browser.');
+  }catch(e){tell('Profile creation refused: '+e.message);}
+  finally{busy=false;}
+ });
+ $('save-profile').addEventListener('click',async()=>{
+  if(!joined||busy)return tell('Join a local QA room first.');
+  busy=true;
+  try{const result=await transport.saveProfile();tell('Local world2 QA profile saved to server disk, revision '+result.revision+'.');}
+  catch(e){tell('Profile save refused: '+e.message);}
+  finally{busy=false;}
+ });
+ $('copy-key').addEventListener('click',async()=>{
+  const key=$('issued-key').value;
+  if(!key)return tell('Create an opt-in QA profile before copying a recovery key.');
+  try{
+   if(!root.navigator?.clipboard?.writeText)throw Error('Clipboard API unavailable.');
+   await root.navigator.clipboard.writeText(key);
+   tell('Private QA recovery key copied. Keep it somewhere secure; losing it means losing access to this QA profile.');
+  }catch{tell('Clipboard unavailable. Select and copy the recovery key manually.');}
  });
  async function command(type,fields={}){
   if(!joined){tell('Join a local QA room first.');return;}
