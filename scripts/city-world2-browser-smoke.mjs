@@ -87,7 +87,7 @@ try{
  await second.send('Page.bringToFront'); // Background tabs throttle polling despite active sessions.
  await waitFor(async()=>{
   const text=String(await second.evaluate("document.getElementById('peer-summary').textContent"));
-  const match=text.match(/Alice \\(([0-9]+),([0-9]+)\\)/);
+  const match=text.match(/Alice \(([0-9]+),([0-9]+)\)/);
   return !!match&&Number(match[1])>start.x+5;
  },'other browser sees authoritative movement').catch(async error=>{
   console.error('QA peer diagnostics',JSON.stringify({
