@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const ctx={};
-for(const path of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-world2.js','city-world2-registry.js','city-world2-contracts.js'])
+for(const path of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-world2.js','city-world2-registry.js','city-nav.js','city-world2-territory.js','city-world2-contracts.js','city-world2-simulation.js'])
  vm.runInNewContext(fs.readFileSync(new URL('../'+path,import.meta.url),'utf8'),ctx,{filename:path});
 const C=ctx.MemeCityCore,I=ctx.CityInteriors,T=ctx.CityTopology,W=ctx.CityWorld2.create(C,I,T);
 const reg=ctx.CityWorld2Registry.create(C,I,ctx.CityRising,T,W),make=()=>ctx.CityWorld2Contracts.create(reg);
@@ -38,4 +38,19 @@ test('malformed player coordinates, unavailable health and long ticks cannot com
  const p=player(m.origin);p.hp=0;assert.equal(m.start(p).status,'down');
  p.hp=100;m.start(p);p.x=Infinity;p.y=m.target.y;
  assert.equal(m.deliver(p).status,'far');m.tick(Infinity);assert.equal(m.state.remaining,210);
+});
+
+test('courier mission participates in world2 simulation without saving or interfering with defense',()=>{
+ const s=ctx.CityWorld2Simulation.create(C,W,reg,ctx.CityNav);
+ assert.ok(s.courier);
+ s.player.x=s.courier.origin.x;s.player.y=s.courier.origin.y;
+ assert.equal(s.startCourier().status,'active');
+ s.player.x=W.spawn.x;s.player.y=W.spawn.y;
+ assert.equal(s.startDefense().status,'blocked');
+ s.player.x=s.courier.target.x;s.player.y=s.courier.target.y;
+ assert.equal(s.deliverCourier().status,'delivered');
+ assert.equal(s.player.credits,240);assert.equal(s.player.jobs,1);
+ assert.equal(s.deliverCourier().status,'inactive');
+ s.reset();assert.equal(s.courier.state.status,'idle');
+ assert.equal(s.player.jobs,0);assert.equal(s.player.credits,180);
 });

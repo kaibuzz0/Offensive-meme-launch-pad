@@ -7,8 +7,9 @@
   if(!C?.BUILD_KIT||!W?.blocked||!registry?.resolve||!Nav?.createRouter)throw Error('World2 simulation dependencies missing');
   const nav=Nav.createRouter({WORLD:W.world,blocked:W.blocked},{cell:80,budget:11000});
   const territory=root.CityWorld2Territory?.create(C,W,registry)||null;
+  const courier=root.CityWorld2Contracts?.create(registry)||null;
   const plot=W.fortress,player={id:'preview-player',x:W.spawn.x,y:W.spawn.y,aim:{x:0,y:-1},
-   hp:100,maxHp:100,heat:0,xp:0,credits:180,route:0,completed:false,kills:0,
+   hp:100,maxHp:100,heat:0,xp:0,credits:180,route:0,completed:false,kills:0,jobs:0,
    plot:[],outposts:[],crew:[],crewKills:0,clan:null,reputation:{},rising:{},places:{},inventory:[],equipped:{},style:{skin:0,hair:0,pants:0,print:0},ammo:24,fireCooldown:0};
   const agents=[],mission={status:'idle',remaining:0,wave:0,earned:0},events=[];
   let input={x:0,y:0},time=0,sequence=0,respawnTimer=0;
@@ -71,6 +72,8 @@
    if(!W.blocked(player.x+dx,player.y,player))player.x+=dx;
    if(!W.blocked(player.x,player.y+dy,player))player.y+=dy;
    player.heat=Math.max(0,player.heat-dt*1.2);
+   const contractEvent=courier?.tick(dt);
+   if(contractEvent?.status==='expired')emit(contractEvent.message);
    for(const bot of agents){
     if(!bot.alive)continue;
     bot.cooldown=Math.max(0,bot.cooldown-dt);
@@ -98,7 +101,7 @@
     emit('Fortress defense complete: +90 preview XP / +70 preview credits.');
    }
    if(player.hp===0){
-    territory?.cancel();respawnTimer=1.5;mission.status='failed';
+    territory?.cancel();courier?.abandon();respawnTimer=1.5;mission.status='failed';
     for(const bot of agents)if(bot.raid)bot.alive=false;
     mission.remaining=0;emit('Defeated. Fortress defense failed; returning to the safe spawn.');
    }
@@ -126,6 +129,7 @@
   function reload(){player.ammo=24;return emit('Preview magazine reloaded (unlimited test ammo).');}
   function startDefense(){
    if(mission.status==='active')return {status:'blocked',message:'Defense already underway.'};
+   if(courier?.state.status==='active')return {status:'blocked',message:'Finish or abandon the courier delivery first.'};
    if(dist(player,W.spawn)>850)return {status:'blocked',message:'Return to the fortress approach to start a defense.'};
    for(let i=agents.length-1;i>=0;i--)if(agents[i].raid)agents.splice(i,1);
    mission.status='active';mission.wave++;mission.remaining=0;
@@ -154,7 +158,7 @@
        !Number.isInteger(o.row)||o.row<0||o.row>=3||!C.BUILD_KIT.some(k=>k.id===o.kind))return false;
     const key=o.clan+':'+o.col+':'+o.row;if(used.has(key))return false;used.add(key);return true;
    }).map(o=>({clan:o.clan,col:o.col,row:o.row,kind:o.kind,rotation:0}));
-   for(const key of ['xp','credits','kills','route'])if(Number.isSafeInteger(saved[key])&&saved[key]>=0)player[key]=saved[key];
+   for(const key of ['xp','credits','kills','jobs','route'])if(Number.isSafeInteger(saved[key])&&saved[key]>=0)player[key]=saved[key];
    player.route=clamp(player.route,0,registry.checkpoints.length);
    player.completed=player.route===registry.checkpoints.length;
    const unique=new Set();
@@ -172,7 +176,7 @@
    player.crew=C.restoreCrew(saved.crew);
    const blocked=W.blocked(saved.x,saved.y,player);
    player.x=blocked?W.spawn.x:saved.x;player.y=blocked?W.spawn.y:saved.y;player.hp=100;player.heat=0;
-   mission.status='idle';mission.remaining=0;territory?.reset();
+   mission.status='idle';mission.remaining=0;territory?.reset();courier?.reset();
    for(let i=agents.length-1;i>=0;i--)if(agents[i].raid)agents.splice(i,1);
    return {status:'loaded',relocated:blocked};
   }
@@ -191,15 +195,21 @@
    player.plot.splice(i,1);return {status:'removed'};
   }
   function reset(){player.x=W.spawn.x;player.y=W.spawn.y;player.hp=100;player.heat=0;player.xp=0;player.credits=180;player.route=0;
-   player.completed=false;player.kills=0;player.ammo=24;player.fireCooldown=0;player.plot=[];player.outposts=[];player.crew=[];
-   player.inventory=[];player.equipped={};player.clan=null;player.reputation={};player.rising={};player.places={};player.crewKills=0;territory?.reset();mission.status='idle';mission.remaining=0;mission.wave=0;mission.earned=0;input={x:0,y:0};
+   player.completed=false;player.kills=0;player.jobs=0;player.ammo=24;player.fireCooldown=0;player.plot=[];player.outposts=[];player.crew=[];
+   player.inventory=[];player.equipped={};player.clan=null;player.reputation={};player.rising={};player.places={};player.crewKills=0;territory?.reset();courier?.reset();mission.status='idle';mission.remaining=0;mission.wave=0;mission.earned=0;input={x:0,y:0};
    for(const a of agents)a.alive=false;agents.length=0;defender=add('defender',{x:W.spawn.x-110,y:W.spawn.y+100});
    for(let i=0;i<positions.length;i++)add(i===1?'police':'gang',positions[i],{clan:positions[i].clan});
    emit('Preview simulation reset. No production saves were written.');
   }
   const joinFaction=clan=>territory?territory.join(player,clan):{status:'disabled',message:'Territory preview not loaded.'};
   const captureControl=id=>territory?territory.start(player,id,agents):{status:'disabled',message:'Territory preview not loaded.'};
-  return Object.freeze({player,agents,mission,events,territory,joinFaction,captureControl,
+  function startCourier(){
+   if(!courier)return {status:'disabled',message:'Courier module not loaded.'};
+   if(mission.status==='active')return {status:'blocked',message:'Finish your fortress defense first.'};
+   return courier.start(player);
+  }
+  function deliverCourier(){return courier?courier.deliver(player):{status:'disabled',message:'Courier module not loaded.'};}
+  return Object.freeze({player,agents,mission,events,territory,courier,joinFaction,captureControl,startCourier,deliverCourier,
    setInput,tick,fire,reload,startDefense,checkpoint,loadStage,build,demolish,reset});
  }
  root.CityWorld2Simulation=Object.freeze({create});
