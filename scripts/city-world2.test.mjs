@@ -13,7 +13,7 @@ test('central fortress has four genuinely passable gates and solid perimeter wal
  assert.equal(W.walls.length,8);assert.equal(W.roads.length,4);
  for(const name of ['north','south','east','west']){
   const r=W.roads.find(r=>r.id===name);assert.ok(r&&r.w>0&&r.h>0,name);
-  const point=name==='north'?{x,y:250}:name==='south'?{x,y:W.world.height-250}:name==='east'?{x:W.world.width-250,y}:{x:250,y};
+  const point=name==='north'?{x,y:250}:name==='south'?{x,y:W.world.height-250}:name==='east'?{x:W.world.width-250,y:W.world.center.y}:{x:250,y:W.world.center.y};
   assert.equal(W.blocked(point.x,point.y),false,name+' path endpoint');
   const p=router.plan(W.spawn,point);assert.equal(p.status,'ok',name+' lane: '+p.status);
  }
