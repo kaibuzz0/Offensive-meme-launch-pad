@@ -15,6 +15,7 @@ const browser=process.env.CHROME_BIN||['google-chrome','google-chrome-stable','c
  .map(n=>spawnSync('which',[n],{encoding:'utf8'})).find(x=>x.status===0)?.stdout.trim();
 if(!browser)throw Error('Real world2 QA requires Chrome/Chromium. Set CHROME_BIN.');
 const profile=await mkdtemp(path.join(tmpdir(),'meme-city-world2-cdp-'));
+const qaProfiles=await mkdtemp(path.join(tmpdir(),'meme-city-world2-saved-'));
 let chrome=null,site=null,qa=null;
 const sockets=[];
 const port=8787,apiPort=8788;
@@ -59,7 +60,7 @@ function numberAfter(text,word){
 try{
  site=createCityServer({origins:['http://127.0.0.1:8787','http://localhost:8787']}).server;
  await new Promise((resolve,reject)=>{site.once('error',reject);site.listen(port,'127.0.0.1',()=>{site.off('error',reject);resolve();});});
- qa=createLocalWorld2Server();await qa.listen(apiPort);
+ qa=createLocalWorld2Server({saveDir:qaProfiles});await qa.listen(apiPort);
  chrome=spawn(browser,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--remote-debugging-port=0',
   '--user-data-dir='+profile,'--no-first-run','--no-default-browser-check',
   '--disable-background-timer-throttling','--disable-renderer-backgrounding','--disable-backgrounding-occluded-windows','about:blank'],{stdio:'ignore'});
@@ -167,8 +168,24 @@ try{
  assert.ok(shot.data?.length>1000,'real mobile-viewport browser canvas screenshot must render');
  for(const [i,p] of [first,second].entries())assert.deepEqual(p.exceptions,[],
   'No unhandled browser runtime exceptions in QA tab '+(i+1));
+ await first.send('Page.bringToFront');
+ await first.evaluate("document.getElementById('create-profile').click();true");
+ await waitFor(()=>first.evaluate("document.getElementById('issued-key').value.length===43"),'one-time private recovery credential in browser');
+ const recoveryKey=await first.evaluate("document.getElementById('issued-key').value");
+ await first.evaluate("document.getElementById('save-profile').click();true");
+ await waitFor(()=>first.evaluate("document.getElementById('status').textContent.includes('profile saved to server disk')"),
+  'authenticated QA profile saved explicitly');
+ assert.equal(await first.evaluate('localStorage.length'),0,'recovery key never enters browser localStorage');
  await Promise.all([first.evaluate("document.getElementById('leave').click();true"),second.evaluate("document.getElementById('leave').click();true")]);
  await waitFor(()=>first.evaluate("document.getElementById('server-state').textContent === 'Disconnected'"),'leave first guest');
+ assert.equal(await first.evaluate("document.getElementById('issued-key').value"),'','private key is cleared when leaving');
+ await first.evaluate("document.getElementById('recovery-key').value="+JSON.stringify(recoveryKey)+";document.getElementById('join').click();true");
+ await waitFor(()=>first.evaluate("document.getElementById('server-state').textContent === 'Connected to loopback QA server'"),'browser recovery join');
+ await waitFor(()=>first.evaluate("document.getElementById('journey-summary').textContent.includes('1 / 4')"),
+  'prior server-owned journey objective survives guest rejoin');
+ assert.equal(await first.evaluate("document.getElementById('recovery-key').value"),'','used recovery key is cleared');
+ await first.evaluate("document.getElementById('leave').click();true");
+ await waitFor(()=>first.evaluate("document.getElementById('server-state').textContent === 'Disconnected'"),'recovered guest leaves cleanly');
  console.log('PASS: real Chromium two-tab world2 join, mobile viewport, authoritative position sync, server rejection, and cleanup.');
 }finally{
  for(const ws of sockets)try{ws.close();}catch{}
@@ -179,6 +196,7 @@ try{
  }
  await delay(200);
  await rm(profile,{recursive:true,force:true,maxRetries:8,retryDelay:150}).catch(()=>{});
+ await rm(qaProfiles,{recursive:true,force:true,maxRetries:8,retryDelay:150}).catch(()=>{});
  if(qa)await qa.close().catch(()=>{});
  if(site)await new Promise(resolve=>site.close(()=>resolve()));
 }
