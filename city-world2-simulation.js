@@ -8,7 +8,7 @@
   const nav=Nav.createRouter({WORLD:W.world,blocked:W.blocked},{cell:80,budget:11000});
   const plot=W.fortress,player={id:'preview-player',x:W.spawn.x,y:W.spawn.y,aim:{x:0,y:-1},
    hp:100,maxHp:100,heat:0,xp:0,credits:180,route:0,completed:false,kills:0,
-   plot:[],outposts:[],crew:[],inventory:[],equipped:{},style:{skin:0,hair:0,pants:0,print:0},ammo:24,fireCooldown:0};
+   plot:[],outposts:[],crew:[],crewKills:0,clan:null,reputation:{},rising:{},places:{},inventory:[],equipped:{},style:{skin:0,hair:0,pants:0,print:0},ammo:24,fireCooldown:0};
   const agents=[],mission={status:'idle',remaining:0,wave:0,earned:0},events=[];
   let input={x:0,y:0},time=0,sequence=0,respawnTimer=0;
   const clamp=(x,min,max)=>Math.min(max,Math.max(min,x)),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -124,7 +124,7 @@
   function startDefense(){
    if(mission.status==='active')return {status:'blocked',message:'Defense already underway.'};
    if(dist(player,W.spawn)>850)return {status:'blocked',message:'Return to the fortress approach to start a defense.'};
-   for(const a of agents)if(a.raid)a.alive=false;
+   for(let i=agents.length-1;i>=0;i--)if(agents[i].raid)agents.splice(i,1);
    mission.status='active';mission.wave++;mission.remaining=0;
    for(let i=0;i<3;i++){
     const x=W.spawn.x+(i-1)*62,y=W.spawn.y-560-i*85;
@@ -145,15 +145,32 @@
   function loadStage(saved){
    if(!saved||saved.worldVersion!==2||saved.saveVersion!==6||saved.version!==6)return {status:'invalid'};
    player.plot=C.restorePlot(saved.plot);
-   player.outposts=(saved.clans?.outposts||[]).filter(o=>o&&C.outpostLot(o.clan)&&C.BUILD_KIT.some(k=>k.id===o.kind)).slice(0,54).map(o=>({...o}));
+   const used=new Set(),lots=Array.isArray(saved.clans?.outposts)?saved.clans.outposts:[];
+   player.outposts=lots.slice(0,54).filter(o=>{
+    if(!o||!C.outpostLot(o.clan)||!Number.isInteger(o.col)||o.col<0||o.col>=3||
+       !Number.isInteger(o.row)||o.row<0||o.row>=3||!C.BUILD_KIT.some(k=>k.id===o.kind))return false;
+    const key=o.clan+':'+o.col+':'+o.row;if(used.has(key))return false;used.add(key);return true;
+   }).map(o=>({clan:o.clan,col:o.col,row:o.row,kind:o.kind,rotation:0}));
    for(const key of ['xp','credits','kills','route'])if(Number.isSafeInteger(saved[key])&&saved[key]>=0)player[key]=saved[key];
    player.route=clamp(player.route,0,registry.checkpoints.length);
    player.completed=player.route===registry.checkpoints.length;
-   player.inventory=Array.isArray(saved.inventory)?JSON.parse(JSON.stringify(saved.inventory)):[];player.equipped=saved.equipped&&typeof saved.equipped==='object'?{...saved.equipped}:{};
+   const unique=new Set();
+   player.inventory=(Array.isArray(saved.inventory)?saved.inventory:[]).filter(i=>i&&typeof i.uid==='string'&&
+    /^gear-\d+$/.test(i.uid)&&C.ITEMS.some(item=>item.id===i.item)&&!unique.has(i.uid)&&unique.add(i.uid)).slice(0,100)
+    .map(i=>({uid:i.uid,item:i.item}));
+   player.equipped={};for(const item of player.inventory){const known=C.ITEMS.find(x=>x.id===item.item);
+    if(saved.equipped?.[known.slot]===item.uid)player.equipped[known.slot]=item.uid;}
+   player.clan=C.NEIGHBORHOODS.some(n=>n.id===saved.clans?.clan)?saved.clans.clan:null;
+   player.reputation=saved.clans?.reputation&&typeof saved.clans.reputation==='object'?JSON.parse(JSON.stringify(saved.clans.reputation)):{};
+   player.rising=saved.rising&&typeof saved.rising==='object'?JSON.parse(JSON.stringify(saved.rising)):{};
+   player.places=saved.places&&typeof saved.places==='object'?JSON.parse(JSON.stringify(saved.places)):{};
+   if(saved.style&&['skin','hair','pants'].every(k=>Number.isInteger(saved.style[k])))player.style={...player.style,...saved.style};
+   player.crewKills=Number.isSafeInteger(saved.crewKills)?Math.max(0,saved.crewKills):0;
    player.crew=C.restoreCrew(saved.crew);
    const blocked=W.blocked(saved.x,saved.y,player);
    player.x=blocked?W.spawn.x:saved.x;player.y=blocked?W.spawn.y:saved.y;player.hp=100;player.heat=0;
    mission.status='idle';mission.remaining=0;
+   for(let i=agents.length-1;i>=0;i--)if(agents[i].raid)agents.splice(i,1);
    return {status:'loaded',relocated:blocked};
   }
   function build(col,row,kind='wall'){
@@ -172,7 +189,7 @@
   }
   function reset(){player.x=W.spawn.x;player.y=W.spawn.y;player.hp=100;player.heat=0;player.xp=0;player.credits=180;player.route=0;
    player.completed=false;player.kills=0;player.ammo=24;player.fireCooldown=0;player.plot=[];player.outposts=[];player.crew=[];
-   player.inventory=[];player.equipped={};mission.status='idle';mission.remaining=0;mission.wave=0;mission.earned=0;input={x:0,y:0};
+   player.inventory=[];player.equipped={};player.clan=null;player.reputation={};player.rising={};player.places={};player.crewKills=0;mission.status='idle';mission.remaining=0;mission.wave=0;mission.earned=0;input={x:0,y:0};
    for(const a of agents)a.alive=false;agents.length=0;defender=add('defender',{x:W.spawn.x-110,y:W.spawn.y+100});
    for(let i=0;i<positions.length;i++)add(i===1?'police':'gang',positions[i],{clan:positions[i].clan});
    emit('Preview simulation reset. No production saves were written.');

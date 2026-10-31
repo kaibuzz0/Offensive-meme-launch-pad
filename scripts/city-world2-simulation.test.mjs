@@ -56,3 +56,34 @@ test('world2 checkpoint rewards require canonical location, build checks access,
  assert.equal(s.player.xp,222);assert.equal(s.player.credits,400);assert.equal(s.player.plot[0].col,4);assert.equal(JSON.stringify(original),raw);
  assert.equal(s.loadStage({...original,worldVersion:1}).status,'invalid');
 });
+
+test('repeatable fortress defenses never accumulate inactive NPCs',()=>{
+ const s=sim(),baseline=s.agents.length;
+ for(let wave=0;wave<15;wave++){
+  assert.equal(s.startDefense().status,'active');
+  assert.equal(s.agents.filter(a=>a.raid).length,3);
+  for(const a of s.agents.filter(a=>a.raid)){a.alive=false;s.mission.remaining--;}
+  s.tick(.05);assert.equal(s.mission.status,'complete');
+  assert.equal(s.agents.length,baseline+3);
+ }
+ assert.equal(s.mission.earned,15);
+ s.reset();assert.equal(s.agents.length,baseline);assert.equal(s.player.xp,0);
+});
+test('staged character profile and hostile input are isolated and bounded',()=>{
+ const s=sim(),staged={version:6,saveVersion:6,worldVersion:2,x:W.spawn.x,y:W.spawn.y,
+  xp:950,credits:500,crewKills:3,inventory:[{uid:'gear-8',item:C.ITEMS[0].id},{uid:'wrong',item:C.ITEMS[0].id}],
+  equipped:{[C.ITEMS[0].slot]:'gear-8'},plot:[{col:1,row:1,kind:'wall'}],crew:[],route:2,
+  clans:{clan:C.NEIGHBORHOODS[0].id,reputation:{[C.NEIGHBORHOODS[0].id]:7},outposts:[
+   {clan:C.NEIGHBORHOODS[0].id,col:0,row:0,kind:'tower'},
+   {clan:C.NEIGHBORHOODS[0].id,col:0,row:0,kind:'tower'},
+   {clan:C.NEIGHBORHOODS[0].id,col:99,row:0,kind:'wall'}]},
+  rising:{claimed:2},places:{visited:['market']},style:{skin:1,hair:2,pants:1}};
+ const raw=JSON.stringify(staged);
+ assert.equal(s.loadStage(staged).status,'loaded');
+ assert.equal(s.player.crewKills,3);assert.equal(s.player.clan,C.NEIGHBORHOODS[0].id);
+ assert.equal(s.player.reputation[C.NEIGHBORHOODS[0].id],7);
+ assert.equal(s.player.outposts.length,1);assert.equal(s.player.inventory.length,1);
+ assert.equal(s.player.equipped[C.ITEMS[0].slot],'gear-8');assert.equal(s.player.rising.claimed,2);
+ assert.equal(JSON.stringify(staged),raw);s.player.reputation[C.NEIGHBORHOODS[0].id]=9;
+ assert.equal(staged.clans.reputation[C.NEIGHBORHOODS[0].id],7);
+});
