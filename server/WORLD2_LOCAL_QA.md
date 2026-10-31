@@ -83,3 +83,29 @@ Once connected to the local online QA world2 client, the **City orientation** di
 Server-owned private squad defenders and fortress raid NPCs now use bounded, cached `CityNav` routes when walls block line of sight. Failed route searches back off, instead of recalculating each frame. This is **not** a full citywide advanced NPC AI, and the CI browser test does not validate physical Android frame pacing.
 
 **Acceptance:** `npm test`, `npm run check`, `npm run qa:world2:browser`. Tests include four-stage ordered claims, double-claim rejection, forged position/funds rejection, HTTP guest isolation, a real Chromium journey control check, and deterministic NPC route/backoff cases. Never activate this browser QA client on public Pages or make payments using preview credits.
+
+
+## Round 10 — opt-in local profile persistence and recovery
+
+**Only the loopback development QA server supports this.** By default, temporary guests still disappear when the server exits. To enable a separate private server-side profile store for local testing:
+
+```sh
+# Terminal 1: local static page on 127.0.0.1:8787
+npm run dev
+# Terminal 2: separate opt-in server directory, explicitly NOT a public wallet/account
+WORLD2_QA_SAVE_DIR="$PWD/.local-world2-qa" npm run dev:world2
+```
+
+The `.local-world2-qa/` directory is explicitly `.gitignore`d. Create or recover a character from **http://127.0.0.1:8787/city-world2-online.html**. After joining a guest room, press **Create saved QA character**. Copy the newly displayed **private recovery key immediately** to a secure place. It is only shown by the create operation; it cannot be reissued if lost. The browser holds it only in the current page and never writes it to localStorage or sessionStorage. The key is a **credential**: anyone possessing it can load the saved QA character after its existing session exits/expires. Never share it, put it in Git, a URL, screenshots, chat, or public logs.
+
+**Save progress now** writes through the authenticated server. Gameplay actions trigger checkpoints, plus approximately four-second periodic saves and a final save on an orderly leave/shutdown. The profile vault uses SHA-256 filenames rather than raw keys, HMAC-SHA-256 integrity checks, private file permissions, atomic temporary-file renames and a previous-revision `.bak` copy. It is **not encrypted at rest**, not a distributed transactional store, and not a production identity provider. Treat the server directory and signing key as sensitive local files; losing either can make saved QA profiles unrecoverable. Unexpected power loss or disk failure is not guaranteed to preserve the very latest tick.
+
+To restore after a fresh QA server start, paste the key into **Existing private QA recovery key** before joining. A recovered character gets a fresh temporary guest session; only one active session may use a saved profile at a time. Recovery is validated against the server-side save format, permitted world2 equipment, exact owned gear, plot access rules, credit/XP limits, defender unit types and bounded mission stages. Corrupted or incompatible records are rejected rather than silently overwritten.
+
+**Persisted individually:** character name/avatar, position if still safe, HP/credits/XP/ammo, faction affiliation/reputation, purchased and equipped gear, medkits, fortress construction, defender roster and completed orientation steps. Personal mission progress cannot be replayed to claim earlier rewards again.
+
+**Deliberately not persisted:** temporary room membership, other players, shared territory control, active raids/raiders, active courier timers, session bearer tokens, onchain holdings, real cryptocurrency rewards, or world1 production/browser saves. An active raid is not resumed; only completed raid count/defender progression is retained. Restarting QA is not migrating world1 accounts.
+
+Test coverage includes `scripts/city-world2-vault.test.mjs` and `scripts/city-world2-persistence-http.test.mjs` for stored-record integrity, recovery secrets, rejected overlapping sessions, full server-restart restoration and bad saves; browser controls plus real Chrome are checked by `npm run qa:world2:browser`.
+
+**Remaining release gates:** power-loss-grade durability (fsync/journaling), encrypted backups and credential reset, hardened public identity and moderation, concurrent durable account transactions across processes, migration/rollback of real world1 saves, and physical Android input/FPS measurements. Never deploy this local vault/API to Render or public Pages.
