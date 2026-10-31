@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createWorld2EphemeralPublicServer} from '../server/city-world2-ephemeral-public.mjs';
+import {createCityServer} from '../server/city-server.mjs';
 import fs from 'node:fs';
 const read=name=>fs.readFileSync(new URL('../'+name,import.meta.url),'utf8');
 test('single existing Render host exposes public v2 ephemeral rooms and retains legacy API',async()=>{
- const app=createWorld2EphemeralPublicServer();
+ const app=createWorld2EphemeralPublicServer({createLegacy:createCityServer});
  try{
   await new Promise((resolve,reject)=>{
    app.server.once('error',reject);
