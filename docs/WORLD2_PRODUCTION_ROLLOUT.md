@@ -27,3 +27,33 @@ The public site `city.html` now includes a small `city-v2-release-gate.js` guard
 ## CI
 
 Run `npm test`, `npm run check`, `npm run qa:world2:browser`. CI verifies the fail-closed production startup, approved public API URL, original v1 API co-hosting, invalid origin refusal, v1 health-redirect fallback, and full existing game suite. Check current draft PR head and GitHub Actions status before release.
+
+
+## Render infrastructure upgrade status — October 31, 2026
+
+The owner authorized using **L's workspace** for the backend and proceeding toward a potentially paid disk. Existing service `offensive-meme-city-rooms` (`srv-dbhfhdlg1s2s739v1ih0`) is currently on the **Free** compute plan, with no disk or managed datastore. A `render.yaml` Blueprint candidate now declares the existing service on the paid **Starter** compute tier with a **1 GB persistent disk at `/var/data`**, plus the new guarded entry point. This is desired infrastructure-as-code, **not evidence that Render applied it**: a GitHub push does not necessarily sync an existing independently created Render service or change its billing plan.
+
+**The connected Render app cannot edit service compute plan, attach a disk, or change the start command. These changes require an authorized Render Dashboard action.** Do not create a second paid web service or pretend the Blueprint has attached a disk.
+
+1. Open the existing service in [Render Dashboard](https://dashboard.render.com/web/srv-dbhfhdlg1s2s739v1ih0). In **Compute**, upgrade the existing service from **Free** to **Starter**, checking the displayed price. The lowest Starter instance has historically been about $7 per month; the current Render pricing page lists persistent disk storage at **$0.25/GB/month**. Verify your actual bill before submitting.
+2. On the same service, open **Disks** → **Add Disk**. Use mount path **`/var/data`**, disk name **`world2-player-profiles`**, size **1 GB**. Only data under the mount path survives redeploys. Adding this disk triggers a deploy and brief service downtime.
+3. In **Settings**, change the start command from `node server/city-server.mjs` to **`node server/city-world2-guarded-entry.mjs`**. With `WORLD2_PRODUCTION_BACKEND=no`, the new entry serves the original world1 endpoints and keeps v2 inactive. Confirm `GET /api/city/health` returns HTTP 200 after this change.
+4. Set (or merge) these service environment values without deleting existing settings:
+   ```
+   CITY_ALLOWED_ORIGINS=https://kaibuzz0.github.io
+   WORLD2_PROD_ORIGIN=https://kaibuzz0.github.io
+   WORLD2_PROD_SAVE_DIR=/var/data/world2
+   WORLD2_DURABLE_VOLUME_CONFIRMED=no
+   WORLD2_PRODUCTION_BACKEND=no
+   WORLD2_PUBLIC_RELEASE_APPROVED=no
+   ```
+5. Once the Dashboard confirms the disk is attached, use **Shell** to inspect `/proc/self/mountinfo` (or `findmnt /var/data`) and independently verify the attached persistent mount. Only after confirming it, create the server-owned directory and marker:
+   ```sh
+   mkdir -p /var/data/world2
+   printf '%s\n' world2-persistent-volume-approved-v1 > /var/data/world2/.durable-world2-volume
+   ```
+   Treat the marker as an operator assertion, **not** proof that a disk exists. Keep the whole `/var/data` volume, HMAC signing key, and backup safe.
+6. Set `WORLD2_DURABLE_VOLUME_CONFIRMED=yes` and `WORLD2_PRODUCTION_BACKEND=yes` while retaining `WORLD2_PUBLIC_RELEASE_APPROVED=no`. The guarded startup fails closed if the marker or storage is missing; the new server hosts both `/api/city/*` and `/api/world2/*`. Validate both endpoint families. Perform authenticated create → save → leave → recover tests **and redeploy/restart the backend**, then repeat recovery. Back up the persistent volume and prove rollback.
+7. **Do not set** `WORLD2_PUBLIC_RELEASE_APPROVED=yes` until the end-to-end persistence, authorization, abuse resistance, legacy-save policy and feature parity have been reviewed. Keep world1 the default and use `city.html?legacy=1` for rollback. There is no automatic trusted transfer of prior browser-local balances or XP.
+
+If the service is not managed by a Blueprint, syncing `render.yaml` requires manual Dashboard onboarding. **Do not assume merely merging the YAML file will charge or provision anything.** The deployment's guarded V1 fallback is intentional, so staging infrastructure cannot silently replace legacy players with ephemeral accounts.
