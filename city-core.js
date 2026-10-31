@@ -58,7 +58,7 @@
     x:at.x+1120,y:at.y+localY,gate:{x:1120,y:localY},hint,kind};
  });
  function region(id){return id==='hub'?HUB:DISTRICTS.find(d=>d.id===id)||null;}
- function areaAt(x,y){const n=NEIGHBORHOODS.find(d=>x>=d.ox&&x<d.ox+2240&&y>=d.oy&&y<d.oy+1660);if(n)return n.id;if(x>=HUB.x&&x<HUB.x+2240&&y<1660)return 'hub';return DISTRICTS.find(d=>x>=d.ox&&x<d.ox+2240&&y>=d.oy&&y<d.oy+1660)?.id||'greenbelt';}
+ function areaAt(x,y){const n=NEIGHBORHOODS.find(d=>x>=d.ox&&x<d.ox+2240&&y>=d.oy&&y<d.oy+1660);if(n)return n.id;if(x>=HUB.x&&x<HUB.x+2240&&y>=HUB.y&&y<HUB.y+1660)return 'hub';return DISTRICTS.find(d=>x>=d.ox&&x<d.ox+2240&&y>=d.oy&&y<d.oy+1660)?.id||'greenbelt';}
  function oldPosition(area,x,y){const r=region(area)||HUB;return {x:x+(r.ox??r.x),y:y+(r.oy??r.y)};}
  const CREW_TYPES=[
   {id:'sentry',name:'Block Sentry',cost:20,hp:110,damage:12,range:340,speed:145,cooldown:.7,color:'#a6c18d'},
