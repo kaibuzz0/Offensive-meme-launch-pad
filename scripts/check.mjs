@@ -87,3 +87,10 @@ for(const file of ['city-world2-online.html','city-world2-online.js','city-world
 assert.ok(!read('.github/workflows/pages.yml').includes('city-world2-online.js'),
  'Loopback-only QA browser client must not be deployed into production Pages assets');
 console.log('PASS: local-only world2 authenticated QA client assets and production isolation.');
+
+assert.ok(fs.existsSync(path.join(root,'city-world2-journey.js')),'Authoritative world2 journey must exist');
+new vm.Script(read('city-world2-journey.js'));
+assert.ok(read('server/city-world2-prototype.mjs').includes("'city-world2-journey.js'"),'Room loader must include server journey');
+assert.ok(online.includes('id="claim-journey"')&&online.includes('id="mark-journey"'),'QA client must expose city journey controls');
+assert.ok(!read('.github/workflows/pages.yml').includes('city-world2-journey.js'),'Local-only server journey cannot deploy publicly yet');
+console.log('PASS: server-authoritative orientation journey and isolated QA controls.');

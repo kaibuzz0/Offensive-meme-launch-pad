@@ -35,6 +35,11 @@
   $('hud').textContent='Server XP '+self.xp+' · credits '+self.credits+' · HP '+Math.ceil(self.hp)+' · ammo '+self.ammo+
    ' · medkits '+(self.rising?.medkits||0)+' · faction '+(self.clan||'none')+' · courier '+(self.courier?.status||'idle')+' · pos '+Math.round(self.x)+','+Math.round(self.y);
   $('peer-summary').textContent='Other guests: '+s.players.filter(p=>p.id!==self.id).map(p=>p.name+' ('+Math.round(p.x)+','+Math.round(p.y)+')').join(' · ');
+  const progress=self.journey;
+  $('journey-summary').textContent=progress?(progress.completed?
+    'City orientation: complete — all '+progress.total+' objectives claimed':
+    'City orientation: '+progress.index+' / '+progress.total+' · Next: '+(progress.target?.name||'unknown destination')):
+    'City orientation: unavailable in this room';
   $('plot-summary').textContent='Private fortress: '+(self.plot?.length||0)+' / '+(T.draft.plot.cols*T.draft.plot.rows)+' structures · play credits only';
   const own=self.defense||{crew:[],raiders:[],raid:{status:'idle',remaining:0,cooldown:0,wave:0}};
   $('raid-summary').textContent='Squad: '+own.crew.length+' / 4 · Raid: '+own.raid.status+
@@ -88,6 +93,13 @@
  $('capture').addEventListener('click',()=>command('startCapture',{zone:$('zone').value}));
  $('courier').addEventListener('click',()=>command('startCourier'));
  $('deliver').addEventListener('click',()=>command('deliverCourier'));
+ $('claim-journey').addEventListener('click',()=>command('claimJourney'));
+ $('mark-journey').addEventListener('click',()=>{
+  const state=latest?.self?.journey;if(!state||state.completed||!state.target)return tell('No active city orientation objective.');
+  const target=POI.resolve(state.target.id);
+  if(!target)return tell('Unknown city orientation destination.');
+  marker=target;tell('Next journey destination marked: '+target.name+'. Only the server can approve the reward.');
+ });
  $('buy').addEventListener('click',()=>command('buyGear',{item:$('gear').value}));
  $('equip').addEventListener('click',()=>command('equipGear',{uid:$('owned').value}));
  $('sell').addEventListener('click',()=>command('sellGear',{uid:$('owned').value}));

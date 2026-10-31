@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const read=x=>fs.readFileSync(new URL('../'+x,import.meta.url),'utf8');
 const state=(name='Alice')=>({worldVersion:2,preview:true,revision:2,
  self:{id:'self',name,avatar:'offensive',x:5040,y:4100,hp:100,credits:180,xp:0,ammo:24,inventory:[{uid:'gear-1',item:'jacket'}],equipped:{},
-  rising:{medkits:0},clan:null,courier:{status:'idle'},room:null},
+  rising:{medkits:0},clan:null,courier:{status:'idle'},journey:{index:0,total:4,completed:false,target:{id:'checkpoint:0',name:'Launch House',x:5000,y:4000}},room:null},
  players:[{id:'self',name,avatar:'offensive',x:5040,y:4100,hp:100,clan:null,room:null},
   {id:'peer',name:'Bob',x:5050,y:4120,hp:100,clan:null,room:null}],
  guards:[],territory:[],roomInfo:{code:'public-1',private:false,capacity:8,players:2}});
@@ -111,5 +111,18 @@ test('world2 browser private squad and raid buttons send server-owned commands w
  assert.deepEqual(JSON.parse(JSON.stringify(h.actions.at(-1))),{type:'startRaid',fields:{}});
  assert.equal(h.actions.some(a=>a.fields?.credits!==undefined||a.fields?.damage!==undefined||a.fields?.owner!==undefined),false);
  assert.match(h.el('raid-summary').textContent,/Squad: 0 \/ 4/);
+ assert.doesNotThrow(()=>h.frames[0]());
+});
+
+test('city orientation UI follows server-supplied goal and never submits claimed stage or reward totals',async()=>{
+ const h=mock();h.el('avatar').value='offensive';await h.el('join').click();
+ assert.match(h.el('journey-summary').textContent,/0 \/ 4/);
+ h.el('mark-journey').click();
+ assert.match(h.el('status').textContent,/Next journey destination marked/);
+ assert.equal(h.actions.length,0,'map marker is visual-only');
+ await h.el('claim-journey').click();
+ assert.deepEqual(JSON.parse(JSON.stringify(h.actions.at(-1))),{type:'claimJourney',fields:{}});
+ assert.equal(h.actions.at(-1).fields.credits,undefined);
+ assert.equal(h.actions.at(-1).fields.index,undefined);
  assert.doesNotThrow(()=>h.frames[0]());
 });

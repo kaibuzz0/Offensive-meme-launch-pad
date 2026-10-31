@@ -104,3 +104,24 @@ test('real HTTP fortress squad commands isolate hired defenders and server raid 
   await Promise.all([alice.leave(),bob.leave()]);
  }finally{await host.close();}
 });
+
+test('real authenticated HTTP journey requires four correct locations and awards the first stage once',async()=>{
+ const host=createLocalWorld2Server();
+ try{
+  const address=await host.listen(0),a=transport(address.port),b=transport(address.port);
+  await a.join({name:'Trail owner',avatar:'offensive'});await b.join({name:'Observer',avatar:'offensive'});
+  await assert.rejects(a.action('claimJourney',{index:99,x:0,y:0,credits:999999}),/135 units/);
+  const owner=[...host.rooms.first.engine.players.values()].find(x=>x.name==='Trail owner');
+  const goal=host.rooms.first.engine.snapshot(owner.id).self.journey.target;
+  owner.x=goal.x;owner.y=goal.y;owner.input={x:0,y:0};host.rooms.first.revision++;
+  await a.action('claimJourney',{index:4,credits:999999});
+  const state=await a.state(),other=await b.state();
+  assert.equal(state.self.credits,215);assert.equal(state.self.xp,45);
+  assert.equal(state.self.journey.index,1);
+  assert.equal(other.self.journey.index,0);
+  assert.equal(other.players.find(x=>x.name==='Trail owner').journey,undefined);
+  await assert.rejects(a.action('claimJourney'),/135 units/);
+  assert.equal((await a.state()).self.credits,215);
+  await Promise.all([a.leave(),b.leave()]);
+ }finally{await host.close();}
+});
