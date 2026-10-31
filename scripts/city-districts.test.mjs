@@ -18,7 +18,7 @@ test('one expanded map allows walking across every district boundary without tel
  walk(e,p,C.WORLD.spawn.x,C.DISTRICTS[0].oy+1020);
  walk(e,p,C.DISTRICTS.find(d=>d.id==='arena').x,C.DISTRICTS[0].oy+1020);assert.equal(p.area,'arena');
  walk(e,p,C.DISTRICTS.find(d=>d.id==='social').x,C.DISTRICTS[0].oy+1020);assert.equal(p.area,'social');
- walk(e,p,C.DISTRICTS.find(d=>d.id==='creator').x,C.HUB.y+1650);assert.equal(p.area,'creator');
+ walk(e,p,C.DISTRICTS.find(d=>d.id==='social').ox+2150,C.DISTRICTS[0].oy+1020);walk(e,p,C.DISTRICTS.find(d=>d.id==='social').ox+2150,C.HUB.y+1650);walk(e,p,C.DISTRICTS.find(d=>d.id==='creator').x,C.HUB.y+1650);assert.equal(p.area,'creator');
  const before={x:p.x,y:p.y};assert.throws(()=>e.action('a',{type:'travel',area:'hub'}),/Walk/);assert.equal(p.x,before.x);assert.equal(p.y,before.y);
 });
 test('construction charges once, validates tiles and kinds, and refunds the exact price',()=>{
