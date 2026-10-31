@@ -58,20 +58,20 @@ const city=read('city.html'),landing=read('index.html'),pages=read('.github/work
 for(const id of ['city-canvas','start-button','city-intro','room-mode','hud-credits','hud-level','mission-title','health-value','joystick','fire'])
  assert.ok(city.includes('id="'+id+'"'),'Original playable V1 HUD or control missing: '+id);
 assert.ok(city.includes('SOLO / LOCAL SAVE'),'Original V1 solo gameplay must be the default');
-assert.ok(city.includes('city.js?v=19'),'Restored V1 playable engine must be loaded with the refreshed script version');
+assert.ok(city.includes('city.js?v=20-center'),'Restored V1 playable engine must be loaded with the refreshed script version');
 assert.ok(!city.includes('city-v2-release-gate.js'),'V1 entry must never force world2');
 assert.ok(!city.includes('href="city-world2-preview.html"'),'Do not advertise V2 preview in the restored game');
 const cardStart=landing.indexOf('<article class="home-portal game-portal"'),detailsStart=landing.indexOf('<details class="portal-details"',cardStart);
 const soloCta=landing.indexOf('class="button primary game-direct-play"',cardStart);
 assert.ok(cardStart>=0&&soloCta>cardStart&&detailsStart>soloCta,'Homepage must show an immediate Solo Play button without expanding the card');
-assert.ok(landing.includes('href="city.html?release=world1"'),'Homepage Solo Play must open the restored game');
+assert.ok(landing.includes('href="city.html?release=center-city-v1"'),'Homepage Solo Play must open Center City');
 assert.ok(pages.includes('city.html')&&pages.includes('city.js'),'Pages must publish original playable game files');
 for(const oldPage of ['city-world2-preview.html','city-world2-production.html']){
  const redirect=read(oldPage);
  assert.ok(pages.includes(oldPage),'Old v2 URL redirect must be deployed: '+oldPage);
- assert.ok(redirect.includes('location.replace(\'city.html?release=world1\')'),'Old v2 URL must redirect to original V1: '+oldPage);
+ assert.ok(redirect.includes('location.replace(\'city.html?release=center-city-v1\')'),'Old v2 URL must redirect to playable Center City: '+oldPage);
  assert.ok(!redirect.includes('localStorage'),'Redirect must not alter original browser saves');
 }
 for(const oldAsset of ['city-world2-preview.js','city-world2-simulation.js','city-world2.js','city-world2-registry.js'])
  assert.ok(!pages.includes(' '+oldAsset+' '),'Prototype script must not be published: '+oldAsset);
-console.log('PASS: V1-only public homepage and game, visible Solo Play, stable save data, and retired V2 redirects.');
+console.log('PASS: Center City homepage and game, visible Solo Play, stable save data, and retired V2 redirects.');
