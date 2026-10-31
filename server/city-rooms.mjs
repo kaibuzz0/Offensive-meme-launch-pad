@@ -1,10 +1,11 @@
 /* Authoritative, bounded guest rooms. No client balances or solo saves are accepted. */
 import {randomBytes} from 'node:crypto';
 export class RoomError extends Error {constructor(message,status=400){super(message);this.status=status;}}
-const allowed=new Set(['joinClan','blockJob','abandonBlock','avatar','style','checkpoint','buy','equip','list','purchase','cancel','chat','fire','dash','contract','abandon','ride','medkit','restock','claimChapter','enterBuilding','exitBuilding']);
+
 export function createRooms(Engine,{now=Date.now,capacity=8,maxRooms=8,sessionTTL=120000}={}){
+ const allowed=new Set(Engine.CAPABILITIES.online.actions);
  const rooms=new Map(),sessions=new Map(),joins=new Map();
- const make=(code,privateRoom)=>{const r={code,private:privateRoom,engine:new Engine(),revision:0};rooms.set(code,r);return r;};
+ const make=(code,privateRoom)=>{const r={code,private:privateRoom,engine:new Engine(),revision:0};r.engine.mode='online';rooms.set(code,r);return r;};
  const first=make('public-1',false);let last=now();
  function snapshot(s){const r=rooms.get(s.room),state=r.engine.snapshot(s.id);return {...state,revision:r.revision,roomInfo:{code:r.code,private:r.private,capacity,players:r.engine.players.size}};}
  function reap(){const stamp=now();for(const [token,s] of sessions)if(stamp-s.lastSeen>sessionTTL){rooms.get(s.room)?.engine.leave(s.id);sessions.delete(token);}for(const [code,r]of rooms)if(code!=='public-1'&&!r.engine.players.size)rooms.delete(code);for(const [ip,l]of joins)if(stamp-l.start>600000)joins.delete(ip);}

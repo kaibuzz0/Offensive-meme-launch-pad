@@ -24,6 +24,19 @@
   ['maduro','TAKEN DOCKS','Special Delivery','#79d7c6'],
   ['redacted','FINEPRINT QUARTER','Redacted Society','#c4a0ed']
  ].map(([id,name,clan,color],i)=>({id,name,clan,color,ox:i%3*2240,oy:3320+Math.floor(i/3)*1660,x:i%3*2240+1120,y:3320+Math.floor(i/3)*1660+870}));
+ WORLD.width=WORLD.height=Math.max(6720,3320+Math.ceil(NEIGHBORHOODS.length/3)*1660);
+ const FACTIONS={
+  offensive:{allies:['maduro'],enemies:['exit'],role:'Union wardens'},
+  congress:{allies:['you-missed'],enemies:['exit','redacted'],role:'Insider security'},
+  exit:{allies:['redacted'],enemies:['congress','you-missed','offensive','maduro'],role:'Rugmasters'},
+  'you-missed':{allies:['congress'],enemies:['exit'],role:'Shooter patrol'},
+  maduro:{allies:['offensive'],enemies:['exit'],role:'Delivery escort'},
+  redacted:{allies:['exit'],enemies:['congress'],role:'Redacted agents'}
+ };
+ const factionOf=b=>b.faction||(b.kind==='cop'?'congress':'exit');
+ const rivals=(a,b)=>!!FACTIONS[a]?.enemies.includes(b)||!!FACTIONS[b]?.enemies.includes(a);
+ function npcHostile(b,p){if(!b||!p||b.hp<=0)return false;if(b.owner)return b.owner===(p.ally?p.owner:p.id);if(b.kind==='cop'&&p.heat>=22)return true;return p.clan?rivals(factionOf(b),p.clan):factionOf(b)==='exit';}
+ const outpostLot=id=>{const n=NEIGHBORHOODS.find(n=>n.id===id);return n?{x:n.ox+800,y:n.oy+1150,cols:3,rows:3,tile:64}:null;};
  const DISTRICTS=[
   {id:'fortress',name:'Fortress Heights',tag:'BUILD & DEFEND YOUR MEME CITY',color:'#b6cd8c',ox:0,oy:0,x:1120,y:1160,gate:{x:85,y:830},hint:'Fortress road west',kind:'build'},
   {id:'creator',name:'Creator Quarter',tag:'MAKE A MEME. MAKE A SCENE.',color:'#c5a2e2',ox:4480,oy:0,x:5600,y:1080,gate:{x:2110,y:830},hint:'Creator road east',kind:'collections'},
@@ -101,6 +114,7 @@
   if(WORLD.obstacles.some(o=>x>o.x-10&&x<o.x+o.w+10&&y>o.y-8&&y<o.y+o.h+8))return true;
   if([...WORLD.buildings,...districtSolids].some(b=>x>b.x-15&&x<b.x+b.w+15&&y>b.y-12&&y<b.y+b.h+22))return true;
   const social=DISTRICTS.find(d=>d.id==='social');if(x>social.ox+180&&x<social.ox+925&&y>social.oy+1260&&y<social.oy+1525)return true;
+  if((p?.outposts||[]).some(o=>{const lot=outpostLot(o.clan);return lot&&BUILD_KIT.find(k=>k.id===o.kind)?.solid&&x>lot.x+o.col*64-4&&x<lot.x+o.col*64+60&&y>lot.y+o.row*64-4&&y<lot.y+o.row*64+60;}))return true;
   return (p?.plot||[]).some(o=>BUILD_KIT.find(k=>k.id===o.kind)?.solid&&x>PLOT.x+o.col*64-4&&x<PLOT.x+o.col*64+60&&y>PLOT.y+o.row*64-4&&y<PLOT.y+o.row*64+60);
  }
  function nearest(p){return WORLD.stations.find(s=>dist(p,s)<105)||null;}
@@ -134,6 +148,7 @@
     if(index>=0)throw Error('Remove the existing piece first.');
     if(p.credits<item.cost)throw Error('Not enough play credits. Complete jobs in the main city.');
     if(item.solid&&Math.abs(p.x-(PLOT.x+a.col*64+28))<46&&Math.abs(p.y-(PLOT.y+a.row*64+28))<46)throw Error('Move off this tile before building.');
+    const access=buildAccess([...p.plot,{col:a.col,row:a.row,kind:item.id}],PLOT.cols,PLOT.rows);if(access)throw Error(access);
     p.plot.push({col:a.col,row:a.row,kind:item.id,rotation:Number.isInteger(a.rotation)?((a.rotation%4)+4)%4:0});p.credits-=item.cost;return `${item.name} built.`;
    }
    if(p.area!=='hub'&&['checkpoint','buy','list','purchase'].includes(a.type))throw Error('Return to the main city for this action.');
@@ -156,5 +171,21 @@
   leave(id){for(const [lid,l]of this.listings)if(l.seller===id)this.listings.delete(lid);this.players.delete(id);}
   snapshot(id){const p=this.player(id);return {self:{...p,plot:p.plot.map(o=>({...o})),crew:p.crew.map(o=>({...o,...(o.post?{post:{...o.post}}:{})})),input:undefined,lastChat:undefined},players:[...this.players.values()].map(x=>({id:x.id,name:x.name,avatar:x.avatar,x:x.x,y:x.y,level:level(x.xp),area:x.area,style:{...x.style},equipped:Object.fromEntries(Object.entries(x.equipped).map(([slot,uid])=>[slot,x.inventory.find(i=>i.uid===uid)?.item]))})),listings:[...this.listings.values()].map(l=>({id:l.id,seller:l.seller,sellerName:l.sellerName,item:l.owned.item,price:l.price})),chat:this.chat};}
  }
- root.MemeCityCore=Object.freeze({WORLD,HUB,SCENERY,ITEMS,DISTRICTS,NEIGHBORHOODS,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
+ // Ground-plane combat coordinates never include visual body height.
+ const WEAPON=Object.freeze({barrel:50,height:58,recoil:2,shotInterval:.25});
+ function weaponAnchor(angle,recoil=0){const reach=WEAPON.barrel-Math.max(0,Math.min(1,recoil))*WEAPON.recoil;return {x:Math.cos(angle)*reach,y:Math.sin(angle)*reach,height:WEAPON.height};}
+ // Conservative tile access: every walkable cell must connect to the outside.
+ function buildAccess(pieces,cols,rows){
+  const solid=new Set(pieces.filter(o=>BUILD_KIT.find(k=>k.id===o.kind)?.solid).map(o=>o.row*cols+o.col)),seen=new Set(),queue=[];
+  const add=(x,y)=>{const key=y*cols+x;if(x<0||y<0||x>=cols||y>=rows||solid.has(key)||seen.has(key))return;seen.add(key);queue.push([x,y]);};
+  for(let x=0;x<cols;x++){add(x,0);add(x,rows-1);}for(let y=0;y<rows;y++){add(0,y);add(cols-1,y);}
+  for(let i=0;i<queue.length;i++){const [x,y]=queue[i];add(x-1,y);add(x+1,y);add(x,y-1);add(x,y+1);}
+  if(seen.size!==cols*rows-solid.size)return 'Keep an open path from every empty tile to the outside.';
+  for(const o of pieces)if(o.kind==='home'&&o.row+1<rows&&solid.has((o.row+1)*cols+o.col))return 'Keep the Meme HQ front entrance clear.';
+  return '';
+ }
+ const CAPABILITIES=Object.freeze({online:Object.freeze({actions:Object.freeze(['joinConflict','deliver','joinClan','blockJob','abandonBlock','avatar','style','checkpoint','buy','equip','list','purchase','cancel','chat','fire','dash','contract','abandon','ride','medkit','restock','claimChapter','enterBuilding','exitBuilding']),soloPanels:Object.freeze(['build','outposts','crew','fortress','survival'])}),solo:Object.freeze({persistent:'browser-local'})});
+ Engine.CAPABILITIES=CAPABILITIES;
+ const RELEASE=Object.freeze({name:'Living Blocks',version:'Alpha 12'});
+ root.MemeCityCore=Object.freeze({buildAccess,WEAPON,weaponAnchor,CAPABILITIES,RELEASE,WORLD,HUB,SCENERY,ITEMS,DISTRICTS,NEIGHBORHOODS,FACTIONS,factionOf,rivals,npcHostile,outpostLot,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
 })(typeof window==='undefined'?globalThis:window);

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow"><title>Meme City world2 / isolated preview</title>
+<style>
+:root{color-scheme:dark;font:16px system-ui,sans-serif;background:#0b151e;color:#e0e9e5}*{box-sizing:border-box}
+body{margin:0;min-height:100vh}header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 18px;background:#14252e;border-bottom:1px solid #37636a}
+h1{margin:0;font-size:1.15rem}h2{font-size:.95rem;margin:.3rem 0}.tag{font-size:.7rem;color:#98ebe1;letter-spacing:.12em}a{color:#aff0e4}
+.warning{padding:10px 18px;background:#46341a;color:#ffe2b4;font-size:.85rem}
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,290px);gap:12px;padding:12px;max-width:1400px;margin:auto}
+#world{display:block;width:100%;height:min(72vh,760px);min-height:420px;background:#1a313b;border:1px solid #385967;border-radius:12px;touch-action:none}
+aside{background:#15252e;border:1px solid #34535d;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+button,select{min-height:40px;background:#294653;border:1px solid #5c8389;color:#e6f9ef;border-radius:7px;padding:8px;font:inherit}
+button:focus-visible,select:focus-visible{outline:2px solid #9ceee5}button{cursor:pointer}button:hover{background:#345b63}
+#overview{display:block;width:100%;aspect-ratio:1;border:1px solid #34535d;border-radius:8px;background:#193138}
+#status{font-size:.85rem;min-height:52px;color:#c2d8d3}#location{font-weight:700}
+.controls{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.controls button{touch-action:none;font-weight:800;min-height:52px}
+.controls button[data-key="up"]{grid-column:2}.controls button[data-key="left"]{grid-column:1}.controls button[data-key="down"]{grid-column:2}.controls button[data-key="right"]{grid-column:3}
+.actions{display:flex;gap:7px;flex-wrap:wrap}.actions button{flex:1}
+small{color:#9baeb4;line-height:1.45}#journal{font-size:.8rem;color:#a7e6ce}#nav-select{width:100%}
+@media(max-width:780px){main{display:block;padding:6px}aside{margin-top:10px}#world{height:54vh;min-height:330px}header{padding:12px}.warning{padding:10px 12px}}
+</style>
+<script src="city-core.js" defer></script><script src="city-arcade.js" defer></script>
+<script src="city-rise.js" defer></script><script src="city-interiors.js" defer></script>
+<script src="city-topology.js" defer></script><script src="city-nav.js" defer></script>
+<script src="city-world2.js" defer></script><script src="city-world2-registry.js" defer></script>
+<script src="city-migration.js" defer></script><script src="city-visuals.js" defer></script>
+<script src="city-world2-preview.js" defer></script></head>
+<body><header><div><div class="tag">OFFENSIVE / DEVELOPMENT ONLY</div><h1>Meme City — Center-Out World v2</h1></div><a href="city.html">Return to existing game</a></header>
+<div class="warning"><b>Isolated geometry playtest — not the full game.</b> Walk, test gates, navigate 47 entrances, inspect rooms and place temporary fortress walls. Combat, online authority, real markets, NPC attacks, and permanent v2 saving are intentionally disabled. The existing game and its save stay untouched.</div>
+<main><section aria-label="Interactive prototype city canvas"><canvas id="world" tabindex="0" aria-label="Explore prototype city with WASD or touch direction controls">Canvas required.</canvas>
+<small>WASD / arrows to walk. E to enter or exit a doorway. Touch direction controls below. The blue path indicates a walkable route, not automatic movement.</small></section>
+<aside><div id="location">Center fortress / initializing</div><div id="status" role="status" aria-live="polite">Loading preview geometry...</div>
+<canvas id="overview" width="280" height="280" aria-label="Overview of center-out streets and your position"></canvas>
+<label for="nav-select">Tracked destination</label><select id="nav-select"></select>
+<div class="actions"><button id="route">Find walking route</button><button id="clear-route">Clear route</button></div>
+<h2>Test controls</h2><div class="controls" aria-label="Touch movement controls">
+<button data-key="up" aria-label="Move north">▲</button><button data-key="left" aria-label="Move west">◀</button><button data-key="down" aria-label="Move south">▼</button><button data-key="right" aria-label="Move east">▶</button></div>
+<div class="actions"><button id="interact">Enter / interact (E)</button><button id="test-wall">Place preview wall</button><button id="remove-wall">Remove wall</button></div>
+<div class="actions"><button id="load-preview">Read staged solo save</button><button id="reset">Reset preview</button></div>
+<div id="journal" role="status">No preview objectives completed.</div>
+<small>Only the isolated preview writes world2 staging and recovery keys when “Read staged solo save” is pressed. No real wallet, purchases, XP awards or deployed game state are changed.</small>
+</aside></main></body></html>

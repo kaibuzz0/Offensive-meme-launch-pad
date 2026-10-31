@@ -67,12 +67,12 @@
     setLink('#fallback-pump', pump);
     setLink('#fallback-phantom', core.browseUrl('phantom', pump, config.siteUrl));
     setLink('#fallback-solflare', core.browseUrl('solflare', pump, config.siteUrl));
-    const inWallet = new URL(config.siteUrl);
+    const inWallet = new URL('beta.html',config.siteUrl);const budget=new URLSearchParams(location.search).get('budget');if(['0.50','1.00'].includes(budget))inWallet.searchParams.set('budget',budget);
     inWallet.searchParams.set('buy', token.mint); inWallet.hash = 'wallet-buy';
     setLink('#site-phantom', core.browseUrl('phantom', inWallet.href, config.siteUrl));
     setLink('#site-solflare', core.browseUrl('solflare', inWallet.href, config.siteUrl));
     if (widgetRequested) mount();
-    else showStatus('Choose your token, then open the wallet swap.');
+    else {const budget=new URLSearchParams(location.search).get('budget');showStatus(['0.50','1.00'].includes(budget)?`Requested spend: ${budget} USDC before fees. Open the swap for the live token output, price impact and fee estimate. SOL may be needed for network/account costs. No unlock is granted until holdings are verified in an online game room.`:'Choose your token, then open the wallet swap.');}
   }
   function loadPlugin() {
     if (window.Jupiter?.init) return Promise.resolve(window.Jupiter);
@@ -125,7 +125,7 @@
         onSwapError: () => {
           if (generation === requestId) showStatus('Swap unavailable or not completed. If no route exists, use the pump.fun options below.');
         }
-      }));
+      },{budget:new URLSearchParams(location.search).get('budget')}));
       widgetInitialized = true;
       showStatus(`Wallet swap opened for ${token.name}. Connect your wallet below to request a live quote. If Jupiter cannot route this token, use pump.fun.`);
       loadButton.textContent = 'Reload wallet swap';

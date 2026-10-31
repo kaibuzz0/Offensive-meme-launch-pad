@@ -11,7 +11,7 @@ const {Engine}=scope.MemeCityCore;
 const tokenScope={window:{}};for(const f of ['tokens.js','launchpad-config.js'])vm.runInNewContext(await fs.readFile(path.join(root,f),'utf8'),tokenScope);
 const mints=Object.fromEntries([tokenScope.window.LAUNCHPAD_CONFIG.platformToken,...tokenScope.window.MEME_TOKENS.filter(t=>t.mint)].map(t=>[t.id,t.mint]));
 const contentTypes={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mp4':'video/mp4','.jpg':'image/jpeg','.webp':'image/webp','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
-const files=new Set(['index.html','beta.html','creators.html','city.html','city-roadmap.html','city.css','city.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js','styles.css','app.js','tokens.js','launchpad-config.js','trade-core.js','trade.js','share-core.js','social.js','pwa.js','sw.js','manifest.webmanifest','offline.html','launchpad.js','launchpad.css']);
+const files=new Set(['index.html','beta.html','creators.html','city.html','city-roadmap.html','city-world2-preview.html','city-world2-preview.js','city-topology.js','city-nav.js','city-map.js','city-save.js','city-migration.js','city-world2.js','city-world2-registry.js','city.css','city.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js','styles.css','app.js','tokens.js','launchpad-config.js','trade-core.js','trade.js','share-core.js','social.js','pwa.js','sw.js','manifest.webmanifest','offline.html','launchpad.js','launchpad.css']);
 export function createCityServer({origins=[],now=()=>Date.now()}={}){
  const holdings=holdingsService({mints,now});
  const service=createRooms(Engine,{now}),engine=service.first.engine,sessions=service.sessions,streams=new Map();
@@ -39,6 +39,7 @@ export function createCityServer({origins=[],now=()=>Date.now()}={}){
     const token=String(req.headers.authorization||'').replace(/^Bearer /,''),session=service.auth(token);
     if(route==='/wallet/challenge'&&req.method==='POST')return json(res,200,holdings.challenge(session,body.address));
     if(route==='/wallet/check'&&req.method==='POST')return json(res,200,await holdings.check(session,service.rooms.get(session.room).engine.player(session.id),body));
+    if(route==='/wallet/disconnect'&&req.method==='POST'){session.walletEpoch=(session.walletEpoch||0)+1;delete session.walletAddress;delete session.walletChallenge;service.rooms.get(session.room).engine.player(session.id).holder=null;return json(res,200,{ok:true});}
     if(route==='/events'&&req.method==='GET'){
      streams.get(token)?.end();streams.set(token,res);res.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store, no-transform','X-Accel-Buffering':'no'});res.write(JSON.stringify(service.snapshot(session))+'\n');req.on('close',()=>{if(streams.get(token)===res)streams.delete(token);});return;
     }
