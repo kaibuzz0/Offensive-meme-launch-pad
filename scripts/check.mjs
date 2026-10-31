@@ -59,3 +59,6 @@ for(const p of ['city-world2-preview.html','city-world2-preview.js','city-world2
  assert.ok(read('.github/workflows/pages.yml').includes(p),'Preview resource missing from future Pages package: '+p);
 assert.ok(read('city-world2-preview.html').includes('Isolated geometry playtest'),'Preview must disclose isolated behavior');
 console.log('PASS: world2 isolated preview script wiring, future deployment assets and limitations.');
+assert.ok(read('city.html').includes('href="city-world2-preview.html"'),'Public city must label and link its optional world2 preview');
+assert.ok(read('README.md').includes('world-v2 sandbox'),'Release notes must distinguish experimental preview from live game');
+console.log('PASS: Public website links to clearly labeled world2 sandbox and release documentation.');
