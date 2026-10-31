@@ -1,3 +1,5 @@
+> **Update after audit:** `city-save.js` now writes schema v5/world1, retains the first v1–v4 recovery snapshot, blocks invalid/future saves and has 5 green regression tests (`62135ce4`, CI 136/136). The older save-v4 observation below describes the inspected baseline; future spatial migration, rollback UX and multitab conflict resolution remain open.
+
 # Meme City — architecture and navigation audit
 **Scope:** Stage 0 inspection and first Stage 1 slice, October 31, 2026. **Branch:** `codex/living-blocks-handoff`; draft PR #1. Findings distinguish code-confirmed behavior from unverified risks.
 

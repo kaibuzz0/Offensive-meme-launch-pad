@@ -116,3 +116,17 @@ PR remains draft because these acceptance items are unfinished, not because push
 - `city-core.js` remains the canonical simulation/authority; the new map helper is an adapter for the current world data, not an independent terrain or combat authority.
 - Existing online guest rooms remain temporary. The public release and financial UI on `main` are unchanged. No persistent online personal-land, new holder entitlements, token burns or purchases are implemented here.
 - See `docs/CITY_ARCHITECTURE_AUDIT.md` and `NEXT_AI_HANDOFF.md` for source locations and the next testable increments.
+
+## Save-schema guard follow-up — October 31, 2026
+
+**Code commit:** `62135ce4`, pushed to the same open draft PR. No map relocation or production deployment.
+
+- Added `city-save.js` with separate `SAVE_VERSION=5` and `WORLD_VERSION=1`. New solo saves write `version:5`, `saveVersion:5` and `worldVersion:1`.
+- Before opening an existing v1–v4 solo save for continued use, copies its raw original JSON to `offensive-meme-city-v1-legacy-backup` if a recovery copy is not already present. Existing backups are not overwritten.
+- Malformed, unsupported/future-schema and future-world saves are left unchanged; auto-saving is disabled and the user is informed. If a required backup fails, old progress can still be read in the session but will not be overwritten.
+- Preserved the existing v1-to-current position adapter, item/progression restore and existing world coordinates. This is a schema safeguard and **NOT** the future center-out position/plot/outpost migration.
+- Added five save regression tests covering fresh state, legacy backup/idempotence, unsupported schema, corrupted input and unavailable/quota-limited storage. Updated script order and GitHub Pages deployment manifest.
+
+**Actual validation:** [CI run 41219705683](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41219705683): **136 passed / 0 failed**, `npm run check` passed, diff check passed. Node 22 shared runner benchmark: 8 players, 44 ambient bots, 2,400 simulation ticks, median **0.363 ms**, p95 **1.077 ms**, max **11.754 ms**, 22,536-byte snapshot. Separate sample/run from prior benchmark; **not** evidence of a performance improvement or phone FPS.
+
+**Still needed before map redesign:** create a stable landmark/door region migration table, preserve plot/outposts/contracts/waypoints, add deterministic world transforms, validate entrance reachability and recover collision-trapped legacy builds. Add true multitab conflict handling or explicit save revision checks. Full browser reload/backup recovery and Android-device playthrough remain unverified.

@@ -1,3 +1,5 @@
+> **Latest update:** code commit `62135ce4` adds `city-save.js`, safe v1–v4 backups, v5/world1 schema fields, blocked writes to corrupted/future saves and 5 regression tests. Full CI: **136/136 passed** at [run 41219705683](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41219705683). No world-space move yet; no production deploy.
+
 # NEXT AI HANDOFF — Meme City
 Date: October 31, 2026
 
@@ -19,7 +21,7 @@ Date: October 31, 2026
 
 ## Execute these next, in sequence
 
-1. Create a safe, isolated world/save schema migration utility and test old versions, invalid/corrupted data, multiple tabs, rollback and preserved earned assets. Integrate current save without changing any world positions.
+1. Extend the now-shipped v5/world1 save protection into a **fully tested geometric migration**: stable legacy-to-new POI mapping, plot/outpost transform, rollback UI, corrupted-world recovery, multiple-tab revision tests and proof that inventory/XP/credits/reputation survive. Do not move the actual map before these tests.
 2. Add a bounded collision-respecting route system using current stable POI IDs and actual `CityInteriors.door` entrances, with reachability tests for essential services and phone map hit-testing.
 3. Design the center-origin/fortress and four-road plan as a feature-flagged manifest, with testable transforms for old player home, plot/outposts, quests, checkpoints and room entrances. **Do not move positions before migration/tests exist.**
 
@@ -27,4 +29,4 @@ For each complete batch: run `npm test`, `npm run check`, `git diff --check`, an
 
 ## Known gaps to disclose
 
-The map still directs toward a point, rather than navigating around collisions. Existing solo save is schema version 4 without rollback backup. Online players are temporary guests. Full eight-direction mobile visuals and multi-client service flow acceptance remain incomplete; shared-host CPU time is not handset FPS.
+The map still directs toward a point, rather than navigating around collisions. Existing solo save writes v5/world1 and backs up v1–v4 raw data; a full center-out migration and rollback UI are still pending. Online players are temporary guests. Full eight-direction mobile visuals and multi-client service flow acceptance remain incomplete; shared-host CPU time is not handset FPS.
