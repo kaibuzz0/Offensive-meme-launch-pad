@@ -22,6 +22,25 @@
  $('faction-select').value=C.NEIGHBORHOODS[0].id;
  $('control-select').value=simulation.territory.zones[0].id;
  $('nav-select').value='door:market';
+ const shopItems=$('shop-item'),ownedGear=$('owned-gear');
+ for(const item of C.ITEMS){const opt=document.createElement('option');opt.value=item.id;opt.textContent=item.name+' / '+item.price+' preview credits';shopItems.append(opt);}
+ function refreshGear(){
+  const previous=ownedGear.value;ownedGear.textContent='';
+  for(const owned of player.inventory){const item=C.ITEMS.find(i=>i.id===owned.item);if(!item)continue;const opt=document.createElement('option');opt.value=owned.uid;opt.textContent=item.name+' / '+owned.uid;ownedGear.append(opt);}
+  ownedGear.value=player.inventory.some(o=>o.uid===previous)?previous:player.inventory[0]?.uid||'';
+ }
+ const transact=(operation,...args)=>{
+  if(!simulation.services){say('Preview equipment counter is not loaded.');return;}
+  const result=simulation.services[operation](player,...args);
+  refreshGear();say(result.message||('Preview service: '+result.status));
+ };
+ $('buy-gear').addEventListener('click',()=>transact('buyGear',shopItems.value,room));
+ $('equip-gear').addEventListener('click',()=>transact('equip',ownedGear.value,room));
+ $('sell-gear').addEventListener('click',()=>transact('sell',ownedGear.value,room));
+ $('buy-medkit').addEventListener('click',()=>transact('buyMedkit',room));
+ $('use-medkit').addEventListener('click',()=>transact('useMedkit'));
+ refreshGear();
+
  const choose=id=>{waypoint=pois.resolve(id)||simulation.territory.zones.find(z=>z.id===id)||null;if(!waypoint){travel=null;say('Unknown destination.');return;}
   const path=planner.plan(player,waypoint,player);travel=path.status==='ok'?path.points:null;
   say(travel?'Safe walking path to '+waypoint.name+' marked. Walk along the cyan line.':'No safe path to '+waypoint.name+' from this position ('+path.status+').');
@@ -34,7 +53,7 @@
  $('join-faction').addEventListener('click',joinFaction);
  $('route-control').addEventListener('click',()=>{if(room){say('Exit the building before planning a route.');return;}choose($('control-select').value);});
  $('capture-control').addEventListener('click',captureControl);
- function reset(){simulation.reset();room=null;seen=new Set();waypoint=travel=null;say('Reset in-memory preview. Your real save and protected backup remain unchanged.');}
+ function reset(){simulation.reset();refreshGear();room=null;seen=new Set();waypoint=travel=null;say('Reset in-memory preview. Your real save and protected backup remain unchanged.');}
   $('reset').addEventListener('click',reset);
  $('save-world2').addEventListener('click',()=>{
   const r=sandbox.save();
@@ -42,7 +61,7 @@
  });
  $('load-world2').addEventListener('click',()=>{
   const r=sandbox.load();
-  if(r.status==='loaded'){room=null;travel=waypoint=null;
+  if(r.status==='loaded'){refreshGear();room=null;travel=waypoint=null;
    if(player.clan)$('faction-select').value=player.clan;
    say('Loaded world2 sandbox, construction and captured territory from private preview storage.'+(r.relocated?' Spawn was relocated safely.':''));}
   else say(r.reason||(r.status==='empty'?'No world2 sandbox has been saved yet.':r.status));
@@ -55,6 +74,7 @@
   const inspected=window.CityMigration.inspectStage(localStorage,keys);
   if(inspected.status!=='ready-for-review'){say('Staged data rejected: '+inspected.status);return;}
   const loaded=simulation.loadStage(inspected.save);
+  if(loaded.status==='loaded')refreshGear();
   if(loaded.status!=='loaded'){say('Staged character incompatible.');return;}
   if(player.clan)$('faction-select').value=player.clan;
   say((loaded.relocated?'Blocked old position safely relocated. ':'')+'Staged XP, credits, inventory, construction and crew loaded in memory only. '+(staged.notices||[]).join(' '));
@@ -78,6 +98,7 @@
   if(k==='r'&&!e.repeat)say(simulation.reload());
   if(k==='g'&&!e.repeat)defend();
   if(k==='c'&&!e.repeat)claim();
+  if(k==='h'&&!e.repeat)transact('useMedkit');
  });
  document.addEventListener('keyup',e=>{let key=keyMap[e.key.toLowerCase()];if(key)held.delete(key);});
  addEventListener('blur',()=>held.clear());
@@ -87,7 +108,9 @@
   if(room){if(Math.hypot(room.x-I.ROOM.exit.x,room.y-I.ROOM.exit.y)<95){const old=room.name;room=null;say('Exited '+old+' to the world2 street (preview only).');}
    else if(Math.hypot(room.x-I.ROOM.activity.x,room.y-I.ROOM.activity.y)<110){
     if(room.id==='door:launch')startCourier();
-    else say(room.name+' activity terminal is present; full shop/market transactions remain disabled in preview.');
+    else if(room.id==='door:shop')say('Equipment and medkit counter ready. Use Indoor Services below; preview credits only.');
+     else if(room.id==='door:market')say('Night Market salvage ready. Select owned gear for a half-price preview-credit refund.');
+     else say(room.name+' activity terminal is present; other public-service activities remain in development.');
    }else say('Walk to the front exit or the highlighted terminal.');return;}
   if(simulation.courier.state.status==='active'&&Math.hypot(player.x-simulation.courier.target.x,player.y-simulation.courier.target.y)<125){deliverCourier();return;}
   const door=nearestDoor();if(door){const orig=I.BUILDINGS.find(b=>b.roomId===door.id.slice(5));room={...I.ROOM.spawn,id:door.id,name:door.name,theme:orig?.theme||'shop'};travel=waypoint=null;say('Entered '+room.name+'. Walk to the activity terminal or the exit. No credits or items change.');return;}
@@ -193,7 +216,7 @@
   const p=Object.values(T.draft.areas).find(a=>player.x>=a.x&&player.x<a.x+a.w&&player.y>=a.y&&player.y<a.y+a.h);
   $('location').textContent=room?room.name+' / TEST INTERIOR':(p?.id||'Connecting roads').toUpperCase()+' · '+Math.round(player.x)+' / '+Math.round(player.y);
   $('combat-hud').textContent='Courier '+simulation.courier.state.status+(simulation.courier.state.status==='active'?' '+Math.ceil(simulation.courier.state.remaining)+'s':'')+' · Faction '+(player.clan||'none')+' · Captures '+simulation.territory.zones.filter(z=>z.owner===player.clan&&z.homeClan!==player.clan).length+' · HP '+Math.ceil(player.hp)+'/100 · Ammo '+player.ammo+'/24 · Heat '+Math.ceil(player.heat)+
-   ' · XP '+player.xp+' · Credits '+player.credits+' · Defense '+simulation.mission.status+
+   ' · XP '+player.xp+' · Credits '+player.credits+' · Medkits '+(player.rising.medkits||0)+' · Defense '+simulation.mission.status+
    (simulation.mission.status==='active'?' ('+simulation.mission.remaining+' raiders)':'');
   const recent=simulation.events.at(-1);
   if(recent&&recent!==lastSimEvent){lastSimEvent=recent;say(recent);}
