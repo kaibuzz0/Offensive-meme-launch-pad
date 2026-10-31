@@ -1,25 +1,16 @@
-/* World-v2 production cutover gate.
- * An unavailable or ineligible server leaves the existing world1 game untouched.
- * Existing world1 localStorage is NEVER read, changed, migrated or removed here.
- * Use ?legacy=1 to skip the gate and access the original version on demand.
+/* World-v2-only public entry.
+ * The owner explicitly selected v2 gameplay on temporary free-tier rooms
+ * before persistence is available. Never read or change world1 local saves.
+ * Do not load a second gameplay world as an automatic fallback.
  */
 'use strict';
 (function(root){
- const api='https://offensive-meme-city-rooms.onrender.com/api/world2/health';
- function eligible(s){return !!s&&s.worldVersion===2&&s.preview===false&&
-  s.persistence===true&&s.releaseReady===true;}
  function enabled(){
   return root.location?.origin==='https://kaibuzz0.github.io'&&
    root.location?.protocol==='https:'&&
-   root.location?.pathname?.endsWith('/city.html')&&
-   !/(?:^|[?&])legacy=1(?:&|$)/.test(root.location.search||'');
+   root.location?.pathname?.endsWith('/city.html');
  }
- if(enabled()&&typeof root.fetch==='function'){
-  root.fetch(api,{cache:'no-store',redirect:'error'}).then(async response=>{
-   if(!response.ok)return;
-   const info=await response.json();
-   if(eligible(info))root.location.replace('./city-world2-production.html');
-  }).catch(()=>{/* retain working world1 fallback */});
- }
- root.CityWorld2ReleaseGate=Object.freeze({eligible,enabled});
+ // This transition is unconditional: no health-dependent fallback to world1.
+ if(enabled())root.location.replace('./city-world2-production.html');
+ root.CityWorld2ReleaseGate=Object.freeze({enabled});
 })(window);
