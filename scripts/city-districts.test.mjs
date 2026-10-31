@@ -5,22 +5,24 @@ import vm from 'node:vm';
 const context={};for(const f of ['city-core.js','city-arcade.js'])vm.runInNewContext(fs.readFileSync(new URL('../'+f,import.meta.url),'utf8'),context);
 const C=context.MemeCityCore;
 function setup(){const e=new C.Engine();e.join('a','Builder','offensive');e.join('b','Visitor','maduro');return e;}
-function atFortress(e){Object.assign(e.player('a'),{x:1120,y:1280,area:'fortress'});}
+function atFortress(e){Object.assign(e.player('a'),{x:C.WORLD.spawn.x,y:C.WORLD.spawn.y,area:'fortress'});}
 function walk(e,p,x,y){
  for(const [axis,to]of [['x',x],['y',y]])for(let i=0;Math.abs(p[axis]-to)>.1&&i<2000;i++){const before=p[axis],d=to-before;e.input(p.id,axis==='x'?Math.sign(d):0,axis==='y'?Math.sign(d):0);e.tick(Math.min(.05,Math.abs(d)/205));assert.notEqual(p[axis],before,'Walking route must remain passable');}
  e.input(p.id,0,0);assert.ok(Math.hypot(p.x-x,p.y-y)<1);
 }
 test('one expanded map allows walking across every district boundary without teleporting',()=>{
  const e=setup(),p=e.player('a');for(const b of e.arcade.bots){b.hp=0;b.respawn=10000;}p.invulnerable=10000;
- assert.equal(C.WORLD.width,6720);assert.equal(C.WORLD.height,6720);
- walk(e,p,2320,900);walk(e,p,1120,1280);assert.equal(p.area,'fortress');
- walk(e,p,2120,1280);walk(e,p,2120,2560);walk(e,p,1120,2560);assert.equal(p.area,'arena');
- walk(e,p,2120,2560);walk(e,p,2120,950);walk(e,p,5600,950);walk(e,p,5600,1080);assert.equal(p.area,'creator');
- walk(e,p,4660,1080);walk(e,p,4660,2780);walk(e,p,5600,2780);assert.equal(p.area,'social');
+ assert.equal(C.WORLD.width,11200);assert.equal(C.WORLD.height,11200);
+ assert.equal(p.area,'fortress');
+ walk(e,p,C.HUB.x+1120,C.HUB.y+1650);assert.equal(p.area,'hub');
+ walk(e,p,C.WORLD.spawn.x,C.DISTRICTS[0].oy+1020);
+ walk(e,p,C.DISTRICTS.find(d=>d.id==='arena').x,C.DISTRICTS[0].oy+1020);assert.equal(p.area,'arena');
+ walk(e,p,C.DISTRICTS.find(d=>d.id==='social').x,C.DISTRICTS[0].oy+1020);assert.equal(p.area,'social');
+ walk(e,p,C.DISTRICTS.find(d=>d.id==='creator').x,C.HUB.y+1650);assert.equal(p.area,'creator');
  const before={x:p.x,y:p.y};assert.throws(()=>e.action('a',{type:'travel',area:'hub'}),/Walk/);assert.equal(p.x,before.x);assert.equal(p.y,before.y);
 });
 test('construction charges once, validates tiles and kinds, and refunds the exact price',()=>{
- const e=setup(),p=e.player('a');assert.throws(()=>e.action('a',{type:'build',col:0,row:0,kind:'wall'}),/fortress/);
+ const e=setup(),p=e.player('a');Object.assign(p,{x:C.HUB.x+1120,y:C.HUB.y+900});assert.throws(()=>e.action('a',{type:'build',col:0,row:0,kind:'wall'}),/fortress/);
  atFortress(e);
  for(const bad of [{col:-1,row:0},{col:16,row:0},{col:0,row:10},{col:0.5,row:0}])assert.throws(()=>e.action('a',{type:'build',...bad,kind:'wall'}),/tile/);
  assert.throws(()=>e.action('a',{type:'build',col:0,row:0,kind:'fake'}),/Unknown/);
@@ -32,9 +34,9 @@ test('construction charges once, validates tiles and kinds, and refunds the exac
 });
 test('solid construction blocks walking and cannot be placed under the builder',()=>{
  const e=setup(),p=e.player('a');atFortress(e);e.action('a',{type:'build',col:0,row:0,kind:'wall'});
- assert.ok(C.blocked(625,475,p));assert.equal(C.blocked(700,475,p),false);
- p.x=625;p.y=545;assert.throws(()=>e.action('a',{type:'build',col:0,row:1,kind:'tower'}),/Move off/);
- p.x=585;p.y=475;e.input('a',1,0);e.tick(.1);assert.ok(p.x<600);
+ assert.ok(C.blocked(C.PLOT.x+25,C.PLOT.y+25,p));assert.equal(C.blocked(C.PLOT.x+100,C.PLOT.y+25,p),false);
+ p.x=C.PLOT.x+25;p.y=C.PLOT.y+95;assert.throws(()=>e.action('a',{type:'build',col:0,row:1,kind:'tower'}),/Move off/);
+ p.x=C.PLOT.x-15;p.y=C.PLOT.y+25;e.input('a',1,0);e.tick(.1);assert.ok(p.x<C.PLOT.x);
 });
 test('starter fortress is atomic, affordable from a fresh game, and refundable',()=>{
  const e=setup(),p=e.player('a');atFortress(e);p.credits=156;
@@ -49,7 +51,7 @@ test('peaceful districts stay safe and cannot claim main-city checkpoint rewards
  const credits=p.credits;for(let i=0;i<50;i++)e.tick(.1);assert.equal(p.hp,100);assert.equal(p.credits,credits);assert.equal(p.area,'creator');
  assert.throws(()=>e.action('a',{type:'fire',x:1,y:0}),/peaceful/);
  assert.throws(()=>e.action('a',{type:'contract',job:'bounty'}),/peaceful/);
- assert.throws(()=>e.action('a',{type:'checkpoint'}),/main city/);
+ assert.throws(()=>e.action('a',{type:'checkpoint'}),/closer/);
 });
 test('saved plots drop malformed, duplicate and out-of-bounds pieces, and bound size',()=>{
  const plot=C.restorePlot([{col:0,row:0,kind:'wall',rotation:-1},{col:0,row:0,kind:'home'},{col:100,row:0,kind:'wall'},{col:1,row:1,kind:'fake'},null,{col:2,row:1,kind:'banner',extra:'discard'}]);
@@ -63,6 +65,6 @@ test('private plot snapshots copy construction and never publish it in peer prof
 });
 
 test('old solo position migration moves each saved character into the matching world district',()=>{
- const hub=C.oldPosition('hub',1120,900);assert.equal(hub.x,C.WORLD.spawn.x);assert.equal(hub.y,C.WORLD.spawn.y);
+ const hub=C.oldPosition('hub',1120,900);assert.equal(hub.x,C.HUB.x+1120);assert.equal(hub.y,C.HUB.y+900);
  for(const d of C.DISTRICTS){const pos=C.oldPosition(d.id,1120,900);assert.equal(C.areaAt(pos.x,pos.y),d.id);}
 });
