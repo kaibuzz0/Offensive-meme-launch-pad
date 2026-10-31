@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const ctx={};
-for(const f of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-world2-territory.js','city-world2-contracts.js','city-world2-simulation.js','city-world2-session.js'])
+for(const f of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-world2-territory.js','city-world2-contracts.js','city-world2-services.js','city-world2-simulation.js','city-world2-session.js'])
  vm.runInNewContext(fs.readFileSync(new URL('../'+f,import.meta.url),'utf8'),ctx);
 const C=ctx.MemeCityCore,I=ctx.CityInteriors,T=ctx.CityTopology,W=ctx.CityWorld2.create(C,I,T),R=ctx.CityWorld2Registry.create(C,I,ctx.CityRising,T,W);
 const key='offensive-meme-city-world2-preview-v1',world1='offensive-meme-city-v1';
@@ -52,4 +52,20 @@ test('invalid persisted territory cannot silently change control ownership',()=>
  const other=sim();const b=ctx.CityWorld2Session.create(s,key,other);
  assert.equal(b.load().status,'invalid');
  assert.ok(other.territory.zones.every(z=>z.owner===z.homeClan));
+});
+
+test('preview gear purchases, equipped effects and medkit inventory roundtrip to isolated storage',()=>{
+ const s=storage({[world1]:'{"worldVersion":1,"credits":125}'}),first=sim(),shop={id:'door:shop',...I.ROOM.activity};
+ first.player.credits=700;const gear=first.services.buyGear(first.player,'blaster',shop);
+ assert.equal(gear.status,'bought');assert.equal(first.services.equip(first.player,gear.uid,shop).status,'equipped');
+ assert.equal(first.services.buyMedkit(first.player,shop).status,'bought');
+ const originalCredits=first.player.credits;
+ const session=ctx.CityWorld2Session.create(s,key,first);assert.equal(session.save().status,'saved');
+ const second=sim();const recovery=ctx.CityWorld2Session.create(s,key,second);
+ assert.equal(recovery.load().status,'loaded');
+ assert.equal(second.player.credits,originalCredits);
+ assert.equal(second.player.inventory.some(o=>o.uid===gear.uid&&o.item==='blaster'),true);
+ assert.equal(second.player.equipped.hand,gear.uid);
+ assert.equal(second.player.rising.medkits,1);
+ assert.equal(s.getItem(world1),'{"worldVersion":1,"credits":125}');
 });
