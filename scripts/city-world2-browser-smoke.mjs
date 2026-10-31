@@ -84,11 +84,20 @@ try{
  await first.evaluate("document.dispatchEvent(new KeyboardEvent('keyup',{key:'d',bubbles:true}));true");
  await waitFor(async()=>numberAfter(await first.evaluate("document.getElementById('hud').textContent"),'pos').x>start.x+5,
   'server-driven movement in first browser');
+ await second.send('Page.bringToFront'); // Background tabs throttle polling despite active sessions.
  await waitFor(async()=>{
   const text=String(await second.evaluate("document.getElementById('peer-summary').textContent"));
   const match=text.match(/Alice \\(([0-9]+),([0-9]+)\\)/);
   return !!match&&Number(match[1])>start.x+5;
- },'other browser sees authoritative movement');
+ },'other browser sees authoritative movement').catch(async error=>{
+  console.error('QA peer diagnostics',JSON.stringify({
+   start,aliceHud:await first.evaluate("document.getElementById('hud').textContent"),
+   bobHud:await second.evaluate("document.getElementById('hud').textContent"),
+   bobPeers:await second.evaluate("document.getElementById('peer-summary').textContent"),
+   bobStatus:await second.evaluate("document.getElementById('status').textContent")
+  }));
+  throw error;
+ });
  await first.evaluate("document.getElementById('gear').value='jacket';document.getElementById('buy').click();true");
  await waitFor(()=>first.evaluate("document.getElementById('status').textContent.includes('Server refused buyGear')"),
   'server rejects remote shop purchase');
