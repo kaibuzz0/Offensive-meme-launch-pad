@@ -11,7 +11,7 @@
    return !W.blocked(pos.x,pos.y);
   }
   function nearest(pos){
-   if(passable(pos))return {x:Math.round(pos.x),y:Math.round(pos.y)};
+   if(passable(pos))return {x:pos.x,y:pos.y};
    // Fixed deterministic search: never invent a point inside a building/fortress wall.
    for(let r=24;r<=400;r+=24){
     for(let i=0;i<32;i++){const angle=i*Math.PI/16,p={x:Math.round(pos.x+Math.cos(angle)*r),y:Math.round(pos.y+Math.sin(angle)*r)};if(passable(p))return p;}
