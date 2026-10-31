@@ -84,8 +84,10 @@ assert.ok(online.includes('Local development only.'),'Local world2 QA must discl
 const serverFiles=read('server/city-server.mjs');
 for(const file of ['city-world2-online.html','city-world2-online.js','city-world2-online-transport.js'])
  assert.ok(serverFiles.includes("'"+file+"'"),'Development server must serve '+file);
-assert.ok(!read('.github/workflows/pages.yml').includes('city-world2-online.js'),
- 'Loopback-only QA browser client must not be deployed into production Pages assets');
+assert.ok(!read('.github/workflows/pages.yml').includes('city-world2-online.html'),
+ 'Unprotected local-only QA page must never deploy to public Pages');
+assert.ok(read('.github/workflows/pages.yml').includes('city-world2-public-config.js'),
+ 'Production v2 transport must ship only with explicit official-domain config');
 console.log('PASS: local-only world2 authenticated QA client assets and production isolation.');
 
 assert.ok(fs.existsSync(path.join(root,'city-world2-journey.js')),'Authoritative world2 journey must exist');
@@ -96,6 +98,15 @@ assert.ok(!read('.github/workflows/pages.yml').includes('city-world2-journey.js'
 console.log('PASS: server-authoritative orientation journey and isolated QA controls.');
 
 assert.ok(read('city-world2-production.html').includes('city-world2-public-config.js'),'Public v2 candidate requires explicit HTTPS API opt-in');
-assert.ok(!read('.github/workflows/pages.yml').includes('city-world2-production.html'),'Public v2 candidate cannot deploy before backend acceptance');
+assert.ok(read('.github/workflows/pages.yml').includes('city-world2-production.html'),
+ 'Public v2 candidate must ship for health-gated release');
+assert.ok(read('.github/workflows/pages.yml').includes('city-v2-release-gate.js'),
+ 'Public website cutover guard must be deployed');
+assert.ok(read('city.html').includes('city-v2-release-gate.js'),
+ 'City home must check health before redirecting to world2');
+assert.ok(read('city-v2-release-gate.js').includes('releaseReady===true'),
+ 'World2 cutover must require explicit production readiness approval');
+assert.ok(read('city-world2-production.html').includes('city.html?legacy=1'),
+ 'World1 must remain directly accessible as rollback');
 assert.ok(read('server/city-world2-production.mjs').includes('WORLD2_DURABLE_VOLUME_CONFIRMED'),'Public v2 must require explicit durable storage approval');
 console.log('PASS: world2 public candidate isolated from production until explicit promotion.');
