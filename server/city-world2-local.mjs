@@ -24,6 +24,7 @@ export function createLocalWorld2Server({now=Date.now,origins=['http://localhost
   if(req.method!=='GET'&&req.method!=='POST')return respond(res,405,{error:'Method unavailable.'});
   if(path==='/health'&&req.method==='GET')
    return respond(res,200,{status:'ok',protocol:2,worldVersion:2,preview:true,...rooms.health()});
+  if(!['/join','/state','/input','/action','/leave'].includes(path))return respond(res,404,{error:'Unknown world2 action.'});
   let body={};
   if(req.method==='POST'){
    if(!/^application\/json(?:\s*;|$)/i.test(String(req.headers['content-type']||'')))
