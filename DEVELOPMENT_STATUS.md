@@ -242,3 +242,22 @@ The previous PR #1 is now merged into deployed `main` (`08e6d169`); **new work h
 - Verified browser+mobile loop across four gates, six capture points, 47 interior entrances, courier, fire while moving, equipment and two-tab save conflict.
 - Full integration of the world2 simulation with core and Render online room authority. Territory and contract progression currently exist only in an isolated browser prototype and are not safe as real server-validated rewards.
 - Production-grade clan raid factions and private fortress persistence with staging/rollback and cross-device identity; actual interior medicine/trading/arcade; world2 automatic save migration and server parity. No real-world token/fee integrations in this PR.
+
+
+## World2 indoor service slice — October 31, 2026
+
+Continued on draft PR #2 from `fa1610c0`; production `main`, the existing world1 game, wallets and live Render multiplayer authority remain unchanged.
+
+### Added and pushed
+- `city-world2-services.js`: a **sandbox-only** indoor service API backed by the original `MemeCityCore.ITEMS` item IDs and prices. An actual room's rear activity terminal is required: buy/equip `jacket`, `visor`, `blaster`, `boots` inside `door:shop`; buy a capped medkit (25 play credits, capacity nine); and sell owned gear at `door:market` for half its catalog price. Salvage removes equipped gear and refuses duplicate sales. Purchases have item/credit/serial limits and never use real currency or wallet operations.
+- `city-world2-preview.html/js`: responsive selector/buttons to buy, equip, salvage, purchase/use medkits; explicit indoor guidance and HUD medkit counter. Press H for a medkit. Shop/market actions refuse remote locations. No real-money marketplace, multiplayer escrow, or blockchain interaction.
+- `city-world2-simulation.js`: optional services adapter; equipped boots provide the original listed +25 running speed and equipped blaster does 36 damage vs 35 base in offline combat; the original world1 engine stays unchanged.
+- `scripts/city-world2-services.test.mjs`, additional browser mock and game tests: protected indoor proximity, balance debit, one-time salvage, medkit capacity, upgraded equipment effects, and isolation. `city-world2-session` already stores validated preview inventory/equipped gear and `rising` medical counts; a new save-roundtrip regression verifies the values survive isolated reload and leave the world1 key byte-for-byte unchanged.
+- Added the module to the future Pages asset bundle, local static server allowlist, preview script order and static-file validation.
+
+### Verification and limits
+An initial new test fixture needed enough *preview* credits to purchase both upgraded items; its corrected version passed **195/195 tests** at commit `dddfd5d`, [GitHub Actions run 41225483294](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41225483294). The final added gear/medkit save-reload test has its own follow-up CI run; check the latest branch status before claiming a new count.
+
+**Still not validated:** real Chrome/Android visual, touch and performance QA; authenticated server-authoritative world2 services; two clients observing identical commerce and NPC events; atomic concurrent browser save commits; production world2 rollout. The above is a functional **offline game prototype only**, not onchain or production multiplayer. Keep PR #2 draft and do not deploy to main without explicit owner review.
+
+**Next vertical slice:** add server-compatible action schema and authoritative validation for world2 service commands, then real online integration tests and actual mobile gameplay acceptance. Protect public interior services and refund/inventory invariants. Finish a reversible world2 activation/rollback procedure before replacing world1. No BAREIRON Minecraft-server port or token burning.
