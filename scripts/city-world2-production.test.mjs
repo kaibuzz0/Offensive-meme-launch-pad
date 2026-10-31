@@ -13,10 +13,12 @@ test('public world2 fails closed without approved durable storage and official f
  await assert.rejects(createWorld2PublicServer({...r,durableConfirmed:'yes',saveDir:'/tmp/world2'}),/durable absolute/);
  await assert.rejects(createWorld2PublicServer({...r,durableConfirmed:'yes',saveDir:'/var/data/world2-not-found'}),/provision durable/);
 });
-test('production server refuses missing durability marker; accepts explicit marker and restricts origins',async()=>{
+test('production server refuses missing durability marker; accepts explicit marker and restricts origins',async t=>{
  // Render build containers can have /var/tmp mounted read-only. Use the checked-out
  // workspace for the ephemeral test fixture; do not loosen production disk guards.
- const dir=await mkdtemp(path.join(process.cwd(),'.world2-prod-test-'));
+ let dir;
+ try{dir=await mkdtemp(path.join(process.cwd(),'.world2-prod-test-'));}
+ catch(e){if(['EROFS','EACCES'].includes(e?.code)){t.skip('Read-only Render builder; writable CI runs full disk test');return;}throw e;}
  try{
   // Only the controlled test call can opt out of rejecting ephemeral checkout paths.
   const opts={saveDir:dir,durableConfirmed:'yes',allowedOrigin:'https://kaibuzz0.github.io',bindHost:'127.0.0.1',testOnlyAllowEphemeralSaveDir:true};
