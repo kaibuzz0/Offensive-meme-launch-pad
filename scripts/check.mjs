@@ -99,14 +99,16 @@ console.log('PASS: server-authoritative orientation journey and isolated QA cont
 
 assert.ok(read('city-world2-production.html').includes('city-world2-public-config.js'),'Public v2 candidate requires explicit HTTPS API opt-in');
 assert.ok(read('.github/workflows/pages.yml').includes('city-world2-production.html'),
- 'Public v2 candidate must ship for health-gated release');
+ 'Public v2 game must be packaged for Pages');
 assert.ok(read('.github/workflows/pages.yml').includes('city-v2-release-gate.js'),
  'Public website cutover guard must be deployed');
 assert.ok(read('city.html').includes('city-v2-release-gate.js'),
- 'City home must check health before redirecting to world2');
-assert.ok(read('city-v2-release-gate.js').includes('releaseReady===true'),
- 'World2 cutover must require explicit production readiness approval');
-assert.ok(read('city-world2-production.html').includes('city.html?legacy=1'),
- 'World1 must remain directly accessible as rollback');
+ 'City home must route to world-v2');
+assert.ok(read('city-v2-release-gate.js').includes("root.location.replace('./city-world2-production.html')"),
+ 'Official Meme City entry must always route to world-v2');
+assert.ok(!read('city-world2-production.html').includes('city.html?legacy=1'),
+ 'Only world-v2 should be advertised to public players');
+assert.ok(read('city-world2-production.html').includes('PROGRESS IS TEMPORARY'),
+ 'Current free-tier game must clearly disclose ephemeral guest progress');
 assert.ok(read('server/city-world2-production.mjs').includes('WORLD2_DURABLE_VOLUME_CONFIRMED'),'Public v2 must require explicit durable storage approval');
-console.log('PASS: world2 public candidate isolated from production until explicit promotion.');
+console.log('PASS: world-v2-only public entry, original saves protected, and transient progress disclosed.');

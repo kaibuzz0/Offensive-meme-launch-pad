@@ -80,5 +80,10 @@ export function createCityServer({origins=[],now=()=>Date.now()}={}){
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const portFlag=process.argv.indexOf('--port');
  const port=Number(process.env.PORT||(portFlag>=0?process.argv[portFlag+1]:8787)),origins=String(process.env.CITY_ALLOWED_ORIGINS||'https://kaibuzz0.github.io').split(',').filter(Boolean);
- const {server}=createCityServer({origins});server.listen(port,'0.0.0.0',()=>console.log(`Meme City room server listening on port ${port}. Open /city.html. Temporary play-credit accounts only.`));
+ // Serve only the new world-v2 game at the public entry point. The old API is
+ // retained for compatibility; browser-local world-v1 saves are untouched.
+ // This free-tier room host has NO durable player storage. A restart resets guests.
+ const {createWorld2EphemeralPublicServer}=await import('./city-world2-ephemeral-public.mjs');
+ const {server}=createWorld2EphemeralPublicServer({origins});
+ server.listen(port,'0.0.0.0',()=>console.log(`Meme City world-v2 TEMPORARY public rooms listening on port ${port}; no persistent player storage.`));
 }
