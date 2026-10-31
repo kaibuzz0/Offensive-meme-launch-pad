@@ -26,3 +26,20 @@ test('room handshake rejects stale and missing layouts before admitting a player
  assert.equal(connected.state.roomInfo.layoutVersion,C.LAYOUT_VERSION);
  assert.equal(r.health().layoutVersion,C.LAYOUT_VERSION);
 });
+
+test('server grants the OFFENDER skin identity only for an unexpired verified OFFENDED balance',()=>{
+ const {r,join}=setup(),a=join(),b=join(),sa=r.auth(a.session),sb=r.auth(b.session);
+ const p=r.rooms.get(sa.room).engine.player(sa.id);
+ const read=()=>({self:r.snapshot(sa).self,peer:r.snapshot(sb).players.find(x=>x.id===sa.id)});
+ let state=read();
+ assert.equal(state.self.holderTier,0);assert.equal(state.self.holderClan,null);
+ p.holder={clan:'offensive',tier:1,expires:Date.now()+120000};
+ state=read();
+ assert.equal(state.self.holderTier,1);assert.equal(state.self.holderClan,'offensive');
+ assert.equal(state.peer.holderTier,1);assert.equal(state.peer.holderClan,'offensive');
+ p.holder={clan:'maduro',tier:3,expires:Date.now()+120000};
+ state=read();assert.equal(state.peer.holderClan,'maduro','other meme holders must not get OFFENDER skin');
+ p.holder={clan:'offensive',tier:3,expires:Date.now()-1};
+ state=read();assert.equal(state.self.holderTier,0);assert.equal(state.peer.holderClan,null,'expired proof must not keep the skin');
+ p.holder=null;state=read();assert.equal(state.self.holderClan,null);
+});
