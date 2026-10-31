@@ -288,3 +288,10 @@ Continued from verified world2 server prototype commit `560d68c1` on the **same 
 This is a **local-only, server-authoritative multiplayer QA path**, not a production service. Browser-based tests do not equal a real mid-range Android hardware run. Server guest progress is still in-memory, world1-to-world2 irreversible save activation is not enabled, and complete world1 missions/arcade/fortress/companions/moderation remain unported. The offline preview's sandbox credits are a different simulation; **do not route them into temporary shared-room credits**. Never merge to `main`, expose loopback API publicly, trigger wallet operations or deploy Render without explicit owner approval.
 
 Next prioritize real-device QA and server feature-parity, then safe migration with per-player rollback and multi-tab protections. Commit and push focused validated batches on `codex/world2-territory-foundation`, keep PR #2 draft, and preserve all newer commits.
+
+
+### Verified Round 6 final result — October 31, 2026
+
+**Code commit `4aec1c8754855b43e95ac2be5b2678fe40e89c82` passed the complete CI pipeline:** [run 41227746512](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41227746512), **219 tests passed / zero failures**, static checks, regression benchmark and the new **real Chromium two-tab/mobile-viewport smoke test** all successful. Chromium verified joining public world2 rooms in two tabs, that Bob saw Alice's server-owned position change from the original spawn, no unexpected horizontal overflow at 412px emulated phone width, an unauthorized shop purchase rejected by the server, guest-session cleanup and no uncaught browser exceptions. Test harness intermediate failures were due to background tab scheduling and a mis-escaped position regex; corrected before this green result.
+
+This real-browser milestone is **not** proof of Android hardware FPS or reliable mobile touch gestures. No durable shared gameplay backend was deployed, no existing game save was migrated, and no production `main` file was changed by PR #2. Keep developer QA local; the browser QA page is intentionally excluded from Pages production artifacts.
