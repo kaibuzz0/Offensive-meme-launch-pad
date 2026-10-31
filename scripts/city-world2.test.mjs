@@ -8,7 +8,8 @@ for(const f of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.j
 const C=ctx.MemeCityCore,T=ctx.CityTopology,I=ctx.CityInteriors,N=ctx.CityNav;
 const W=ctx.CityWorld2.create(C,I,T),router=N.createRouter({WORLD:W.world,blocked:W.blocked},{cell:80,budget:17000});
 test('central fortress has four genuinely passable gates and solid perimeter walls',()=>{
- const {x,y}=W.spawn;assert.equal(x,5040);assert.equal(y,5040);assert.equal(W.blocked(x,y),false);
+ const {x,y}=W.spawn;assert.equal(W.world.center.x,5040);assert.equal(W.world.center.y,5040);
+ assert.equal(x,5040);assert.equal(y,T.draft.areas.fortress.y+70);assert.equal(W.blocked(x,y),false);
  assert.equal(W.walls.length,8);assert.equal(W.roads.length,4);
  for(const name of ['north','south','east','west']){
   const r=W.roads.find(r=>r.id===name);assert.ok(r&&r.w>0&&r.h>0,name);
@@ -42,4 +43,7 @@ test('private construction collisions belong only to the player and never seal a
  const p={plot:[{kind:'wall',col:3,row:3}],outposts:[]},b={x:T.draft.plot.x+3*64+30,y:T.draft.plot.y+3*64+30};
  assert.equal(W.blocked(b.x,b.y),false);assert.equal(W.blocked(b.x,b.y,p),true);
  const other={x:W.spawn.x,y:100};assert.equal(W.blocked(other.x,other.y,p),false);
+ const crowded={plot:[{kind:'wall',col:7,row:6},{kind:'tower',col:7,row:7}],outposts:[]};
+ assert.equal(W.blocked(W.world.center.x,W.world.center.y,crowded),true,'center tile can be occupied');
+ assert.equal(W.blocked(W.spawn.x,W.spawn.y,crowded),false,'spawn must remain clear with built tiles');
 });

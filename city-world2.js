@@ -48,7 +48,8 @@
    if(actor?.outposts?.some(o=>{const lot=T.outpost(C,o.clan);return lot&&C.BUILD_KIT.find(k=>k.id===o.kind)?.solid&&inside(x,y,{x:lot.x+o.col*64,y:lot.y+o.row*64,w:60,h:60},6);}))return true;
    return false;
   }
-  const spawn={x:center.x,y:center.y},commons={x:T.draft.areas.hub.x+T.draft.areas.hub.w/2,y:T.draft.areas.hub.y+T.draft.areas.hub.h/2};
+  // Spawn on the clear approach, not on a potentially occupied legacy construction tile.
+  const spawn={x:center.x,y:fort.y+70},commons={x:T.draft.areas.hub.x+T.draft.areas.hub.w/2,y:T.draft.areas.hub.y+T.draft.areas.hub.h/2};
   return Object.freeze({world,fortress:fort,spawn:Object.freeze(spawn),commons:Object.freeze(commons),roads:Object.freeze(roads.map(Object.freeze)),
     walls:Object.freeze(walls.map(Object.freeze)),buildings:Object.freeze(buildings),doors:Object.freeze(doors),blocked});
  }
