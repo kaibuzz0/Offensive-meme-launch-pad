@@ -9,6 +9,7 @@
     "dev": "node server/city-server.mjs",
     "test": "node --test scripts/*.test.mjs",
     "check": "node scripts/check.mjs",
-    "dev:world2": "node server/city-world2-local.mjs"
+    "dev:world2": "node server/city-world2-local.mjs",
+    "qa:world2:browser": "node scripts/city-world2-browser-smoke.mjs"
   }
 }
