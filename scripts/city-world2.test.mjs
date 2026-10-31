@@ -16,7 +16,7 @@ test('central fortress has four genuinely passable gates and solid perimeter wal
   assert.equal(W.blocked(point.x,point.y),false,name+' path endpoint');
   const p=router.plan(W.spawn,point);assert.equal(p.status,'ok',name+' lane: '+p.status);
  }
- assert.equal(W.blocked(T.draft.areas.fortress.x+10,T.draft.areas.fortress.y+500),true);
+ assert.equal(W.blocked(T.draft.areas.fortress.x+10,T.draft.areas.fortress.y+180),true);
  assert.equal(W.blocked(x,T.draft.areas.fortress.y+10),false,'north gate');
  assert.equal(W.blocked(x,T.draft.areas.fortress.y+T.draft.areas.fortress.h-10),false,'south gate');
 });

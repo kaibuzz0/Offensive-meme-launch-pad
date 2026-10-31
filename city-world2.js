@@ -24,7 +24,7 @@
   // The old hub's 2x3 row of services cannot fit a northern boulevard
   // using a naive one-to-one compression. Preserve IDs; author distinct
   // building slots on either side of the road, leaving the four-way corridor open.
-  const hubSlots={launch:[4480,4100],arcade:[5360,4100],club:[4480,4190],shop:[5360,4190],market:[4480,4280],garage:[5360,4280]};
+  const hubSlots={launch:[4480,4100],arcade:[5360,4100],club:[4480,4196],shop:[5360,4196],market:[4480,4292],garage:[5360,4292]};
   const buildings=[],doors=[],seen=new Set();
   for(const b of I.BUILDINGS){
    const original=I.door(b),areaId=T.sourceId(C,original);
@@ -32,7 +32,7 @@
    const source=T.source(C,areaId),dest=T.draft.areas[areaId],sx=dest.w/source.w,sy=dest.h/source.h;
    let x=Math.round(dest.x+(b.x-source.x)*sx),y=Math.round(dest.y+(b.y-source.y)*sy),
      w=Math.round(b.w*sx),h=Math.round(b.h*sy);
-   if(areaId==='hub'&&hubSlots[b.roomId]){[x,y]=hubSlots[b.roomId];w=245;h=57;}
+   if(areaId==='hub'&&hubSlots[b.roomId]){[x,y]=hubSlots[b.roomId];w=245;h=45;}
    if(!seen.add(b.roomId))throw Error('Duplicate interior '+b.roomId);
    const projected={id:b.roomId,area:areaId,x,y,w,h,activity:b.activity,name:b.name,protected:['supplies','shop','market'].includes(b.activity)};
    const door={id:b.roomId,area:areaId,name:b.name,activity:b.activity,x:x+w/2,y:y+h+(areaId==='hub'?21:Math.max(26,Math.round(37*sy)))};
