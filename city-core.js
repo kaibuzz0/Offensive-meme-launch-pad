@@ -54,8 +54,10 @@
   ['arena','Arena District','PROVE IT ON THE STREETS','#e2a177','Arena road west','arena',900],
   ['social','Social Boardwalk','FIND YOUR PEOPLE','#83c4ce','Boardwalk road east','social',1120]
  ].map(([id,name,tag,color,hint,kind,localY])=>{
-  const at=origin(id);return {id,name,tag,color,ox:at.x,oy:at.y,
-    x:at.x+1120,y:at.y+localY,gate:{x:1120,y:localY},hint,kind};
+  const at=origin(id),gates={fortress:{x:1120,y:1460},
+   creator:{x:2070,y:720},arena:{x:170,y:900},social:{x:1790,y:1360}};
+  return {id,name,tag,color,ox:at.x,oy:at.y,
+    x:at.x+1120,y:at.y+localY,gate:gates[id],hint,kind};
  });
  function region(id){return id==='hub'?HUB:DISTRICTS.find(d=>d.id===id)||null;}
  function areaAt(x,y){const n=NEIGHBORHOODS.find(d=>x>=d.ox&&x<d.ox+2240&&y>=d.oy&&y<d.oy+1660);if(n)return n.id;if(x>=HUB.x&&x<HUB.x+2240&&y>=HUB.y&&y<HUB.y+1660)return 'hub';return DISTRICTS.find(d=>x>=d.ox&&x<d.ox+2240&&y>=d.oy&&y<d.oy+1660)?.id||'greenbelt';}
