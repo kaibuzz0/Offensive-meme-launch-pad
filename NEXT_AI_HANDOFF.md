@@ -1,3 +1,16 @@
+> **LATEST VERIFIED CODE — October 31, 2026:** draft PR `codex/living-blocks-handoff`, commit `bba9ef203f7d418a6ad6edce6f5629833fd3f28b`. World2 staged-save migration (`city-migration.js`) and inactive geometric world2 model (`city-world2.js`) implemented. CI [run 41221761283](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41221761283) **156/156 green** including 47 world2 door routes and four fortress gate routes. **No world2 browser integration, no merge/deploy.** Continue from latest actual remote head.
+
+## Next engineer — execution priorities after world2 staging
+
+1. **Make stable destinations canonical:** authored hub service doors differ from generic `CityTopology.point()`; reconcile `CityMigration`, `CityWorld2`, interiors, mission landmarks, routes and `CityNav` against a shared ID-indexed world2 registry. Include tests of all 47 door IDs and 14 essential service counters after migration.
+2. **Create a real opt-in world2 browser/engine preview:** switch all world positions, physics, buildings, interiors, NPCs, mission destinations, construction and camera coherently, not only rendering. The existing `city-world2.js` is an inactive collision *prototype* loaded only by Node tests. Preserve default world1 and production.
+3. Complete safe old-save staging/activation with review UI and rollback plus multi-tab revision guarantees. `CityMigration.stage()` currently writes only separate preview/backup keys and `inspectStage` checks drift; it does not transactionally activate world2 or implement an actual rollback button.
+4. Run a real browser and Android playthrough of central gates, legacy construction, the 47 accessible doors, client input/aim and online room safety; then optimize. Keep online ownership transient and finance/token interactions noncustodial. Stage gang raids, zombie/wave, playable arcade and token character cosmetics only after world2 has real acceptance.
+
+**Source details and evidence:** see the newest section of `DEVELOPMENT_STATUS.md`. Preserve the existing branch, draft PR #1 and all newer commits. **Commit and push every usable batch, run the full tests and checks, do not merge/deploy without approval.**
+
+---
+
 > **Latest update:** code commit `62135ce4` adds `city-save.js`, safe v1–v4 backups, v5/world1 schema fields, blocked writes to corrupted/future saves and 5 regression tests. Full CI: **136/136 passed** at [run 41219705683](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41219705683). No world-space move yet; no production deploy.
 
 # NEXT AI HANDOFF — Meme City

@@ -1,3 +1,5 @@
+> **October 31, 2026 update:** `city-migration.js` stages world-v2 save conversion without overwriting world1; `city-world2.js` models a physical central fortress, gates, roads and 47 route-reachable projected doors (GitHub CI 156/156 at `bba9ef2`). **P1 unresolved:** some authored hub doors intentionally differ from generic `CityTopology.point` coordinates, requiring a unified stable-ID destination map before any browser activation. Multi-tab checks are optimistic, not a transactional lock. Current physical browser/Android gameplay remains world1 only.
+
 > **Update after audit:** `city-save.js` now writes schema v5/world1, retains the first v1–v4 recovery snapshot, blocks invalid/future saves and has 5 green regression tests (`62135ce4`, CI 136/136). The older save-v4 observation below describes the inspected baseline; future spatial migration, rollback UX and multitab conflict resolution remain open.
 
 # Meme City — architecture and navigation audit

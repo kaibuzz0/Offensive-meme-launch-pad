@@ -153,3 +153,27 @@ GitHub Actions validation for integrated walking paths succeeded at `6317cd9` (r
 2. Author and collision-test actual world2 roads, plaza, fortress perimeter, gates and interiors while keeping world1 as default. Verify reachability for all 47 doors and service terminals on the new world collision graph.
 3. Add a locally gated, review-only game preview of world2 with eight-direction avatar and live route testing. Solo has a personal fortress at the center; online's temporary guest room has a neutral shared plaza with no permanent ownership. Test two browsers and mid-range Android before enabling production.
 4. After center-out world acceptance: persistent base defense raids with clear cooldown/rewards, authority-safe faction territory and destruction, police working for Insiders, zombie encounters, accessible retro arcade and token-themed holder cosmetics. No real token burning or Minecraft server integration.
+
+## Follow-up — October 31, 2026: staged world2 migration and physical route geometry
+
+**PR-only development commits:** `b251852`, `17088d0`, `70ba29d`, `ac2f161`, `a70e484`, `bba9ef2`. Current world1 remains the only active/browser game. The world2 code is tested in Node but is **not loaded into the browser, merged into main or deployed**.
+
+### Implemented
+
+- New `city-migration.js` converts old v1 local-area positions and v2–v5 world1 coordinates into explicit world2 staging coordinates, including district/neighborhood mapping, optional checkpoint/respawn/waypoint coordinates, and saved crew posts. Unmapped world1 greenbelt positions and invalid defender posts get deterministic recovery locations with notices rather than erasing XP, credits, inventory, equipment, journey, clan reputation or plot/outpost tile records.
+- Unsafe or unknown active-session activities (`contract`, `blockJob`, `defense`, `room`, `rising.arena`) are **blocked**, not silently migrated; these states are not serialized by the existing solo save. New staged saves use `saveVersion:6`/`worldVersion:2` **only in a separate preview key**; the running browser still writes v5/world1.
+- `CityMigration.stage` preserves the exact original raw save in a separate world2 recovery key before writing any world2 preview, refuses to overwrite a backup for another revision and checks the active raw value for optimistic multi-tab conflicts. `inspectStage` refuses a stale preview when either active or backup copy has changed. This is a guard, **not an atomic cross-tab commit protocol**, and no live world2 activation/rollback UI exists yet.
+- New `city-world2.js` authors an inactive collision/layout layer: physical central fortress perimeter, four clear cardinal gate openings and roads, an outside-the-plot safe spawn, dynamic solo construction collision and original stable building IDs. The six existing main-hub services get individually authored slots on either side of the north road; other 41 entrances use projected footprint geometry. Its collision/nav adapter uses existing `CityNav` for real path checks in Node. **These coordinates are preliminary and not guaranteed to be the final visual floorplan.**
+- Expanded `scripts/city-migration.test.mjs` and new `scripts/city-world2.test.mjs` cover legacy position conversion, progression immutability, greenbelt recovery, unsafe activity refusal, backup/revision conflict, fortress gates, protected construction spawn, all 47 reachable door destinations and path segment collision.
+
+### Verified
+
+- On code commit `bba9ef203f7d418a6ad6edce6f5629833fd3f28b`, GitHub Actions [run 41221761283](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41221761283) **passed 156/156 tests**, `npm run check`, patch whitespace, and `node scripts/city-benchmark.mjs`. Node 22 shared runner benchmark: eight simulated players, 44 ambient bots, 2,400 ticks / 120 simulated seconds, median **0.511 ms**, p95 **1.309 ms**, max **13.122 ms**, snapshot 22,536 bytes. These measure existing world1 server simulation; **not** new world2 gameplay or Android/browser FPS.
+- Intermediate `70ba29d` and `a70e484` CI runs intentionally exposed test/geometry mistakes, fixed in `ac2f161` and `bba9ef2`; the latest branch head is green.
+
+### Blocking follow-ups before any world2 activation
+
+1. **Unify stable door/POI placement mapping.** The six authored hub building slots in `city-world2.js` are not all identical to generic `CityTopology.point` projections; mission, guide, saved waypoint and interior entrance mapping must use canonical stable IDs before enabling world2.
+2. **Add real playable engine+renderer integration under an explicit isolated preview flag.** Current gameplay, client saves, room authority, map and textures still use world1. Migrate `C.WORLD`, `C.PLOT`, `blocked`, buildings, faction spawns, guard/raid anchors, collision, interiors, encounters, missions and guides as a coherent world2 config; do not simply flip the topology flag.
+3. Validate legacy saves in actual browser reloads, including reconstruction of plot and outposts with physical collision, reliable rollback UI, conflict behavior with two tabs, inaccessible entrances and bad coordinates. All current 47-door proofs are **Node model** tests; they are not browser proof.
+4. Test a real first-five-minute playthrough, all 47 doors, two online guests, eight-direction combat posing, and mid-range Android. Keep wallet/trading code unchanged and production `main` untouched.
