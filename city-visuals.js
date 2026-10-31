@@ -116,10 +116,14 @@
   if(ak){aimStates.set(ak,{angle,time});if(aimStates.size>160)aimStates.delete(aimStates.keys().next().value);}
   const facing={x:Math.cos(angle),y:Math.sin(angle)},back=facing.y<0,profile=facing.x;
   o={...o,aim:facing,back,travel:state?.travel||{x:1,y:0}};
-  const ready=!!o.image?.complete&&!!o.image?.naturalWidth,style=o.style||{},gear=o.gear||{};
-  const key=[o.role||'player',o.ticker||'',o.color||'',style.skin||0,style.hair||0,style.pants||0,o.coinName||'',gear.outfit||'',gear.head||'',back,ready].join('|');
-  let sprite=cache.get(key);
-  if(!sprite){const surface=document.createElement('canvas');surface.width=260;surface.height=288;const g=surface.getContext('2d');g.scale(2,2);drawBody(g,{...o,upperOnly:true},0);sprite=surface;cache.set(key,sprite);if(cache.size>64)cache.delete(cache.keys().next().value);}
+  let sprite=null;
+  if(!o.armed){
+   const ready=!!o.image?.complete&&!!o.image?.naturalWidth,style=o.style||{},gear=o.gear||{};
+   const key=[o.role||'player',o.ticker||'',o.color||'',style.skin||0,style.hair||0,style.pants||0,o.coinName||'',gear.outfit||'',gear.head||'',back,ready].join('|');
+   sprite=cache.get(key);
+   if(!sprite){const surface=document.createElement('canvas');surface.width=260;surface.height=288;const g=surface.getContext('2d');g.scale(2,2);drawBody(g,{...o,upperOnly:true},0);sprite=surface;cache.set(key,sprite);if(cache.size>64)cache.delete(cache.keys().next().value);}
+  }
+  const style=o.style||{};
   const scale=o.scale??(o.role&&o.role!=='player'?NPC_SCALE:1);c.save();c.translate(o.x,o.y);c.scale(scale,scale);
   const shadow=c.createRadialGradient(0,2,2,0,2,25);shadow.addColorStop(0,'#03081090');shadow.addColorStop(1,'#03081000');c.save();c.scale(1,.4);c.fillStyle=shadow;c.beginPath();c.arc(0,5,25,0,7);c.fill();c.restore();
   if(o.holderTier>=3){c.strokeStyle=o.color||'#b7ef84';c.globalAlpha=.5;c.lineWidth=2;c.beginPath();c.ellipse(0,2,29,11,0,0,7);c.stroke();c.globalAlpha=1;}
