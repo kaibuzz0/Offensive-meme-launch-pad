@@ -130,3 +130,26 @@ PR remains draft because these acceptance items are unfinished, not because push
 **Actual validation:** [CI run 41219705683](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41219705683): **136 passed / 0 failed**, `npm run check` passed, diff check passed. Node 22 shared runner benchmark: 8 players, 44 ambient bots, 2,400 simulation ticks, median **0.363 ms**, p95 **1.077 ms**, max **11.754 ms**, 22,536-byte snapshot. Separate sample/run from prior benchmark; **not** evidence of a performance improvement or phone FPS.
 
 **Still needed before map redesign:** create a stable landmark/door region migration table, preserve plot/outposts/contracts/waypoints, add deterministic world transforms, validate entrance reachability and recover collision-trapped legacy builds. Add true multitab conflict handling or explicit save revision checks. Full browser reload/backup recovery and Android-device playthrough remain unverified.
+
+
+## Follow-up round — October 31, 2026: safe walking routes and world2 draft
+
+This batch continued from the previous AI's `b53015e3` baseline on the same draft PR. The live production `main` branch remains unchanged.
+
+### Implemented and pushed
+- `city-nav.js`: bounded, demand-driven A* planner over the existing `MemeCityCore.blocked()` physics; route segments are additionally line-sampled to prevent cutting through building corners. An independent static grid cache is used only for immutable geometry, with player-built obstacles checked dynamically. Paths cannot teleport or move the player, and invalid/unreachable/budget-exhausted plans return a clear failure.
+- `city.js`: actual walk-route polyline in the world and map panel; path recalculation after major deviation, marker clearing, and explicit unreachable feedback. Native browser `navigator` is preserved (a temporary name collision was caught and fixed before this handoff). The room simulation/authority was not modified.
+- `scripts/city-nav.test.mjs`: wall avoidance, route budget/invalid inputs, safe line segments and all **14** current shop/market/medic public entrances reachable from the source spawn. These source-level graph checks are not physical browser tests.
+- `city-topology.js`: **inactive** world2 blueprint (10,080 × 10,080, center 5,040/5,040), fortress at the center, public commons distinguished from solo private land, north/east/south/west road axes, preserved stable region IDs for four original districts and all six meme neighborhoods, original 16×10 fortress grid footprint, and six 3×3 clan outposts. Deterministic old-region coordinate transforms and a non-writing solo-save migration preview cover known geographic regions and saved crew posts. It intentionally refuses unmapped greenbelt positions.
+- `scripts/city-topology.test.mjs`: center, road, region, original building entrance, plot and safe-preview invariants. All **47** exterior doors have a projected target, but this only demonstrates coordinate coverage, **not** viable walkable access after construction.
+
+### Verification and deployment constraints
+GitHub Actions validation for integrated walking paths succeeded at `6317cd9` (run 41220246225), and the follow-up browser-native `navigator` fix succeeded at `3ca37f1`. World2 topology test coverage initially exposed a cross-VM array comparison issue in the test itself; that was corrected and rerun green at `efe9b9e` (run 41220526763). This is automated CI, not mobile acceptance.
+
+**world1 remains active.** The version guard is still save v5/world1; world2 is not loaded by the game or deployed, no existing stored coordinate has moved, and no existing player progression has been changed. Do not turn `draft.enabled` on or update world constants without a full staged migration.
+
+### Immediate next tasks
+1. Map every legacy spawn, checkpoint, guard post, active mission/raid location, interior/door entry, and greenbelt save position into world2; add safe relocation for unresolved/out-of-bounds points and reversible world2 backup/rollback tests. Preserve inventory, outfits, XP, credits, clan reputation, build tiles, outposts and journey progress exactly.
+2. Author and collision-test actual world2 roads, plaza, fortress perimeter, gates and interiors while keeping world1 as default. Verify reachability for all 47 doors and service terminals on the new world collision graph.
+3. Add a locally gated, review-only game preview of world2 with eight-direction avatar and live route testing. Solo has a personal fortress at the center; online's temporary guest room has a neutral shared plaza with no permanent ownership. Test two browsers and mid-range Android before enabling production.
+4. After center-out world acceptance: persistent base defense raids with clear cooldown/rewards, authority-safe faction territory and destruction, police working for Insiders, zombie encounters, accessible retro arcade and token-themed holder cosmetics. No real token burning or Minecraft server integration.
