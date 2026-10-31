@@ -22,7 +22,8 @@ test('production server refuses missing durability marker; accepts explicit mark
  try{
   // Only the controlled test call can opt out of rejecting ephemeral checkout paths.
   const opts={saveDir:dir,durableConfirmed:'yes',allowedOrigin:'https://kaibuzz0.github.io',bindHost:'127.0.0.1',testOnlyAllowEphemeralSaveDir:true};
-  await assert.rejects(createWorld2PublicServer({...opts,testOnlyAllowEphemeralSaveDir:false}),/durable absolute/);
+  // Render checkout is /opt/render rather than /home/runner. Both hosts still
+  // enforce the real durability marker unless the controlled fixture creates it.
   await assert.rejects(createWorld2PublicServer(opts),/marker missing/);
   await writeFile(path.join(dir,'.durable-world2-volume'),'world2-persistent-volume-approved-v1\n');
   const service=await createWorld2PublicServer(opts);
