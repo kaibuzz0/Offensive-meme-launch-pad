@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const read=x=>fs.readFileSync(new URL('../'+x,import.meta.url),'utf8');
 const state=(name='Alice')=>({worldVersion:2,preview:true,revision:2,
- self:{id:'self',name,avatar:'offensive',x:5040,y:4100,hp:100,credits:180,xp:0,ammo:24,inventory:[],equipped:{},
+ self:{id:'self',name,avatar:'offensive',x:5040,y:4100,hp:100,credits:180,xp:0,ammo:24,inventory:[{uid:'gear-1',item:'jacket'}],equipped:{},
   rising:{medkits:0},clan:null,courier:{status:'idle'},room:null},
  players:[{id:'self',name,avatar:'offensive',x:5040,y:4100,hp:100,clan:null,room:null},
   {id:'peer',name:'Bob',x:5050,y:4120,hp:100,clan:null,room:null}],
