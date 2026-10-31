@@ -28,7 +28,7 @@ for(const file of ['index.html','creators.html']){
 new vm.Script(read('launchpad.js'));
 console.log('PASS: community pages, lightweight script boundaries, and application JS syntax.');
 
-for(const file of ['city-world2-preview.js','city-world2-territory.js','city-world2-contracts.js','city-world2-session.js','city-world2-simulation.js','city-topology.js','city-migration.js','city-world2.js','city-world2-registry.js','city.js','city-map.js','city-nav.js','city-save.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js'])new vm.Script(read(file));
+for(const file of ['city-world2-preview.js','city-world2-territory.js','city-world2-contracts.js','city-world2-session.js','city-world2-services.js','city-world2-simulation.js','city-topology.js','city-migration.js','city-world2.js','city-world2-registry.js','city.js','city-map.js','city-nav.js','city-save.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js'])new vm.Script(read(file));
 for(const file of ['city.html','city-roadmap.html','city.css','server/city-server.mjs'])assert.ok(fs.existsSync(path.join(root,file)),`Missing city release file: ${file}`);
 assert.ok(read('index.html').includes('href="city.html"'),'Homepage must link to the playable city');
 const networkContext={window:{}};vm.runInNewContext(read('city-network.js'),networkContext);const network=networkContext.window.MEME_CITY_NETWORK;assert.equal(typeof network.enabled,'boolean');if(network.enabled)assert.ok(/^https:\/\//.test(network.apiBase),'Public room service must use HTTPS');
@@ -53,12 +53,16 @@ assert.ok(read('.github/workflows/pages.yml').includes('city-districts.js'),'Dis
 for(const file of ['city-rise.js','city-interiors.js','city-clans.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js']){assert.ok(read('city.html').includes(file));assert.ok(read('.github/workflows/pages.yml').includes(file));}
 console.log('PASS: City Rising simulation and activity renderer ship with the game.');
 
-for(const script of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-migration.js','city-world2-territory.js','city-world2-simulation.js','city-visuals.js','city-world2-preview.js'])
+for(const script of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-migration.js','city-world2-territory.js','city-world2-services.js','city-world2-simulation.js','city-visuals.js','city-world2-preview.js'])
  assert.ok(read('city-world2-preview.html').includes('src="'+script+'"'),'Preview missing script '+script);
-for(const p of ['city-world2-preview.html','city-world2-preview.js','city-world2-territory.js','city-world2-contracts.js','city-world2-session.js','city-world2-simulation.js','city-topology.js','city-migration.js','city-world2.js','city-world2-registry.js'])
+for(const p of ['city-world2-preview.html','city-world2-preview.js','city-world2-territory.js','city-world2-contracts.js','city-world2-session.js','city-world2-services.js','city-world2-simulation.js','city-topology.js','city-migration.js','city-world2.js','city-world2-registry.js'])
  assert.ok(read('.github/workflows/pages.yml').includes(p),'Preview resource missing from future Pages package: '+p);
 assert.ok(read('city-world2-preview.html').includes('Isolated geometry playtest'),'Preview must disclose isolated behavior');
 console.log('PASS: world2 isolated preview script wiring, future deployment assets and limitations.');
 assert.ok(read('city.html').includes('href="city-world2-preview.html"'),'Public city must label and link its optional world2 preview');
 assert.ok(read('README.md').includes('world-v2 sandbox'),'Release notes must distinguish experimental preview from live game');
 console.log('PASS: Public website links to clearly labeled world2 sandbox and release documentation.');
+
+assert.ok(read('city-world2-preview.html').includes('src="city-world2-services.js"'),'Preview must load indoor services before the simulation');
+assert.ok(read('.github/workflows/pages.yml').includes('city-world2-services.js'),'Future Pages preview package must ship services');
+console.log('PASS: Preview-only indoor services load and ship with sandbox assets.');
