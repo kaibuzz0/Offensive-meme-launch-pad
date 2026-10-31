@@ -97,3 +97,19 @@ test('fortress construction controls submit tile and kit to server without a cli
  assert.ok(h.el('plot-summary').textContent.includes('Private fortress: 0'));
  assert.doesNotThrow(()=>h.frames[0]());
 });
+
+test('world2 browser private squad and raid buttons send server-owned commands without forged rewards',async()=>{
+ const h=mock();h.el('avatar').value='offensive';await h.el('join').click();
+ assert.equal(h.el('defender-role').children.length,3);
+ h.el('defender-role').value='ranger';h.el('defender-mode').value='follow';
+ await h.el('hire-defender').click();
+ assert.deepEqual(JSON.parse(JSON.stringify(h.actions.at(-1))),{type:'hireDefender',fields:{role:'ranger'}});
+ h.el('defender-select').value='defender-1';
+ await h.el('order-defender').click();
+ assert.deepEqual(JSON.parse(JSON.stringify(h.actions.at(-1))),{type:'orderDefender',fields:{id:'defender-1',mode:'follow'}});
+ await h.el('start-raid').click();
+ assert.deepEqual(JSON.parse(JSON.stringify(h.actions.at(-1))),{type:'startRaid',fields:{}});
+ assert.equal(h.actions.some(a=>a.fields?.credits!==undefined||a.fields?.damage!==undefined||a.fields?.owner!==undefined),false);
+ assert.match(h.el('raid-summary').textContent,/Squad: 0 \/ 4/);
+ assert.doesNotThrow(()=>h.frames[0]());
+});
