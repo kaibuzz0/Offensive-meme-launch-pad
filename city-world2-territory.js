@@ -57,11 +57,22 @@
    current=null;
    for(const zone of zones){zone.owner=zone.homeClan;zone.state='guarded';zone.progress=0;}
   }
+  function restore(owners){
+   if(!Array.isArray(owners)||owners.length>zones.length)return {status:'invalid'};
+   const entries=new Map();
+   for(const item of owners){
+    if(!item||typeof item!=='object'||!byId.has(item.id)||!validClan(item.owner)||entries.has(item.id))return {status:'invalid'};
+    entries.set(item.id,item.owner);
+   }
+   reset();
+   for(const zone of zones){const owner=entries.get(zone.id);if(owner){zone.owner=owner;zone.state=owner===zone.homeClan?'guarded':'captured';zone.progress=owner===zone.homeClan?0:8;}}
+   return {status:'loaded'};
+  }
   function cancel(){if(current){current.progress=0;current.state='guarded';current=null;}}
   function snapshot(){
    return zones.map(z=>Object.freeze({id:z.id,name:z.name,x:z.x,y:z.y,owner:z.owner,progress:z.progress,state:z.state,homeClan:z.homeClan}));
   }
-  return Object.freeze({zones,join,start,tick,reset,cancel,snapshot,active:()=>current?.id||null});
+  return Object.freeze({zones,join,start,tick,reset,cancel,restore,snapshot,active:()=>current?.id||null});
  }
  root.CityWorld2Territory=Object.freeze({create});
 })(typeof window==='undefined'?globalThis:window);
