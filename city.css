@@ -84,3 +84,13 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 
 .city-header>.wallet-theme-trigger{flex-shrink:0}
 @media(max-width:620px){.city-header>.wallet-theme-trigger{font-size:10px;padding:6px 8px;min-height:34px}}
+
+
+/* Wallet theme + install buttons must not stretch the mobile game viewport. */
+@media(max-width:700px){
+ .city-header{height:auto;min-height:62px;flex-wrap:wrap;justify-content:center;gap:6px;padding:8px 10px}
+ .city-header .city-brand{margin-right:auto}
+ .city-header #pause-toggle{margin-left:0}
+ .city-header .solo-restore-label{display:none}
+ .city-header>[data-install-app],.city-header>.wallet-theme-trigger{min-height:33px;max-width:100%;white-space:normal;overflow-wrap:anywhere;flex-shrink:1;font-size:10px;padding:7px 8px}
+}
