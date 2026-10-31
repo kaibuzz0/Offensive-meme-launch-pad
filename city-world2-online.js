@@ -32,7 +32,7 @@
   const self=s.self,room=s.roomInfo;
   $('room-info').textContent='Room: '+(room?.code||'unknown')+' · '+(room?.players||0)+' / '+(room?.capacity||8)+' guests'+(room?.private?' · private':' · public');
   $('hud').textContent='Server XP '+self.xp+' · credits '+self.credits+' · HP '+Math.ceil(self.hp)+' · ammo '+self.ammo+
-   ' · medkits '+(self.rising?.medkits||0)+' · faction +(self.clan||'none')+' · courier '+(self.courier?.status||'idle')+' · pos '+Math.round(self.x)+','+Math.round(self.y);
+   ' · medkits '+(self.rising?.medkits||0)+' · faction '+(self.clan||'none')+' · courier '+(self.courier?.status||'idle')+' · pos '+Math.round(self.x)+','+Math.round(self.y);
   $('peer-summary').textContent='Other guests: '+s.players.filter(p=>p.id!==self.id).map(p=>p.name+' ('+Math.round(p.x)+','+Math.round(p.y)+')').join(' · ');
   $('plot-summary').textContent='Private fortress: '+(self.plot?.length||0)+' / '+(T.draft.plot.cols*T.draft.plot.rows)+' structures · play credits only';
   const prev=$('owned').value;$('owned').textContent='';
