@@ -79,8 +79,9 @@
   const count=a.wave+2;
   for(let i=0;i<count;i++){
    const boss=a.wave===3&&i===count-1,ranged=boss||(a.wave>=2&&i===0),side=i%2?-1:1;
-   let x=1120+side*(250+(i%3)*70),y=2590+(i%2?-160:160);
-   if(C.blocked(x,y,p)){x=1120+side*200;y=2750;}
+   const arena=C.DISTRICTS.find(d=>d.id==='arena');
+   let x=arena.x+side*(250+(i%3)*70),y=arena.oy+930+(i%2?-160:160);
+   if(C.blocked(x,y,p)){x=arena.x+side*200;y=arena.oy+1090;}
    const hp=boss?420:ranged?100:70+a.wave*10;
    e.arcade.bots.push({id:`arena-${++e.serial}`,owner:p.id,arena:true,boss,ranged,kind:'gang',x,y,homeX:x,homeY:y,hp,maxHp:hp,cooldown:1.5,respawn:0,phase:i*.9,state:'ready',windup:0,targetId:null,seenAt:-100,aim:null,path:[],pathAt:0});
   }
