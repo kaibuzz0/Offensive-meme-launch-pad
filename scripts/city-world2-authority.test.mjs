@@ -155,3 +155,67 @@ test('fortress plot state remains private across rooms and disappears when ephem
  assert.equal(e.players.size,0);
  const c=join();assert.equal(c.state.self.plot.length,0);
 });
+
+
+test('private squad hiring validates owned credits, home proximity, and four-defender roster cap',()=>{
+ const {rooms,join,C}=setup(),a=join(),b=join(),sa=rooms.auth(a.session),sb=rooms.auth(b.session);
+ const engine=rooms.first.engine,p=engine.player(sa.id),other=engine.player(sb.id),home=engine.privateDefense.get(sa.id);
+ assert.throws(()=>rooms.action(sa,{type:'hireDefender',role:'sentry',x:home.center?.x,credits:999999}),/fortress lot/);
+ const h={x:4536+8*64,y:4600+5*64};p.x=h.x;p.y=h.y;p.credits=400;
+ assert.throws(()=>rooms.action(sb,{type:'orderDefender',id:'defender-1',mode:'follow'}),/own/);
+ assert.throws(()=>rooms.action(sa,{type:'hireDefender',role:'unknown'}),/Unknown defender/);
+ const cost=C.CREW_TYPES[0].cost,credits=p.credits;
+ for(let i=0;i<4;i++)rooms.action(sa,{type:'hireDefender',role:'sentry',credits:999999});
+ assert.equal(p.credits,credits-cost*4);
+ assert.equal(rooms.snapshot(sa).self.defense.crew.length,4);
+ assert.equal(rooms.snapshot(sb).self.defense.crew.length,0);
+ assert.equal(rooms.snapshot(sb).players.find(x=>x.id===sa.id).defense,undefined);
+ assert.throws(()=>rooms.action(sa,{type:'hireDefender',role:'sentry'}),/roster is full/);
+ assert.equal(other.credits,180);
+});
+test('private fortress raid is bounded, rewards server-owned credits once, and enforces cooldown',()=>{
+ const {rooms,join}=setup(),a=join(),sa=rooms.auth(a.session),engine=rooms.first.engine,p=engine.player(sa.id),
+  own=engine.privateDefense.get(sa.id),other=join(),otherSession=rooms.auth(other.session);
+ p.x=4536+8*64;p.y=4600+5*64;
+ assert.throws(()=>rooms.action(sa,{type:'startRaid',xp:999999}),/Hire at least one/);
+ rooms.action(sa,{type:'hireDefender',role:'sentry'});
+ const starting=p.credits;
+ rooms.action(sa,{type:'startRaid',credits:999999});
+ assert.equal(own.raid.status,'active');assert.ok(own.raiders.length>=2);
+ assert.throws(()=>rooms.action(sa,{type:'startRaid'}),/already active/);
+ assert.equal(rooms.snapshot(otherSession).self.defense.raid.status,'idle');
+ assert.equal(rooms.snapshot(otherSession).players.find(q=>q.id===sa.id).defense,undefined);
+ for(const enemy of [...own.raiders])for(let j=0;j<3;j++)own.hit(enemy.id,35);
+ engine.tick(.05);
+ assert.equal(own.raid.status,'complete');
+ assert.equal(p.credits,starting+95);
+ assert.equal(p.xp,125);
+ const previous=p.credits;for(let i=0;i<10;i++)engine.tick(.05);assert.equal(p.credits,previous);
+ assert.throws(()=>rooms.action(sa,{type:'startRaid'}),/cooldown/);
+});
+test('raid abandonment and session expiry revoke private units without paying rewards',()=>{
+ const {rooms,join}=setup(),a=join(),sa=rooms.auth(a.session),engine=rooms.first.engine,p=engine.player(sa.id),owned=engine.privateDefense.get(sa.id);
+ p.x=4536+8*64;p.y=4600+5*64;
+ rooms.action(sa,{type:'hireDefender',role:'sentry'});
+ rooms.action(sa,{type:'startRaid'});
+ const credits=p.credits;
+ p.x=500;p.y=500;engine.tick(.1);
+ assert.equal(owned.raid.status,'failed');assert.equal(owned.raiders.length,0);
+ assert.equal(p.credits,credits);
+ rooms.leave(a.session);
+ assert.equal(engine.privateDefense.has(sa.id),false);
+});
+test('ordered defenders are private and only server-owned combat can damage raid enemies',()=>{
+ const {rooms,join}=setup(),a=join(),sa=rooms.auth(a.session),engine=rooms.first.engine,p=engine.player(sa.id),own=engine.privateDefense.get(sa.id);
+ p.x=4536+8*64;p.y=4600+5*64;p.credits=200;
+ rooms.action(sa,{type:'hireDefender',role:'ranger'});
+ const unit=own.crew[0];assert.equal(unit.role,'ranger');
+ assert.throws(()=>rooms.action(sa,{type:'orderDefender',id:unit.id,mode:'teleport'}),/guard or follow/);
+ assert.equal(rooms.action(sa,{type:'orderDefender',id:unit.id,mode:'follow'}).message.includes('follow'),true);
+ rooms.action(sa,{type:'startRaid'});
+ const initial=own.raiders.reduce((sum,r)=>sum+r.hp,0);
+ engine.tick(.1);
+ const after=own.raiders.reduce((sum,r)=>sum+r.hp,0);
+ assert.ok(after<=initial);
+ assert.throws(()=>rooms.action(sa,{type:'damageRaider',target:own.raiders[0]?.id,damage:9999}),/unavailable/);
+});
