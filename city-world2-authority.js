@@ -4,19 +4,20 @@
  */
 'use strict';
 (function(root){
- function createClass(C,I,W,R,Nav,Territory,Contracts,Services){
-  if(!C?.validIds||!I?.ROOM||!W?.blocked||!R?.resolve||!Territory?.create||!Contracts?.create||!Services?.create)
+ function createClass(C,I,W,R,Nav,Territory,Contracts,Services,Defense){
+  if(!C?.validIds||!I?.ROOM||!W?.blocked||!R?.resolve||!Territory?.create||!Contracts?.create||!Services?.create||!Defense?.create)
    throw Error('Incomplete world2 authority dependencies');
-  const service=Services.create(C,I),nav=Nav.createRouter({WORLD:W.world,blocked:W.blocked},{cell:80,budget:9000});
+  const service=Services.create(C,I),defense=Defense.create(C,W,R,Nav),nav=Nav.createRouter({WORLD:W.world,blocked:W.blocked},{cell:80,budget:9000});
   const d=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const neutral={x:W.commons.x,y:W.commons.y};
   if(W.blocked(neutral.x,neutral.y))throw Error('Neutral room spawn is blocked');
   const actions=Object.freeze(['joinFaction','startCapture','enterBuilding','exitBuilding','buyGear','equipGear','sellGear',
-   'buyMedkit','useMedkit','startCourier','deliverCourier','abandonCourier','reload','buildPlot','removePlot']);
+   'buyMedkit','useMedkit','startCourier','deliverCourier','abandonCourier','reload','buildPlot','removePlot',
+   'hireDefender','orderDefender','startRaid']);
   class Engine{
    static CAPABILITIES=Object.freeze({online:{actions}});
    constructor(){
-    this.players=new Map();this.couriers=new Map();this.territory=Territory.create(C,W,R);
+    this.players=new Map();this.couriers=new Map();this.privateDefense=new Map();this.territory=Territory.create(C,W,R);
     this.guards=this.territory.zones.map((z,i)=>Object.seal({
      id:'guard-'+i,kind:'gang',clan:z.homeClan,x:z.x,y:z.y,hp:70,maxHp:70,alive:true,
      respawn:0,cooldown:0
@@ -30,7 +31,7 @@
      x:neutral.x,y:neutral.y,input:{x:0,y:0},aim:{x:0,y:1},fireHeld:false,fireCooldown:0,ammo:24,
      hp:100,maxHp:100,heat:0,xp:0,credits:180,kills:0,jobs:0,route:0,clan:null,reputation:{},
      inventory:[],equipped:{},rising:{medkits:0},room:null,plot:[],outposts:[],crew:[],style:{}};
-    this.players.set(id,p);this.couriers.set(id,Contracts.create(R));return p;
+    this.players.set(id,p);this.couriers.set(id,Contracts.create(R));this.privateDefense.set(id,defense.session());return p;
    }
    player(id){const p=this.players.get(id);if(!p)throw Error('Guest session not found.');return p;}
    input(id,x,y){const p=this.player(id);if(!Number.isFinite(x)||!Number.isFinite(y))throw Error('Invalid movement.');
@@ -48,12 +49,16 @@
    shoot(p){
     if(p.room||p.hp<=0||!p.fireHeld||p.fireCooldown>0||p.ammo<=0)return;
     p.ammo--;p.fireCooldown=C.WEAPON.shotInterval;
-    const victims=this.guards.filter(a=>a.alive&&d(a,p)<=540).map(a=>{
+    const session=this.privateDefense.get(p.id);
+    const victims=[...this.guards.filter(a=>a.alive).map(a=>({a,raid:false})),
+     ...(session?.raiders||[]).filter(a=>a.alive).map(a=>({a,raid:true}))].filter(({a})=>d(a,p)<=540).map(({a,raid})=>{
      const len=d(a,p)||1,dot=((a.x-p.x)*p.aim.x+(a.y-p.y)*p.aim.y)/len;
-     return {a,len,dot};
+     return {a,len,dot,raid};
     }).filter(x=>x.dot>=.93&&nav.clear(p,x.a)).sort((a,b)=>a.len-b.len);
-    const target=victims[0]?.a;if(!target)return;
-    target.hp=Math.max(0,target.hp-(this.hasEquipped(p,'blaster')?36:35));
+    const victim=victims[0];if(!victim)return;
+    const damage=this.hasEquipped(p,'blaster')?36:35;
+    if(victim.raid){const wasAlive=victim.a.alive;session.hit(victim.a.id,damage);if(wasAlive&&!victim.a.alive)p.kills++;return;}
+    const target=victim.a;target.hp=Math.max(0,target.hp-damage);
     if(!target.hp){target.alive=false;target.respawn=35;p.kills++;}
    }
    tick(step){
@@ -70,6 +75,7 @@
       this.shoot(p);
      }
      this.couriers.get(p.id)?.tick(dt);
+     this.privateDefense.get(p.id)?.tick(p,dt);
     }
     for(const g of this.guards){
      if(!g.alive){g.respawn=Math.max(0,g.respawn-dt);if(g.respawn===0){g.hp=g.maxHp;g.alive=true;}continue;}
@@ -164,6 +170,9 @@
     if(type==='abandonCourier')return take(this.couriers.get(id).abandon());
     if(type==='buildPlot')return this.plotAction(p,a);
     if(type==='removePlot')return this.plotAction(p,a,true);
+    if(type==='hireDefender')return this.privateDefense.get(id).hire(p,a.role);
+    if(type==='orderDefender')return this.privateDefense.get(id).order(p,a.id,a.mode);
+    if(type==='startRaid')return this.privateDefense.get(id).start(p);
     if(type==='reload'){p.ammo=24;return 'Server magazine reloaded.';}
     throw Error('Unknown server action.');
    }
@@ -175,14 +184,15 @@
     return {worldVersion:2,preview:true,mode:'server-authoritative-prototype',
      self:{id:p.id,name:p.name,avatar:p.avatar,x:p.x,y:p.y,hp:p.hp,credits:p.credits,xp:p.xp,kills:p.kills,
       jobs:p.jobs,clan:p.clan,reputation:{...p.reputation},ammo:p.ammo,inventory:p.inventory.map(o=>({...o})),
-      equipped:{...p.equipped},rising:{...p.rising},plot:p.plot.map(x=>({...x})),room:p.room?{...p.room}:null,
+      equipped:{...p.equipped},rising:{...p.rising},plot:p.plot.map(x=>({...x})),
+      defense:this.privateDefense.get(id).snapshot(),room:p.room?{...p.room}:null,
       courier:{...this.couriers.get(id).state}},
      players:other,territory:this.territory.snapshot(),guards:this.guards.map(g=>({
       id:g.id,x:g.x,y:g.y,clan:g.clan,alive:g.alive,hp:g.hp
      })),listings:[],chat:[]};
    }
    leave(id){
-    this.players.delete(id);this.couriers.delete(id);
+    this.players.delete(id);this.couriers.delete(id);this.privateDefense.delete(id);
     if(this.captureOwner===id){this.territory.cancel();this.captureOwner=null;}
    }
   }
