@@ -27,11 +27,19 @@
    const bot={id:'w2-'+(++sequence),kind,clan:options.clan||null,x:location.x,y:location.y,
     home:{x:location.x,y:location.y},hp:kind==='defender'?95:kind==='police'?75:60,
     maxHp:kind==='defender'?95:kind==='police'?75:60,cooldown:0,route:[],routeAt:0,
-    raid:!!options.raid,alive:true};
+    raid:!!options.raid,territory:!!options.territory,alive:true};
    agents.push(bot);return bot;
   }
   let defender=add('defender',{x:W.spawn.x-110,y:W.spawn.y+100});
-  const gangs=positions.map((p,i)=>add(i===1?'police':'gang',p,{clan:p.clan}));
+  positions.map((p,i)=>add(i===1?'police':'gang',p,{clan:p.clan}));
+  function spawnTerritoryGuards(){
+   for(const zone of territory?.zones||[]){
+    let point={x:zone.x+80,y:zone.y};
+    if(W.blocked(point.x,point.y,player))point={x:zone.x,y:zone.y};
+    add('gang',point,{clan:zone.homeClan,territory:true});
+   }
+  }
+  spawnTerritoryGuards();
   function move(unit,toward,speed,dt){
    const d=dist(unit,toward);if(d<4)return;
    let dest=toward;
@@ -199,6 +207,7 @@
    player.inventory=[];player.equipped={};player.clan=null;player.reputation={};player.rising={};player.places={};player.crewKills=0;territory?.reset();courier?.reset();mission.status='idle';mission.remaining=0;mission.wave=0;mission.earned=0;input={x:0,y:0};
    for(const a of agents)a.alive=false;agents.length=0;defender=add('defender',{x:W.spawn.x-110,y:W.spawn.y+100});
    for(let i=0;i<positions.length;i++)add(i===1?'police':'gang',positions[i],{clan:positions[i].clan});
+   spawnTerritoryGuards();
    emit('Preview simulation reset. No production saves were written.');
   }
   const joinFaction=clan=>territory?territory.join(player,clan):{status:'disabled',message:'Territory preview not loaded.'};

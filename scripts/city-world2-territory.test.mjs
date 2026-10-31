@@ -56,6 +56,9 @@ test('territory control is integrated into the isolated world2 simulation and re
  const zone=simulation.territory.zones[0],clan=C.NEIGHBORHOODS.find(n=>n.id!==zone.owner).id;
  assert.equal(simulation.joinFaction(clan).status,'joined');
  simulation.player.x=zone.x;simulation.player.y=zone.y;
+ assert.equal(simulation.captureControl(zone.id).status,'contested');
+ const guard=simulation.agents.find(a=>a.territory&&a.clan===zone.homeClan);
+ assert.ok(guard);guard.alive=false;guard.hp=0;
  assert.equal(simulation.captureControl(zone.id).status,'capturing');
  for(let i=0;i<82;i++)simulation.tick(.1);
  assert.equal(zone.owner,clan);assert.equal(simulation.player.xp,80);assert.equal(simulation.player.credits,230);

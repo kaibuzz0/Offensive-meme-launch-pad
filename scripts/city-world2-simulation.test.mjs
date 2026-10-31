@@ -9,7 +9,8 @@ const C=ctx.MemeCityCore,T=ctx.CityTopology,I=ctx.CityInteriors,W=ctx.CityWorld2
 const R=ctx.CityWorld2Registry.create(C,I,ctx.CityRising,T,W),sim=()=>ctx.CityWorld2Simulation.create(C,W,R,ctx.CityNav);
 test('real world2 prototype simulation spawns collision-safe defender, gangs and police',()=>{
  const s=sim();assert.equal(s.agents.filter(a=>a.kind==='defender').length,1);
- assert.equal(s.agents.filter(a=>a.kind==='gang').length,3);
+ assert.equal(s.agents.filter(a=>a.kind==='gang').length,3+C.NEIGHBORHOODS.length);
+ assert.equal(s.agents.filter(a=>a.territory).length,6);
  assert.equal(s.agents.filter(a=>a.kind==='police').length,1);
  for(const a of s.agents)assert.equal(W.blocked(a.x,a.y,s.player),false,a.id);
  assert.equal(T.draft.enabled,false);

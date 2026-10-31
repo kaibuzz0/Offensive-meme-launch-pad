@@ -154,7 +154,7 @@
    avatar(c,bot.x,bot.y,role,bot.id,shade,true,time);
    c.fillStyle='#182831';c.fillRect(bot.x-28,bot.y+16,56,6);
    c.fillStyle=shade;c.fillRect(bot.x-28,bot.y+16,56*Math.max(0,bot.hp/bot.maxHp),6);
-   label(c,bot.kind==='police'?'INSIDER POLICE':bot.raid?'RAIDER':bot.kind==='defender'?'FORT DEFENDER':'GANG',bot.x,bot.y+42,shade,13);
+   label(c,bot.kind==='police'?'INSIDER POLICE':bot.raid?'RAIDER':bot.kind==='defender'?'FORT DEFENDER':bot.territory?bot.clan.toUpperCase()+' GUARD':'GANG',bot.x,bot.y+42,shade,13);
   }
     if(travel?.length>1){c.save();c.beginPath();travel.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.setLineDash([16,9]);c.strokeStyle='#7df5ff';c.lineWidth=6;c.stroke();c.restore();}
   if(waypoint){c.strokeStyle='#a4f3e4';c.lineWidth=5;c.beginPath();c.arc(waypoint.x,waypoint.y,26,0,Math.PI*2);c.stroke();}
