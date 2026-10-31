@@ -25,7 +25,7 @@ fieldset{border:1px solid #385b60;border-radius:8px;padding:8px;display:grid;gap
 </style>
 <script src="city-core.js" defer></script><script src="city-arcade.js" defer></script><script src="city-rise.js" defer></script><script src="city-interiors.js" defer></script>
 <script src="city-topology.js" defer></script><script src="city-nav.js" defer></script><script src="city-world2.js" defer></script>
-<script src="city-world2-registry.js" defer></script><script src="city-visuals.js" defer></script>
+<script src="city-world2-registry.js" defer></script><script src="city-world2-territory.js" defer></script><script src="city-visuals.js" defer></script>
 <script src="city-world2-online-transport.js" defer></script><script src="city-world2-online.js" defer></script>
 </head><body>
 <header><div><div style="font-size:.7rem;letter-spacing:.14em;color:#a5e3ce">OFFENSIVE / QA ONLY / SERVER AUTHORITY</div><h1>MEME CITY v2 — Shared-room playtest</h1></div><a href="city-world2-preview.html">Offline v2 preview</a></header>
@@ -53,7 +53,7 @@ fieldset{border:1px solid #385b60;border-radius:8px;padding:8px;display:grid;gap
 <label for="destination">Door / travel target</label><select id="destination"></select>
 <div class="actions"><button id="route">Mark target</button><button id="clear-route">Clear marker</button></div>
 <label for="faction">Faction</label><select id="faction"></select><button id="join-faction">Join faction</button>
-<label for="zone">Territory control point</label><select id="zone"></select><button id="capture">Start capture</button>
+<label for="zone">Territory control point</label><select id="zone"></select><div class="actions"><button id="mark-zone">Mark control point</button><button id="capture">Start capture</button></div>
 <div class="actions"><button id="courier">Start courier</button><button id="deliver">Deliver parcel</button></div>
 <label for="gear">Equipment</label><select id="gear"></select>
 <div class="actions"><button id="buy">Buy at shop</button><button id="equip">Equip</button><button id="sell">Salvage at market</button></div>
