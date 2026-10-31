@@ -39,7 +39,7 @@
  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  const CHAPTERS=[
   {name:'Make an entrance',description:'Discover 3 city landmarks. Their floating diamonds mark the way.',reward:60,xp:60,ready:p=>p.rising.found.length>=3,target:p=>LANDMARKS.find(n=>!p.rising.found.includes(n.id))},
-  {name:'Earn your street cred',description:'Complete any contract in Founder Square or Arena District.',reward:75,xp:80,ready:p=>p.jobs>=1,target:()=>({...C.WORLD.spawn,name:'Founder Square mission board'})},
+  {name:'Earn your street cred',description:'Complete any contract in Founder Square or Arena District.',reward:75,xp:80,ready:p=>p.jobs>=1,target:()=>({x:C.HUB.x+1120,y:C.HUB.y+900,name:'Founder Square mission board'})},
   {name:'A place to call home',description:'Build at least 4 pieces in your Fortress Heights plot.',reward:90,xp:90,ready:p=>p.plot.length>=4,target:()=>({...C.DISTRICTS[0]})},
   {name:'Nobody builds alone',description:'Hire at least one defender at Fortress Heights.',reward:80,xp:90,ready:p=>p.crew.length>=1,target:()=>({...C.DISTRICTS[0]})},
   {name:'Culture across the city',description:'Discover at least one landmark in Creator Quarter and one on Social Boardwalk.',reward:120,xp:120,ready:p=>['creator','social'].every(area=>LANDMARKS.some(n=>n.area===area&&p.rising.found.includes(n.id))),target:p=>LANDMARKS.find(n=>['creator','social'].includes(n.area)&&!LANDMARKS.some(l=>l.area===n.area&&p.rising.found.includes(l.id)))},
