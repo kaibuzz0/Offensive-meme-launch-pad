@@ -300,7 +300,7 @@
   init(this);const p=this.player(id),a=this.arcade;p.area=C.areaAt(p.x,p.y);if(typeof action?.manual==='boolean')p.manualAim=action.manual;
   if(!action||typeof action.type!=='string')throw Error('Invalid action.');
   if(peaceful(p)&&['fire','contract'].includes(action.type))throw Error('This district is a peaceful zone.');
-  if(action.type==='contract'&&!['hub','arena'].includes(C.areaAt(p.x,p.y)))throw Error('Visit Founder Square or Arena District to start contracts.');
+  if(action.type==='contract'&&!['hub','arena','fortress'].includes(C.areaAt(p.x,p.y)))throw Error('Start contracts from your fortress, Founder Square or Arena District.');
   const crewResult=crewAction(this,p,action);if(crewResult!==null)return crewResult;
   if(action.type==='joinConflict'){
    const c=conflictState(this);if(!['announced','gathering','active'].includes(c.phase)||c.phase==='active'&&c.remaining<60)throw Error('Enrollment is closed. Watch this round or return for the next one.');
