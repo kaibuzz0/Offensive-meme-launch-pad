@@ -1,0 +1,27 @@
+name: Meme City validation
+on:
+  pull_request:
+  push:
+    branches:
+      - codex/living-blocks-handoff
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Node 22 test and static validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify patch whitespace
+        run: git diff HEAD^ HEAD --check
+      - name: Run all game and server regression tests
+        run: npm test
+      - name: Validate static files and deployment references
+        run: npm run check
+      - name: Run deterministic room benchmark
+        run: node scripts/city-benchmark.mjs
