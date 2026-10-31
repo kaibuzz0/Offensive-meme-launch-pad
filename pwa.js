@@ -88,11 +88,7 @@
       const top=holdings[0];if(!top){paintTheme(null);status.textContent='No supported project tokens found. The default theme is active.';return;}
       paintTheme(top.id);try{localStorage.setItem(savedKey,top.id);}catch{}
       const t=themeById.get(top.id);
-      status.textContent=(preview?'Public-address preview: ':'Connected wallet: ')+t.name+' (
-    window.addEventListener('load',()=>{navigator.serviceWorker.register(new URL('sw.js',appRoot),{scope:appRoot.pathname,updateViaCache:'none'}).catch(()=>{/* Installation instructions still work if service workers are unavailable. */});});
-  }
-})();
-+t.ticker+') has your highest whole-token balance among supported mints. Accent applied on the website and installed app.';
+      status.textContent=[preview?'Public-address preview: ':'Connected wallet: ',t.name,' (',t.ticker,') has your largest supported token quantity. Accent shared across website and installed app.'].join('');
     }
     async function run(source){
       byWallet.disabled=byAddress.disabled=true;
