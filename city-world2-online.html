@@ -68,5 +68,14 @@ fieldset{border:1px solid #385b60;border-radius:8px;padding:8px;display:grid;gap
 <div class="actions"><button id="mark-plot">Mark plot tile</button><button id="build-plot">Build</button><button id="remove-plot">Demolish (half refund)</button></div>
 <div id="plot-summary">Private fortress: no guest joined</div>
 </fieldset>
+<fieldset><legend>Private defender squad / fortress raid QA</legend>
+<small>Hire up to four NPC defenders with server-owned preview credits while standing near your fortress plot. Squads, raids, and any rewards belong only to this temporary guest, never to a shared clan base. Raids reset on departure or server restart.</small>
+<label for="defender-role">Hire defender type</label><select id="defender-role"></select>
+<div class="actions"><button id="hire-defender">Hire defender</button><button id="start-raid">Start raid</button></div>
+<label for="defender-select">Your squad member</label><select id="defender-select"></select>
+<label for="defender-mode">Squad order</label><select id="defender-mode"><option value="guard">Guard position</option><option value="follow">Follow player</option></select>
+<button id="order-defender">Issue order</button>
+<div id="raid-summary" role="status">Squad: — / 4 · Raid: idle</div>
+</fieldset>
 <small>Open two independent browser tabs to test shared public rooms or create a private room and join using its code. Test with real devices separately; this page does not claim phone acceptance or persistent accounts.</small>
 </aside></div></body></html>
