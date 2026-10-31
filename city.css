@@ -52,3 +52,13 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 .wallet-open-options{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 18px}
 .wallet-open-options .panel-button{display:inline-flex;align-items:center;text-align:center;justify-content:center;min-height:43px}
 #offender-wallet-verify:disabled{opacity:.65;cursor:progress}
+
+
+/* Six lightweight token-art-based skins; previews reuse existing coin artwork. */
+.clan-skin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0 16px}
+.clan-skin-tile{display:flex;flex-direction:column;gap:7px;padding:9px;background:#1d2934;border:1px solid #54617b;border-radius:8px;min-width:0}
+.clan-skin-tile:has(button[aria-pressed=true]){border-color:#bdff56;box-shadow:inset 0 0 0 1px #bdff5655}
+.clan-skin-tile img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:5px}
+.clan-skin-tile strong{font:700 11px/1.3 Arial,sans-serif;min-height:28px;overflow-wrap:anywhere}
+.clan-skin-tile button{width:100%;padding:10px 5px;min-height:40px;font-size:11px}
+@media(max-width:450px){.clan-skin-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
