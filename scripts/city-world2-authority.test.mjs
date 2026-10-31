@@ -107,3 +107,51 @@ test('authenticated world2 equipment purchases enhance movement and shooting onl
  assert.equal(guard.hp,34,'server-owned equipped blaster deals 36 damage, not client-supplied damage');
  assert.equal(C.WORLD.spawn.x,3360,'production world1 geometry remains unchanged');
 });
+
+test('private fortress placement debits credits, enforces tile range, prevents overlap, and refunds once',()=>{
+ const {rooms,join,C,W}=setup(),a=join(),b=join(),sa=rooms.auth(a.session),sb=rooms.auth(b.session);
+ const e=rooms.first.engine,p=e.player(sa.id),other=e.player(sb.id);
+ const P={x:4536,y:4600,tile:64};
+ const tile={col:2,row:2},pos={x:P.x+tile.col*P.tile+P.tile/2,y:P.y+tile.row*P.tile+P.tile/2};
+ assert.throws(()=>rooms.action(sa,{type:'buildPlot',...tile,kind:'wall',x:pos.x,y:pos.y}),/245/);
+ p.x=pos.x+100;p.y=pos.y;
+ const initial=p.credits;const kit=C.BUILD_KIT.find(k=>k.id==='wall');
+ rooms.action(sa,{type:'buildPlot',...tile,kind:'wall',credits:999999});
+ assert.equal(p.credits,initial-kit.cost);assert.equal(p.plot.length,1);
+ assert.equal(other.plot.length,0);
+ assert.equal(rooms.snapshot(sa).self.plot[0].kind,'wall');
+ assert.equal(rooms.snapshot(sb).self.plot.length,0);
+ assert.equal(rooms.snapshot(sb).players.find(x=>x.id===sa.id).plot,undefined);
+ assert.throws(()=>rooms.action(sa,{type:'buildPlot',...tile,kind:'wall'}),/occupied/);
+ assert.equal(W.blocked(pos.x,pos.y,p),true,'owner private wall blocks movement');
+ assert.equal(W.blocked(pos.x,pos.y,other),false,'other guest has separate fortress construction instance');
+ rooms.action(sa,{type:'removePlot',col:2,row:2});
+ assert.equal(p.credits,initial-kit.cost+Math.floor(kit.cost/2));
+ assert.throws(()=>rooms.action(sa,{type:'removePlot',...tile}),/No structure/);
+});
+test('forge protection for structures validates coordinates, catalog, funds, trap, and room ownership',()=>{
+ const {rooms,join,I,R}=setup(),a=join(),s=rooms.auth(a.session),e=rooms.first.engine,p=e.player(s.id);
+ const P={x:4536,y:4600,tile:64},col=5,row=4,cell={x:P.x+col*64+32,y:P.y+row*64+32};
+ p.x=cell.x+85;p.y=cell.y;
+ assert.throws(()=>rooms.action(s,{type:'buildPlot',col:-1,row,kind:'wall'}),/Invalid fortress tile/);
+ assert.throws(()=>rooms.action(s,{type:'buildPlot',col:0.2,row,kind:'wall'}),/Invalid fortress tile/);
+ assert.throws(()=>rooms.action(s,{type:'buildPlot',col,row,kind:'fake'}),/Unknown fortress/);
+ assert.throws(()=>rooms.action(s,{type:'buildPlot',col,row,kind:'home'}),/Insufficient/);
+ p.credits=1000;
+ const trapCol=Math.floor((p.x-P.x)/64),trapRow=Math.floor((p.y-P.y)/64);
+ assert.throws(()=>rooms.action(s,{type:'buildPlot',col:trapCol,row:trapRow,kind:'wall'}),/trap/);
+ assert.equal(p.plot.length,0);assert.equal(p.credits,1000);
+ const door=R.resolve('door:shop');p.x=door.x;p.y=door.y;
+ rooms.action(s,{type:'enterBuilding',building:'shop'});
+ assert.throws(()=>rooms.action(s,{type:'buildPlot',col,row,kind:'wall'}),/Return alive/);
+});
+test('fortress plot state remains private across rooms and disappears when ephemeral guest leaves',()=>{
+ const {rooms,join}=setup(),a=join(),b=join({create:true}),sa=rooms.auth(a.session),sb=rooms.auth(b.session),e=rooms.first.engine,p=e.player(sa.id);
+ const col=4,row=3;p.x=4536+col*64+32+75;p.y=4600+row*64+32;
+ rooms.action(sa,{type:'buildPlot',col,row,kind:'banner'});
+ assert.equal(rooms.snapshot(sa).self.plot.length,1);
+ assert.equal(rooms.snapshot(sb).self.plot.length,0);
+ rooms.leave(a.session);
+ assert.equal(e.players.size,0);
+ const c=join();assert.equal(c.state.self.plot.length,0);
+});

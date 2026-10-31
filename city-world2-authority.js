@@ -12,7 +12,7 @@
   const neutral={x:W.commons.x,y:W.commons.y};
   if(W.blocked(neutral.x,neutral.y))throw Error('Neutral room spawn is blocked');
   const actions=Object.freeze(['joinFaction','startCapture','enterBuilding','exitBuilding','buyGear','equipGear','sellGear',
-   'buyMedkit','useMedkit','startCourier','deliverCourier','abandonCourier','reload']);
+   'buyMedkit','useMedkit','startCourier','deliverCourier','abandonCourier','reload','buildPlot','removePlot']);
   class Engine{
    static CAPABILITIES=Object.freeze({online:{actions}});
    constructor(){
@@ -65,8 +65,8 @@
       const r=p.room;if(!I.roomBlocked(r.x+dx,r.y,r.theme))r.x+=dx;
       if(!I.roomBlocked(r.x,r.y+dy,r.theme))r.y+=dy;
      }else if(p.hp>0){
-      if(!W.blocked(p.x+dx,p.y))p.x+=dx;
-      if(!W.blocked(p.x,p.y+dy))p.y+=dy;
+      if(!W.blocked(p.x+dx,p.y,p))p.x+=dx;
+      if(!W.blocked(p.x,p.y+dy,p))p.y+=dy;
       this.shoot(p);
      }
      this.couriers.get(p.id)?.tick(dt);
@@ -87,6 +87,38 @@
      if(!p||!this.territory.active()||result?.status==='interrupted'||result?.status==='captured')
       this.captureOwner=null;
     }
+   }
+   // Private, ephemeral fortress plots use canonical world2 coordinates. All state and costs
+   // belong to the authenticated guest; clients never choose an owner or supply credits.
+   plotAction(p,a,remove=false){
+    if(p.room||!(p.hp>0))throw Error('Return alive to your fortress plot first.');
+    const plot=R.resolve('fortress:plot'),bounds=plot&&W.fortress;
+    if(!plot||!bounds)throw Error('Private fortress is unavailable.');
+    const {col,row}=a||{},P=plot&&{x:4536,y:4600,cols:C.PLOT.cols,rows:C.PLOT.rows,tile:64};
+    if(!Number.isSafeInteger(col)||!Number.isSafeInteger(row)||col<0||row<0||col>=P.cols||row>=P.rows)
+     throw Error('Invalid fortress tile.');
+    const cell={x:P.x+col*P.tile+P.tile/2,y:P.y+row*P.tile+P.tile/2};
+    if(d(p,cell)>245)throw Error('Move within 245 units of the requested fortress tile.');
+    const existing=p.plot.findIndex(x=>x.col===col&&x.row===row);
+    if(remove){
+     if(existing<0)throw Error('No structure on that tile.');
+     const old=p.plot[existing],item=C.BUILD_KIT.find(k=>k.id===old.kind),value=Math.floor(item.cost/2);
+     if(!Number.isSafeInteger(p.credits)||p.credits<0||p.credits+value>1000000)
+      throw Error('Preview credit limit reached.');
+     p.plot.splice(existing,1);p.credits+=value;return item.name+' removed; +'+value+' preview credits.';
+    }
+    if(existing>=0)throw Error('Fortress tile is occupied.');
+    const kit=C.BUILD_KIT.find(k=>k.id===a.kind);
+    if(!kit)throw Error('Unknown fortress structure.');
+    if(p.plot.length>=P.cols*P.rows)throw Error('Fortress plot is full.');
+    if(!Number.isSafeInteger(p.credits)||p.credits<kit.cost||p.credits>1000000)
+     throw Error('Insufficient preview credits.');
+    const next={col,row,kind:kit.id,rotation:0};
+    const candidate=[...p.plot,next],blocked=C.buildAccess(candidate,P.cols,P.rows);
+    if(blocked)throw Error(blocked);
+    const before=p.plot;p.plot=candidate;
+    if(W.blocked(p.x,p.y,p)){p.plot=before;throw Error('Cannot trap your character in a structure.');}
+    p.credits-=kit.cost;return kit.name+' built for '+kit.cost+' preview credits.';
    }
    action(id,a){
     const p=this.player(id),type=a?.type;
@@ -130,6 +162,8 @@
      return take(this.couriers.get(id).deliver(p));
     }
     if(type==='abandonCourier')return take(this.couriers.get(id).abandon());
+    if(type==='buildPlot')return this.plotAction(p,a);
+    if(type==='removePlot')return this.plotAction(p,a,true);
     if(type==='reload'){p.ammo=24;return 'Server magazine reloaded.';}
     throw Error('Unknown server action.');
    }
@@ -141,7 +175,7 @@
     return {worldVersion:2,preview:true,mode:'server-authoritative-prototype',
      self:{id:p.id,name:p.name,avatar:p.avatar,x:p.x,y:p.y,hp:p.hp,credits:p.credits,xp:p.xp,kills:p.kills,
       jobs:p.jobs,clan:p.clan,reputation:{...p.reputation},ammo:p.ammo,inventory:p.inventory.map(o=>({...o})),
-      equipped:{...p.equipped},rising:{...p.rising},room:p.room?{...p.room}:null,
+      equipped:{...p.equipped},rising:{...p.rising},plot:p.plot.map(x=>({...x})),room:p.room?{...p.room}:null,
       courier:{...this.couriers.get(id).state}},
      players:other,territory:this.territory.snapshot(),guards:this.guards.map(g=>({
       id:g.id,x:g.x,y:g.y,clan:g.clan,alive:g.alive,hp:g.hp
