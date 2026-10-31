@@ -82,3 +82,28 @@ test('session departure and transient room lifecycle revoke capture ownership',(
  rooms.leave(a.session);assert.equal(e.captureOwner,null);assert.equal(e.territory.active(),null);
  assert.equal(rooms.sessions.size,0);
 });
+
+test('authenticated world2 equipment purchases enhance movement and shooting only after server verifies ownership',()=>{
+ const {rooms,join,I,R,W,C}=setup(),a=join(),b=join(),sa=rooms.auth(a.session),sb=rooms.auth(b.session),
+  e=rooms.first.engine,p=e.player(sa.id),normal=e.player(sb.id);
+ const shop=R.resolve('door:shop');p.x=shop.x;p.y=shop.y;p.credits=500;
+ rooms.action(sa,{type:'enterBuilding',building:'shop'});
+ p.room.x=I.ROOM.activity.x;p.room.y=I.ROOM.activity.y;
+ rooms.action(sa,{type:'buyGear',item:'boots'});
+ rooms.action(sa,{type:'buyGear',item:'blaster'});
+ const boots=p.inventory.find(o=>o.item==='boots'),blaster=p.inventory.find(o=>o.item==='blaster');
+ assert.ok(boots&&blaster);rooms.action(sa,{type:'equipGear',uid:boots.uid});
+ rooms.action(sa,{type:'equipGear',uid:blaster.uid});
+ p.room.x=I.ROOM.exit.x;p.room.y=I.ROOM.exit.y;
+ rooms.action(sa,{type:'exitBuilding'});
+ p.x=W.commons.x;p.y=W.commons.y;normal.x=W.commons.x;normal.y=W.commons.y;
+ rooms.input(sa,{x:1,y:0,seq:1});rooms.input(sb,{x:1,y:0,seq:1});
+ e.tick(.1);
+ assert.ok(p.x-normal.x>2.4,'server applies purchased +25 boots bonus after verifying ownership');
+ rooms.input(sa,{x:0,y:0,seq:2});
+ const guard=e.guards[0];p.x=guard.x;p.y=guard.y+160;p.fireCooldown=0;
+ rooms.input(sa,{x:0,y:0,seq:3,fire:true,aimX:0,aimY:-1});
+ e.tick(.05);
+ assert.equal(guard.hp,34,'server-owned equipped blaster deals 36 damage, not client-supplied damage');
+ assert.equal(C.WORLD.spawn.x,3360,'production world1 geometry remains unchanged');
+});
