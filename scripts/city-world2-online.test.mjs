@@ -9,7 +9,7 @@ const state=(name='Alice')=>({worldVersion:2,preview:true,revision:2,
  players:[{id:'self',name,avatar:'offensive',x:5040,y:4100,hp:100,clan:null,room:null},
   {id:'peer',name:'Bob',x:5050,y:4120,hp:100,clan:null,room:null}],
  guards:[],territory:[],roomInfo:{code:'public-1',private:false,capacity:8,players:2}});
-function mock(){
+function mock({publicMode=false}={}){
  const elements=new Map(),frames=[],intervals=[],actions=[],inputs=[],joins=[];let current=state(),connected=false;
  const blankCanvas=new Proxy({}, {get:(o,k)=>k in o?o[k]:()=>{},set:(o,k,v)=>(o[k]=v,true)});
  function el(id){
@@ -24,6 +24,7 @@ function mock(){
  const ctx={console,performance:{now:()=>1000},devicePixelRatio:1,requestAnimationFrame:f=>frames.push(f),
   setInterval:(fn,ms)=>intervals.push({fn,ms}),addEventListener(){}};
  ctx.window=ctx;
+ ctx.MEME_CITY_WORLD2_PUBLIC=publicMode;
  ctx.document={getElementById:el,createElement:()=>({}),querySelectorAll:()=>['up','down','left','right'].map(k=>Object.assign(el('move-'+k),{dataset:{move:k}})),
   addEventListener(){}};
  Object.defineProperty(ctx,'localStorage',{get(){throw Error('World2 online client must never access localStorage.')}});
@@ -142,4 +143,25 @@ test('world2 QA recovery UI sends the key only on join and clears the recovery i
  assert.match(h.el('status').textContent,/revision 2/);
  await h.el('leave').click();
  assert.equal(h.el('issued-key').value,'','recovery key must be cleared on leaving');
+});
+
+test('public v2 mobile entrance starts directly with one tap and shows the playable canvas',async()=>{
+ const h=mock({publicMode:true});h.el('name').value='Explorer';h.el('avatar').value='offensive';
+ assert.equal(h.el('game-entry').hidden,false,'entry overlay should be visible on first load');
+ assert.equal(h.el('play-controls').hidden,true,'movement controls hidden until a real join');
+ assert.equal(h.el('server-state').textContent,'Disconnected');
+ assert.equal(h.joins.length,0,'no unintended guest account is created before the player taps');
+ await h.el('enter-game').click();
+ assert.equal(h.joins.length,1,'entry button joins an actual public server room');
+ assert.equal(h.joins[0].name,'Explorer');
+ assert.equal(h.joins[0].createRoom,false);
+ assert.equal(h.el('game-entry').hidden,true,'player now sees the live game map');
+ assert.equal(h.el('play-controls').hidden,false,'movement controls are directly available');
+ assert.equal(h.el('live-hud').hidden,false);
+ assert.match(h.el('live-hud').textContent,/HP 100.*180 credits/);
+ assert.match(h.el('server-state').textContent,/Connected to World V2/);
+ await h.el('leave').click();
+ assert.equal(h.el('game-entry').hidden,false,'leaving returns to the start screen');
+ assert.equal(h.el('play-controls').hidden,true);
+ assert.equal(h.el('live-hud').hidden,true);
 });
