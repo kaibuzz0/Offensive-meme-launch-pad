@@ -141,3 +141,27 @@ test('OFFENDER reskins the same 360-degree player rig without changing armed and
  const npc=rigSurfaces({role:'gang',offenderSkin:true,armed:false,style:{}},0);
  assert.equal(npc.some(f=>f.color==='#c6f916'),false,'NPCs do not gain the wallet skin');
 });
+
+test('all six token-artwork clan skins reuse the player rig, keep every yaw and preserve armed/unarmed gun',()=>{
+ const V=context.window.CityVisuals,skins={
+  redacted:'#452453',congress:'#1b1b24',exit:'#6b7069',
+  'you-missed':'#223356',maduro:'#a52b33',rug:'#241d2b'
+ };
+ for(const [id,coat]of Object.entries(skins))for(const armed of [false,true])for(let deg=0;deg<360;deg+=30){
+  const angle=deg*Math.PI/180,o={role:'player',style:{skin:0,pants:0},clanSkin:id,armed,stridePose:4,travel:{x:.75,y:.25}};
+  const faces=V.rigSurfaces(o,angle);
+  assert.ok(faces.some(f=>f.color===coat),'skin '+id+' jacket color shows at '+deg);
+  assert.equal(faces.filter(f=>f.print==='clan-'+id).length,2,'front/back clan mark '+id);
+  assert.equal(faces.filter(f=>f.print==='meme').length,4,'existing coin art still displays');
+  assert.equal(faces.some(f=>f.color==='#829aa4'),armed,'gun remains tied to original armed state');
+  for(let i=0;i<faces.length;i++){
+   if(i)assert.ok(faces[i].depth>=faces[i-1].depth,'skin keeps depth sorting');
+   for(const p of faces[i].points)assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y)&&Number.isFinite(p.depth));
+  }
+ }
+ const npc=V.rigSurfaces({role:'civilian',clanSkin:'rug',armed:false,style:{}},0);
+ assert.ok(!npc.some(f=>f.color===skins.rug),'unrelated NPCs retain their design');
+ const verified=V.rigSurfaces({role:'player',clanSkin:'maduro',offenderSkin:true},0);
+ assert.ok(!verified.some(f=>f.color===skins.maduro),'verified OFFENDER automatically overrides selected clan fit');
+ assert.ok(verified.some(f=>f.color==='#c6f916'),'OFFENDER lime skull preserved');
+});
