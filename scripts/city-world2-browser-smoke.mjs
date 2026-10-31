@@ -152,7 +152,7 @@ try{
  assert.equal(journeyGoal.id,'checkpoint:0');
  builder.x=journeyGoal.x;builder.y=journeyGoal.y;builder.hp=100;builder.input={x:0,y:0};builder.fireHeld=false;
  qa.rooms.first.revision++;
- await waitFor(()=>first.evaluate("document.getElementById('hud').textContent.includes('pos '+Math.round(journeyGoal.x)+','+Math.round(journeyGoal.y))"),
+ await waitFor(()=>first.evaluate("document.getElementById('hud').textContent.includes("+JSON.stringify('pos '+Math.round(journeyGoal.x)+','+Math.round(journeyGoal.y))+")"),
   'server-provided journey position visible in browser');
  await first.evaluate("document.getElementById('mark-journey').click();true");
  assert.match(await first.evaluate("document.getElementById('status').textContent"),/Next journey destination marked/);
