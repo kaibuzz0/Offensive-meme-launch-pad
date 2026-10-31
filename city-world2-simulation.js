@@ -73,11 +73,16 @@
    else hurt(target,damage);
    return true;
   }
+  function hasEquipped(itemId){
+   const item=C.ITEMS.find(i=>i.id===itemId);
+   if(!item)return false;const uid=player.equipped?.[item.slot];
+   return !!uid&&player.inventory.some(x=>x.uid===uid&&x.item===item.id);
+  }
   function tick(step){
    const dt=clamp(Number.isFinite(step)?step:0,0,.1);time+=dt;
    player.fireCooldown=Math.max(0,player.fireCooldown-dt);
    if(respawnTimer>0){respawnTimer-=dt;if(respawnTimer<=0){player.hp=100;player.x=W.spawn.x;player.y=W.spawn.y;player.heat=0;emit('Respawned at the protected fortress approach.');}return;}
-   const dx=input.x*205*dt,dy=input.y*205*dt;
+   const speed=205+(hasEquipped('boots')?25:0),dx=input.x*speed*dt,dy=input.y*speed*dt;
    if(!W.blocked(player.x+dx,player.y,player))player.x+=dx;
    if(!W.blocked(player.x,player.y+dy,player))player.y+=dy;
    player.heat=Math.max(0,player.heat-dt*1.2);
@@ -131,7 +136,7 @@
      return {a,d,dot};}).filter(v=>v.dot>.91&&nav.clear(player,v.a,player))
     .sort((a,b)=>a.d-b.d);
    const victim=candidates[0]?.a;
-   if(victim){hurt(victim,35);if(victim.kind==='police')player.heat=clamp(player.heat+45,0,100);
+   if(victim){hurt(victim,hasEquipped('blaster')?36:35);if(victim.kind==='police')player.heat=clamp(player.heat+45,0,100);
     return {status:'hit',target:victim.id,defeated:!victim.alive};}
    return {status:'miss'};
   }
