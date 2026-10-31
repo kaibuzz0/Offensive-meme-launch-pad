@@ -322,3 +322,18 @@ Following Round 8 (`74d96dab`, 230/230 tests), world2 online now has a canonical
 Private hired defenders and raiders now request bounded waypoint routes when obstacles block direct movement, using the existing canonical `CityNav.plan` module. Failed routes are cached/backed off rather than repeatedly searched at 20 Hz. Deterministic tests verify bypass of a wall and throttling of unreachable-route recomputations. Gameplay source `cb8ef698`, [CI](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41229610070); check final result before declaring all checks green.
 
 The room server, frontend and mission remain **local-only QA**. No production world1 assets, online persistence, Solana token economics, original saves, Render deployment or default website routes changed.
+
+
+## Round 10 — opt-in world2 QA progression vault (October 31, 2026)
+
+**Implementation:** `server/city-world2-vault.mjs` writes HMAC-verified private records with 256-bit recovery secrets, SHA-256 secret-derived profile IDs, private permissions, atomic temp-file renames, previous-revision backups and sequenced updates. The server only enables this behavior when `WORLD2_QA_SAVE_DIR` is explicitly set to an absolute local path; the default world2 guest session remains ephemeral. `.local-world2-qa/` is Git-ignored.
+
+`server/city-world2-local.mjs` provides authenticated `/profile/create` and `/profile/save`, plus optional recovery-key room joining, periodic checkpoints, checkpoints after successful actions, on orderly leave and shutdown, active-profile exclusivity, and unauthorized account refusal. The local-only `city-world2-online.html/js` client now offers explicit key creation, copy, save, and recovery input; no browser storage or URLs contain session or recovery credentials.
+
+`city-world2-authority.js` exports a bounded schema and stages a restore before mutating a player. It validates permitted items/equipped slots, credits/XP, medkit bounds, legal construction, position safety, faction/reputation and restored defender kits. `city-world2-journey.js` restores only an integer completed objective index, blocking duplicate payouts. `city-world2-defense.js` restores a valid private roster and completed raid statistics, but intentionally **never resumes active raids**. Current shared territory capture, other players, current courier timers and live session tokens remain transient.
+
+**Verification:** [CI run 41230578678](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41230578678) passed **246/246 automated tests**, static checks, benchmark and real two-tab Chromium browser acceptance. Tests explicitly verify corrupted-file HMAC rejection, replay-safe revisions, no raw secret in disk files, profile exclusivity, an actual local HTTP server restart restoring earned mission steps, inventory/equipment, fortress structures and defenders, and Chromium guest create-save-leave-rejoin. The first expanded HTTP test used an out-of-range fortress fixture and was corrected before green validation.
+
+**Release limitations:** This is local single-process QA persistence, **not** an encrypted production account database or migration from world1. Save files contain readable profile data (HMAC authentication only), do not guarantee durability against arbitrary power failure, and a lost recovery key cannot be replaced. There is no production profile credential lifecycle, multi-process locking, public abuse controls, full arcade/missions parity, Android hardware acceptance, Render deployment or world1 rollback. Maintain `main` and world1 saves unchanged; keep PR #2 draft until explicit owner review.
+
+See `server/WORLD2_LOCAL_QA.md` for opt-in startup and safe recovery instructions.
