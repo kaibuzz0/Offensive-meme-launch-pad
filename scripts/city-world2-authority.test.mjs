@@ -136,7 +136,7 @@ test('forge protection for structures validates coordinates, catalog, funds, tra
  assert.throws(()=>rooms.action(s,{type:'buildPlot',col:-1,row,kind:'wall'}),/Invalid fortress tile/);
  assert.throws(()=>rooms.action(s,{type:'buildPlot',col:0.2,row,kind:'wall'}),/Invalid fortress tile/);
  assert.throws(()=>rooms.action(s,{type:'buildPlot',col,row,kind:'fake'}),/Unknown fortress/);
- assert.throws(()=>rooms.action(s,{type:'buildPlot',col,row,kind:'home'}),/Insufficient/);
+ p.credits=1;assert.throws(()=>rooms.action(s,{type:'buildPlot',col,row,kind:'home'}),/Insufficient/);
  p.credits=1000;
  const trapCol=Math.floor((p.x-P.x)/64),trapRow=Math.floor((p.y-P.y)/64);
  assert.throws(()=>rooms.action(s,{type:'buildPlot',col:trapCol,row:trapRow,kind:'wall'}),/trap/);

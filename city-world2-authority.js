@@ -92,9 +92,9 @@
    // belong to the authenticated guest; clients never choose an owner or supply credits.
    plotAction(p,a,remove=false){
     if(p.room||!(p.hp>0))throw Error('Return alive to your fortress plot first.');
-    const plot=R.resolve('fortress:plot'),bounds=plot&&W.fortress;
-    if(!plot||!bounds)throw Error('Private fortress is unavailable.');
-    const {col,row}=a||{},P=plot&&{x:4536,y:4600,cols:C.PLOT.cols,rows:C.PLOT.rows,tile:64};
+    const plot=R.resolve('fortress:plot');
+    if(!plot||!W.fortress)throw Error('Private fortress is unavailable.');
+    const {col,row}=a||{},P={x:plot.x,y:plot.y,cols:C.PLOT.cols,rows:C.PLOT.rows,tile:64};
     if(!Number.isSafeInteger(col)||!Number.isSafeInteger(row)||col<0||row<0||col>=P.cols||row>=P.rows)
      throw Error('Invalid fortress tile.');
     const cell={x:P.x+col*P.tile+P.tile/2,y:P.y+row*P.tile+P.tile/2};
