@@ -17,7 +17,7 @@ function load(){
  }
  context.document={getElementById:element,querySelectorAll(){return ['up','down','left','right'].map(k=>Object.assign(element('key-'+k),{dataset:{key:k}}));},createElement:()=>({}),addEventListener(){}};
  context.localStorage={getItem:()=>null,setItem(){throw Error('Unexpected write to live storage');}};
- for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-migration.js'])
+ for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-migration.js','city-world2-simulation.js'])
   vm.runInNewContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),context,{filename:file});
  context.CityVisuals={person(){}};
  vm.runInNewContext(fs.readFileSync(new URL('../city-world2-preview.js',import.meta.url),'utf8'),context,{filename:'city-world2-preview.js'});
@@ -42,4 +42,14 @@ test('preview buttons can plan destination, place an in-memory wall, clear route
  assert.match(element('status').textContent,/unchanged/);
  element('load-preview').onclick();
  assert.match(element('status').textContent,/unavailable/,'no real save must result in clear failure');
+});
+
+test('world2 preview offers working combat, defense, checkpoint and HUD controls',()=>{
+ const {element,frames}=load();
+ for(const id of ['fire','reload','defend','claim-checkpoint'])assert.equal(typeof element(id).onclick,'function',id);
+ element('defend').onclick();assert.match(element('status').textContent,/Fortress defense wave/);
+ element('fire').onclick();assert.match(element('status').textContent,/Shot missed|Target hit|Enemy defeated/);
+ element('reload').onclick();assert.match(element('status').textContent,/reloaded/);
+ assert.doesNotThrow(()=>frames[0](1050));assert.match(element('combat-hud').textContent,/HP \d+\/100/);
+ element('reset').onclick();assert.match(element('status').textContent,/unchanged/);
 });

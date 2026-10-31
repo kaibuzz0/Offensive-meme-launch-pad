@@ -23,20 +23,20 @@ small{color:#9baeb4;line-height:1.45}#journal{font-size:.8rem;color:#a7e6ce}#nav
 <script src="city-rise.js" defer></script><script src="city-interiors.js" defer></script>
 <script src="city-topology.js" defer></script><script src="city-nav.js" defer></script>
 <script src="city-world2.js" defer></script><script src="city-world2-registry.js" defer></script>
-<script src="city-migration.js" defer></script><script src="city-visuals.js" defer></script>
+<script src="city-migration.js" defer></script><script src="city-world2-simulation.js" defer></script><script src="city-visuals.js" defer></script>
 <script src="city-world2-preview.js" defer></script></head>
 <body><header><div><div class="tag">OFFENSIVE / DEVELOPMENT ONLY</div><h1>Meme City — Center-Out World v2</h1></div><a href="city.html">Return to existing game</a></header>
-<div class="warning"><b>Isolated geometry playtest — not the full game.</b> Walk, test gates, navigate 47 entrances, inspect rooms and place temporary fortress walls. Combat, online authority, real markets, NPC attacks, and permanent v2 saving are intentionally disabled. The existing game and its save stay untouched.</div>
+<div class="warning"><b>Isolated geometry playtest with local combat — not the full game.</b> Walk, test gates, navigate 47 entrances, inspect rooms and place temporary fortress walls. Local-only combat, autonomous gang AI, Insider-police pursuit, defender combat, defense waves and checkpoint rewards are experimental. Online authority, real markets and permanent v2 saving remain disabled. The existing game and its save stay untouched.</div>
 <main><section aria-label="Interactive prototype city canvas"><canvas id="world" tabindex="0" aria-label="Explore prototype city with WASD or touch direction controls">Canvas required.</canvas>
-<small>WASD / arrows to walk. E to enter or exit a doorway. Touch direction controls below. The blue path indicates a walkable route, not automatic movement.</small></section>
-<aside><div id="location">Center fortress / initializing</div><div id="status" role="status" aria-live="polite">Loading preview geometry...</div>
+<small>WASD / arrows to walk. E to enter or exit a doorway. Space/F to fire, R to reload, G to start a defense and C to claim a checkpoint. Touch direction controls below. The blue path indicates a walkable route, not automatic movement.</small></section>
+<aside><div id="location">Center fortress / initializing</div><div id="status" role="status" aria-live="polite">Loading preview geometry...</div><div id="combat-hud" role="status" aria-live="polite">Preview combat initializing...</div>
 <canvas id="overview" width="280" height="280" aria-label="Overview of center-out streets and your position"></canvas>
 <label for="nav-select">Tracked destination</label><select id="nav-select"></select>
 <div class="actions"><button id="route">Find walking route</button><button id="clear-route">Clear route</button></div>
 <h2>Test controls</h2><div class="controls" aria-label="Touch movement controls">
 <button data-key="up" aria-label="Move north">▲</button><button data-key="left" aria-label="Move west">◀</button><button data-key="down" aria-label="Move south">▼</button><button data-key="right" aria-label="Move east">▶</button></div>
-<div class="actions"><button id="interact">Enter / interact (E)</button><button id="test-wall">Place preview wall</button><button id="remove-wall">Remove wall</button></div>
+<div class="actions"><button id="interact">Enter / interact (E)</button><button id="test-wall">Place preview wall</button><button id="remove-wall">Remove wall</button></div><div class="actions"><button id="fire">Fire (F)</button><button id="reload">Reload (R)</button><button id="defend">Start fortress defense (G)</button></div><div class="actions"><button id="claim-checkpoint">Claim checkpoint (C)</button></div>
 <div class="actions"><button id="load-preview">Read staged solo save</button><button id="reset">Reset preview</button></div>
 <div id="journal" role="status">No preview objectives completed.</div>
-<small>Only the isolated preview writes world2 staging and recovery keys when “Read staged solo save” is pressed. No real wallet, purchases, XP awards or deployed game state are changed.</small>
+<small>Only the isolated preview writes world2 staging and recovery keys when “Read staged solo save” is pressed. No real wallet, purchases, production XP or deployed game state are changed. Combat and rewards are in-memory only.</small>
 </aside></main></body></html>
