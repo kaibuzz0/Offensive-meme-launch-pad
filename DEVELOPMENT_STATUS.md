@@ -269,3 +269,22 @@ Following Round 4 at a012ae4b (196/196 passing tests), new development on PR #2 
 The local HTTP endpoint is loopback-only (127.0.0.1:8788), separate from Render and the existing world1 service; browser preview connectivity is not implemented yet. New Node test suites cover actual HTTP join/auth/input/leave, two guests/room isolation, invalid actions/origins, server-validated purchases, courier and faction capture.
 
 **CI:** [206 tests passed, 0 failed](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41226269497) at d508f757. Whitespace, static and world1 server benchmark checks passed. No production merge, Render redeploy, physical browser or Android tests were performed. Next work: opt-in room client, real browser acceptance, authoritative gameplay parity, and production release authorization.
+
+
+## Round 6 — Local authoritative browser multiplayer client, October 31, 2026
+
+Continued from verified world2 server prototype commit `560d68c1` on the **same draft PR #2**, preserving deployed `main` and all live world1 saves. No Render deployment or real-wallet operations.
+
+### Development batches pushed
+- `city-world2-online-transport.js`: strict **loopback-only** server API transport; per-guest session bearer credential held only in memory (never URL/storage), sequenced movement/fire input, server-owned actions and snapshots, timeout/401 fail-closed behavior, duplicate-join rejection, no stale poll rollback.
+- `city-world2-online.html` / `city-world2-online.js`: standalone local-only browser QA page alongside the offline preview, exposing public/private room join/leave, shared real player/guard rendering with 360-degree armed avatar rigs, directional keyboard/touch movement and aim, two-client positional HUD, server-sourced six control points, manual POI targets, interior entry/exit, server-validated gear/medic actions and courier controls. Peer inventory and credentials are not displayed. **It does not synthesize real XP/credits or write local saves.**
+- The production `city.html` remains world1. Local static server allows the new test assets; the GitHub Pages deployment manifest intentionally excludes them.
+- `city-world2-authority.js`: server now checks actual owned/equipped boots and blaster before applying their listed movement/weapon modifiers; no client-provided damage/speed or balances accepted.
+- `scripts/city-world2-online-transport.test.mjs`, `scripts/city-world2-online.test.mjs`, `scripts/city-world2-online-http.test.mjs`, expanded authoritative equipment regression: protected bearer tokens, monotonic snapshots, CORS/forgery refusal, two real HTTP guest sessions, isolated private room, server position synchronization and browser control mock.
+- `scripts/city-world2-browser-smoke.mjs`: new real Chromium DevTools Protocol two-tab test; local backend and static host run on loopback, browser tests authenticated join, movement, room synchronization, denied remote purchase, mobile-sized viewport and no runtime exceptions. Added to CI as `npm run qa:world2:browser`. Earlier intermediate CI exposed a test-only background-tab timing and exact asynchronous snapshot comparison issue. Both harness assertions were refined; **latest branch CI must be checked before treating full real-Chrome acceptance as passed**.
+- `server/WORLD2_LOCAL_QA.md`: exact two-terminal local QA instructions, headless Chrome command, Android adb-reverse procedure, and explicit remaining blockers.
+
+### Release gates still open
+This is a **local-only, server-authoritative multiplayer QA path**, not a production service. Browser-based tests do not equal a real mid-range Android hardware run. Server guest progress is still in-memory, world1-to-world2 irreversible save activation is not enabled, and complete world1 missions/arcade/fortress/companions/moderation remain unported. The offline preview's sandbox credits are a different simulation; **do not route them into temporary shared-room credits**. Never merge to `main`, expose loopback API publicly, trigger wallet operations or deploy Render without explicit owner approval.
+
+Next prioritize real-device QA and server feature-parity, then safe migration with per-player rollback and multi-tab protections. Commit and push focused validated batches on `codex/world2-territory-foundation`, keep PR #2 draft, and preserve all newer commits.
