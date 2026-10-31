@@ -60,5 +60,13 @@ fieldset{border:1px solid #385b60;border-radius:8px;padding:8px;display:grid;gap
 <label for="owned">Owned item</label><select id="owned"></select>
 <div class="actions"><button id="medkit">Buy medkit</button><button id="heal">Use medkit</button></div>
 </fieldset>
+<fieldset><legend>Personal fortress plot / temporary credits</legend>
+<small>Your structures are private to this guest, not visible to other players. They are lost after session expiry or server restart. Walk within 245 world units of the chosen tile to build or remove.</small>
+<div class="actions"><label for="plot-col">Column <select id="plot-col"></select></label>
+<label for="plot-row">Row <select id="plot-row"></select></label></div>
+<label for="plot-kind">Structure</label><select id="plot-kind"></select>
+<div class="actions"><button id="mark-plot">Mark plot tile</button><button id="build-plot">Build</button><button id="remove-plot">Demolish (half refund)</button></div>
+<div id="plot-summary">Private fortress: no guest joined</div>
+</fieldset>
 <small>Open two independent browser tabs to test shared public rooms or create a private room and join using its code. Test with real devices separately; this page does not claim phone acceptance or persistent accounts.</small>
 </aside></div></body></html>

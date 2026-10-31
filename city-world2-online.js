@@ -17,6 +17,10 @@
  for(const n of C.NEIGHBORHOODS)option($('faction'),n.id,n.clan);
  for(const zone of ZONES)option($('zone'),zone.id,zone.name);
  for(const item of C.ITEMS)option($('gear'),item.id,item.name+' / '+item.price+' credits');
+ for(let col=0;col<T.draft.plot.cols;col++)option($('plot-col'),String(col),String(col+1));
+ for(let row=0;row<T.draft.plot.rows;row++)option($('plot-row'),String(row),String(row+1));
+ for(const kit of C.BUILD_KIT)option($('plot-kind'),kit.id,kit.name+' / '+kit.cost+' credits');
+ $('plot-col').value='5';$('plot-row').value='3';$('plot-kind').value='wall';
  $('destination').value='door:shop';
  function authState(){
   $('server-state').textContent=joined?'Connected to loopback QA server':'Disconnected';
@@ -28,8 +32,9 @@
   const self=s.self,room=s.roomInfo;
   $('room-info').textContent='Room: '+(room?.code||'unknown')+' · '+(room?.players||0)+' / '+(room?.capacity||8)+' guests'+(room?.private?' · private':' · public');
   $('hud').textContent='Server XP '+self.xp+' · credits '+self.credits+' · HP '+Math.ceil(self.hp)+' · ammo '+self.ammo+
-   ' · medkits '+(self.rising?.medkits||0)+' · faction '+(self.clan||'none')+' · courier '+(self.courier?.status||'idle')+' · pos '+Math.round(self.x)+','+Math.round(self.y);
+   ' · medkits '+(self.rising?.medkits||0)+' · faction +(self.clan||'none')+' · courier '+(self.courier?.status||'idle')+' · pos '+Math.round(self.x)+','+Math.round(self.y);
   $('peer-summary').textContent='Other guests: '+s.players.filter(p=>p.id!==self.id).map(p=>p.name+' ('+Math.round(p.x)+','+Math.round(p.y)+')').join(' · ');
+  $('plot-summary').textContent='Private fortress: '+(self.plot?.length||0)+' / '+(T.draft.plot.cols*T.draft.plot.rows)+' structures · play credits only';
   const prev=$('owned').value;$('owned').textContent='';
   for(const i of self.inventory||[]){const item=C.ITEMS.find(x=>x.id===i.item);option($('owned'),i.uid,(item?.name||i.item)+' / '+i.uid);}
   if((self.inventory||[]).some(i=>i.uid===prev))$('owned').value=prev;
@@ -81,6 +86,15 @@
  $('medkit').addEventListener('click',()=>command('buyMedkit'));
  $('heal').addEventListener('click',()=>command('useMedkit'));
  $('reload').addEventListener('click',()=>command('reload'));
+ const plotTile=()=>({col:Number($('plot-col').value),row:Number($('plot-row').value)});
+ $('mark-plot').addEventListener('click',()=>{
+  const {col,row}=plotTile(),P=T.draft.plot;
+  if(!Number.isInteger(col)||!Number.isInteger(row)||col<0||row<0||col>=P.cols||row>=P.rows)return tell('Invalid fortress tile.');
+  marker={x:P.x+col*P.tile+P.tile/2,y:P.y+row*P.tile+P.tile/2,name:'Your private fortress tile'};
+  tell('Private fortress tile marked. Walk close before asking the server to build.');
+ });
+ $('build-plot').addEventListener('click',()=>command('buildPlot',{...plotTile(),kind:$('plot-kind').value}));
+ $('remove-plot').addEventListener('click',()=>command('removePlot',plotTile()));
  $('route').addEventListener('click',()=>{marker=POI.resolve($('destination').value);tell(marker?'Target marked: '+marker.name+' (manual travel; server validates movement).':'Unknown target.');});
  $('clear-route').addEventListener('click',()=>{marker=null;tell('Target marker cleared.');});
  $('mark-zone').addEventListener('click',()=>{marker=ZONES.find(z=>z.id===$('zone').value)||null;tell(marker?'Control point marked: '+marker.name+'. Move near it before capturing.':'Unknown control point.');});
@@ -138,7 +152,21 @@
   for(const road of W.roads)rect(c,road,'#3b545e');
   rect(c,W.fortress,'#3e584f');
   for(const wall of W.walls)rect(c,wall,'#8ca6a6');
-  rect(c,{x:T.draft.plot.x,y:T.draft.plot.y,w:1024,h:640},'#455e4a');
+  const P=T.draft.plot;
+  rect(c,{x:P.x,y:P.y,w:P.cols*P.tile,h:P.rows*P.tile},'#455e4a');
+  if(Math.hypot(self.x-(P.x+P.cols*P.tile/2),self.y-(P.y+P.rows*P.tile/2))<1250){
+   c.strokeStyle='#648275';c.lineWidth=1;
+   for(let x=0;x<=P.cols;x++){c.beginPath();c.moveTo(P.x+x*P.tile,P.y);c.lineTo(P.x+x*P.tile,P.y+P.rows*P.tile);c.stroke();}
+   for(let y=0;y<=P.rows;y++){c.beginPath();c.moveTo(P.x,P.y+y*P.tile);c.lineTo(P.x+P.cols*P.tile,P.y+y*P.tile);c.stroke();}
+  }
+  for(const piece of self.plot||[]){
+   const kit=C.BUILD_KIT.find(k=>k.id===piece.kind);
+   if(kit&&Number.isInteger(piece.col)&&Number.isInteger(piece.row)&&piece.col>=0&&piece.row>=0&&piece.col<P.cols&&piece.row<P.rows){
+    const cell={x:P.x+piece.col*P.tile+3,y:P.y+piece.row*P.tile+3,w:P.tile-6,h:P.tile-6};
+    rect(c,cell,kit.color||'#a1b3a7');
+    if(Math.hypot(cell.x-self.x,cell.y-self.y)<340)tag(c,kit.name,cell.x+cell.w/2,cell.y+cell.h/2,'#ffffff',10);
+   }
+  }
   for(const b of W.buildings)rect(c,b,b.protected?'#a68f63':'#58758a');
   for(const d of POI.doors){if(Math.hypot(d.x-self.x,d.y-self.y)>1000)continue;
    c.fillStyle='#8ce8c3';c.beginPath();c.arc(d.x,d.y,11,0,Math.PI*2);c.fill();
