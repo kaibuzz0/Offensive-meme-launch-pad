@@ -4,20 +4,20 @@
  */
 'use strict';
 (function(root){
- function createClass(C,I,W,R,Nav,Territory,Contracts,Services,Defense){
-  if(!C?.validIds||!I?.ROOM||!W?.blocked||!R?.resolve||!Territory?.create||!Contracts?.create||!Services?.create||!Defense?.create)
+ function createClass(C,I,W,R,Nav,Territory,Contracts,Services,Defense,Journey){
+  if(!C?.validIds||!I?.ROOM||!W?.blocked||!R?.resolve||!Territory?.create||!Contracts?.create||!Services?.create||!Defense?.create||!Journey?.create)
    throw Error('Incomplete world2 authority dependencies');
-  const service=Services.create(C,I),defense=Defense.create(C,W,R,Nav),nav=Nav.createRouter({WORLD:W.world,blocked:W.blocked},{cell:80,budget:9000});
+  const service=Services.create(C,I),defense=Defense.create(C,W,R,Nav),journey=Journey.create(R,Nav.createRouter({WORLD:W.world,blocked:W.blocked},{cell:80,budget:9000})),nav=Nav.createRouter({WORLD:W.world,blocked:W.blocked},{cell:80,budget:9000});
   const d=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const neutral={x:W.commons.x,y:W.commons.y};
   if(W.blocked(neutral.x,neutral.y))throw Error('Neutral room spawn is blocked');
   const actions=Object.freeze(['joinFaction','startCapture','enterBuilding','exitBuilding','buyGear','equipGear','sellGear',
    'buyMedkit','useMedkit','startCourier','deliverCourier','abandonCourier','reload','buildPlot','removePlot',
-   'hireDefender','orderDefender','startRaid']);
+   'hireDefender','orderDefender','startRaid','claimJourney']);
   class Engine{
    static CAPABILITIES=Object.freeze({online:{actions}});
    constructor(){
-    this.players=new Map();this.couriers=new Map();this.privateDefense=new Map();this.territory=Territory.create(C,W,R);
+    this.players=new Map();this.couriers=new Map();this.journeys=new Map();this.privateDefense=new Map();this.territory=Territory.create(C,W,R);
     this.guards=this.territory.zones.map((z,i)=>Object.seal({
      id:'guard-'+i,kind:'gang',clan:z.homeClan,x:z.x,y:z.y,hp:70,maxHp:70,alive:true,
      respawn:0,cooldown:0
@@ -31,7 +31,7 @@
      x:neutral.x,y:neutral.y,input:{x:0,y:0},aim:{x:0,y:1},fireHeld:false,fireCooldown:0,ammo:24,
      hp:100,maxHp:100,heat:0,xp:0,credits:180,kills:0,jobs:0,route:0,clan:null,reputation:{},
      inventory:[],equipped:{},rising:{medkits:0},room:null,plot:[],outposts:[],crew:[],style:{}};
-    this.players.set(id,p);this.couriers.set(id,Contracts.create(R));this.privateDefense.set(id,defense.session());return p;
+    this.players.set(id,p);this.couriers.set(id,Contracts.create(R));this.journeys.set(id,journey.session());this.privateDefense.set(id,defense.session());return p;
    }
    player(id){const p=this.players.get(id);if(!p)throw Error('Guest session not found.');return p;}
    input(id,x,y){const p=this.player(id);if(!Number.isFinite(x)||!Number.isFinite(y))throw Error('Invalid movement.');
@@ -173,6 +173,7 @@
     if(type==='hireDefender')return this.privateDefense.get(id).hire(p,a.role);
     if(type==='orderDefender')return this.privateDefense.get(id).order(p,a.id,a.mode);
     if(type==='startRaid')return this.privateDefense.get(id).start(p);
+    if(type==='claimJourney')return this.journeys.get(id).claim(p);
     if(type==='reload'){p.ammo=24;return 'Server magazine reloaded.';}
     throw Error('Unknown server action.');
    }
@@ -185,14 +186,14 @@
      self:{id:p.id,name:p.name,avatar:p.avatar,x:p.x,y:p.y,hp:p.hp,credits:p.credits,xp:p.xp,kills:p.kills,
       jobs:p.jobs,clan:p.clan,reputation:{...p.reputation},ammo:p.ammo,inventory:p.inventory.map(o=>({...o})),
       equipped:{...p.equipped},rising:{...p.rising},plot:p.plot.map(x=>({...x})),
-      defense:this.privateDefense.get(id).snapshot(),room:p.room?{...p.room}:null,
+      defense:this.privateDefense.get(id).snapshot(),journey:this.journeys.get(id).snapshot(),room:p.room?{...p.room}:null,
       courier:{...this.couriers.get(id).state}},
      players:other,territory:this.territory.snapshot(),guards:this.guards.map(g=>({
       id:g.id,x:g.x,y:g.y,clan:g.clan,alive:g.alive,hp:g.hp
      })),listings:[],chat:[]};
    }
    leave(id){
-    this.players.delete(id);this.couriers.delete(id);this.privateDefense.delete(id);
+    this.players.delete(id);this.couriers.delete(id);this.journeys.delete(id);this.privateDefense.delete(id);
     if(this.captureOwner===id){this.territory.cancel();this.captureOwner=null;}
    }
   }
