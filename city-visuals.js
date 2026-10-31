@@ -169,16 +169,24 @@
    const rings=o.simplified?4:8,sides=o.simplified?8:12;
    for(let j=0;j<rings;j++)for(let k=0;k<sides;k++){const a=low+(high-low)*j/rings,b=low+(high-low)*(j+1)/rings,u=k*Math.PI*2/sides,v=(k+1)*Math.PI*2/sides;face([point(a,u),point(a,v),point(b,v),point(b,u)],color);}
   }
-  const style=o.style||{},tone=skin[style.skin||0],coat=o.role==='cop'?'#324c68':o.role==='gang'?'#4b293c':o.role==='guard'?(o.color||'#6e8e78'):o.gear?.outfit?'#5e7654':'#303e4d';
-  box([0,0,59],[18,34,36],coat);
-  box([0,0,80],[9,10,9],tone);
+  const style=o.style||{},offender=o.offenderSkin===true&&(o.role||'player')==='player',tone=offender?'#c6f916':skin[style.skin||0],coat=offender?'#20172c':o.role==='cop'?'#324c68':o.role==='gang'?'#4b293c':o.role==='guard'?(o.color||'#6e8e78'):o.gear?.outfit?'#5e7654':'#303e4d';
+  box([0,0,59],[18,34,36],coat);if(offender){for(const side of [-1,1])box([0,side*17.6,62],[11,1.2,17],'#9226e8');box([-9.4,0,55],[1.3,9,5],'#c6f916');}
+  box([0,0,80],[9,10,9],offender?'#15121f':tone);
   oval([0,0,94],[8,9,12],tone);
-  oval([-1,0,97],[8.5,9.5,10],hair[style.hair||0],.1);
-  oval([-6,0,97],[3,8,8],hair[style.hair||0]);
-  box([9,0,93],[4,4,5],tone);
-  for(const side of [-1,1])box([8.2,side*4.5,97],[.6,2.5,2],'#172432');
-  box([8.2,0,88],[.6,5,1],'#845642');
-  if(o.gear?.head)box([9,0,97],[2,19,5],'#a78cd9');
+  if(offender){
+   // Keep the same head rig and draw a toxic-lime skull, dark sockets and teeth.
+   for(const side of [-1,1])box([8.4,side*4.6,97],[1.5,5.4,5.8],'#15121f');
+   box([9.1,0,90],[1.7,3.8,3.4],'#15121f');
+   box([8.6,0,86.8],[1.2,13,4.5],'#f1efcc');
+   for(const gap of [-5,-2.5,0,2.5,5])box([9.3,gap,86.7],[1.3,.7,4.2],'#15121f');
+  }else{
+   oval([-1,0,97],[8.5,9.5,10],hair[style.hair||0],.1);
+   oval([-6,0,97],[3,8,8],hair[style.hair||0]);
+   box([9,0,93],[4,4,5],tone);
+   for(const side of [-1,1])box([8.2,side*4.5,97],[.6,2.5,2],'#172432');
+   box([8.2,0,88],[.6,5,1],'#845642');
+   if(o.gear?.head)box([9,0,97],[2,19,5],'#a78cd9');
+  }
   // The same meme is printed on the chest and back and wraps out of view in profile.
   for(const side of [-1,1]){
    const faction=['cop','gang','guard'].includes(o.role),badgeColor=o.role==='cop'?'#8db9e4':o.role==='gang'?'#c56d83':o.color||'#b7ef84';
@@ -186,13 +194,14 @@
    // Factions keep distinctive uniforms without changing the shared arm rig.
    face([[-7,side*17.3,71],[7,side*17.3,71],[7,side*17.3,53],[-7,side*17.3,53]],badgeColor,faction?'insignia':'meme');
    for(let r=0;r<(o.clanRank||0);r++)box([0,side*17.6,76-r*2],[12,.7,1],['#c89560','#c4d4dd','#f0d17c'][o.clanRank-1]);
+   if(offender)face([[side*9.8,-8,80],[side*9.8,8,80],[side*9.8,8,67],[side*9.8,-8,67]],'#3d145a','offender-crown');
   }
   box([0,0,41],[19,35,4],'#142733');box([9.8,0,41],[1,5,3],'#d3d4bc');
   if(o.holderTier>=1)box([9.9,-10,75],[1,5,5],o.color||'#b7ef84');
   for(const side of [-1,1]){
    const stride=(o.stridePose||0)*side,travel=o.travel||{x:ca,y:sa},forward=travel.x*ca+travel.y*sa,lateral=-travel.x*sa+travel.y*ca,hip=[0,side*8,40],knee=[stride*.5*forward,side*8+stride*.5*lateral,23],ankle=[stride*forward,side*8+stride*lateral,5+Math.max(0,stride)*.5];
-   limb(hip,knee,6,denim[style.pants||0]);limb(knee,ankle,5,denim[style.pants||0]);
-   face([[stride*.15-4,side*14.2,36],[stride*.15+4,side*14.2,36],[stride*.65+4,side*14.2,16],[stride*.65-4,side*14.2,16]],'#263949',style.print===1?'pattern':'ticker');box([ankle[0]+3,ankle[1],ankle[2]-2],[15,11,6],o.gear?.feet?'#375c66':'#202a35');box([ankle[0]+3,ankle[1],ankle[2]-4],[16,12,2],'#a7b3bd');
+   limb(hip,knee,6,offender?'#141522':denim[style.pants||0]);limb(knee,ankle,5,offender?'#141522':denim[style.pants||0]);
+   face([[stride*.15-4,side*14.2,36],[stride*.15+4,side*14.2,36],[stride*.65+4,side*14.2,16],[stride*.65-4,side*14.2,16]],'#263949',style.print===1?'pattern':'ticker');box([ankle[0]+3,ankle[1],ankle[2]-2],[15,11,6],o.gear?.feet?'#375c66':'#202a35');box([ankle[0]+3,ankle[1],ankle[2]-4],[16,12,2],offender?'#c6f916':'#a7b3bd');
   }
   // A weapon changes the pose and adds a rifle, never the character model.
   // Keep direct rigSurfaces() callers backward-compatible with the armed model,
@@ -227,6 +236,7 @@
     c.save();c.clip();c.transform((b.x-a.x)/30,(b.y-a.y)/30,(d.x-a.x)/28,(d.y-a.y)/28,a.x,a.y);
     if(f.print==='ticker'){c.fillStyle='#142733';c.fillRect(0,0,30,28);c.save();c.translate(15,14);c.rotate(Math.PI/2);text(c,'$'+(o.ticker||'MEME'),0,2,5,'#eaf3e7');c.restore();}
     else if(f.print==='pattern'){for(let y=0;y<28;y+=9)for(let x=0;x<30;x+=10){if(o.image?.complete&&o.image.naturalWidth)c.drawImage(o.image,x,y,9,8);else{c.fillStyle=o.color||'#b7ef84';c.fillRect(x,y,7,6);}}}
+    else if(f.print==='offender-crown'){c.fillStyle='#24102f';c.fillRect(0,0,30,28);c.strokeStyle='#c6f916';c.lineWidth=2.8;c.beginPath();c.moveTo(4,18);c.lineTo(3,8);c.lineTo(10,13);c.lineTo(15,5);c.lineTo(20,13);c.lineTo(27,8);c.lineTo(26,18);c.closePath();c.stroke();c.fillStyle='#c6f916';c.fillRect(4,20,22,3);}
     else if(f.print==='insignia'){c.fillStyle='#142733';c.fillRect(0,0,30,28);c.fillStyle=o.role==='cop'?'#8db9e4':o.role==='gang'?'#c56d83':'#9bdcca';c.fillRect(1,1,28,4);text(c,o.role==='cop'?'INSIDER':o.role==='gang'?'RUG':'DEFENDER',15,18,o.role==='guard'?5:7,'#f1f6ef');}
     else {c.fillStyle='#132332';c.fillRect(0,0,30,28);const logo=logoTexture(o.image);if(logo){c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(logo,1,0,28,28);}else{text(c,'o!',15,19,19,'#e7f6cc');}c.strokeStyle='#e7f6cc88';c.lineWidth=1;c.strokeRect(.5,.5,29,27);}c.restore();
    }

@@ -121,3 +121,23 @@ test('V1 player, civilians and NPCs use the shooting-era solid renderer for ever
   }
  }
 });
+
+test('OFFENDER reskins the same 360-degree player rig without changing armed and walking mechanics',()=>{
+ const {rigSurfaces}=context.window.CityVisuals;
+ for(let deg=0;deg<360;deg+=15)for(const armed of [true,false]){
+  const a=deg*Math.PI/180,base={role:'player',style:{skin:2,hair:1,pants:0,print:1},armed,stridePose:4};
+  const original=rigSurfaces(base,a),offender=rigSurfaces({...base,offenderSkin:true},a);
+  assert.ok(offender.some(f=>f.color==='#c6f916'),'lime skull/shoes must render');
+  assert.ok(offender.some(f=>f.color==='#9226e8'),'purple bomber jacket trim must render');
+  assert.equal(offender.filter(f=>f.print==='offender-crown').length,2,'crown patch on both sides');
+  assert.equal(offender.filter(f=>f.print==='meme').length,original.filter(f=>f.print==='meme').length,'original jacket meme prints retained');
+  assert.equal(offender.some(f=>f.color==='#829aa4'),armed,'same rifle is visible only when armed');
+  assert.equal(original.some(f=>f.color==='#c6f916'),false,'guest skin must not unlock without verification');
+  for(let i=0;i<offender.length;i++){
+   if(i)assert.ok(offender[i].depth>=offender[i-1].depth,'offender rig remains depth sorted');
+   for(const p of offender[i].points)assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y)&&Number.isFinite(p.depth));
+  }
+ }
+ const npc=rigSurfaces({role:'gang',offenderSkin:true,armed:false,style:{}},0);
+ assert.equal(npc.some(f=>f.color==='#c6f916'),false,'NPCs do not gain the wallet skin');
+});

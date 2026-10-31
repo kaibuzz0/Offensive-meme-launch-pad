@@ -37,6 +37,6 @@
   const target=j.points[j.index];if(dist(p,target)<95){if(j.type==='hold'){j.held+=dt;if(j.held>=25)j.index++;}else if(j.type==='salvage'){j.held+=dt;if(j.held>=2){j.index++;j.held=0;}}else j.index++;}else if(j.type==='salvage')j.held=0;
   if(j.index>=j.points.length){p.credits+=45;p.xp+=35;p.reputation[j.clan]++;p.blockJob=null;p.blockCooldown=20;notice(p,'BLOCK COMPLETE / +45 play credits · +35 XP · +1 clan reputation.');}
  }};
- P.snapshot=function(id){const s=base.snapshot.call(this,id);for(const p of s.players){const actual=this.player(p.id);p.clan=actual.clan;p.clanRank=rank(actual);p.holderTier=actual.holder?.expires>Date.now()?actual.holder.tier:0;}s.self.outposts=this.player(id).outposts.map(o=>({...o}));s.self.outpostStyles={...this.player(id).outpostStyles};return s;};
+ P.snapshot=function(id){const s=base.snapshot.call(this,id);for(const p of [...s.players,s.self]){const actual=this.player(p.id),proof=actual.holder?.expires>Date.now()&&actual.holder.tier>=1?actual.holder:null;p.clan=actual.clan;p.clanRank=rank(actual);p.holderTier=proof?.tier||0;p.holderClan=proof?.clan||null;}s.self.outposts=this.player(id).outposts.map(o=>({...o}));s.self.outpostStyles={...this.player(id).outpostStyles};return s;};
  root.CityClans=Object.freeze({restore,save,rank,outpostStyle});
 })(typeof window==='undefined'?globalThis:window);
