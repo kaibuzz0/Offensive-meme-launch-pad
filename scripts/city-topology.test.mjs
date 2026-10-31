@@ -9,7 +9,7 @@ test('world2 blueprint has centered fortress and distinct cardinal road axes',()
  const t=T.draft;assert.equal(t.enabled,false);assert.equal(t.world.center.x,t.world.width/2);assert.equal(t.world.center.y,t.world.height/2);
  assert.equal(t.areas.fortress.col,2);assert.equal(t.areas.fortress.row,2);
  assert.equal(Object.keys(t.areas).length,11);
- assert.deepEqual(t.roads.map(r=>r.id),['north','east','south','west']);
+ assert.equal(JSON.stringify(t.roads.map(r=>r.id)),JSON.stringify(['north','east','south','west']));
  for(const r of t.roads)assert.ok(r.from.x===t.world.center.x||r.from.y===t.world.center.y);
  assert.equal(t.plot.cols,C.PLOT.cols);assert.equal(t.plot.rows,C.PLOT.rows);assert.equal(t.plot.tile,C.PLOT.tile);
 });
