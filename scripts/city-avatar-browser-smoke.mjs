@@ -148,8 +148,17 @@ try{
  await evalPage("document.getElementById('offender-wallet-verify').click();true");
  await waitFor(()=>evalPage("document.querySelector('#offender-wallet-status')?.textContent.includes('Wallet permission cancelled')"),'wallet rejection shown inline');
  assert.equal(await evalPage("document.getElementById('offender-wallet-verify').disabled"),false,'retry works after a rejected wallet connection');
+ // Six skin cards are clickable inside the actual mobile Avatar UI.
+ assert.equal(await evalPage("document.querySelectorAll('.clan-skin-grid [data-skin]').length"),6,'six skins appear in the Avatar panel');
+ for(const id of ['redacted','congress','exit','you-missed','maduro','rug']){
+  await evalPage("document.querySelector('[data-skin="+id+"] button').click();true");
+  await waitFor(()=>evalPage("document.querySelector('[data-skin="+id+"] button')?.getAttribute('aria-pressed')==='true'"),'equipped '+id+' clan skin');
+  assert.equal(await evalPage("document.querySelector('.wardrobe-canvas')?.width"),480,'existing 360-degree rig is retained');
+ }
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Return to classic avatar')).click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('.clan-skin-tile button')).every(b=>b.getAttribute('aria-pressed')==='false')"),'classic outfit restored');
  assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
- console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map and functional inline wallet-button feedback in Chromium.');
+ console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six selectable clan skins and wallet-button feedback in Chromium.');
 }finally{
  try{ws?.close();}catch{}
  if(chrome){
