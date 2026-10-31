@@ -20,6 +20,7 @@
  for(let col=0;col<T.draft.plot.cols;col++)option($('plot-col'),String(col),String(col+1));
  for(let row=0;row<T.draft.plot.rows;row++)option($('plot-row'),String(row),String(row+1));
  for(const kit of C.BUILD_KIT)option($('plot-kind'),kit.id,kit.name+' / '+kit.cost+' credits');
+ for(const kind of C.CREW_TYPES)option($('defender-role'),kind.id,kind.name+' / '+kind.cost+' credits');
  $('plot-col').value='5';$('plot-row').value='3';$('plot-kind').value='wall';
  $('destination').value='door:shop';
  function authState(){
@@ -35,6 +36,13 @@
    ' · medkits '+(self.rising?.medkits||0)+' · faction '+(self.clan||'none')+' · courier '+(self.courier?.status||'idle')+' · pos '+Math.round(self.x)+','+Math.round(self.y);
   $('peer-summary').textContent='Other guests: '+s.players.filter(p=>p.id!==self.id).map(p=>p.name+' ('+Math.round(p.x)+','+Math.round(p.y)+')').join(' · ');
   $('plot-summary').textContent='Private fortress: '+(self.plot?.length||0)+' / '+(T.draft.plot.cols*T.draft.plot.rows)+' structures · play credits only';
+  const own=self.defense||{crew:[],raiders:[],raid:{status:'idle',remaining:0,cooldown:0,wave:0}};
+  $('raid-summary').textContent='Squad: '+own.crew.length+' / 4 · Raid: '+own.raid.status+
+    ' · wave '+own.raid.wave+' · enemies '+own.raid.remaining+' · cooldown '+Math.ceil(own.raid.cooldown)+'s';
+  const previous=$('defender-select').value;$('defender-select').textContent='';
+  for(const unit of own.crew)option($('defender-select'),unit.id,unit.id+' · '+unit.role+' · HP '+Math.ceil(unit.hp));
+  if(own.crew.some(u=>u.id===previous))$('defender-select').value=previous;
+  else $('defender-select').value=own.crew[0]?.id||'';
   const prev=$('owned').value;$('owned').textContent='';
   for(const i of self.inventory||[]){const item=C.ITEMS.find(x=>x.id===i.item);option($('owned'),i.uid,(item?.name||i.item)+' / '+i.uid);}
   if((self.inventory||[]).some(i=>i.uid===prev))$('owned').value=prev;
@@ -95,6 +103,9 @@
  });
  $('build-plot').addEventListener('click',()=>command('buildPlot',{...plotTile(),kind:$('plot-kind').value}));
  $('remove-plot').addEventListener('click',()=>command('removePlot',plotTile()));
+ $('hire-defender').addEventListener('click',()=>command('hireDefender',{role:$('defender-role').value}));
+ $('order-defender').addEventListener('click',()=>command('orderDefender',{id:$('defender-select').value,mode:$('defender-mode').value}));
+ $('start-raid').addEventListener('click',()=>command('startRaid'));
  $('route').addEventListener('click',()=>{marker=POI.resolve($('destination').value);tell(marker?'Target marked: '+marker.name+' (manual travel; server validates movement).':'Unknown target.');});
  $('clear-route').addEventListener('click',()=>{marker=null;tell('Target marker cleared.');});
  $('mark-zone').addEventListener('click',()=>{marker=ZONES.find(z=>z.id===$('zone').value)||null;tell(marker?'Control point marked: '+marker.name+'. Move near it before capturing.':'Unknown control point.');});
@@ -177,6 +188,14 @@
    if(z.progress>0){c.strokeStyle='#83e6f0';c.lineWidth=5;c.beginPath();c.arc(z.x,z.y,48,-Math.PI/2,-Math.PI/2+Math.min(8,z.progress)/8*Math.PI*2);c.stroke();}
   }
   if(marker){c.strokeStyle='#90eff5';c.lineWidth=4;c.beginPath();c.arc(marker.x,marker.y,29,0,Math.PI*2);c.stroke();}
+  for(const unit of self.defense?.crew||[]){if(unit.hp<=0||Math.hypot(unit.x-self.x,unit.y-self.y)>1050)continue;
+   actor(c,unit,'guard',unit.role+' · '+unit.mode,'#a8edbb',false);
+   c.fillStyle='#7adaab';c.fillRect(unit.x-22,unit.y+34,44*Math.max(0,unit.hp/unit.maxHp),4);
+  }
+  for(const enemy of self.defense?.raiders||[]){if(Math.hypot(enemy.x-self.x,enemy.y-self.y)>1050)continue;
+   actor(c,enemy,'gang','RAIDER','#ff947a',false);
+   c.fillStyle='#e66e6e';c.fillRect(enemy.x-22,enemy.y+34,44*Math.max(0,enemy.hp/enemy.maxHp),4);
+  }
   for(const guard of s.guards){if(!guard.alive||Math.hypot(guard.x-self.x,guard.y-self.y)>1050)continue;
    actor(c,guard,'gang',guard.clan+' guard','#f1959a',false);
    c.fillStyle='#80dca0';c.fillRect(guard.x-21,guard.y+35,42*Math.max(0,guard.hp/70),4);
