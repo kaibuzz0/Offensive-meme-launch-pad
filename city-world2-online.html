@@ -29,7 +29,7 @@ fieldset{border:1px solid #385b60;border-radius:8px;padding:8px;display:grid;gap
 <script src="city-world2-online-transport.js" defer></script><script src="city-world2-online.js" defer></script>
 </head><body>
 <header><div><div style="font-size:.7rem;letter-spacing:.14em;color:#a5e3ce">OFFENSIVE / QA ONLY / SERVER AUTHORITY</div><h1>MEME CITY v2 — Shared-room playtest</h1></div><a href="city-world2-preview.html">Offline v2 preview</a></header>
-<div class="alert"><b>Local development only.</b> Launch <code>npm run dev</code> (port 8787) and <code>npm run dev:world2</code> (loopback port 8788) on the same computer. Every action and balance is checked by the QA server. Guest progress disappears on server restart. No wallet, token payments, account storage, or production world1 saves are used. This is not an online public deployment.</div>
+<div class="alert"><b>Local development only.</b> Start the local static and world2 QA servers. Ordinary guest progress disappears on restart. Optional server-side character recovery requires an explicitly configured local QA save directory and a private recovery key; never share your key. No wallet, token payments, production accounts or world1 saves are used. Not a public deployment.</div>
 <div class="layout"><section>
 <canvas id="game" tabindex="0" aria-label="Shared Meme City v2 map. Move with WASD or touch buttons. Aim with mouse or by touching the game canvas. Hold F, space or Fire to shoot.">Canvas required.</canvas>
 <div class="touches" aria-label="Touch movement">
@@ -45,7 +45,14 @@ fieldset{border:1px solid #385b60;border-radius:8px;padding:8px;display:grid;gap
 <label for="avatar">Avatar</label><select id="avatar"><option value="offensive">OFFENDED</option></select>
 <label for="room-code">Private room code (optional)</label><input id="room-code" maxlength="18" autocomplete="off" placeholder="Leave blank for public room">
 <div class="actions"><button id="join">Join public / code</button><button id="create-private">Create private</button><button id="leave" disabled>Leave</button></div>
+<label for="recovery-key">Existing private QA recovery key (optional, not saved in browser)</label>
+<input id="recovery-key" type="password" maxlength="43" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste to restore a saved character">
 <div id="server-state">Disconnected</div><div id="room-info">Room: —</div>
+<div class="actions"><button id="create-profile">Create saved QA character</button><button id="save-profile">Save progress now</button></div>
+<label for="issued-key">New recovery key — copy immediately, it cannot be reissued</label>
+<input id="issued-key" type="text" readonly autocomplete="off" spellcheck="false" placeholder="Only shown when creating a new QA profile">
+<button id="copy-key">Copy recovery key</button>
+<small>Saving is disabled unless the local QA server starts with WORLD2_QA_SAVE_DIR. Keys stay in memory until you leave; no account registration or production identity exists.</small>
 </fieldset>
 <div id="status" role="status" aria-live="polite">Start both QA servers, then join.</div>
 <div id="hud">No server snapshot</div><div id="peer-summary" aria-label="Other connected players">Peers: —</div>
