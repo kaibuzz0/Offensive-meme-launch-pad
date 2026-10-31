@@ -7,6 +7,7 @@
   if(!C?.BUILD_KIT||!W?.blocked||!registry?.resolve||!Nav?.createRouter)throw Error('World2 simulation dependencies missing');
   const nav=Nav.createRouter({WORLD:W.world,blocked:W.blocked},{cell:80,budget:11000});
   const territory=root.CityWorld2Territory?.create(C,W,registry)||null;
+  const services=root.CityWorld2Services?.create(C,root.CityInteriors)||null;
   const courier=root.CityWorld2Contracts?.create(registry)||null;
   const plot=W.fortress,player={id:'preview-player',x:W.spawn.x,y:W.spawn.y,aim:{x:0,y:-1},
    hp:100,maxHp:100,heat:0,xp:0,credits:180,route:0,completed:false,kills:0,jobs:0,
@@ -218,7 +219,7 @@
    return courier.start(player);
   }
   function deliverCourier(){return courier?courier.deliver(player):{status:'disabled',message:'Courier module not loaded.'};}
-  return Object.freeze({player,agents,mission,events,territory,courier,joinFaction,captureControl,startCourier,deliverCourier,
+  return Object.freeze({player,agents,mission,events,territory,courier,services,joinFaction,captureControl,startCourier,deliverCourier,
    setInput,tick,fire,reload,startDefense,checkpoint,loadStage,build,demolish,reset});
  }
  root.CityWorld2Simulation=Object.freeze({create});
