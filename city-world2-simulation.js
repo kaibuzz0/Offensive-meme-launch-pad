@@ -28,7 +28,7 @@
     raid:!!options.raid,alive:true};
    agents.push(bot);return bot;
   }
-  const defender=add('defender',{x:W.spawn.x-110,y:W.spawn.y+100});
+  let defender=add('defender',{x:W.spawn.x-110,y:W.spawn.y+100});
   const gangs=positions.map((p,i)=>add(i===1?'police':'gang',p,{clan:p.clan}));
   function move(unit,toward,speed,dt){
    const d=dist(unit,toward);if(d<4)return;
@@ -56,7 +56,6 @@
    return true;
   }
   function attack(attacker,target,range,damage,dt){
-   attacker.cooldown=Math.max(0,attacker.cooldown-dt);
    if(attacker.cooldown>0||dist(attacker,target)>range||!nav.clear(attacker,target,player))return false;
    attacker.cooldown=attacker.kind==='defender'?1.2:1.45;
    if(target===player){player.hp=Math.max(0,player.hp-damage);player.heat=clamp(player.heat+2,0,100);}
@@ -172,9 +171,9 @@
    player.plot.splice(i,1);return {status:'removed'};
   }
   function reset(){player.x=W.spawn.x;player.y=W.spawn.y;player.hp=100;player.heat=0;player.xp=0;player.credits=180;player.route=0;
-   player.completed=false;player.kills=0;player.ammo=24;player.plot=[];player.outposts=[];player.crew=[];
+   player.completed=false;player.kills=0;player.ammo=24;player.fireCooldown=0;player.plot=[];player.outposts=[];player.crew=[];
    player.inventory=[];player.equipped={};mission.status='idle';mission.remaining=0;mission.wave=0;mission.earned=0;input={x:0,y:0};
-   for(const a of agents)a.alive=false;agents.length=0;add('defender',{x:W.spawn.x-110,y:W.spawn.y+100});
+   for(const a of agents)a.alive=false;agents.length=0;defender=add('defender',{x:W.spawn.x-110,y:W.spawn.y+100});
    for(let i=0;i<positions.length;i++)add(i===1?'police':'gang',positions[i],{clan:positions[i].clan});
    emit('Preview simulation reset. No production saves were written.');
   }

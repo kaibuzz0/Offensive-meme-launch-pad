@@ -17,7 +17,7 @@ test('real world2 prototype simulation spawns collision-safe defender, gangs and
 test('movement uses projected world2 physics and never walks through fortress walls',()=>{
  const s=sim(),first=s.player.y;s.setInput(0,-1);for(let i=0;i<10;i++)s.tick(.05);
  assert.ok(s.player.y<first,'northward walking');
- s.player.x=W.fortress.x+60;s.player.y=W.world.center.y;s.setInput(-1,0);
+ s.player.x=W.fortress.x+60;s.player.y=W.fortress.y+180;s.setInput(-1,0);
  for(let i=0;i<80;i++)s.tick(.05);
  assert.ok(s.player.x>W.fortress.x+25,'west wall blocks crossing outside gate');
 });
@@ -28,7 +28,7 @@ test('combat is directional, cooldown-limited and does not shoot allied defender
  assert.equal(s.fire({x:0,y:-1}).status,'hit');assert.equal(enemy.hp,25);assert.equal(s.player.ammo,23);
  assert.equal(s.fire({x:0,y:-1}).status,'cooldown');
  assert.equal(defender.hp,allyHp);
- s.tick(.3);assert.equal(s.fire({x:0,y:-1}).status,'hit');assert.equal(enemy.alive,false);
+ for(let i=0;i<3;i++)s.tick(.1);assert.equal(s.fire({x:0,y:-1}).status,'hit');assert.equal(enemy.alive,false);
 });
 test('insider police only pursue after player heat escalates, and mission awards preview credits only',()=>{
  const s=sim(),cop=s.agents.find(a=>a.kind==='police');
