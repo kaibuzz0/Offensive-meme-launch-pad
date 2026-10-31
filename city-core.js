@@ -93,7 +93,9 @@
  // single strip of shops in the central public commons.
  const businessAreas={launch:'hub',arcade:'hub',club:'social',
   shop:'arena',market:'creator',garage:'social'};
- for(const b of WORLD.buildings){const at=origin(businessAreas[b.id]);b.x+=at.x;b.y+=at.y;}
+ for(const b of WORLD.buildings){const at=origin(businessAreas[b.id]);b.x+=at.x;b.y+=at.y;
+  if(b.id==='club'){b.x=at.x+1020;b.y=at.y+690;}
+ }
  for(const p of WORLD.stations){
   const at=origin(businessAreas[p.id]);p.x+=at.x;p.y+=at.y;
  }
