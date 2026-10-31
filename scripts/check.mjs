@@ -78,7 +78,7 @@ for(const file of ['city-world2-online.js','city-world2-online-transport.js'])
  new vm.Script(read(file),{filename:file});
 const online=read('city-world2-online.html');
 for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js',
- 'city-world2-registry.js','city-visuals.js','city-world2-online-transport.js','city-world2-online.js'])
+ 'city-world2-registry.js','city-world2-territory.js','city-visuals.js','city-world2-online-transport.js','city-world2-online.js'])
  assert.ok(online.includes('src="'+file+'"'),'Local-only world2 online client must load '+file);
 assert.ok(online.includes('Local development only.'),'Local world2 QA must disclose its release boundary');
 const serverFiles=read('server/city-server.mjs');
