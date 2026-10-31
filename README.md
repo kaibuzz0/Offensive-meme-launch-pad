@@ -1,3 +1,15 @@
+## Public release: Living Blocks + world-v2 sandbox (October 31, 2026)
+
+**Current release scope:** the live `city.html` continues to use world1, preserving the existing 47 buildings, solo save and temporary online room model. World1 receives improvements to collision-aware navigation, NPC weapon rigs, faction behavior, interiors, map touch targets and safe save backups. The separate `city-world2-preview.html` is an explicitly experimental, browser-accessible demonstration of the central fortress, four cardinal roads, collision geometry, navigation, prototype NPC fights, Insider-police pursuit, defense waves and in-memory construction. **It is not the new production game engine, has no persistent world2 ownership/rewards, and never grants token rewards.**
+
+- [Play the existing Meme City](city.html)
+- [Try the experimental central fortress preview](city-world2-preview.html)
+- [Read current development limitations and handoff](NEXT_AI_HANDOFF.md)
+
+Browser/Android acceptance and full live multiplayer world2 authority remain outstanding. Optional swap presets always require wallet review and approval; no mint, burn or purchase occurs automatically.
+
+---
+
 ## Living Blocks / Alpha 12
 
 The city keeps its square 6,720 × 6,720 footprint and 47 public interiors. This update adds faction-aware targeting, two resident patrol members for each of the four non-police/non-Rug clans, and private 3 × 3 outposts in every token neighborhood. Residents wear their faction's meme. Each district has colored curb markings, crosswalks and a clan plaza mural. Ambient NPCs beyond 1,300 units of every outdoor player skip navigation/combat; nearby crews remain active while spectators watch. There are 44 ambient NPCs and a 64-NPC total mission admission cap.
