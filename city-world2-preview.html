@@ -23,7 +23,7 @@ small{color:#9baeb4;line-height:1.45}#journal{font-size:.8rem;color:#a7e6ce}#nav
 <script src="city-rise.js" defer></script><script src="city-interiors.js" defer></script>
 <script src="city-topology.js" defer></script><script src="city-nav.js" defer></script>
 <script src="city-world2.js" defer></script><script src="city-world2-registry.js" defer></script>
-<script src="city-migration.js" defer></script><script src="city-world2-territory.js" defer></script><script src="city-world2-contracts.js" defer></script><script src="city-world2-simulation.js" defer></script><script src="city-visuals.js" defer></script>
+<script src="city-migration.js" defer></script><script src="city-world2-territory.js" defer></script><script src="city-world2-contracts.js" defer></script><script src="city-world2-simulation.js" defer></script><script src="city-world2-session.js" defer></script><script src="city-visuals.js" defer></script>
 <script src="city-world2-preview.js" defer></script></head>
 <body><header><div><div class="tag">OFFENSIVE / DEVELOPMENT ONLY</div><h1>Meme City — Center-Out World v2</h1></div><a href="city.html">Return to existing game</a></header>
 <div class="warning"><b>Isolated geometry playtest with local combat — not the full game.</b> Walk, test gates, navigate 47 entrances, inspect rooms and place temporary fortress walls. Local-only combat, autonomous gang AI, Insider-police pursuit, defender combat, clan territory captures, defense waves and checkpoint rewards are experimental. Online authority, real markets and permanent v2 saving remain disabled. The existing game and its save stay untouched.</div>
@@ -46,6 +46,8 @@ small{color:#9baeb4;line-height:1.45}#journal{font-size:.8rem;color:#a7e6ce}#nav
 <div class="actions"><button id="route-control">Route to control</button><button id="capture-control">Capture point</button></div>
 <small>Hold a control point for eight seconds while alive. Rival gang units contest captures, and leaving or being injured resets progress. Only local preview rewards are awarded; public services remain protected.</small>
 <div class="actions"><button id="load-preview">Read staged solo save</button><button id="reset">Reset preview</button></div>
+<div class="actions"><button id="save-world2">Save world2 sandbox</button><button id="load-world2">Load world2 sandbox</button></div>
+<small>World2 sandbox data is separate from your original world1 character and saved only when explicitly requested. Saves store earned preview XP, construction, inventory, faction and completed territory claims; unfinished raids/couriers do not resume. A newer browser tab revision blocks stale overwrites.</small>
 <div id="journal" role="status">No preview objectives completed.</div>
 <small>Only the isolated preview writes world2 staging and recovery keys when “Read staged solo save” is pressed. No real wallet, purchases, production XP or deployed game state are changed. Combat and rewards are in-memory only.</small>
 </aside></main></body></html>

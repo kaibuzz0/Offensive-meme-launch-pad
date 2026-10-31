@@ -7,6 +7,7 @@
  const V=window.CityVisuals,$=id=>document.getElementById(id),canvas=$('world'),ctx=canvas.getContext('2d'),mini=$('overview'),mc=mini.getContext('2d');
  if(!ctx||!mc){$('status').textContent='This browser needs 2D Canvas.';return;}
  const simulation=window.CityWorld2Simulation.create(C,W,pois,window.CityNav),player=simulation.player;
+ const sandbox=window.CityWorld2Session.create(localStorage,'offensive-meme-city-world2-preview-v1',simulation);
  let room=null,travel=null,waypoint=null,last=performance.now(),zoom=.8,seen=new Set(),lastSimEvent='',message='Walk through the fortress gates in four directions. This is a nonpersistent preview.';
  const held=new Set(),image=new Image();image.src='assets/coins/offensive.webp';
  const touchButtons=[...document.querySelectorAll('[data-key]')];
@@ -35,6 +36,17 @@
  $('capture-control').addEventListener('click',captureControl);
  function reset(){simulation.reset();room=null;seen=new Set();waypoint=travel=null;say('Reset in-memory preview. Your real save and protected backup remain unchanged.');}
   $('reset').addEventListener('click',reset);
+ $('save-world2').addEventListener('click',()=>{
+  const r=sandbox.save();
+  say(r.status==='saved'?'World2 sandbox saved locally (revision '+r.revision+'). Your world1 save is unchanged.':r.reason||r.status);
+ });
+ $('load-world2').addEventListener('click',()=>{
+  const r=sandbox.load();
+  if(r.status==='loaded'){room=null;travel=waypoint=null;
+   if(player.clan)$('faction-select').value=player.clan;
+   say('Loaded world2 sandbox, construction and captured territory from private preview storage.'+(r.relocated?' Spawn was relocated safely.':''));}
+  else say(r.reason||r.status==='empty'?'No world2 sandbox has been saved yet.':r.status);
+ });
  const backupKey='offensive-meme-city-v1-world2-recovery',stageKey='offensive-meme-city-v1-world2-staged';
  $('load-preview').addEventListener('click',()=>{
   const keys={active:'offensive-meme-city-v1',backup:backupKey,preview:stageKey};

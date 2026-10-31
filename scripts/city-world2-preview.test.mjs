@@ -17,7 +17,7 @@ function load(){
  }
  context.document={getElementById:element,querySelectorAll(){return ['up','down','left','right'].map(k=>Object.assign(element('key-'+k),{dataset:{key:k}}));},createElement:()=>({}),addEventListener(){}};
  context.localStorage={getItem:()=>null,setItem(){throw Error('Unexpected write to live storage');}};
- for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-migration.js','city-world2-territory.js','city-world2-contracts.js','city-world2-simulation.js'])
+ for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js','city-world2-registry.js','city-migration.js','city-world2-territory.js','city-world2-contracts.js','city-world2-simulation.js','city-world2-session.js'])
   vm.runInNewContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),context,{filename:file});
  context.CityVisuals={person(){}};
  vm.runInNewContext(fs.readFileSync(new URL('../city-world2-preview.js',import.meta.url),'utf8'),context,{filename:'city-world2-preview.js'});
@@ -75,4 +75,14 @@ test('courier UI is wired to preview simulation and refuses remote starts',()=>{
  element('deliver-courier').onclick();assert.match(element('status').textContent,/No active courier/);
  assert.doesNotThrow(()=>frames[0](1050));
  assert.match(element('combat-hud').textContent,/Courier idle/);
+});
+
+test('world2 sandbox save buttons refuse unexpected writes to original world1 storage',()=>{
+ const {element}=load();
+ assert.equal(typeof element('save-world2').onclick,'function');
+ assert.equal(typeof element('load-world2').onclick,'function');
+ element('save-world2').onclick();
+ assert.match(element('status').textContent,/Sandbox storage/);
+ element('load-world2').onclick();
+ assert.match(element('status').textContent,/No world2 sandbox/);
 });
