@@ -73,3 +73,17 @@ assert.ok(fs.existsSync(path.join(root,'server/city-world2-local.mjs')),'World2 
 assert.ok(!read('server/city-server.mjs').includes('city-world2-prototype.mjs'),'Unreviewed world2 activation in production server');
 new vm.Script(read('city-world2-authority.js'));
 console.log('PASS: World2 authority and local QA remain isolated from production.');
+
+for(const file of ['city-world2-online.js','city-world2-online-transport.js'])
+ new vm.Script(read(file),{filename:file});
+const online=read('city-world2-online.html');
+for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-topology.js','city-nav.js','city-world2.js',
+ 'city-world2-registry.js','city-visuals.js','city-world2-online-transport.js','city-world2-online.js'])
+ assert.ok(online.includes('src="'+file+'"'),'Local-only world2 online client must load '+file);
+assert.ok(online.includes('Local development only.'),'Local world2 QA must disclose its release boundary');
+const serverFiles=read('server/city-server.mjs');
+for(const file of ['city-world2-online.html','city-world2-online.js','city-world2-online-transport.js'])
+ assert.ok(serverFiles.includes("'"+file+"'"),'Development server must serve '+file);
+assert.ok(!read('.github/workflows/pages.yml').includes('city-world2-online.js'),
+ 'Loopback-only QA browser client must not be deployed into production Pages assets');
+console.log('PASS: local-only world2 authenticated QA client assets and production isolation.');
