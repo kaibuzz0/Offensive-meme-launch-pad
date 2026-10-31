@@ -6,7 +6,7 @@
  function plan(C,T,original){
   if(!isObject(original)||!Number.isInteger(original.version)||original.version<1||original.version>5||
      (original.worldVersion!==undefined&&original.worldVersion!==1)||
-     (original.version===5&&original.saveVersion!==5))return {status:'invalid',reason:'Unsupported saved world or schema version.'};
+     (original.version===5&&(original.saveVersion!==5||original.worldVersion!==1)))return {status:'invalid',reason:'Unsupported saved world or schema version.'};
   // The current browser never persists these session-scoped activities. Do not invent
   // location/timer transforms for a future save that contains them.
   if(original.contract||original.blockJob||original.defense||original.room||original.rising?.arena)
@@ -79,5 +79,21 @@
    return {status:'staged',notices:planned.notices,previewKey:preview};
   }catch{return {status:'blocked',reason:'Could not safely write backup/preview. The original was not modified.'};}
  }
- root.CityMigration=Object.freeze({TARGET_WORLD,TARGET_SAVE,plan,stage});
+ function inspectStage(storage,keys){
+  const {active,backup,preview}=keys||{};
+  if(![active,backup,preview].every(k=>typeof k==='string'&&k))return {status:'invalid'};
+  let source,recovery,staged;
+  try{source=storage.getItem(active);recovery=storage.getItem(backup);staged=storage.getItem(preview);}
+  catch{return {status:'blocked',reason:'Storage cannot be inspected.'};}
+  if(!staged)return {status:'missing',reason:'No staged preview exists.'};
+  let parsed;try{parsed=JSON.parse(staged);}catch{return {status:'invalid',reason:'Staged data is malformed.'};}
+  if(!isObject(parsed)||parsed.kind!=='world2-preview-only'||!isObject(parsed.save)||
+     parsed.save.worldVersion!==TARGET_WORLD||parsed.save.saveVersion!==TARGET_SAVE||
+     parsed.save.version!==TARGET_SAVE||typeof parsed.sourceRaw!=='string')
+   return {status:'invalid',reason:'Staged schema is untrusted or incompatible.'};
+  if(source!==parsed.sourceRaw||recovery!==parsed.sourceRaw)
+   return {status:'conflict',reason:'The active save or recovery copy changed since staging. Do not activate.'};
+  return {status:'ready-for-review',save:parsed.save,notices:parsed.notices||[]};
+ }
+ root.CityMigration=Object.freeze({TARGET_WORLD,TARGET_SAVE,plan,stage,inspectStage});
 })(typeof window==='undefined'?globalThis:window);

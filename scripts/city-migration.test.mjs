@@ -56,6 +56,7 @@ test('active unknown session states and future saves fail closed',()=>{
   const r=M.plan(C,T,{...base(),...extra});assert.equal(r.status,'blocked');
  }
  assert.equal(M.plan(C,T,{...base(),worldVersion:2}).status,'invalid');
+ assert.equal(M.plan(C,T,{...base(),worldVersion:undefined}).status,'invalid');
  assert.equal(M.plan(C,T,{...base(),version:7}).status,'invalid');
 });
 test('world2 staging leaves active raw save untouched and retains exact rollback source',()=>{
@@ -74,4 +75,15 @@ test('changed save revision, bad storage and existing backup cannot be silently 
  const racing=store({solo:raw}),oldRead=racing.getItem.bind(racing);let reads=0;
  racing.getItem=k=>{if(k===keys.active&&++reads===2)racing.data.set(keys.active,other);return oldRead(k);};
  assert.equal(M.stage(racing,keys,C,T).status,'conflict');assert.equal(racing.getItem(keys.preview),null);
+});
+
+test('staged preview can only be considered when original and recovery match exactly',()=>{
+ const raw=JSON.stringify(base()),s=store({solo:raw});
+ assert.equal(M.inspectStage(s,keys).status,'missing');
+ assert.equal(M.stage(s,keys,C,T).status,'staged');
+ const inspected=M.inspectStage(s,keys);assert.equal(inspected.status,'ready-for-review');assert.equal(inspected.save.worldVersion,2);
+ s.setItem(keys.active,JSON.stringify({...base(),credits:12345}));
+ assert.equal(M.inspectStage(s,keys).status,'conflict');
+ s.setItem(keys.active,raw);s.setItem(keys.preview,'{no');
+ assert.equal(M.inspectStage(s,keys).status,'invalid');
 });
