@@ -242,4 +242,3 @@ The previous PR #1 is now merged into deployed `main` (`08e6d169`); **new work h
 - Verified browser+mobile loop across four gates, six capture points, 47 interior entrances, courier, fire while moving, equipment and two-tab save conflict.
 - Full integration of the world2 simulation with core and Render online room authority. Territory and contract progression currently exist only in an isolated browser prototype and are not safe as real server-validated rewards.
 - Production-grade clan raid factions and private fortress persistence with staging/rollback and cross-device identity; actual interior medicine/trading/arcade; world2 automatic save migration and server parity. No real-world token/fee integrations in this PR.
-
