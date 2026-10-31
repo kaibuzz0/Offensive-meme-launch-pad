@@ -3,7 +3,7 @@
 (function(root){
  const TARGET_WORLD=2,TARGET_SAVE=6;
  const isObject=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
- function plan(C,T,original){
+ function plan(C,T,original,registry=null){
   if(!isObject(original)||!Number.isInteger(original.version)||original.version<1||original.version>5||
      (original.worldVersion!==undefined&&original.worldVersion!==1)||
      (original.version===5&&(original.saveVersion!==5||original.worldVersion!==1)))return {status:'invalid',reason:'Unsupported saved world or schema version.'};
@@ -45,7 +45,8 @@
   // carry old-world coordinates into the new map. Bad points remain explicitly marked.
   for(const key of ['waypoint','checkpoint','respawn']){
    if(original[key]==null)continue;
-   const migrated=convert(original[key]);
+   const resolved=registry?.migrationTarget(original[key]);
+   const migrated=resolved?{x:resolved.x,y:resolved.y,area:resolved.area||original[key].area||'hub'}:convert(original[key]);
    if(!migrated){copy[key]=null;notices.push('Unmapped '+key+' was cleared; a safe public spawn remains available.');}
    else copy[key]={...copy[key],x:migrated.x,y:migrated.y,area:migrated.area};
   }
@@ -53,11 +54,11 @@
   // Their real anchors are defined by T.draft.plot and T.outpost(), respectively.
   copy.version=TARGET_SAVE;copy.saveVersion=TARGET_SAVE;copy.worldVersion=TARGET_WORLD;
   const route=Number.isInteger(original.route)&&original.route>=0&&original.route<C.WORLD.route.length?
-   convert(C.WORLD.route[original.route]):null;
+   (registry?.resolve('checkpoint:'+original.route)||convert(C.WORLD.route[original.route])):null;
   return {status:'preview',save:copy,notices,routeTarget:route,crewPosts,
     anchor:{plot:{...T.draft.plot},outposts:C.NEIGHBORHOODS.map(n=>({id:n.id,...T.outpost(C,n.id)}))}};
  }
- function stage(storage,keys,C,T){
+ function stage(storage,keys,C,T,registry=null){
   const {active,backup,preview}=keys||{};
   if(![active,backup,preview].every(k=>typeof k==='string'&&k.length>0)||new Set([active,backup,preview]).size!==3)
    return {status:'invalid',reason:'Distinct save, backup and preview keys required.'};
@@ -66,7 +67,7 @@
   catch{return {status:'blocked',reason:'Cannot read local storage.'};}
   if(raw===null)return {status:'invalid',reason:'No original save exists to migrate.'};
   let save;try{save=JSON.parse(raw);}catch{return {status:'invalid',reason:'Original save JSON is malformed.'};}
-  const planned=plan(C,T,save);
+  const planned=plan(C,T,save,registry);
   if(planned.status!=='preview')return planned;
   if(existing!==null&&existing!==raw)return {status:'conflict',reason:'The protected world-v2 backup belongs to a different save revision.'};
   const staged=JSON.stringify({kind:'world2-preview-only',sourceRaw:raw,save:planned.save,notices:planned.notices});
