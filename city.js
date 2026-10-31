@@ -3,6 +3,7 @@
  const C=window.MemeCityCore,{WORLD,ITEMS,HUB}=C,V=window.CityVisuals,D=window.CityDistricts,R=window.CityRising,RV=window.CityRisingVisuals,I=window.CityInteriors,IV=window.CityRoomVisuals;
  const tokens=[window.LAUNCHPAD_CONFIG.platformToken,...window.MEME_TOKENS.filter(t=>t.mint)];
  const catalog=new Map(tokens.map(t=>[t.id,t]));
+ const M=window.CityMap,mapPoints=M.catalog(C,I,R);
  const art=new Map(tokens.map(t=>{const img=new Image();img.src=t.art;return[t.id,img];}));
  const $=s=>document.querySelector(s),canvas=$('#city-canvas');let ctx=canvas.getContext('2d');
  $('.alpha-tag').textContent=`${C.RELEASE.name} / ${C.RELEASE.version}`;
@@ -215,7 +216,7 @@
    }
   }
   if(type==='map'){
-   content.append(node('p','','One connected map. Roads cross the district boundaries. The white dot is you; blue dots are your hired defenders. Choose a destination for walking directions.'));
+   content.append(node('p','','One connected map. White is you; blue is your defenders. Tap an entrance or location marker, or use the accessible destination buttons. The current waypoint points toward a location; obstacle-aware routing is still under development.'));
    const map=node('canvas','large-map');map.width=840;map.height=840;map.setAttribute('aria-label','Square Meme City map with six clan neighborhoods, four original districts and your position');const g=map.getContext('2d'),sx=840/WORLD.width,sy=840/WORLD.height;g.fillStyle='#243e40';g.fillRect(0,0,840,840);
    for(const d of [...C.DISTRICTS,...C.NEIGHBORHOODS,{id:'hub',name:'Founder Square',ox:HUB.x,oy:0,color:'#e0dfca'}]){g.fillStyle=d.color+'22';g.fillRect(d.ox*sx,d.oy*sy,2240*sx,1660*sy);g.strokeStyle=d.color+'55';g.strokeRect(d.ox*sx,d.oy*sy,2240*sx,1660*sy);g.fillStyle=d.color;g.font='600 12px Arial';g.textAlign='center';g.fillText(d.name,(d.ox+1120)*sx,(d.oy+220)*sy);}
    g.strokeStyle='#b8c6b65c';g.lineWidth=8;for(const yy of [870,2530,4190,5850]){g.beginPath();g.moveTo(0,yy*sy);g.lineTo(840,yy*sy);g.stroke();}for(const xx of [1120,3360,5600]){g.beginPath();g.moveTo(xx*sx,0);g.lineTo(xx*sx,840);g.stroke();}
@@ -225,7 +226,17 @@
    content.append(node('p','beta-note','Legend: white = you · cyan + = medic · gold square = shop / market · orange ring = conflict · mint diamond = landmark. Online menus do not pause the city.'));
    for(const b of I.BUILDINGS.filter(b=>['supplies','shop','market'].includes(b.activity))){const d=I.door(b);g.fillStyle=b.activity==='supplies'?'#79e3d0':'#ffd187';g.fillText(b.activity==='supplies'?'+':'■',d.x*sx,d.y*sy);}
    if(state.conflict){g.strokeStyle='#ffbd69';g.beginPath();g.arc(state.conflict.x*sx,state.conflict.y*sy,7,0,7);g.stroke();}
-   const links=node('div','map-destinations');if(state.conflict)links.append(button('Founders Crossing conflict →',()=>track(state.conflict)));for(const b of I.BUILDINGS.filter(b=>b.activity==='supplies'))links.append(button(b.name+' →',()=>track(I.door(b))));for(const d of [{...WORLD.spawn,name:'Founder Square'},...C.DISTRICTS,...C.NEIGHBORHOODS])links.append(button(d.name+' →',()=>track(d)));links.append(button('Next journey objective →',()=>{const o=R.objective(me);if(o?.target)track(o.target);else panel('journey');}));content.append(links);
+   // All tappable markers come from stable IDs for actual doors, stations, landmarks and districts.
+   for(const place of mapPoints)if(place.kind==='door'){g.fillStyle=['shop','market','supplies'].includes(place.activity)?'#fbd083':'#b7c8d2';g.beginPath();g.arc(place.x*sx,place.y*sy,place.activity==='supplies'?3.8:2.2,0,Math.PI*2);g.fill();}
+   if(tracked){g.strokeStyle='#6ee5f3';g.lineWidth=3;g.beginPath();g.arc(tracked.x*sx,tracked.y*sy,7,0,Math.PI*2);g.stroke();}
+   const note=node('p','beta-note',tracked?'Current waypoint: '+tracked.name+' · tap another marker to change it.':'Tap a location marker to set your waypoint.');content.append(note);
+   map.addEventListener('click',event=>{const point=M.fromCanvas(event.clientX,event.clientY,map.getBoundingClientRect(),WORLD),place=M.closest(mapPoints,point,190);if(place)track(place);else note.textContent='No nearby destination marker. Tap a marked location or use the buttons below.';});
+   const links=node('div','map-destinations');if(state.conflict)links.append(button('Founders Crossing conflict →',()=>track(state.conflict)));
+   for(const place of mapPoints.filter(p=>p.kind==='door'&&['supplies','shop','market'].includes(p.activity)))links.append(button(place.name+' →',()=>track(place)));
+   for(const place of mapPoints.filter(p=>p.kind==='district'))links.append(button(place.name+' →',()=>track(place)));
+   links.append(button('Next journey objective →',()=>{const o=R.objective(me);if(o?.target)track(o.target);else panel('journey');}));
+   if(tracked)links.append(button('Clear waypoint ×',()=>{tracked=null;panel('map');toast('Waypoint cleared.');}));
+   content.append(links);
   }
   if(type==='missions'&&!['hub','arena'].includes(me.area)){content.append(node('p','','Walk to Founder Square or Arena District to start a challenge. Mark a walking route on the map.'),button('Open challenge terminal →',()=>panel('arena')));}
   if(type==='missions'&&['hub','arena'].includes(me.area)){
