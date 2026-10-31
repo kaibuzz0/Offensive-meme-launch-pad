@@ -100,7 +100,16 @@ try{
  console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, 360 yaw and mobile solo gameplay screenshot.');
 }finally{
  try{ws?.close();}catch{}
- try{chrome?.kill('SIGTERM');}catch{}
+ if(chrome){
+  try{chrome.kill('SIGTERM');}catch{}
+  if(chrome.exitCode===null&&chrome.signalCode===null){
+   await Promise.race([new Promise(resolve=>chrome.once('exit',resolve)),delay(3000)]);
+  }
+  if(chrome.exitCode===null&&chrome.signalCode===null){
+   try{chrome.kill('SIGKILL');}catch{}
+   await Promise.race([new Promise(resolve=>chrome.once('exit',resolve)),delay(1500)]);
+  }
+ }
  try{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}catch{}
- await rm(profile,{recursive:true,force:true});
+ await rm(profile,{recursive:true,force:true,maxRetries:8,retryDelay:150});
 }
