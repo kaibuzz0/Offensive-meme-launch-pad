@@ -10,12 +10,13 @@ import {createLocalWorld2Server} from './city-world2-local.mjs';
 export async function createWorld2PublicServer({saveDir=process.env.WORLD2_PROD_SAVE_DIR,
  allowedOrigin=process.env.WORLD2_PROD_ORIGIN,
  durableConfirmed=process.env.WORLD2_DURABLE_VOLUME_CONFIRMED,
- bindHost='0.0.0.0'}={}){
+ bindHost='0.0.0.0',testOnlyAllowEphemeralSaveDir=false}={}){
  if(durableConfirmed!=='yes')throw Error('Production v2 disabled: durable volume approval required.');
  if(allowedOrigin!=='https://kaibuzz0.github.io')
   throw Error('Production v2 disabled: official HTTPS frontend origin required.');
- if(typeof saveDir!=='string'||!path.isAbsolute(saveDir)||saveDir==='/'||saveDir.startsWith('/tmp/')||
-  saveDir==='/tmp'||saveDir.startsWith('/mnt/data/')||saveDir.startsWith('/home/runner/'))
+ if(typeof saveDir!=='string'||!path.isAbsolute(saveDir)||saveDir==='/'||
+  (!testOnlyAllowEphemeralSaveDir&&(saveDir.startsWith('/tmp/')||saveDir==='/tmp'||
+  saveDir.startsWith('/mnt/data/')||saveDir.startsWith('/home/runner/'))))
   throw Error('Production v2 disabled: explicit durable absolute save directory required.');
  const resolved=path.resolve(saveDir),stat=await fs.stat(resolved).catch(()=>null);
  if(!stat?.isDirectory())throw Error('Production v2 disabled: provision durable save directory first.');
