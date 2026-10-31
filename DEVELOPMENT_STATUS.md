@@ -35,3 +35,41 @@ Not yet verified: full eight-direction gameplay appearance, fresh-player 15–20
 5. Profile mobile rendering and simulation on documented hardware, test portrait/landscape and pointer cancellation, then optimize measured hot spots. Add durable accounts/shared ownership only with database migrations, atomic operations, permissions and recovery tests.
 
 The new purchase presets and wallet changes are review-only here: the supplied handoff explicitly excludes deploying financial changes as development testing. Keep the existing public release until review and the remaining acceptance checks are complete.
+
+## Follow-up round — October 31, 2026
+
+Continued on `codex/living-blocks-handoff`, PR #1. Completed batches were pushed as `d98104d` (combat/preview) and `7be50e5` (conflict/UI), followed by the final access/report batch. Main and production were not changed.
+
+### Implemented this round
+
+- Shared weapon dimensions/anchor explicitly separate ground-plane projectile collision from 58-unit visual height. The first projectile step sweeps the barrel, covering close targets and intervening cover. Remote recoil uses the same 120 ms decay window. Existing arm-length and all-angle geometry checks remain.
+- Friendly fire is disabled: player and companion projectile collision uses the same hostility predicate as targeting. Other guests' owner-scoped enemies are protected. Mission enemies remain hostile to their owner regardless of clan. Ambient kills cannot advance bounty objectives. NPC windups recheck allegiance; dormant NPCs clear attack targets and keep a wake-up cooldown. Aim assistance retains its target within a 75-unit distance preference to reduce switching.
+- Preview hosts use the local room service, avoiding accidental tests against the older production build.
+- Fixed a browser-observed bug where solo-only online panels returned before opening their explanation dialog. Fixed per-mode feedback counters so a solo result ID cannot suppress the first online contract result with the same ID. The latter fix still needs its full transition replay.
+- Founders Crossing: 90-second initial wait, 15-second announcement, 10-second preparation, up to 75 seconds of combat, 12-second resolution/reaction, then 180-second cooldown. Two Insider and two Rug troops start; one reinforcement per side is allowed, bounded by the global 64-NPC cap. Markers appear in the world and map, with live participant HUD progress and a clan-panel enrollment interface.
+- Event enrollment requires physical proximity and the Insider or Rug clan, closes after 15 active seconds, and locks clan switching for that round. Direct damage of at least 60 plus 10 seconds of active movement/fire in the ring qualifies for an automatic single reward: 80 credits for victory, 40 for defeat/timeout, and 50 XP. No per-KO event farming; no idle spectator reward. Contribution is scoped to the server guest identity and cannot transfer to a newly joined guest. This is not Sybil-resistant account identity; permanent anti-abuse identity remains a future backend milestone.
+- Map legend, shop/medic symbols and medic destinations. New placement checks reject enclosed walkable cells and blocked HQ entrances before charging. The fortress tile preview disables structurally invalid placements. Existing saves are preserved; legacy inaccessible arrangements are not silently deleted. Full world-space access to every doorway and obstacle-aware navigation remain pending.
+
+### Actual browser evidence
+
+- Preview recovered using the supported daemon start. Fresh solo entry, on-screen directional movement, courier acceptance, physical traversal and delivery completed; result showed **85 credits / 100 XP / 21 seconds**. An earlier attempt ended in a normal bust. Pressure around the courier beacon remains high and needs balancing.
+- Solo reload preserved earned XP and credits after the first attempted run. The full buy/equip/reload chain was not completed: the later physical approach to Bad Taste Supply was interrupted by a bust and navigation retries.
+- Two separate browser tabs joined the same private room, and the HUD reported two players with the second nickname. This is two browser clients in one desktop browser, not two physical devices.
+- Online Build restriction visibly opened and its Online Journey button displayed the supported eight chapters. Online courier was traversed using the on-screen buttons; delivery changed completed jobs from 0 to 1 and XP from 50 to 150. The result modal was suppressed by the cross-mode counter bug fixed above; subsequent bust altered the credit balance, so the exact online reward amount was verified by regression tests rather than isolated browser balance observation.
+- Inspected actual gameplay screenshots while moving near the courier beacon and equipment store: character clothing, trees, buildings and NPC encounters render. This is not a completed eight-direction firing/occlusion inspection.
+- Browser runtime/preview reset during the repeated request; restored preview successfully. No security-policy bypass was used.
+
+### Tests and measured performance
+
+126 automated tests pass, plus repository checks and whitespace validation. New coverage includes all-angle shared muzzle projection, friendly/owner-scoped projectile damage, close-range barrel collision, sleep/wake timing, event lifecycle/caps/idle rewards/contribution/enrollment, shared-room event admission/stale controls, and construction access/refunds-before-failure.
+
+Reproduce simulation profiling with `node scripts/city-benchmark.mjs`. Shared Linux host, Node v24.22.1, AMD EPYC 9V74; 8 players across 6 districts, 44 ambient bots plus bounded event troops, 2,400 ticks / 120 simulated seconds. Measured median tick 0.581 ms, p95 1.481 ms, max 13.827 ms; one serialized snapshot 22,536 bytes; end-process heap 11,680,880 bytes and RSS 69,599,232 bytes. These are a single Node run, not browser frame times, browser memory, real network latency, or Galaxy A15 performance. No mobile FPS claim is made.
+
+### Remaining acceptance / next highest priority
+
+1. Finish two-client physical shop/market trade and six medic flows; replay solo→online→solo result/save transitions after the feedback fix. Exercise disconnect/reconnect under actual stream loss. Browser tests have not yet covered these end to end.
+2. Play through Founders Crossing as participant and spectator, inspect actual combat/reward UX, and tune duration/difficulty. Automated lifecycle tests pass, but do not replace this acceptance. Verify final live progress HUD visually.
+3. Eight-direction gameplay pose capture, manual aim/strafe/cover-edge tests, narrow portrait and landscape touch controls, and real-device frame/render/memory measurement.
+4. Obstacle-aware route guidance, world-space construction preview, continuous collision/access audits and legacy layout repair UX. Do not describe the conservative tile test as complete world navigation validation.
+
+PR remains draft because these acceptance items are unfinished, not because pushing is blocked. Continue pushing verified batches; do not merge/deploy merely to satisfy a push request.

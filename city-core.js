@@ -148,6 +148,7 @@
     if(index>=0)throw Error('Remove the existing piece first.');
     if(p.credits<item.cost)throw Error('Not enough play credits. Complete jobs in the main city.');
     if(item.solid&&Math.abs(p.x-(PLOT.x+a.col*64+28))<46&&Math.abs(p.y-(PLOT.y+a.row*64+28))<46)throw Error('Move off this tile before building.');
+    const access=buildAccess([...p.plot,{col:a.col,row:a.row,kind:item.id}],PLOT.cols,PLOT.rows);if(access)throw Error(access);
     p.plot.push({col:a.col,row:a.row,kind:item.id,rotation:Number.isInteger(a.rotation)?((a.rotation%4)+4)%4:0});p.credits-=item.cost;return `${item.name} built.`;
    }
    if(p.area!=='hub'&&['checkpoint','buy','list','purchase'].includes(a.type))throw Error('Return to the main city for this action.');
@@ -173,8 +174,18 @@
  // Ground-plane combat coordinates never include visual body height.
  const WEAPON=Object.freeze({barrel:50,height:58,recoil:2,shotInterval:.25});
  function weaponAnchor(angle,recoil=0){const reach=WEAPON.barrel-Math.max(0,Math.min(1,recoil))*WEAPON.recoil;return {x:Math.cos(angle)*reach,y:Math.sin(angle)*reach,height:WEAPON.height};}
+ // Conservative tile access: every walkable cell must connect to the outside.
+ function buildAccess(pieces,cols,rows){
+  const solid=new Set(pieces.filter(o=>BUILD_KIT.find(k=>k.id===o.kind)?.solid).map(o=>o.row*cols+o.col)),seen=new Set(),queue=[];
+  const add=(x,y)=>{const key=y*cols+x;if(x<0||y<0||x>=cols||y>=rows||solid.has(key)||seen.has(key))return;seen.add(key);queue.push([x,y]);};
+  for(let x=0;x<cols;x++){add(x,0);add(x,rows-1);}for(let y=0;y<rows;y++){add(0,y);add(cols-1,y);}
+  for(let i=0;i<queue.length;i++){const [x,y]=queue[i];add(x-1,y);add(x+1,y);add(x,y-1);add(x,y+1);}
+  if(seen.size!==cols*rows-solid.size)return 'Keep an open path from every empty tile to the outside.';
+  for(const o of pieces)if(o.kind==='home'&&o.row+1<rows&&solid.has((o.row+1)*cols+o.col))return 'Keep the Meme HQ front entrance clear.';
+  return '';
+ }
  const CAPABILITIES=Object.freeze({online:Object.freeze({actions:Object.freeze(['joinConflict','deliver','joinClan','blockJob','abandonBlock','avatar','style','checkpoint','buy','equip','list','purchase','cancel','chat','fire','dash','contract','abandon','ride','medkit','restock','claimChapter','enterBuilding','exitBuilding']),soloPanels:Object.freeze(['build','outposts','crew','fortress','survival'])}),solo:Object.freeze({persistent:'browser-local'})});
  Engine.CAPABILITIES=CAPABILITIES;
  const RELEASE=Object.freeze({name:'Living Blocks',version:'Alpha 12'});
- root.MemeCityCore=Object.freeze({WEAPON,weaponAnchor,CAPABILITIES,RELEASE,WORLD,HUB,SCENERY,ITEMS,DISTRICTS,NEIGHBORHOODS,FACTIONS,factionOf,rivals,npcHostile,outpostLot,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
+ root.MemeCityCore=Object.freeze({buildAccess,WEAPON,weaponAnchor,CAPABILITIES,RELEASE,WORLD,HUB,SCENERY,ITEMS,DISTRICTS,NEIGHBORHOODS,FACTIONS,factionOf,rivals,npcHostile,outpostLot,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
 })(typeof window==='undefined'?globalThis:window);

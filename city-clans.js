@@ -18,6 +18,7 @@
    if(a.type==='outpostRemove'){if(i<0)throw Error('Empty tile.');p.credits+=C.BUILD_KIT.find(k=>k.id===p.outposts[i].kind).cost;p.outposts.splice(i,1);return 'Outpost piece removed; play credits refunded.';}
    if(!['wall','tower','banner','floor','lamp'].includes(a.kind))throw Error('Unknown outpost piece.');const k=C.BUILD_KIT.find(k=>k.id===a.kind);
    if(i>=0)throw Error('Remove this piece first.');if(p.credits<k.cost)throw Error('Not enough play credits.');if(k.solid&&Math.abs(p.x-(lot.x+a.col*64+28))<46&&Math.abs(p.y-(lot.y+a.row*64+28))<46)throw Error('Step off the tile before building.');
+   const access=C.buildAccess([...p.outposts.filter(o=>o.clan===a.clan),{col:a.col,row:a.row,kind:k.id}],3,3);if(access)throw Error(access);
    p.outposts.push({clan:a.clan,kind:k.id,col:a.col,row:a.row,rotation:0});p.credits-=k.cost;return k.name+' built in your private district lot.';
   }
   if(a.type==='joinClan'){if(this.conflict?.participants.has(id)&&['announced','gathering','active'].includes(this.conflict.phase))throw Error('Finish the conflict before changing clans.');const n=C.NEIGHBORHOODS.find(n=>n.id===a.clan);if(!n)throw Error('Unknown clan.');if(p.blockJob)throw Error('Finish your block job before changing clans.');if(p.heat>=22||p.fireHeld||p.contract||p.defense||p.rising?.arena)throw Error('Leave combat and finish your challenge before changing clans.');p.clan=n.id;return `Joined ${n.clan}. Complete block jobs to earn your clan stripes.`;}
