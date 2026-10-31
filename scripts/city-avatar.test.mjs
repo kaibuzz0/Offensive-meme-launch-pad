@@ -39,7 +39,7 @@ test('NPC animations preserve moving aim and release stale pursuit targets',()=>
  assert.equal(npcScale(),.9);
  assert.equal(npcScale(true),1.15);
  const shooting=npcPose({state:'attack',x:40,y:55,aim:{x:90,y:30}});
- assert.deepEqual(shooting.aim,{x:50,y:-25});
+ assert.deepEqual({...shooting.aim},{x:50,y:-25});
  assert.equal(shooting.moving,true,'firing does not forcibly disable the walking pose');
  assert.equal(npcPose({state:'skirmish',x:10,y:20,aim:{x:40,y:60}}).moving,true);
  assert.equal(npcPose({state:'chase',x:10,y:20,aim:{x:200,y:200}}).aim,undefined,'chasing faces travel, not the last shot');
