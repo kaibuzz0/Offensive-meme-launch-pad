@@ -1,7 +1,7 @@
 /* Streetwear character art and environment finishing, rendered locally in canvas. */
 'use strict';
 (function(root){
- const cache=new Map(),W=root.MemeCityCore.WEAPON;
+ const cache=new Map(),W=root.MemeCityCore.WEAPON,NPC_SCALE=.9;
  const skin=['#c38f6c','#e5b898','#8d583e','#5b382b','#d3a17d','#a4775c'];
  const hair=['#242329','#4d352d','#171e25','#9b7750'];
  const denim=['#27394f','#363b43','#4c5345','#466079'];
@@ -65,7 +65,7 @@
    rounded(c,-19,-44,38,5,2,'#111c28');rounded(c,-17,-46,7,9,2,'#263443');
   }else if(gang){text(c,back?'RUGMASTERS':'RUG',0,-58,back?5.5:8,'#d8b0bc');text(c,'NO REFUNDS',0,-49,3.6,'#c194a5');}
   else if(!civilian){
-   const image=o.image,printW=30,printH=27,printY=back?-73:-71;
+   const image=o.image,printW=28,printH=28,printY=back?-73:-71;
    c.save();c.beginPath();c.roundRect(-printW/2,printY,printW,printH,1.4);c.clip();
    if(image?.complete&&image.naturalWidth)c.drawImage(image,-printW/2,printY,printW,printH);
    else{c.fillStyle=accent;c.fillRect(-printW/2,printY,printW,printH);text(c,'o!',0,printY+17,16,'#182536');}
@@ -113,23 +113,22 @@
   const key=[o.role||'player',o.ticker||'',o.color||'',style.skin||0,style.hair||0,style.pants||0,o.coinName||'',gear.outfit||'',gear.head||'',back,ready].join('|');
   let sprite=cache.get(key);
   if(!sprite){const surface=document.createElement('canvas');surface.width=260;surface.height=288;const g=surface.getContext('2d');g.scale(2,2);drawBody(g,{...o,upperOnly:true},0);sprite=surface;cache.set(key,sprite);if(cache.size>64)cache.delete(cache.keys().next().value);}
-  const scale=o.scale||1;c.save();c.translate(o.x,o.y);c.scale(scale,scale);
+  const scale=o.scale??(o.role&&o.role!=='player'?NPC_SCALE:1);c.save();c.translate(o.x,o.y);c.scale(scale,scale);
   const shadow=c.createRadialGradient(0,2,2,0,2,25);shadow.addColorStop(0,'#03081090');shadow.addColorStop(1,'#03081000');c.save();c.scale(1,.4);c.fillStyle=shadow;c.beginPath();c.arc(0,5,25,0,7);c.fill();c.restore();
   if(o.holderTier>=3){c.strokeStyle=o.color||'#b7ef84';c.globalAlpha=.5;c.lineWidth=2;c.beginPath();c.ellipse(0,2,29,11,0,0,7);c.stroke();c.globalAlpha=1;}
-  if(!o.armed||(o.role&&o.role!=='player'))drawLegs(c,o,pose);
+  if(!o.armed)drawLegs(c,o,pose);
   if(o.holderTier>=2)rounded(c,5,-14,13,4,1,o.color||'#b7ef84');
   c.save();const bob=-Math.abs(Math.cos(cycle*2))*1.1*amount+(1-amount)*Math.sin(time/950+(o.phase||0))*.3;
   c.translate(profile*amount*.9,bob);c.rotate((o.dashing?profile*.09:profile*.025)*amount);
-  if(o.armed&&(!o.role||o.role==='player')){drawSolidRig(c,{...o,stridePose:pose},angle);c.restore();c.restore();return;}
-  // Existing NPC artwork keeps its faction-specific details.
-  if(o.armed&&back)heldWeapon(c,{...o,angle});
+  if(o.armed){drawSolidRig(c,{...o,stridePose:pose,simplified:scale<1},angle);c.restore();c.restore();return;}
+  // Unarmed actors keep the lightweight 2-D costume sprites.
 
   c.save();c.scale(.32+.68*Math.abs(facing.y),1);drawArms(c,o,pose);c.restore();
   // Continuous yaw: torso depth remains visible in profile, with the shirt wrapping around it.
   rounded(c,-13,-77,26,36,9,o.gear?.outfit?'#5e7654':'#303e4d');
   rounded(c,-7+facing.x*3,-105,14,22,6,skin[style.skin||0]);
   c.save();c.translate(facing.x*4,0);c.scale(Math.max(.025,Math.abs(facing.y)),1);if(scale>=2){c.translate(-65,-132);drawBody(c,{...o,upperOnly:true},0);}else c.drawImage(sprite,-65,-132,130,144);c.restore();
-  if(o.armed&&!back)heldWeapon(c,{...o,angle});if(o.clanRank){for(let i=0;i<o.clanRank;i++)rounded(c,-21,-68+i*4,8,2,1,['#c89560','#c4d4dd','#f0d17c'][o.clanRank-1]);}c.restore();c.restore();
+  if(o.clanRank){for(let i=0;i<o.clanRank;i++)rounded(c,-21,-68+i*4,8,2,1,['#c89560','#c4d4dd','#f0d17c'][o.clanRank-1]);}c.restore();c.restore();
  }
  // Fixed-length, two-bone arms. Hands and rifle share one transform at every yaw.
  function armElbow(shoulder,hand){
@@ -168,7 +167,7 @@
    const point=(t,k)=>[center[0]+radii[0]*Math.cos(t)*Math.cos(k),center[1]+radii[1]*Math.cos(t)*Math.sin(k),center[2]+radii[2]*Math.sin(t)];
    for(let j=0;j<8;j++)for(let k=0;k<12;k++){const a=low+(high-low)*j/8,b=low+(high-low)*(j+1)/8,u=k*Math.PI/6,v=(k+1)*Math.PI/6;face([point(a,u),point(a,v),point(b,v),point(b,u)],color);}
   }
-  const style=o.style||{},tone=skin[style.skin||0],coat=o.role==='cop'?'#324c68':o.role==='gang'?'#4b293c':o.gear?.outfit?'#5e7654':'#303e4d';
+  const style=o.style||{},tone=skin[style.skin||0],coat=o.role==='cop'?'#324c68':o.role==='gang'?'#4b293c':o.role==='guard'?(o.color||'#6e8e78'):o.gear?.outfit?'#5e7654':'#303e4d';
   box([0,0,59],[18,34,36],coat);
   box([0,0,80],[9,10,9],tone);
   oval([0,0,94],[8,9,12],tone);
@@ -257,5 +256,7 @@
   rounded(c,b.x+b.w-110,b.y+b.h-79,72,16,2,'#1a2b3a');text(c,b.id==='garage'?'SERVICE':b.id==='shop'?'STREETWEAR':'OPEN LATE',b.x+b.w-74,b.y+b.h-68,5.5,'#c7d0cc');
   c.restore();
  }
- root.CityVisuals=Object.freeze({person,motion,weapon,weaponPose,rigSurfaces,groundFinish,architecture});
+ function npcScale(boss=false){return boss?1.15:NPC_SCALE;}
+ function npcPose(b){return{moving:!['ready','dormant','withdraw'].includes(b.state),aim:['attack','skirmish'].includes(b.state)&&b.aim?{x:b.aim.x-b.x,y:b.aim.y-b.y}:undefined,scale:npcScale(!!b.boss)};}
+ root.CityVisuals=Object.freeze({person,motion,weapon,weaponPose,rigSurfaces,npcScale,npcPose,groundFinish,architecture});
 })(window);
