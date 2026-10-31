@@ -1,7 +1,7 @@
 /* District architecture and private construction: all original canvas geometry. */
 'use strict';
 (function(root){
- const C=root.MemeCityCore,W=C.WORLD,P=C.PLOT,cache=new Map(),pieceCache=new Map();
+ const C=root.MemeCityCore,W=C.WORLD,fort=C.DISTRICTS.find(d=>d.id==='fortress'),P={...C.PLOT,x:C.PLOT.x-fort.ox,y:C.PLOT.y-fort.oy},cache=new Map(),pieceCache=new Map();
  function box(c,x,y,w,h,color,r=0){c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
  function poly(c,points,color){c.fillStyle=color;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fill();}
  function grad(c,x,y,w,h,a,b){const g=c.createLinearGradient(x,y,x+w,y+h);g.addColorStop(0,a);g.addColorStop(1,b);return g;}
@@ -20,8 +20,8 @@
  function lamp(c,x,y,on=true){c.save();if(on){const g=c.createRadialGradient(x,y,0,x,y,140);g.addColorStop(0,'#ffda9a1c');g.addColorStop(1,'#ffda9a00');c.fillStyle=g;c.fillRect(x-140,y-140,280,280);}poly(c,[[x-3,y],[x+3,y],[x+29,y+7],[x+19,y+10]],'#050e1566');box(c,x-4,y-100,8,102,grad(c,x-4,0,8,0,'#52626c','#182b36'),3);box(c,x-16,y-108,32,10,'#182b37',3);box(c,x-12,y-106,24,4,on?'#ffe1aa':'#9da89e',2);c.restore();}
  function land(c){
   c.save();c.fillStyle='#263d3c';c.fillRect(0,0,W.width,W.height);
-  for(const y of [870,2530,4190,5850]){box(c,0,y-95,W.width,190,'#75858a');box(c,0,y-65,W.width,130,'#243a47');c.strokeStyle='#c4c7a25c';c.lineWidth=2;c.setLineDash([20,32]);c.beginPath();c.moveTo(0,y);c.lineTo(W.width,y);c.stroke();c.setLineDash([]);}
-  for(const x of [1120,3360,5600]){box(c,x-95,0,190,W.height,'#738588');box(c,x-65,0,130,W.height,'#243a47');c.strokeStyle='#c4c7a25c';c.lineWidth=2;c.setLineDash([20,32]);c.beginPath();c.moveTo(x,0);c.lineTo(x,W.height);c.stroke();c.setLineDash([]);}
+  for(const y of [1120,3360,5600,7840,10080]){box(c,0,y-95,W.width,190,'#75858a');box(c,0,y-65,W.width,130,'#243a47');c.strokeStyle='#c4c7a25c';c.lineWidth=2;c.setLineDash([20,32]);c.beginPath();c.moveTo(0,y);c.lineTo(W.width,y);c.stroke();c.setLineDash([]);}
+  for(const x of [1120,3360,5600,7840,10080]){box(c,x-95,0,190,W.height,'#738588');box(c,x-65,0,130,W.height,'#243a47');c.strokeStyle='#c4c7a25c';c.lineWidth=2;c.setLineDash([20,32]);c.beginPath();c.moveTo(x,0);c.lineTo(x,W.height);c.stroke();c.setLineDash([]);}
   for(const n of C.NEIGHBORHOODS){
    box(c,n.ox+160,n.oy+130,1920,610,'#60747a',20);box(c,n.ox+170,n.oy+140,1900,590,'#344b58',16);
    box(c,n.ox+160,n.oy+1000,1920,530,'#60747a',20);box(c,n.ox+170,n.oy+1010,1900,510,'#344b58',16);
@@ -34,8 +34,8 @@
    text(c,n.name,n.x,n.oy+100,30,n.color);text(c,n.clan.toUpperCase()+' / WALKABLE COMMUNITY BLOCK',n.x,n.oy+960,13,n.color);
    box(c,n.x-115,n.y-48,230,96,'#122833',14);text(c,'CLAN TERMINAL',n.x,n.y-10,15,n.color);text(c,'E / JOBS & MEMBERSHIP',n.x,n.y+14,10,'#dce8e5');
   }
-  text(c,'← FORTRESS HEIGHTS',2290,790,13,'#d3e2b9');text(c,'CREATOR QUARTER →',4430,790,13,'#d8c5eb');
-  text(c,'ARENA DISTRICT ↙',2480,1610,13,'#e1bc98');text(c,'SOCIAL BOARDWALK ↘',4200,1610,13,'#afd7df');
+  text(c,'FORTRESS COMMONS / CENTER',fort.x,fort.oy-65,15,'#d3e2b9');text(c,'CLAN TERRITORIES / OUTER RING',W.width/2,W.height-100,14,'#d8c5eb');
+  text(c,'ARENA DISTRICT / WEST',C.DISTRICTS.find(d=>d.id==='arena').x,C.DISTRICTS.find(d=>d.id==='arena').oy+1630,13,'#e1bc98');text(c,'SOCIAL BOARDWALK / EAST',C.DISTRICTS.find(d=>d.id==='social').x,C.DISTRICTS.find(d=>d.id==='social').oy+1630,1610,13,'#afd7df');
   c.restore();
  }
  function car(c,x,y,color,reverse){
