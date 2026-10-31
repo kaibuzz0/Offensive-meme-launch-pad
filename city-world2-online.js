@@ -5,6 +5,7 @@
 (function(root){
  const $=id=>document.getElementById(id),C=root.MemeCityCore,I=root.CityInteriors,T=root.CityTopology,R=root.CityRising;
  const W=root.CityWorld2.create(C,I,T),POI=root.CityWorld2Registry.create(C,I,R,T,W);
+ const ZONES=root.CityWorld2Territory.create(C,W,POI).zones;
  const transport=root.CityWorld2OnlineTransport.create();
  const canvas=$('game'),g=canvas.getContext('2d'),mini=$('mini'),mg=mini.getContext('2d');
  if(!g||!mg){$('status').textContent='2D canvas unavailable.';return;}
@@ -12,9 +13,9 @@
  const held=new Set(),peerPose=new Map();
  const tell=s=>{$('status').textContent=s;};
  const option=(select,value,text)=>{const o=document.createElement('option');o.value=value;o.textContent=text;select.append(o);};
- for(const p of POI.all.filter(p=>p.kind==='door'||p.kind==='district'))option($('destination'),p.id,p.kind+': '+p.name);
+ for(const p of POI.all.filter(p=>['door','district','checkpoint'].includes(p.kind)))option($('destination'),p.id,p.kind+': '+p.name);
  for(const n of C.NEIGHBORHOODS)option($('faction'),n.id,n.clan);
- for(const zone of T.draft.areas&&C.NEIGHBORHOODS){const p=POI.resolve('neighborhood:'+zone.id);if(p)option($('zone'),'control:'+zone.id,zone.clan);}
+ for(const zone of ZONES)option($('zone'),zone.id,zone.name);
  for(const item of C.ITEMS)option($('gear'),item.id,item.name+' / '+item.price+' credits');
  $('destination').value='door:shop';
  function authState(){
@@ -81,6 +82,7 @@
  $('reload').addEventListener('click',()=>command('reload'));
  $('route').addEventListener('click',()=>{marker=POI.resolve($('destination').value);tell(marker?'Target marked: '+marker.name+' (manual travel; server validates movement).':'Unknown target.');});
  $('clear-route').addEventListener('click',()=>{marker=null;tell('Target marker cleared.');});
+ $('mark-zone').addEventListener('click',()=>{marker=ZONES.find(z=>z.id===$('zone').value)||null;tell(marker?'Control point marked: '+marker.name+'. Move near it before capturing.':'Unknown control point.');});
  async function poll(){
   if(!joined||polling)return;polling=true;
   try{updated(await transport.state());}
@@ -139,10 +141,9 @@
    c.fillStyle='#8ce8c3';c.beginPath();c.arc(d.x,d.y,11,0,Math.PI*2);c.fill();
    if(Math.hypot(d.x-self.x,d.y-self.y)<260)tag(c,d.name,d.x,d.y+34,'#c4e7da',16);
   }
-  for(const z of s.territory){const loc=z.id&&s.territory.find(i=>i.id===z.id);if(!loc)continue;
-   const zone=C.NEIGHBORHOODS.find(n=>z.id==='control:'+n.id),a=zone&&POI.resolve('neighborhood:'+zone.id);
-   if(!a||Math.hypot(a.x-self.x,a.y-self.y)>1100)continue;
-   c.strokeStyle=z.owner===self.clan?'#83e4ac':'#d6bb7e';c.lineWidth=5;c.beginPath();c.arc(a.x,a.y,42,0,Math.PI*2);c.stroke();
+  for(const z of s.territory){if(!Number.isFinite(z.x)||!Number.isFinite(z.y)||Math.hypot(z.x-self.x,z.y-self.y)>1100)continue;
+   c.strokeStyle=z.owner===self.clan?'#83e4ac':'#d6bb7e';c.lineWidth=5;c.beginPath();c.arc(z.x,z.y,42,0,Math.PI*2);c.stroke();
+   if(z.progress>0){c.strokeStyle='#83e6f0';c.lineWidth=5;c.beginPath();c.arc(z.x,z.y,48,-Math.PI/2,-Math.PI/2+Math.min(8,z.progress)/8*Math.PI*2);c.stroke();}
   }
   if(marker){c.strokeStyle='#90eff5';c.lineWidth=4;c.beginPath();c.arc(marker.x,marker.y,29,0,Math.PI*2);c.stroke();}
   for(const guard of s.guards){if(!guard.alive||Math.hypot(guard.x-self.x,guard.y-self.y)>1050)continue;
