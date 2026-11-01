@@ -93,7 +93,7 @@
   async function connectWallet(){
     if(walletBusy)return activeAddress;
     const p=getProvider();
-    if(!p?.connect){walletStatus.textContent='No Solana wallet detected. Open this page inside Phantom or Solflare using the links below, then tap Connect wallet.';walletDialog.showModal?.();throw Error('No compatible Solana wallet injected in this browser.');}
+    if(!p?.connect){walletStatus.textContent='No Solana wallet detected. Open this page inside Phantom or Solflare using the links below, then tap Connect wallet.';if(!walletDialog.open)walletDialog.showModal();throw Error('No compatible Solana wallet injected in this browser.');}
     walletBusy=true;walletStatus.textContent='Requesting wallet connection permission…';renderWallet();
     try{
       const result=await p.connect();
@@ -134,7 +134,7 @@
   try{paintTheme(localStorage.getItem(savedKey));}catch{paintTheme(null);}
   const themeButton=document.createElement('button');
   themeButton.type='button';themeButton.className='wallet-theme-trigger';themeButton.textContent='Wallet theme ◈';
-  const themeHost=document.querySelector('.utility-bar>div')||document.querySelector('.city-header');
+  const themeHost=document.querySelector('.utility-bar>div')||document.querySelector('.utility-bar')||document.querySelector('.city-header')||document.querySelector('header');
   themeHost?.append(themeButton);
   if(themeHost){
     const themeDialog=document.createElement('dialog');themeDialog.className='wallet-theme-dialog';
@@ -182,9 +182,8 @@
       try{
         let publicKey;
         if(source==='wallet'){
-          const provider=window.phantom?.solana||window.solflare||window.solana;
-          if(!provider?.connect)throw Error('No Solana wallet detected. Open the site in a wallet browser, or paste a public address to preview on an installed app. A preview does not grant access to locked lots.');
-          const account=await provider.connect();publicKey=(account?.publicKey||provider.publicKey)?.toString();
+          publicKey=window.OffensiveWallet.state().address;
+          if(!publicKey){await window.OffensiveWallet.connect();return;} // the global connection event updates this theme
         }else{publicKey=address.value.trim();}
         await scan(publicKey,source==='address');
       }catch(e){status.textContent=e.message||'Wallet theme unavailable.';}
@@ -192,6 +191,14 @@
     }
     byWallet.addEventListener('click',()=>run('wallet'));
     byAddress.addEventListener('click',()=>run('address'));
+    // Theme and wallet session stay synchronized on ALL pages, not just in Meme City.
+    window.addEventListener('offensive-wallet-changed',event=>{
+      const a=event.detail?.address;
+      if(a)scan(a,false).catch(e=>{status.textContent='Wallet connected, but theme lookup failed: '+(e.message||'RPC unavailable');});
+      else{paintTheme(null);try{localStorage.removeItem(savedKey);}catch{}status.textContent='Wallet disconnected; default theme restored.';}
+    });
+    const current=window.OffensiveWallet.state().address;
+    if(current)scan(current,false).catch(e=>{status.textContent='Wallet connected; theme check unavailable: '+(e.message||'RPC unavailable');});
   }
   if('serviceWorker' in navigator&&window.isSecureContext){
     window.addEventListener('load',()=>{navigator.serviceWorker.register(new URL('sw.js',appRoot),{scope:appRoot.pathname,updateViaCache:'none'}).catch(()=>{/* Installation instructions still work if service workers are unavailable. */});});
