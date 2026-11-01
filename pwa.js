@@ -36,15 +36,16 @@
   // One wallet connection entry point across the whole website and installed PWA.
   // The saved address is a reconnect hint ONLY, never an authentication credential.
   const walletKey='offensive-wallet-last-public-v1';
+  let activeThemeId=null;
   let activeProvider=null,activeAddress=null,walletBusy=false,attachedProvider=null;
   const walletHost=document.querySelector('.utility-bar>div')||document.querySelector('.utility-bar')||document.querySelector('.city-header')||document.querySelector('header')||document.body;
   const walletButton=document.createElement('button');walletButton.type='button';walletButton.className='global-wallet-trigger';walletButton.setAttribute('aria-haspopup','dialog');
   const walletDialog=document.createElement('dialog');walletDialog.className='global-wallet-dialog';walletDialog.setAttribute('aria-label','Connect Solana wallet');
   const walletHeading=document.createElement('h2');walletHeading.textContent='SOLANA WALLET';
-  const walletDescription=document.createElement('p');walletDescription.textContent='Connect once from any page to display your public address and wallet-based site theme. This does not sign messages, send tokens, approve spending or grant holder-only game access.';
+  const walletDescription=document.createElement('p');walletDescription.textContent='One wallet connection controls your site theme. In Meme City Together, a separate ownership signature (no transaction) confirms access to matching holder-only spaces. Free play never requires tokens.';
   const walletStatus=document.createElement('p');walletStatus.setAttribute('role','status');walletStatus.setAttribute('aria-live','polite');walletStatus.className='global-wallet-status';
   const walletActions=document.createElement('div');walletActions.className='global-wallet-actions';
-  const walletConnect=document.createElement('button');walletConnect.type='button';walletConnect.textContent='Connect Solana wallet';
+  // Connection is initiated by the one site-wide Wallet button; this dialog is status/help only.
   const walletDisconnect=document.createElement('button');walletDisconnect.type='button';walletDisconnect.textContent='Disconnect';
   const walletClose=document.createElement('button');walletClose.type='button';walletClose.textContent='Close';
   const walletLinks=document.createElement('div');walletLinks.className='global-wallet-links';
@@ -54,13 +55,13 @@
   for(const [name,base] of [['Open in Phantom','https://phantom.com/ul/browse/'],['Open in Solflare','https://solflare.com/ul/v1/browse/']]){
     const link=document.createElement('a');link.className='global-wallet-app-link';link.textContent=name+' ↗';link.href=base+encodeURIComponent(pageUrl)+'?ref='+encodeURIComponent(refUrl);link.rel='noopener noreferrer';walletLinks.append(link);
   }
-  walletActions.append(walletConnect,walletDisconnect,walletClose);walletDialog.append(walletHeading,walletDescription,walletStatus,walletActions,walletHelp,walletLinks);
+  walletActions.append(walletDisconnect,walletClose);walletDialog.append(walletHeading,walletDescription,walletStatus,walletActions,walletHelp,walletLinks);
   walletHost.append(walletButton);document.body.append(walletDialog);
   const getProvider=()=>window.phantom?.solana||window.solflare||window.solana||null;
   const shortAddress=a=>a.slice(0,4)+'…'+a.slice(-4);
   let remembered='';try{remembered=localStorage.getItem(walletKey)||'';}catch{}
   function walletState(){
-    return {connected:!!activeAddress,address:activeAddress,remembered:activeAddress||remembered};
+    return {connected:!!activeAddress,address:activeAddress,remembered:activeAddress||remembered,themeId:activeAddress?activeThemeId:null};
   }
   function renderWallet(){
     const connected=!!activeAddress;
@@ -68,9 +69,8 @@
     walletButton.setAttribute('aria-label',connected?'Connected Solana wallet '+activeAddress:'Connect Solana wallet');
     walletButton.dataset.connected=String(connected);
     walletDisconnect.disabled=!connected||walletBusy;
-    walletConnect.disabled=walletBusy;
-    walletConnect.textContent=connected?'Wallet connected ✓':walletBusy?'Connecting…':'Connect Solana wallet';
-    if(connected)walletStatus.textContent='Connected: '+activeAddress+' · Public address only. For restricted game areas, verify ownership in Together mode.';
+
+    if(connected)walletStatus.textContent='Connected: '+activeAddress+' · Theme changes automatically. In Together, approve the signature request to open matching token areas.';
     else if(!walletStatus.textContent||walletStatus.textContent.startsWith('Connected:'))walletStatus.textContent=remembered?'Previous wallet '+shortAddress(remembered)+' remembered. Reconnect to authorize this page.':'No wallet connected. Connect in a compatible wallet browser.';
   }
   function publishWallet(address){
@@ -110,9 +110,15 @@
     publishWallet(null);walletStatus.textContent='Wallet disconnected. No site permissions are being retained.';
   }
   window.OffensiveWallet=Object.freeze({connect:connectWallet,disconnect:disconnectWallet,state:walletState,provider:getProvider});
-  walletButton.addEventListener('click',()=>{renderWallet();if(!walletDialog.open)walletDialog.showModal();const a=window.OffensiveWallet?.state().address;if(a&&document.documentElement.dataset.walletTheme==='default')void refreshTheme(a);});
+  walletButton.addEventListener('click',async()=>{
+    if(walletBusy)return;
+    if(!activeAddress){try{await connectWallet();}catch{/* Explanation and wallet browser links appear in the status dialog. */}}
+    renderWallet();if(!walletDialog.open)walletDialog.showModal();
+    const a=activeAddress;
+    if(a&&!activeThemeId)void refreshTheme(a);
+  });
   walletClose.addEventListener('click',()=>walletDialog.close());
-  walletConnect.addEventListener('click',()=>{connectWallet().catch(()=>{});});
+
   walletDisconnect.addEventListener('click',()=>{disconnectWallet().catch(()=>{});});
   const existingProvider=getProvider();
   if(existingProvider?.isConnected&&existingProvider.publicKey){
@@ -175,11 +181,13 @@
   }
   async function refreshTheme(publicKey){
     const request=++themeRequest;
+    activeThemeId=null;
     clearTimeout(themeRefresh);themeRefresh=null;
     // Do not display a previous holder's theme while checking a new account.
     paintTheme(null);
     try{localStorage.removeItem(savedKey);}catch{}
     if(!publicKey){
+      window.dispatchEvent(new CustomEvent('offensive-theme-changed',{detail:{address:null,themeId:null}}));
       themeLine.textContent='Default theme · Connect a wallet to match your largest supported token automatically.';
       return;
     }
@@ -188,6 +196,8 @@
       const id=await themeFromBalances(publicKey);
       if(request!==themeRequest||window.OffensiveWallet.state().address!==publicKey)return;
       paintTheme(id);
+      activeThemeId=id;
+      window.dispatchEvent(new CustomEvent('offensive-theme-changed',{detail:{address:publicKey,themeId:id}}));
       if(id){try{localStorage.setItem(savedKey,id);}catch{}}
       const token=themeById.get(id);
       themeLine.textContent=token

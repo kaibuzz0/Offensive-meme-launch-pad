@@ -147,45 +147,61 @@
  function closePanel(){$('#city-panel').close();$('#joystick-knob').style.transform='';activePanel='';keys.clear();held.clear();stick={x:0,y:0};firing=false;canvas.focus({preventScroll:true});}
  let holderTimer=null,holderClan=null,walletCheckBusy=false,offenderWalletStatus='';
  function walletFeedback(clan,message){
-  if(clan==='offensive'){
-   offenderWalletStatus=message;
-   const inline=$('#offender-wallet-status');if(inline)inline.textContent=message;
-  }
+  offenderWalletStatus=message;
+  const inline=$('#offender-wallet-status');if(inline)inline.textContent=message;
   const panelStatus=$('#panel-status');if(panelStatus)panelStatus.textContent=message;
  }
- function walletProvider(){return window.phantom?.solana||window.solflare||window.solana;}
+ function walletProvider(){return window.OffensiveWallet?.provider()||null;}
+ function currentWalletTheme(){
+  const w=window.OffensiveWallet?.state();
+  return w?.connected&&C.TOKEN_PLOTS.some(p=>p.id===w.themeId)?w.themeId:null;
+ }
+ function autoVerifyTheme(){
+  if(!online||walletCheckBusy)return;
+  const clan=currentWalletTheme();
+  if(!clan||holderClan===clan&&me.holderClan===clan&&me.holderTier>0)return;
+  void verifyHoldings(clan);
+ }
+ // The single site wallet supplies its address and preferred token. The existing
+ // multiplayer challenge signature is still required before a reserve unlocks.
+ window.addEventListener('offensive-theme-changed',autoVerifyTheme);
+ window.addEventListener('offensive-wallet-changed',()=>{if(online&&holderClan)void clearHolder();});
  async function clearHolder(client=roomClient){clearInterval(holderTimer);holderClan=null;try{await client?.request('/wallet/disconnect',{});}catch{} }
  async function verifyHoldings(clan){
   if(walletCheckBusy)return;
-  if(!online){walletFeedback(clan,'Join an online room in Together before checking your OFFENDED wallet.');return;}
-  const client=roomClient,wallet=walletProvider();
-  if(!wallet?.connect||!wallet?.signMessage){
-   walletFeedback(clan,'No compatible Solana wallet found in this browser. On Android, open Meme City inside Phantom or Solflare’s in-app browser, join Together, then tap Verify. The links below will help.');
+  if(!online){walletFeedback(clan,'Join Together to use your connected wallet for holder-only areas. Free solo mode stays available.');return;}
+  const client=roomClient,wallet=walletProvider(),connected=window.OffensiveWallet?.state();
+  if(!connected?.connected){
+   walletFeedback(clan,'Use the single Connect wallet button at the top of the site. The game will automatically verify your matching token in Together.');
+   return;
+  }
+  if(!wallet?.signMessage){
+   walletFeedback(clan,'Wallet connected, but this browser cannot sign an ownership message. Open Meme City in your wallet’s built-in browser for holder access.');
    return;
   }
   walletCheckBusy=true;
   const trigger=$('#offender-wallet-verify');if(trigger){trigger.disabled=true;trigger.textContent='Checking wallet…';}
   try{
-   walletFeedback(clan,'Opening wallet permission… Approve a connection to continue.');
-   await wallet.connect();
-   const address=wallet.publicKey?.toString();if(!address)throw Error('Wallet did not provide an address.');
-   walletFeedback(clan,'Wallet connected. Requesting a safe ownership signature (no token transfer).');
+   const address=connected.address;
+   if(!address||wallet.publicKey?.toString()!==address)throw Error('Wallet changed. Reconnect using the single site wallet button.');
+   walletFeedback(clan,'Confirm one ownership signature to unlock your matching city lot. No transaction or transfer.');
+   walletFeedback(clan,'Requesting secure room-bound wallet signature (no transfer).');
    const c=await client.request('/wallet/challenge',{address});
    walletFeedback(clan,'Approve the message signature in your wallet. This does not authorize spending.');
    const signed=await wallet.signMessage(new TextEncoder().encode(c.message),'utf8'),bytes=signed.signature||signed;
    if(!online||roomClient!==client||wallet.publicKey?.toString()!==address)throw Error('Wallet or room changed. Try again.');
    const signature=btoa(String.fromCharCode(...bytes));
-   walletFeedback(clan,'Signature approved. Checking your OFFENDED balance on Solana…');
+   walletFeedback(clan,'Signature approved. Checking your matching token balance on Solana…');
    const result=await client.request('/wallet/check',{clan,signature});
    holderClan=clan;clearInterval(holderTimer);
    holderTimer=setInterval(async()=>{
     if(!online||roomClient!==client||wallet.publicKey?.toString()!==address){await clearHolder(client);return;}
     try{await client.request('/wallet/check',{clan:holderClan});}catch{/* Proof expiry removes holder cosmetics. */}
    },60000);
-   const revoke=()=>{clearHolder(client);walletFeedback(clan,'Wallet account changed or disconnected. Reverify your wallet to use the skin.');};
-   wallet.on?.('accountChanged',revoke);wallet.on?.('disconnect',revoke);
-   const msg=result.tier?clan==='offensive'?`OFFENDER skin equipped! Verified holder tier ${result.tier}; your balance is checked every minute.`:`Holder tier ${result.tier} active. Balance is checked every minute.`:'Wallet verified, but no qualifying token balance was found. The skin was not unlocked.';
+
+   const msg=result.tier?clan==='offensive'?`OFFENDER skin and OFFENDED city reserve unlocked! Tier ${result.tier}.`:`${clan.toUpperCase()} holder lot unlocked! Tier ${result.tier}.`:'Ownership signature valid, but no qualifying balance found. The free city remains open.';
    walletFeedback(clan,msg);
+   if(!activePanel)toast(msg);
    if(online&&roomClient===client&&activePanel==='avatar'){
     const latest=await client.request('/state');if(!online||roomClient!==client)throw Error('Room disconnected while updating your skin.');
     acceptRoom(latest);panel('avatar');
@@ -193,7 +209,7 @@
   }catch(e){walletFeedback(clan,e.message||'Wallet verification was cancelled. You can try again.');}
   finally{
    walletCheckBusy=false;
-   const current=$('#offender-wallet-verify');if(current){current.disabled=false;current.textContent=online?'Verify OFFENDED wallet for OFFENDER skin →':'Join Together to verify OFFENDED →';}
+   const current=$('#offender-wallet-verify');if(current){current.disabled=false;current.textContent=online?'Retry holder access check →':'Join Together for holder access →';}
   }
  }
  function outpostPanel(content){
@@ -290,8 +306,8 @@
    }
   }
   if(type==='tokens'){
-   content.append(node('p','beta-note','Optional real-token purchases. Choose any amount supported by the provider and approve in your wallet. Network and provider fees may make very small purchases impractical. No fixed minimum or instant game reward is promised.'),node('p','','These are the creator-supplied beta Solana mints. All six basic outfits and clans are free. Verifying at least one OFFENDED token also activates the OFFENDER skull avatar. In an online room, verify holdings for temporary cosmetic gear: 1 token = holder badge; 1,000 = neon cuff; 10,000 = aura. These are token amounts, not dollar prices. Clan membership stays free. Selling or transferring below a tier disables its effects after the next check; your XP, reputation and placed structures remain. Preview fees and token output in the provider before wallet approval. No extra combat power. Checks run every minute; perks expire within two minutes without a fresh check.'));
-   for(const t of tokens){const row=node('article','panel-row'),info=node('div');info.append(node('h3','',`${t.name} · $${t.ticker}`));const mint=node('code','token-mint',t.mint);info.append(mint);const buy=node('a','panel-button','Choose amount in wallet ↗');buy.href=`beta.html?buy=${encodeURIComponent(t.mint)}#wallet-buy`;buy.target='_blank';buy.rel='noopener noreferrer';const pump=node('a','token-provider-link','View on pump.fun ↗');pump.href=`https://pump.fun/coin/${t.mint}`;pump.target='_blank';pump.rel='noopener noreferrer';const actions=node('div','panel-actions');for(const budget of ['0.50','1.00']){const small=node('a','panel-button',budget+' USDC quote ↗');small.href=`beta.html?buy=${encodeURIComponent(t.mint)}&budget=${budget}#wallet-buy`;small.target='_blank';small.rel='noopener noreferrer';actions.append(small);}actions.append(buy,pump,button(online?'Verify holder cosmetics':'Join online to verify holdings',()=>verifyHoldings(t.id)));info.append(actions);row.append(info);content.append(row);}
+   content.append(node('p','beta-note','One Connect wallet button controls your site theme and matching optional Meme City holder lot. All six basic outfits and clans are free; ordinary gameplay remains free. In Together, approve one ownership signature to open the reserve for your top eligible token. Theme appearance alone is not ownership proof. Access is rechecked periodically and expires without confirmation.'));
+   for(const t of tokens){const row=node('article','panel-row'),info=node('div');info.append(node('h3','',`${t.name} · $${t.ticker}`));const mint=node('code','token-mint',t.mint);info.append(mint);const buy=node('a','panel-button','Choose amount in wallet ↗');buy.href=`beta.html?buy=${encodeURIComponent(t.mint)}#wallet-buy`;buy.target='_blank';buy.rel='noopener noreferrer';const pump=node('a','token-provider-link','View on pump.fun ↗');pump.href=`https://pump.fun/coin/${t.mint}`;pump.target='_blank';pump.rel='noopener noreferrer';const actions=node('div','panel-actions');for(const budget of ['0.50','1.00']){const small=node('a','panel-button',budget+' USDC quote ↗');small.href=`beta.html?buy=${encodeURIComponent(t.mint)}&budget=${budget}#wallet-buy`;small.target='_blank';small.rel='noopener noreferrer';actions.append(small);}actions.append(buy,pump);info.append(actions);row.append(info);content.append(row);}
    content.append(node('p','','Meme tokens can lose all value. Check the full mint address and wallet quote before approving. The game never asks for a seed phrase or private key.'));
   }
   if(type==='avatar'){
@@ -306,8 +322,8 @@
    content.append(skinGrid);
    content.append(button(me.clanSkin?'Return to classic avatar':'Classic avatar equipped',async()=>{if(await action({type:'clanSkin',skin:null},true))panel('avatar');},'panel-button'));
    content.append(wardrobe(true));
-    content.append(node('p','beta-note',hasOffenderSkin(me)?'OFFENDER SKIN ACTIVE · Your verified OFFENDED token gives your player the neon skull and purple/black jacket.':'OFFENDER SKIN · Hold at least 1 OFFENDED token, join Together, and verify your wallet to switch your existing avatar automatically. The skin is cosmetic only.'));
-    const verifyButton=button(online?'Verify OFFENDED wallet for OFFENDER skin →':'Join Together to verify OFFENDED →',()=>online?verifyHoldings('offensive'):panel('multiplayer'));
+    content.append(node('p','beta-note',hasOffenderSkin(me)?'OFFENDER SKIN ACTIVE · Verified OFFENDED access unlocks the skull and your matching city lot.':'FREE SKINS AVAILABLE · Connect wallet once at the top. Together automatically checks your highest-held beta token for its optional city lot and OFFENDER upgrade. The signature cannot spend tokens.'));
+    const verifyButton=button(online?'Retry holder access check →':'Join Together for holder access →',()=>online?verifyHoldings(currentWalletTheme()||'offensive'):panel('multiplayer'));
     verifyButton.id='offender-wallet-verify';verifyButton.disabled=walletCheckBusy;content.append(verifyButton);
     const feedback=node('p','wallet-inline-status',offenderWalletStatus);feedback.id='offender-wallet-status';feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite');content.append(feedback);
     if(online&&(!walletProvider()?.connect||!walletProvider()?.signMessage)){
@@ -491,7 +507,7 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
  }
  function resetFeedback(p){lastResult=p.lastResult?.id||0;lastNotice=p.noticeSeq||0;lastShots=p.shots||0;lastHP=p.hp;shotFlash=0;}
  function acceptRoom(s){if(!online||me.id!==s.self.id)resetFeedback(s.self);for(const id of positions.keys())if(!s.players.some(p=>p.id===id)&&!s.arcade?.bots.some(b=>b.id===id)&&!s.arcade?.guards.some(g=>g.id===id))positions.delete(id);state=s;me=s.self;online=true;if(activePanel==='chat'){const log=$('.chat-log');if(log)log.replaceChildren(...state.chat.map(m=>node('p','',`${m.name}: ${m.text}`)));}}
- async function connect(options={}){if(online)return;const net=window.MEME_CITY_NETWORK;if(!net?.enabled||new URLSearchParams(location.search).get('solo')==='1')return;save();try{roomClient=new window.CityRoomClient({api:net.apiBase||'/api/city',onState:acceptRoom,onStatus:status=>{roomStatus=status;$('#room-mode').textContent=status==='connected'?'ONLINE / '+(state.roomInfo?.private?'FRIEND ROOM':'PUBLIC ROOM'):'ONLINE / RECONNECTING';},onLost:disconnect,input:()=>({...movement(),fire:!activePanel&&!document.hidden&&(firing||keys.has(' ')),aimX:aim.x,aimY:aim.y,manualAim:mouseFiring})});await roomClient.join({name:options.name||me.name,avatar:me.avatar,...options});paintX=me.x;paintY=me.y;positions.clear();$('#save-state').textContent='Online guest progress is temporary. Your solo city stays separate.';toast('Connected. Open Menu → Play together to invite friends or open room chat.');}catch(e){roomClient?.stop();toast(e.message);$('#panel-status').textContent=e.message;}}
+ async function connect(options={}){if(online)return;const net=window.MEME_CITY_NETWORK;if(!net?.enabled||new URLSearchParams(location.search).get('solo')==='1')return;save();try{roomClient=new window.CityRoomClient({api:net.apiBase||'/api/city',onState:acceptRoom,onStatus:status=>{roomStatus=status;$('#room-mode').textContent=status==='connected'?'ONLINE / '+(state.roomInfo?.private?'FRIEND ROOM':'PUBLIC ROOM'):'ONLINE / RECONNECTING';},onLost:disconnect,input:()=>({...movement(),fire:!activePanel&&!document.hidden&&(firing||keys.has(' ')),aimX:aim.x,aimY:aim.y,manualAim:mouseFiring})});await roomClient.join({name:options.name||me.name,avatar:me.avatar,...options});paintX=me.x;paintY=me.y;positions.clear();$('#save-state').textContent='Online guest progress is temporary. Your solo city stays separate.';toast('Connected. Matching holder lot access verifies from your site wallet automatically.');queueMicrotask(autoVerifyTheme);}catch(e){roomClient?.stop();toast(e.message);$('#panel-status').textContent=e.message;}}
  function disconnect(message='Room session ended. Back in your solo city.'){if(!online)return;online=false;roomClient?.stop();me=engine.player('solo');refreshState();resetFeedback(me);paintX=me.x;paintY=me.y;positions.clear();$('#room-mode').textContent='SOLO / LOCAL SAVE';$('#save-state').textContent='Returned to your separate solo save.';if(activePanel)closePanel();toast(message);}
  canvas.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse'||!entered||activePanel||me.room||!worldView)return;const r=canvas.getBoundingClientRect(),x=worldView.x+(e.clientX-r.left)/worldView.zoom-me.x,y=worldView.y+(e.clientY-r.top)/worldView.zoom-(me.y-60),n=Math.max(1,Math.hypot(x,y));aim={x:x/n,y:y/n};manualAim=true;});
  canvas.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse'||e.button!==0||!entered||activePanel)return;e.preventDefault();canvas.setPointerCapture(e.pointerId);firing=true;mouseFiring=true;fire(true);});
