@@ -42,7 +42,7 @@
   const walletButton=document.createElement('button');walletButton.type='button';walletButton.className='global-wallet-trigger';walletButton.setAttribute('aria-haspopup','dialog');
   const walletDialog=document.createElement('dialog');walletDialog.className='global-wallet-dialog';walletDialog.setAttribute('aria-label','Connect Solana wallet');
   const walletHeading=document.createElement('h2');walletHeading.textContent='SOLANA WALLET';
-  const walletDescription=document.createElement('p');walletDescription.textContent='One wallet connection controls your site theme. In Meme City Together, a separate ownership signature (no transaction) confirms access to matching holder-only spaces. Free play never requires tokens.';
+  const walletDescription=document.createElement('p');walletDescription.textContent='One wallet connection controls your site theme. In Meme City solo or Together, a separate ownership signature (no transaction) confirms access to holder-only cosmetics and spaces. Free play never requires tokens.';
   const walletStatus=document.createElement('p');walletStatus.setAttribute('role','status');walletStatus.setAttribute('aria-live','polite');walletStatus.className='global-wallet-status';
   const walletActions=document.createElement('div');walletActions.className='global-wallet-actions';
   // Connection is initiated by the one site-wide Wallet button; this dialog is status/help only.
