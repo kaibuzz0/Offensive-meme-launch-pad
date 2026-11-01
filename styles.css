@@ -47,3 +47,27 @@
 :root[data-wallet-theme="offensive"] body.launch-home{background:#121510}
 :root[data-wallet-theme="rug"] body.launch-home{background:#1e1120}
 :root[data-wallet-theme]:not([data-wallet-theme="default"]) .launch-home .home-portal{border-color:var(--green,#b7f464)}
+
+
+/* Shared wallet control used by the website, token share pages, game, and installed PWA. */
+.global-wallet-trigger{display:inline-flex;justify-content:center;align-items:center;max-width:100%;min-height:39px;padding:8px 12px;border:1px solid var(--green,var(--acid,#b7f464));background:#17251e;color:var(--green,var(--acid,#b7f464));border-radius:5px;font:700 12px/1.25 Arial,sans-serif;white-space:nowrap;flex-shrink:0}
+.global-wallet-trigger[data-connected=true]{background:#203c31;border-color:#7fd9ab;color:#e2ffe3}
+.global-wallet-dialog{width:min(94vw,510px);max-height:88vh;overflow:auto;padding:23px;z-index:999999;background:#142433;color:#eaf3ec;border:2px solid var(--green,var(--acid,#b7f464));border-radius:10px;box-shadow:0 20px 65px #000b}
+.global-wallet-dialog::backdrop{background:#020811ad}
+.global-wallet-dialog h2{font:900 27px/1.1 Impact,Arial,sans-serif;margin:0 0 12px;color:var(--green,var(--acid,#b7f464))}
+.global-wallet-dialog p{font-size:13px;line-height:1.6}
+.global-wallet-status{overflow-wrap:anywhere;min-height:42px;padding:10px;background:#203846;border-left:3px solid var(--green,var(--acid,#b7f464))}
+.global-wallet-actions{display:flex;flex-wrap:wrap;gap:8px}
+.global-wallet-actions button,.global-wallet-app-link{flex:1 1 120px;min-height:43px;padding:10px;border:1px solid #607685;background:#1c3040;color:#edf6ec;border-radius:5px;text-align:center;font-weight:700;cursor:pointer}
+.global-wallet-actions button:disabled{opacity:.55;cursor:default}
+.global-wallet-help{color:#c7d7d9}
+.global-wallet-links{display:flex;gap:8px;flex-wrap:wrap}
+.global-wallet-app-link{display:inline-flex;justify-content:center;align-items:center;border-color:var(--green,var(--acid,#b7f464));color:#effbdc;white-space:nowrap}
+.utility-bar>.global-wallet-trigger,.utility-bar>.wallet-theme-trigger{margin-left:8px}
+@media(max-width:700px){
+ .utility-bar{flex-wrap:wrap;gap:9px}
+ .utility-bar>div{flex-wrap:wrap;gap:7px;justify-content:flex-end}
+ .global-wallet-trigger{font-size:10px;min-height:35px;padding:8px;max-width:100%}
+ .utility-bar>.global-wallet-trigger,.utility-bar>.wallet-theme-trigger{margin-left:0}
+ .city-header>.global-wallet-trigger{font-size:9px;min-height:33px;padding:7px 8px;white-space:normal;overflow-wrap:anywhere;flex-shrink:1}
+}

@@ -20,6 +20,18 @@ for(const id of ['token-grid','search','token-dialog','dialog-content','empty','
 for (const file of ['app.js','launchpad-config.js','trade-core.js','trade.js','share-core.js','social.js','pwa.js','sw.js']) new vm.Script(read(file));
 console.log(`PASS: ${tokens.length} unique listings, all artwork, mint format checks, asset references, interaction targets, and JS syntax.`);
 
+// Global wallet entry must be present on every public website page, including token share pages.
+for(const page of ['index.html','beta.html','creators.html','city.html','city-roadmap.html',...tokens.map(t=>'tokens/'+t.id+'/index.html'),'tokens/offensive/index.html']){
+ const content=read(page);
+ assert.ok(content.includes('pwa.js?v=26-global-wallet'),page+' must load shared wallet runtime');
+ assert.ok(content.includes('styles.css?v=26-global-wallet')||content.includes('city.css?v=26-global-wallet'),page+' must load wallet controls CSS');
+}
+const walletJs=read('pwa.js');
+for(const feature of ['OffensiveWallet','offensive-wallet-changed','global-wallet-trigger','disconnectWallet','walletLinks','walletKey'])
+ assert.ok(walletJs.includes(feature),'Missing global wallet feature '+feature);
+assert.ok(!/signature|privateKey|secret|seedPhrase/i.test(walletJs.split('\n').filter(l=>l.includes('localStorage.setItem(')).join('\n')),'No secret wallet material in persistent storage');
+
+
 for(const file of ['index.html','creators.html']){
  const page=read(file);
  for(const asset of ['launchpad.css','launchpad.js','social.js','pwa.js'])assert.ok(page.includes(asset),`${file}: ${asset}`);
