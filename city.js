@@ -147,10 +147,8 @@
  function closePanel(){$('#city-panel').close();$('#joystick-knob').style.transform='';activePanel='';keys.clear();held.clear();stick={x:0,y:0};firing=false;canvas.focus({preventScroll:true});}
  let holderTimer=null,holderClan=null,walletCheckBusy=false,offenderWalletStatus='';
  function walletFeedback(clan,message){
-  if(clan==='offensive'){
-   offenderWalletStatus=message;
-   const inline=$('#offender-wallet-status');if(inline)inline.textContent=message;
-  }
+  offenderWalletStatus=message;
+  const inline=$('#offender-wallet-status');if(inline)inline.textContent=message;
   const panelStatus=$('#panel-status');if(panelStatus)panelStatus.textContent=message;
  }
  function walletProvider(){return window.OffensiveWallet?.provider()||null;}
@@ -203,6 +201,7 @@
 
    const msg=result.tier?clan==='offensive'?`OFFENDER skin and OFFENDED city reserve unlocked! Tier ${result.tier}.`:`${clan.toUpperCase()} holder lot unlocked! Tier ${result.tier}.`:'Ownership signature valid, but no qualifying balance found. The free city remains open.';
    walletFeedback(clan,msg);
+   if(!activePanel)toast(msg);
    if(online&&roomClient===client&&activePanel==='avatar'){
     const latest=await client.request('/state');if(!online||roomClient!==client)throw Error('Room disconnected while updating your skin.');
     acceptRoom(latest);panel('avatar');
