@@ -157,46 +157,26 @@ try{
  }
  await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Return to classic avatar')).click();true");
  await waitFor(()=>evalPage("Array.from(document.querySelectorAll('.clan-skin-tile button')).every(b=>b.getAttribute('aria-pressed')==='false')"),'classic outfit restored');
- // Wallet theme is a read-only visual change available in both website and installed app.
- assert.equal(await evalPage("document.querySelectorAll('[data-install-app]').length>0"),true,'install action on game');
- assert.equal(await evalPage("document.querySelector('.wallet-theme-trigger')!==null"),true,'theme button visible in game');
- assert.equal(await evalPage("window.MemeCityCore.TOKEN_PLOTS.length"),6,'six expansion plots are present in public game map');
- await evalPage("document.querySelector('.wallet-theme-trigger').click();true");
- const themeMock=await evalPage(`(()=>{
-   const wallet='11111111111111111111111111111111';
-   const off=window.LAUNCHPAD_CONFIG.platformToken.mint,insider=window.MEME_TOKENS.find(t=>t.id==='congress').mint;
-   const real=window.fetch.bind(window);
-   window.fetch=(url,options)=>String(url).includes('api.mainnet-beta.solana.com')
-    ?Promise.resolve({ok:true,json:async()=>({result:{value:[
-      {account:{data:{parsed:{info:{owner:wallet,mint:off,tokenAmount:{amount:'10000000',decimals:6}}}}}},
-      {account:{data:{parsed:{info:{owner:wallet,mint:insider,tokenAmount:{amount:'2000000000',decimals:6}}}}}}
-    ]}})})
-    :real(url,options);
-   document.querySelector('.wallet-theme-dialog input').value=wallet;
-   return {open:document.querySelector('.wallet-theme-dialog').open};
- })()`);
- assert.equal(themeMock.open,true);
- await evalPage("Array.from(document.querySelectorAll('.wallet-theme-actions button')).find(b=>b.textContent==='Preview public address').click();true");
- await waitFor(()=>evalPage("document.documentElement.dataset.walletTheme==='congress'"),'theme follows highest verified chain quantity');
- assert.match(await evalPage("document.querySelector('.wallet-theme-status').textContent"),/Public-address preview/,'preview is clearly not ownership proof');
- const persisted=await evalPage("localStorage.getItem('offensive-wallet-theme-v1')");
- assert.equal(persisted,'congress');
- await evalPage("document.querySelector('.wallet-theme-dialog').close();true");
+ // Connecting the main wallet MUST set the site theme, no separate theme UI.
+ assert.equal(await evalPage("document.querySelectorAll('[data-install-app]').length>0"),true,'game remains installable');
+ assert.equal(await evalPage("document.querySelector('.wallet-theme-trigger')===null"),true,'no redundant Wallet theme button in game');
+ assert.equal(await evalPage("window.MemeCityCore.TOKEN_PLOTS.length"),6,'holder reserves preserved');
  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/'});
- await waitFor(()=>evalPage("document.querySelector('.wallet-theme-trigger')!==null && document.documentElement.dataset.walletTheme==='congress'"),'theme reused on installed-site home');
- assert.equal(await evalPage("!!document.querySelector('[data-install-app]')"),true,'home installs the same app');
- await evalPage("document.querySelector('.wallet-theme-trigger').click();true");
- await evalPage("Array.from(document.querySelectorAll('.wallet-theme-actions button')).find(b=>b.textContent==='Use default').click();true");
- assert.equal(await evalPage("document.documentElement.dataset.walletTheme"),'default','default theme is restorable');
+ await waitFor(()=>evalPage("!!document.querySelector('.global-wallet-trigger') && !!window.OffensiveWallet"),'global wallet on homepage');
+ assert.equal(await evalPage("document.querySelector('.wallet-theme-trigger')===null"),true,'home does not require a second wallet theme button');
  // Global wallet connection works BEFORE launching the game and across page changes.
- await evalPage("document.querySelector('.wallet-theme-dialog').close();true");
  assert.equal(await evalPage("!!document.querySelector('.global-wallet-trigger')"),true,'home has wallet connect');
  await evalPage(`(()=>{
   const publicKey='11111111111111111111111111111111';
-  const p={isConnected:false,publicKey:null,on:()=>{},connect:async function(){this.isConnected=true;this.publicKey={toString:()=>publicKey};return {publicKey:this.publicKey};},disconnect:async function(){this.isConnected=false;this.publicKey=null;}};
+  const listeners={};
+  const p={isConnected:false,publicKey:null,on:(name,listener)=>{listeners[name]=listener;},connect:async function(){this.isConnected=true;this.publicKey={toString:()=>publicKey};return {publicKey:this.publicKey};},disconnect:async function(){this.isConnected=false;this.publicKey=null;listeners.disconnect?.();}};
+  window.__walletQa={listeners};
   window.phantom={solana:p};
   const real=window.fetch.bind(window);
-  window.fetch=(url,opts)=>String(url).includes('api.mainnet-beta.solana.com')?Promise.resolve({ok:true,json:async()=>({result:{value:[{account:{data:{parsed:{info:{owner:publicKey,mint:window.MEME_TOKENS.find(t=>t.id==='congress').mint,tokenAmount:{amount:'2500000',decimals:6}}}}}}]}})}):real(url,opts);
+  window.fetch=(url,opts)=>String(url).includes('api.mainnet-beta.solana.com')?Promise.resolve({ok:true,json:async()=>({result:{value:[
+    {account:{data:{parsed:{info:{owner:publicKey,mint:window.LAUNCHPAD_CONFIG.platformToken.mint,tokenAmount:{amount:'10000000',decimals:6}}}}}},
+    {account:{data:{parsed:{info:{owner:publicKey,mint:window.MEME_TOKENS.find(t=>t.id==='congress').mint,tokenAmount:{amount:'2500000000',decimals:6}}}}}}
+  ]}})}):real(url,opts);
   return true;
  })()`);
  await evalPage("document.querySelector('.global-wallet-trigger').click();document.querySelector('.global-wallet-actions button').click();true");
@@ -205,6 +185,17 @@ try{
  assert.match(connected.label,/Wallet 1111/);assert.equal(connected.address,'11111111111111111111111111111111');
  assert.equal(connected.saved,connected.address,'only public reconnect hint is stored');
  await waitFor(()=>evalPage("document.documentElement.dataset.walletTheme==='congress'"),'connected wallet automatically changes website theme');
+ assert.equal(await evalPage("document.documentElement.style.getPropertyValue('--theme-accent')"),'#f2c94c','theme uses largest holding’s clan color');
+ assert.match(await evalPage("document.querySelector('.global-wallet-theme-status').textContent"),/Theme applied automatically: Insider/,'user sees which token controls the theme');
+ assert.equal(await evalPage("document.querySelector('.wallet-theme-trigger')===null"),true,'no second theme button needed after connecting');
+ // An account change must immediately clear any stale theme even if the RPC later fails.
+ await evalPage("window.__walletQa.listeners.accountChanged?.({toString:()=> '11111111111111111111111111111112'});true");
+ await waitFor(()=>evalPage("window.OffensiveWallet.state().address==='11111111111111111111111111111112'"),'account switch updates connected wallet');
+ await waitFor(()=>evalPage("document.documentElement.dataset.walletTheme==='default'"),'account switch resets previous theme');
+ // Reconnect the original address to restore the tested high-balance theme.
+ await evalPage("window.__walletQa.listeners.accountChanged?.({toString:()=> '11111111111111111111111111111111'});true");
+ await waitFor(()=>evalPage("document.documentElement.dataset.walletTheme==='congress'"),'original wallet re-applies theme');
+
  for(const page of ['/beta.html','/creators.html','/city-roadmap.html','/tokens/offensive/','/tokens/redacted/','/tokens/you-missed/','/city.html']){
   await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+page});
   await waitFor(()=>evalPage("!!document.querySelector('.global-wallet-trigger')&&!!window.OffensiveWallet"),'wallet button on '+page);
@@ -222,7 +213,7 @@ try{
  await evalPage("document.querySelector('.global-wallet-actions button').click();true");
  await waitFor(()=>evalPage("document.querySelector('.global-wallet-status').textContent.includes('No Solana wallet detected')"),'visible missing-provider feedback in global wallet dialog');
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
- console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six clan skins, gated plots, global wallet connection on every site page, shared themes and wallet-button feedback in Chromium.');
+ console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six clan skins, gated plots, global wallet connection on every site page, automatic token theme on connect and account change, and wallet-button feedback in Chromium.');
 }finally{
  try{ws?.close();}catch{}
  if(chrome){
