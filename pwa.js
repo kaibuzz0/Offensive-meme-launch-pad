@@ -207,7 +207,7 @@
 })();
 +token.ticker+'). Your website colors now match your largest supported token holding.'
         :'Wallet connected. No supported project tokens found. Default theme active.';
-      walletButton.textContent=token?'Wallet '+shortAddress(publicKey)+' · 
+      walletButton.textContent=token?'Wallet '+shortAddress(publicKey)+' ·
     }catch(e){
       if(request!==themeRequest||window.OffensiveWallet.state().address!==publicKey)return;
       themeLine.textContent='Wallet connected, but theme balance check failed: '+(e.message||'network unavailable')+' Default theme is active. Reconnect to retry.';
