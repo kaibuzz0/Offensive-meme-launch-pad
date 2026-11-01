@@ -146,6 +146,7 @@
  }
  function closePanel(){$('#city-panel').close();$('#joystick-knob').style.transform='';activePanel='';keys.clear();held.clear();stick={x:0,y:0};firing=false;canvas.focus({preventScroll:true});}
  let holderTimer=null,holderClan=null,walletCheckBusy=false,offenderWalletStatus='';
+ let androidChallenge=null,androidChallengePending=false;
  function walletFeedback(clan,message){
   offenderWalletStatus=message;
   const inline=$('#offender-wallet-status');if(inline)inline.textContent=message;
@@ -156,17 +157,32 @@
   const w=window.OffensiveWallet?.state();
   return w?.connected&&C.TOKEN_PLOTS.some(p=>p.id===w.themeId)?w.themeId:null;
  }
+ async function prepareAndroidChallenge(clan){
+  if(!online||androidChallengePending||!clan)return;
+  const connected=window.OffensiveWallet?.state(),client=roomClient;
+  if(!connected?.connected||!connected.address)return;
+  if(androidChallenge?.clan===clan&&androidChallenge.address===connected.address&&androidChallenge.client===client&&androidChallenge.expires>Date.now()+20000)return;
+  androidChallenge=null;androidChallengePending=true;
+  try{
+   const proof=await client.request('/wallet/challenge',{address:connected.address});
+   if(!online||roomClient!==client||window.OffensiveWallet?.state().address!==connected.address)return;
+   androidChallenge={...proof,clan,address:connected.address,client};
+   toast('Wallet proof ready. In Together, tap Verify my holder area to approve your Android wallet.');
+  }catch(e){walletFeedback(clan,'Could not prepare Android wallet proof: '+(e.message||'room unavailable'));}
+  finally{androidChallengePending=false;}
+ }
  function autoVerifyTheme(){
   if(!online||walletCheckBusy)return;
   const clan=currentWalletTheme();
   if(!clan||holderClan===clan&&me.holderClan===clan&&me.holderTier>0)return;
+  if(walletProvider()?.requiresUserGesture){void prepareAndroidChallenge(clan);return;}
   void verifyHoldings(clan);
  }
  // The single site wallet supplies its address and preferred token. The existing
  // multiplayer challenge signature is still required before a reserve unlocks.
  window.addEventListener('offensive-theme-changed',autoVerifyTheme);
- window.addEventListener('offensive-wallet-changed',()=>{if(online&&holderClan)void clearHolder();});
- async function clearHolder(client=roomClient){clearInterval(holderTimer);holderClan=null;try{await client?.request('/wallet/disconnect',{});}catch{} }
+ window.addEventListener('offensive-wallet-changed',()=>{androidChallenge=null;if(online&&holderClan)void clearHolder();});
+ async function clearHolder(client=roomClient){clearInterval(holderTimer);holderClan=null;androidChallenge=null;try{await client?.request('/wallet/disconnect',{});}catch{} }
  async function verifyHoldings(clan){
   if(walletCheckBusy)return;
   if(!online){walletFeedback(clan,'Join Together to use your connected wallet for holder-only areas. Free solo mode stays available.');return;}
@@ -185,8 +201,17 @@
    const address=connected.address;
    if(!address||wallet.publicKey?.toString()!==address)throw Error('Wallet changed. Reconnect using the single site wallet button.');
    walletFeedback(clan,'Confirm one ownership signature to unlock your matching city lot. No transaction or transfer.');
-   walletFeedback(clan,'Requesting secure room-bound wallet signature (no transfer).');
-   const c=await client.request('/wallet/challenge',{address});
+   let c;
+   if(wallet.requiresUserGesture){
+    // Android MWA pairing must start from this tap; no await before signMessage.
+    c=androidChallenge;
+    if(!c||c.clan!==clan||c.address!==address||c.client!==client||c.expires<=Date.now()+5000){
+     void prepareAndroidChallenge(clan);
+     walletFeedback(clan,'Preparing the wallet challenge. Tap Verify my holder area again once it is ready.');
+     return;
+    }
+    androidChallenge=null;
+   }else c=await client.request('/wallet/challenge',{address});
    walletFeedback(clan,'Approve the message signature in your wallet. This does not authorize spending.');
    const signed=await wallet.signMessage(new TextEncoder().encode(c.message),'utf8'),bytes=signed.signature||signed;
    if(!online||roomClient!==client||wallet.publicKey?.toString()!==address)throw Error('Wallet or room changed. Try again.');
