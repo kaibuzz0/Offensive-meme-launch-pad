@@ -176,7 +176,7 @@
  function summonZombies(e){
   const a=e.arcade,alive=a.bots.filter(b=>undead(b)&&b.hp>0).length;
   if(alive>=ZOMBIE_MAX)return 0;
-  const players=[...e.players.values()].filter(p=>!p.room&&p.hp>0);
+  const players=[...e.players.values()].filter(p=>!p.room&&p.hp>0&&C.areaAt(p.x,p.y)==='greenbelt');
   if(!players.length)return 0;
   const origin=players[Math.floor(zombieRandom(e)*players.length)];
   let start;
