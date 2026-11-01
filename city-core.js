@@ -46,7 +46,7 @@
  };
  const factionOf=b=>b.faction||(b.kind==='cop'?'congress':'exit');
  const rivals=(a,b)=>!!FACTIONS[a]?.enemies.includes(b)||!!FACTIONS[b]?.enemies.includes(a);
- function npcHostile(b,p){if(!b||!p||b.hp<=0)return false;if(b.owner)return b.owner===(p.ally?p.owner:p.id);if(b.kind==='cop'&&p.heat>=22)return true;return p.clan?rivals(factionOf(b),p.clan):factionOf(b)==='exit';}
+ function npcHostile(b,p){if(!b||!p||b.hp<=0)return false;if(b.kind==='zombie')return true;if(b.owner)return b.owner===(p.ally?p.owner:p.id);if(b.kind==='cop'&&p.heat>=22)return true;return p.clan?rivals(factionOf(b),p.clan):factionOf(b)==='exit';}
  const outpostLot=id=>{const n=NEIGHBORHOODS.find(n=>n.id===id);return n?{x:n.ox+800,y:n.oy+1150,cols:3,rows:3,tile:64}:null;};
  const DISTRICTS=[
   ['fortress','Fortress Heights','BUILD & DEFEND YOUR MEME CITY','#b6cd8c','Fortress home', 'build',1160],

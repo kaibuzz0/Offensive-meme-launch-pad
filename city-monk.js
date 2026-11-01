@@ -190,7 +190,7 @@
    if(!eligible.length||random(this)>=.35)return;
    const p=eligible[Math.floor(random(this)*eligible.length)],spot=place(p);if(!spot)return;
    const index=pick(this);
-   event.active={...spot,owner:p.id,left:29,elapsed:0,verseIndex:index,nextVerse:6,
+   event.active={...spot,owner:p.id,hp:80,left:29,elapsed:0,verseIndex:index,nextVerse:6,
     tornadoes:[{x:spot.x+15,y:spot.y+22,target:null}],pulse:0};
    for(const q of this.players.values())if(outside(q)&&allied(p,q)&&distance(q,p)<800){
     q.notice='RARE ENCOUNTER / The Wandering Monk · Healing and fire protection. Praise Yahweh and Yeshua!';
@@ -198,7 +198,7 @@
    }
   }
   const m=event.active,p=this.players.get(m.owner);
-  if(!p||!outside(p)||p.hp<=0||distance(p,m)>870){event.active=null;event.wait=140;return;}
+  if(!p||m.hp<=0||!outside(p)||p.hp<=0||distance(p,m)>870){event.active=null;event.wait=140;return;}
   m.left-=dt;m.elapsed+=dt;
   if(m.left<=0){event.active=null;event.wait=140+random(this)*90;return;}
   if(m.elapsed>=m.nextVerse){m.verseIndex=pick(this,m.verseIndex);m.nextVerse+=6;}
