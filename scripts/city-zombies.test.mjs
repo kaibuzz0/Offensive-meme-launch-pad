@@ -55,15 +55,16 @@ test('zombies bite hostile and friendly NPCs and hired guards instead of sharing
  e.tick(.05);
  const g=e.arcade.guards.find(g=>g.owner===p.id);
  assert.ok(g,'hired defender was created');
- Object.assign(g,{x:z.x+20,y:z.y,hp:80});
- tick(e,1.6);
+ Object.assign(g,{x:z.x+20,y:z.y,hp:80,cooldown:1000});
+ z.bite=0;
+ e.tick(.05);
  assert.ok(g.hp<80,'zombies damage player-owned guards');
 });
 
 test('player fire and armed NPCs can kill walkers without generating credits or wanted heat',()=>{
  const {e,p,zombies}=setup(),z=zombies()[0];
- Object.assign(p,{x:z.x-145,y:z.y,invulnerable:1000,heat:0,credits:180,xp:0});
- z.hp=20;z.maxHp=85;z.speed=0;z.bite=100;
+ Object.assign(p,{x:3500,y:4250,invulnerable:1000,heat:0,credits:180,xp:0});
+ Object.assign(z,{x:3645,y:4250,hp:20,maxHp:85,speed:0,bite:100});
  e.action(p.id,{type:'fire',x:1,y:0});
  tick(e,.4);
  assert.ok(z.hp<=0,'the existing player blaster can damage zombies');
