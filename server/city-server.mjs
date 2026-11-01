@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {randomBytes} from 'node:crypto';
 import {holdingsService} from './city-holdings.mjs';
 import {createThemeLookup} from './city-wallet-theme.mjs';
 import {createRooms} from './city-rooms.mjs';
@@ -14,10 +15,17 @@ const projectTokens=[tokenScope.window.LAUNCHPAD_CONFIG.platformToken,...tokenSc
 const mints=Object.fromEntries(projectTokens.map(t=>[t.id,t.mint]));
 const contentTypes={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mp4':'video/mp4','.jpg':'image/jpeg','.webp':'image/webp','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
 const files=new Set(['index.html','beta.html','creators.html','city.html','city-roadmap.html','city-world2-preview.html','city-world2-preview.js','city-world2-simulation.js','city-topology.js','city-nav.js','city-map.js','city-save.js','city-center-save.js','city-migration.js','city-world2.js','city-world2-registry.js','city.css','city.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js','styles.css','app.js','tokens.js','launchpad-config.js','trade-core.js','trade.js','share-core.js','social.js','pwa.js','sw.js','manifest.webmanifest','offline.html','launchpad.js','launchpad.css']);
-export function createCityServer({origins=[],now=()=>Date.now(),themeReader=null}={}){
- const holdings=holdingsService({mints,now});
+export function createCityServer({origins=[],now=()=>Date.now(),themeReader=null,holdingsReader=null}={}){
+ const holdings=holdingsReader||holdingsService({mints,now});
  const theme=themeReader||createThemeLookup({tokens:projectTokens,now});
- const themeRates=new Map();
+ const themeRates=new Map(),soloRates=new Map(),soloProofs=new Map();
+ function cleanSolo(){for(const [id,proof]of soloProofs)if(proof.expires<=now())soloProofs.delete(id);}
+ function soloRate(ip){
+  const stamp=now();let entry=soloRates.get(ip);
+  if(!entry||stamp-entry.start>=60000)soloRates.set(ip,entry={start:stamp,count:0});
+  if(++entry.count>8){const e=Error('Too many wallet proof requests. Retry shortly.');e.status=429;throw e;}
+  if(soloRates.size>600)for(const [key,value]of soloRates)if(stamp-value.start>60000)soloRates.delete(key);
+ }
  const service=createRooms(Engine,{now}),engine=service.first.engine,sessions=service.sessions,streams=new Map();
  const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));};
  const server=http.createServer({requestTimeout:15000,headersTimeout:10000,maxHeaderSize:8192},async(req,res)=>{
@@ -46,6 +54,37 @@ export function createCityServer({origins=[],now=()=>Date.now(),themeReader=null
     let body={};if(req.method==='POST'){
      if(!String(req.headers['content-type']).startsWith('application/json'))return json(res,415,{error:'Use application/json.'});
      let data='';for await(const chunk of req){data+=chunk;if(Buffer.byteLength(data)>4096)return json(res,413,{error:'Request is too large.'});}try{body=JSON.parse(data);}catch{return json(res,400,{error:'Invalid JSON.'});}if(!body||typeof body!=='object'||Array.isArray(body))return json(res,400,{error:'Invalid action body.'});
+    }
+    // An independent, signed cosmetic proof session works in ordinary solo play.
+    // It never grants a multiplayer identity, spending authority or permanent save.
+    if(route==='/solo-wallet/challenge'&&req.method==='POST'){
+     soloRate(req.socket.remoteAddress||'unknown');cleanSolo();
+     if(soloProofs.size>=1024){const e=Error('Wallet verification is busy. Retry shortly.');e.status=503;throw e;}
+     const id='solo-'+randomBytes(24).toString('hex'),session={id};
+     const challenge=holdings.challenge(session,body.address);
+     soloProofs.set(id,{session,expires:now()+12*60*1000,absoluteExpiry:now()+8*60*60*1000,verified:false});
+     return json(res,200,{...challenge,proofId:id});
+    }
+    if(route==='/solo-wallet/check'&&req.method==='POST'){
+     cleanSolo();const proof=soloProofs.get(body.proofId);
+     if(!proof){const e=Error('Solo wallet proof expired. Sign a new challenge.');e.status=401;throw e;}
+     if(!proof.verified&&typeof body.signature!=='string'){const e=Error('Sign the ownership challenge first.');e.status=401;throw e;}
+     if(proof.verified&&body.signature!==undefined){const e=Error('Wallet challenge has already been used.');e.status=400;throw e;}
+     const result=await holdings.check(proof.session,{},body);
+     // A revoked or expired challenge cannot be revived by a late RPC response.
+     if(soloProofs.get(body.proofId)!==proof||proof.expires<=now()){
+      const e=Error('Solo wallet proof was revoked or expired during verification.');e.status=401;throw e;
+     }
+     proof.verified=true;
+     // Active players retain their cosmetic via fresh on-chain balance checks.
+     // Idle sessions expire in 12 minutes; every session must be re-signed
+     // after eight hours even if it was continuously used.
+     proof.expires=Math.min(proof.absoluteExpiry,now()+12*60*1000);
+     return json(res,200,{...result,verifiedOwnership:true});
+    }
+    if(route==='/solo-wallet/revoke'&&req.method==='POST'){
+     if(typeof body.proofId==='string')soloProofs.delete(body.proofId);
+     return json(res,200,{ok:true});
     }
     if(route==='/join'&&req.method==='POST'){
      return json(res,201,service.join(body,req.socket.remoteAddress||'unknown'));
