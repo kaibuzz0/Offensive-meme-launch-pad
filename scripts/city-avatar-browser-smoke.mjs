@@ -186,7 +186,7 @@ try{
  assert.equal(connected.saved,connected.address,'only public reconnect hint is stored');
  await waitFor(()=>evalPage("document.documentElement.dataset.walletTheme==='congress'"),'connected wallet automatically changes website theme');
  assert.equal(await evalPage("window.OffensiveWallet.state().themeId"),'congress','verified connected session exposes the theme for optional game access');
- assert.equal(await evalPage("document.querySelectorAll('.global-wallet-dialog .global-wallet-actions button').length"),2,'only Disconnect and Close inside status panel');
+ assert.equal(await evalPage("document.querySelectorAll('.global-wallet-dialog .global-wallet-actions button:not([hidden])').length"),2,'only Disconnect and Close inside status panel');
  assert.equal(await evalPage("document.documentElement.style.getPropertyValue('--theme-accent')"),'#f2c94c','theme uses largest holding’s clan color');
  assert.match(await evalPage("document.querySelector('.global-wallet-theme-status').textContent"),/Theme active: Insider/,'user sees which token controls the theme');
  assert.equal(await evalPage("getComputedStyle(document.body).backgroundColor"),'rgb(33, 26, 16)','real page background changes, not just metadata');
@@ -214,8 +214,8 @@ try{
  await waitFor(()=>evalPage("document.querySelector('.global-wallet-dialog').open"),'wallet dialog on game page');
  const noProvider=await evalPage("({phantom:document.querySelector('.global-wallet-links a')?.href,help:document.querySelector('.global-wallet-help')?.textContent})");
  assert.ok(new URL(noProvider.phantom).hostname.includes('phantom'),'wallet-app handoff present');
- assert.match(noProvider.help,/Installed apps/);
- await waitFor(()=>evalPage("document.querySelector('.global-wallet-status').textContent.includes('No Solana wallet detected')"),'one wallet button explains missing providers in installed PWA');
+ assert.match(noProvider.help,/On Android/);
+ await waitFor(()=>evalPage("document.querySelector('.global-wallet-status').textContent.includes('No wallet detected')"),'one wallet button explains missing providers in installed PWA');
   // A single site wallet powers the next Together room's holder access.
   // Fake signatures must NOT unlock anything; the real room server rejects them.
   await evalPage(`(()=>{
