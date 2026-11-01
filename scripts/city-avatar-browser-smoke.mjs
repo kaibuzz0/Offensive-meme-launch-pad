@@ -146,7 +146,7 @@ try{
  await evalPage("window.phantom={solana:{connect:async()=>{throw Error('Wallet permission cancelled');},signMessage:async()=>({signature:new Uint8Array(64)})}};document.querySelector('[data-panel=avatar]').click();true");
  await waitFor(()=>evalPage("!!document.querySelector('#offender-wallet-verify') && !document.querySelector('.wallet-browser-help')"),'detected wallet state');
  await evalPage("document.getElementById('offender-wallet-verify').click();true");
- await waitFor(()=>evalPage("document.querySelector('#offender-wallet-status')?.textContent.includes('Wallet permission cancelled')"),'wallet rejection shown inline');
+ await waitFor(()=>evalPage("document.querySelector('#offender-wallet-status')?.textContent.includes('single Connect wallet button')"),'game uses the single shared connection, not a second wallet popup');
  assert.equal(await evalPage("document.getElementById('offender-wallet-verify').disabled"),false,'retry works after a rejected wallet connection');
  // Six skin cards are clickable inside the actual mobile Avatar UI.
  assert.equal(await evalPage("document.querySelectorAll('.clan-skin-grid [data-skin]').length"),6,'six skins appear in the Avatar panel');
@@ -179,12 +179,14 @@ try{
     })}),110)):real(url,opts);
   return true;
  })()`);
- await evalPage("document.querySelector('.global-wallet-trigger').click();document.querySelector('.global-wallet-actions button').click();true");
+ await evalPage("document.querySelector('.global-wallet-trigger').click();true");
  await waitFor(()=>evalPage("window.OffensiveWallet.state().connected===true"),'global wallet connected on homepage');
  const connected=await evalPage("({label:document.querySelector('.global-wallet-trigger').textContent,address:window.OffensiveWallet.state().address,saved:localStorage.getItem('offensive-wallet-last-public-v1')})");
  assert.match(connected.label,/Wallet 1111/);assert.equal(connected.address,'11111111111111111111111111111111');
  assert.equal(connected.saved,connected.address,'only public reconnect hint is stored');
  await waitFor(()=>evalPage("document.documentElement.dataset.walletTheme==='congress'"),'connected wallet automatically changes website theme');
+ assert.equal(await evalPage("window.OffensiveWallet.state().themeId"),'congress','verified connected session exposes the theme for optional game access');
+ assert.equal(await evalPage("document.querySelectorAll('.global-wallet-dialog .global-wallet-actions button').length"),2,'only Disconnect and Close inside status panel');
  assert.equal(await evalPage("document.documentElement.style.getPropertyValue('--theme-accent')"),'#f2c94c','theme uses largest holding’s clan color');
  assert.match(await evalPage("document.querySelector('.global-wallet-theme-status').textContent"),/Theme active: Insider/,'user sees which token controls the theme');
  assert.equal(await evalPage("getComputedStyle(document.body).backgroundColor"),'rgb(33, 26, 16)','real page background changes, not just metadata');
@@ -213,10 +215,9 @@ try{
  const noProvider=await evalPage("({phantom:document.querySelector('.global-wallet-links a')?.href,help:document.querySelector('.global-wallet-help')?.textContent})");
  assert.ok(new URL(noProvider.phantom).hostname.includes('phantom'),'wallet-app handoff present');
  assert.match(noProvider.help,/Installed apps/);
- await evalPage("document.querySelector('.global-wallet-actions button').click();true");
- await waitFor(()=>evalPage("document.querySelector('.global-wallet-status').textContent.includes('No Solana wallet detected')"),'visible missing-provider feedback in global wallet dialog');
+ await waitFor(()=>evalPage("document.querySelector('.global-wallet-status').textContent.includes('No Solana wallet detected')"),'one wallet button explains missing providers in installed PWA');
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
- console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six clan skins, gated plots, global wallet connection on every site page, automatic token theme on connect and account change, and wallet-button feedback in Chromium.');
+ console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six clan skins, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
 }finally{
  try{ws?.close();}catch{}
  if(chrome){
