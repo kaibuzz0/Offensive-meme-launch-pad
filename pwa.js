@@ -89,7 +89,7 @@
     mobileButton.hidden=!android||!!(window.phantom?.solana||window.solflare||window.solana);
     mobileButton.disabled=walletBusy||mobileLoading||!mobileWallet;
 
-    if(connected)walletStatus.textContent='Connected: '+activeAddress+' · Theme changes automatically. In Together, approve the signature request to open matching token areas.';
+    if(connected)walletStatus.textContent='Connected: '+activeAddress+' · Theme changes automatically. Open Avatar in solo play or Together to verify holder-only skins with a read-only signature.';
     else if(!walletStatus.textContent||walletStatus.textContent.startsWith('Connected:'))walletStatus.textContent=remembered?'Previous wallet '+shortAddress(remembered)+' remembered. Reconnect to authorize this page.':'No wallet connected. Connect in a compatible wallet browser.';
   }
   function publishWallet(address){
