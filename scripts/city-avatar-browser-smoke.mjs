@@ -103,6 +103,26 @@ try{
   return result;
  })()`);
  assert.equal(samples.length,80);
+ // Bilingual monk should paint actual Hebrew/English and both fire tornadoes
+ // on the same real Canvas used by the game, including a reduced-motion frame.
+ const monkPixels=await evalPage(`(()=>{
+  const verses=window.CityMonk?.VERSES;
+  if(!verses||verses.length!==20)return {count:verses?.length||0,painted:0};
+  const img=document.createElement('canvas');img.width=720;img.height=600;
+  const g=img.getContext('2d');window.CityMonk.draw(g,{
+   x:360,y:400,elapsed:9,praise:window.CityMonk.PRAISE,
+   quote:verses[0],tornadoes:[{x:290,y:425,target:'test'},{x:440,y:425,target:'test2'}]
+  },false);
+  const data=g.getImageData(0,0,720,600).data;
+  let painted=0;for(let i=3;i<data.length;i+=4)if(data[i]>20)painted++;
+  return {count:verses.length,painted,hebrew:verses[0].he,english:verses[0].en};
+ })()`);
+ assert.equal(monkPixels.count,20,'exactly twenty paired monk readings');
+ assert.match(monkPixels.hebrew,/[א-ת]/,'Canvas monk uses Hebrew scripture');
+ assert.match(monkPixels.english,/brokenhearted/);
+ assert.ok(monkPixels.painted>2500,'monk robe, twin tornadoes, healing circle and speech actually paint');
+ assert.equal(await evalPage("!!document.querySelector('#monk-verse[hidden]')"),true,'bilingual HUD stays hidden when no monk is present');
+
  for(const p of samples)assert.ok(p.painted>200,'Real Canvas body missing for '+JSON.stringify(p));
  assert.equal(await evalPage("document.querySelector('.world-hud')!==null && document.querySelector('.game-bottom')!==null"),true,'original full solo HUD and mobile movement controls present');
  assert.equal(await evalPage("document.documentElement.scrollWidth <= document.documentElement.clientWidth+3"),true,'emulated phone game has no horizontal overflow');
