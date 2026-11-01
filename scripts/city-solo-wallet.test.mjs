@@ -42,6 +42,13 @@ test('solo wallet ownership unlocks the skin without joining, refreshes and revo
   clock+=60000;
   assert.equal((await post('/solo-wallet/check',{proofId,clan:'offensive'})).body.tier,1);
   assert.equal(calls,2);
+  clock+=11*60*1000;
+  assert.equal((await post('/solo-wallet/check',{proofId,clan:'offensive'})).body.tier,1,'active session renews near its idle expiry');
+  clock+=11*60*1000;
+  assert.equal((await post('/solo-wallet/check',{proofId,clan:'offensive'})).body.tier,1,'signed proof stays usable beyond its original 12-minute TTL');
+  assert.equal(calls,4);
+  clock+=13*60*1000;
+  assert.equal((await post('/solo-wallet/check',{proofId,clan:'offensive'})).status,401,'idle proof expires instead of granting permanent access');
   assert.equal((await post('/solo-wallet/revoke',{proofId})).status,200);
   assert.equal((await post('/solo-wallet/check',{proofId,clan:'offensive'})).status,401);
  }finally{
