@@ -188,15 +188,27 @@
    if(o.clanSkin==='rug')box([10,-9,68],[1.5,6,3],'#ed48ac');
   }
   if(offender){for(const side of [-1,1])box([0,side*17.6,62],[11,1.2,17],'#9226e8');box([-9.4,0,55],[1.3,9,5],'#c6f916');}
-  box([0,0,80],[9,10,9],offender?'#15121f':tone);
-  oval([0,0,94],[8,9,12],tone);
+  box([0,0,80],[9,10,9],offender?'#2b2234':tone);
   if(offender){
-   // Keep the same head rig and draw a toxic-lime skull, dark sockets and teeth.
-   for(const side of [-1,1])box([8.4,side*4.6,97],[1.5,5.4,5.8],'#15121f');
-   box([9.1,0,90],[1.7,3.8,3.4],'#15121f');
-   box([8.6,0,86.8],[1.2,13,4.5],'#f1efcc');
-   for(const gap of [-5,-2.5,0,2.5,5])box([9.3,gap,86.7],[1.3,.7,4.2],'#15121f');
+   // OFFENDED: full ivory skull with sockets, individual teeth and an angular jaw.
+   // All features rotate together through the existing 360-degree painter-sorted rig.
+   oval([-1.2,0,96],[10.5,11,12.5],'#dce7d1');
+   oval([1,0,97],[9.4,10.2,11.8],'#edf3e2');
+   oval([5.4,0,89.4],[5.4,7.5,6.5],'#d0dcc6');
+   for(const side of [-1,1]){
+    box([7.2,side*8.3,92.2],[5.3,3.7,5.2],'#e8f0db');
+    box([9.35,side*5.1,98.4],[2.6,6.5,7.4],'#14202a');
+    box([10.85,side*5.1,98],[.8,2.6,1.6],'#c6f916');
+    box([9.1,side*5.1,103.3],[2.5,7.2,1.7],'#fafbef');
+    box([4.2,side*8.2,86],[4.8,3,6],'#d2dec7');
+    face([[2,side*10.9,103],[4,side*10.9,101],[4,side*10.9,98],[2,side*10.9,99]],'#8ea18a');
+   }
+   face([[10.35,0,95.5],[11.6,-2.5,91],[11.6,2.5,91]],'#14202a');
+   box([9,0,85.9],[3.5,12.2,5.2],'#e5edda');
+   box([11,0,86.2],[1.5,11.7,4.3],'#24303a');
+   for(const offset of [-4.6,-2.3,0,2.3,4.6])box([11.9,offset,86.6],[.9,1.8,3.5],'#f5f6e6');
   }else{
+   oval([0,0,94],[8,9,12],tone);
    oval([-1,0,97],[8.5,9.5,10],fit?.hair||hair[style.hair||0],.1);
    oval([-6,0,97],[3,8,8],fit?.hair||hair[style.hair||0]);
    box([9,0,93],[4,4,5],tone);
