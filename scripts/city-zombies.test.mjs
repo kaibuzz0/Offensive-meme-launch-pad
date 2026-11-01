@@ -73,8 +73,8 @@ test('player fire and armed NPCs can kill walkers without generating credits or 
  assert.equal(p.heat,0,'defending against walkers generates no wanted status');
  const other=setup(),walker=other.zombies()[0],cop=other.e.arcade.bots.find(b=>b.kind==='cop');
  Object.assign(walker,{x:3645,y:4250,speed:0,bite:100});
- Object.assign(cop,{x:walker.x+160,y:walker.y,hp:100,cooldown:0,windup:0});
- Object.assign(other.p,{x:walker.x-110,y:walker.y,invulnerable:1000});
+ Object.assign(cop,{x:walker.x-145,y:walker.y,hp:100,cooldown:0,windup:0});
+ Object.assign(other.p,{x:walker.x+110,y:walker.y,invulnerable:1000});
  other.e.arcade.zombieNext=1000;
  const initial=walker.hp;tick(other.e,1.3);
  assert.ok(walker.hp<initial,'other armed NPCs shoot the undead as street rivals. Cop: '+cop.state+', Zombie '+walker.hp+'/'+initial+', shots '+other.e.arcade.bullets.length);
