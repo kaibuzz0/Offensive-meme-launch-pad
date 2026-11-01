@@ -132,7 +132,7 @@
     try{await p?.disconnect?.();}catch{}
     publishWallet(null);walletStatus.textContent='Wallet disconnected. No site permissions are being retained.';
   }
-  window.OffensiveWallet=Object.freeze({connect:connectWallet,disconnect:disconnectWallet,state:walletState,provider:getProvider});
+  window.OffensiveWallet=Object.freeze({connect:connectWallet,disconnect:disconnectWallet,state:walletState,provider:()=>activeProvider||getProvider()});
   walletButton.addEventListener('click',async()=>{
     if(walletBusy)return;
     if(!activeAddress){try{await connectWallet();}catch{/* Explanation and wallet browser links appear in the status dialog. */}}
