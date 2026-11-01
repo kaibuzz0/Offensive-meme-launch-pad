@@ -24,7 +24,7 @@ console.log(`PASS: ${tokens.length} unique listings, all artwork, mint format ch
 // Global wallet entry must be present on every public website page, including token share pages.
 for(const page of ['index.html','beta.html','creators.html','city.html','city-roadmap.html',...tokens.map(t=>'tokens/'+t.id+'/index.html'),'tokens/offensive/index.html']){
  const content=read(page);
- assert.ok(content.includes('pwa.js?v=30-android-wallet'),page+' must load shared wallet runtime');
+ assert.ok(content.includes(page==='city.html'?'pwa.js?v=31-solo-holder':'pwa.js?v=30-android-wallet'),page+' must load shared wallet runtime');
  assert.ok(content.includes('styles.css?v=28-reliable-theme')||content.includes('city.css?v=28-reliable-theme'),page+' must load wallet controls CSS');
 }
 // Android PWA adapter is a locally published ES module; it must not rely on
