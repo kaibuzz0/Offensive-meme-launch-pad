@@ -215,7 +215,7 @@ try{
  const noProvider=await evalPage("({phantom:document.querySelector('.global-wallet-links a')?.href,help:document.querySelector('.global-wallet-help')?.textContent})");
  assert.ok(new URL(noProvider.phantom).hostname.includes('phantom'),'wallet-app handoff present');
  assert.match(noProvider.help,/On Android/);
- await waitFor(()=>evalPage("document.querySelector('.global-wallet-status').textContent.includes('No Solana wallet detected')"),'one wallet button explains missing providers in installed PWA');
+ await waitFor(()=>evalPage("document.querySelector('.global-wallet-status').textContent.includes('No wallet detected')"),'one wallet button explains missing providers in installed PWA');
   // A single site wallet powers the next Together room's holder access.
   // Fake signatures must NOT unlock anything; the real room server rejects them.
   await evalPage(`(()=>{
