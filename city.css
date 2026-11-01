@@ -64,15 +64,6 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 @media(max-width:450px){.clan-skin-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* Wallet-based visual themes are shared by browser and installed PWA. */
-.wallet-theme-trigger{border:1px solid var(--green,#b7f464);color:var(--green,#b7f464);background:#17211b;font-weight:700;padding:10px 13px;border-radius:5px;font-size:12px;min-height:40px}
-.wallet-theme-dialog{width:min(95vw,560px);max-height:min(90vh,720px);overflow:auto;z-index:999999;background:#192535;color:#edf2e9;border:2px solid var(--green,#b7f464);border-radius:13px;padding:22px;box-shadow:0 30px 90px #000b}
-.wallet-theme-dialog::backdrop{background:#020811b8}
-.wallet-theme-dialog h2{font:900 26px/1.2 Impact,Arial,sans-serif;margin:0 0 12px;color:var(--green,#b7f464)}
-.wallet-theme-dialog p{line-height:1.55;font-size:14px}
-.wallet-theme-dialog input{width:100%;min-height:46px;border:1px solid #718276;padding:10px 12px;border-radius:4px;background:#0b1919;color:#f2f7e8;margin:9px 0 12px;overflow-wrap:anywhere}
-.wallet-theme-actions{display:flex;flex-wrap:wrap;gap:8px}
-.wallet-theme-actions button{border:1px solid var(--green,#b7f464);background:#20312c;color:#e7f4d9;font-weight:700;padding:11px;border-radius:5px;flex:1 1 140px;min-height:43px}
-.wallet-theme-status{min-height:24px;margin:12px 0 0;color:#d3e8c7;overflow-wrap:anywhere}
 :root[data-wallet-theme="redacted"] body.launch-home{background:#161020}
 :root[data-wallet-theme="congress"] body.launch-home{background:#1b160d}
 :root[data-wallet-theme="exit"] body.launch-home{background:#0d201f}
@@ -82,8 +73,6 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 :root[data-wallet-theme="rug"] body.launch-home{background:#1e1120}
 :root[data-wallet-theme]:not([data-wallet-theme="default"]) .launch-home .home-portal{border-color:var(--green,#b7f464)}
 
-.city-header>.wallet-theme-trigger{flex-shrink:0}
-@media(max-width:620px){.city-header>.wallet-theme-trigger{font-size:10px;padding:6px 8px;min-height:34px}}
 
 
 /* Wallet theme + install buttons must not stretch the mobile game viewport. */
@@ -92,7 +81,7 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
  .city-header .city-brand{margin-right:auto}
  .city-header #pause-toggle{margin-left:0}
  .city-header .solo-restore-label{display:none}
- .city-header>[data-install-app],.city-header>.wallet-theme-trigger{min-height:33px;max-width:100%;white-space:normal;overflow-wrap:anywhere;flex-shrink:1;font-size:10px;padding:7px 8px}
+ .city-header>[data-install-app]{min-height:33px;max-width:100%;white-space:normal;overflow-wrap:anywhere;flex-shrink:1;font-size:10px;padding:7px 8px}
 }
 
 
@@ -110,11 +99,20 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 .global-wallet-help{color:#c7d7d9}
 .global-wallet-links{display:flex;gap:8px;flex-wrap:wrap}
 .global-wallet-app-link{display:inline-flex;justify-content:center;align-items:center;border-color:var(--green,var(--acid,#b7f464));color:#effbdc;white-space:nowrap}
-.utility-bar>.global-wallet-trigger,.utility-bar>.wallet-theme-trigger{margin-left:8px}
+.utility-bar>.global-wallet-trigger{margin-left:8px}
 @media(max-width:700px){
  .utility-bar{flex-wrap:wrap;gap:9px}
  .utility-bar>div{flex-wrap:wrap;gap:7px;justify-content:flex-end}
  .global-wallet-trigger{font-size:10px;min-height:35px;padding:8px;max-width:100%}
- .utility-bar>.global-wallet-trigger,.utility-bar>.wallet-theme-trigger{margin-left:0}
+ .utility-bar>.global-wallet-trigger{margin-left:0}
  .city-header>.global-wallet-trigger{font-size:9px;min-height:33px;padding:7px 8px;white-space:normal;overflow-wrap:anywhere;flex-shrink:1}
 }
+
+/* Wallet token theme is applied automatically when connected; this is a status, not a second control. */
+.global-wallet-theme-status{min-height:40px;margin:10px 0 14px;padding:11px 13px;border-left:3px solid var(--green,#b7f464);background:#203b36;color:#e7f6e7;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+:root[data-wallet-theme="congress"] .global-wallet-trigger[data-connected=true],
+:root[data-wallet-theme="redacted"] .global-wallet-trigger[data-connected=true],
+:root[data-wallet-theme="exit"] .global-wallet-trigger[data-connected=true],
+:root[data-wallet-theme="you-missed"] .global-wallet-trigger[data-connected=true],
+:root[data-wallet-theme="maduro"] .global-wallet-trigger[data-connected=true],
+:root[data-wallet-theme="offensive"] .global-wallet-trigger[data-connected=true]{border-color:var(--green,#b7f464)}

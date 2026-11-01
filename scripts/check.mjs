@@ -23,8 +23,8 @@ console.log(`PASS: ${tokens.length} unique listings, all artwork, mint format ch
 // Global wallet entry must be present on every public website page, including token share pages.
 for(const page of ['index.html','beta.html','creators.html','city.html','city-roadmap.html',...tokens.map(t=>'tokens/'+t.id+'/index.html'),'tokens/offensive/index.html']){
  const content=read(page);
- assert.ok(content.includes('pwa.js?v=26-global-wallet'),page+' must load shared wallet runtime');
- assert.ok(content.includes('styles.css?v=26-global-wallet')||content.includes('city.css?v=26-global-wallet'),page+' must load wallet controls CSS');
+ assert.ok(content.includes('pwa.js?v=27-auto-theme'),page+' must load shared wallet runtime');
+ assert.ok(content.includes('styles.css?v=27-auto-theme')||content.includes('city.css?v=27-auto-theme'),page+' must load wallet controls CSS');
 }
 const walletJs=read('pwa.js');
 for(const feature of ['OffensiveWallet','offensive-wallet-changed','global-wallet-trigger','disconnectWallet','walletLinks','walletKey'])
