@@ -33,6 +33,93 @@
   const offline=document.querySelector('#connection-status');
   function connection(){if(offline)offline.hidden=navigator.onLine!==false;}
   window.addEventListener('online',connection);window.addEventListener('offline',connection);connection();render();
+  // One wallet connection entry point across the whole website and installed PWA.
+  // The saved address is a reconnect hint ONLY, never an authentication credential.
+  const walletKey='offensive-wallet-last-public-v1';
+  let activeProvider=null,activeAddress=null,walletBusy=false,attachedProvider=null;
+  const walletHost=document.querySelector('.utility-bar>div')||document.querySelector('.utility-bar')||document.querySelector('.city-header')||document.querySelector('header')||document.body;
+  const walletButton=document.createElement('button');walletButton.type='button';walletButton.className='global-wallet-trigger';walletButton.setAttribute('aria-haspopup','dialog');
+  const walletDialog=document.createElement('dialog');walletDialog.className='global-wallet-dialog';walletDialog.setAttribute('aria-label','Connect Solana wallet');
+  const walletHeading=document.createElement('h2');walletHeading.textContent='SOLANA WALLET';
+  const walletDescription=document.createElement('p');walletDescription.textContent='Connect once from any page to display your public address and wallet-based site theme. This does not sign messages, send tokens, approve spending or grant holder-only game access.';
+  const walletStatus=document.createElement('p');walletStatus.setAttribute('role','status');walletStatus.setAttribute('aria-live','polite');walletStatus.className='global-wallet-status';
+  const walletActions=document.createElement('div');walletActions.className='global-wallet-actions';
+  const walletConnect=document.createElement('button');walletConnect.type='button';walletConnect.textContent='Connect Solana wallet';
+  const walletDisconnect=document.createElement('button');walletDisconnect.type='button';walletDisconnect.textContent='Disconnect';
+  const walletClose=document.createElement('button');walletClose.type='button';walletClose.textContent='Close';
+  const walletLinks=document.createElement('div');walletLinks.className='global-wallet-links';
+  const walletHelp=document.createElement('p');walletHelp.className='global-wallet-help';
+  walletHelp.textContent='Installed apps and regular mobile browsers may not expose a Solana wallet. For a connection, open this same page inside a wallet’s built-in browser. The installed app cannot silently gain access to your wallet.';
+  const pageUrl=location.href,refUrl=new URL('.',appRoot).href;
+  for(const [name,base] of [['Open in Phantom','https://phantom.com/ul/browse/'],['Open in Solflare','https://solflare.com/ul/v1/browse/']]){
+    const link=document.createElement('a');link.className='global-wallet-app-link';link.textContent=name+' ↗';link.href=base+encodeURIComponent(pageUrl)+'?ref='+encodeURIComponent(refUrl);link.rel='noopener noreferrer';walletLinks.append(link);
+  }
+  walletActions.append(walletConnect,walletDisconnect,walletClose);walletDialog.append(walletHeading,walletDescription,walletStatus,walletActions,walletHelp,walletLinks);
+  walletHost.append(walletButton);document.body.append(walletDialog);
+  const getProvider=()=>window.phantom?.solana||window.solflare||window.solana||null;
+  const shortAddress=a=>a.slice(0,4)+'…'+a.slice(-4);
+  let remembered='';try{remembered=localStorage.getItem(walletKey)||'';}catch{}
+  function walletState(){
+    return {connected:!!activeAddress,address:activeAddress,remembered:activeAddress||remembered};
+  }
+  function renderWallet(){
+    const connected=!!activeAddress;
+    walletButton.textContent=connected?'Wallet '+shortAddress(activeAddress):remembered?'Reconnect wallet':'Connect wallet';
+    walletButton.setAttribute('aria-label',connected?'Connected Solana wallet '+activeAddress:'Connect Solana wallet');
+    walletButton.dataset.connected=String(connected);
+    walletDisconnect.disabled=!connected||walletBusy;
+    walletConnect.disabled=walletBusy;
+    walletConnect.textContent=connected?'Wallet connected ✓':walletBusy?'Connecting…':'Connect Solana wallet';
+    if(connected)walletStatus.textContent='Connected: '+activeAddress+' · Public address only. For restricted game areas, verify ownership in Together mode.';
+    else if(!walletStatus.textContent||walletStatus.textContent.startsWith('Connected:'))walletStatus.textContent=remembered?'Previous wallet '+shortAddress(remembered)+' remembered. Reconnect to authorize this page.':'No wallet connected. Connect in a compatible wallet browser.';
+  }
+  function publishWallet(address){
+    activeAddress=address||null;
+    remembered=activeAddress||'';
+    try{if(activeAddress)localStorage.setItem(walletKey,activeAddress);else localStorage.removeItem(walletKey);}catch{}
+    renderWallet();
+    window.dispatchEvent(new CustomEvent('offensive-wallet-changed',{detail:{address:activeAddress,connected:!!activeAddress}}));
+  }
+  function attachWallet(p){
+    if(attachedProvider===p||!p?.on)return;attachedProvider=p;
+    p.on('disconnect',()=>{if(activeProvider===p){activeProvider=null;publishWallet(null);walletStatus.textContent='Wallet disconnected.';}});
+    p.on('accountChanged',pk=>{
+      if(activeProvider!==p)return;
+      const address=pk?.toString?.()||'';
+      if(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))publishWallet(address);
+      else{activeProvider=null;publishWallet(null);}
+    });
+  }
+  async function connectWallet(){
+    if(walletBusy)return activeAddress;
+    const p=getProvider();
+    if(!p?.connect){walletStatus.textContent='No Solana wallet detected. Open this page inside Phantom or Solflare using the links below, then tap Connect wallet.';walletDialog.showModal?.();throw Error('No compatible Solana wallet injected in this browser.');}
+    walletBusy=true;walletStatus.textContent='Requesting wallet connection permission…';renderWallet();
+    try{
+      const result=await p.connect();
+      const address=(result?.publicKey||p.publicKey)?.toString?.()||'';
+      if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))throw Error('Wallet did not return a valid Solana public address.');
+      activeProvider=p;attachWallet(p);publishWallet(address);
+      return address;
+    }catch(e){walletStatus.textContent=e.message||'Wallet connection cancelled.';throw e;}
+    finally{walletBusy=false;renderWallet();}
+  }
+  async function disconnectWallet(){
+    const p=activeProvider;activeProvider=null;
+    try{await p?.disconnect?.();}catch{}
+    publishWallet(null);walletStatus.textContent='Wallet disconnected. No site permissions are being retained.';
+  }
+  window.OffensiveWallet=Object.freeze({connect:connectWallet,disconnect:disconnectWallet,state:walletState,provider:getProvider});
+  walletButton.addEventListener('click',()=>{renderWallet();if(!walletDialog.open)walletDialog.showModal();});
+  walletClose.addEventListener('click',()=>walletDialog.close());
+  walletConnect.addEventListener('click',()=>{connectWallet().catch(()=>{});});
+  walletDisconnect.addEventListener('click',()=>{disconnectWallet().catch(()=>{});});
+  const existingProvider=getProvider();
+  if(existingProvider?.isConnected&&existingProvider.publicKey){
+    const address=existingProvider.publicKey.toString();
+    if(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)){activeProvider=existingProvider;attachWallet(existingProvider);publishWallet(address);}
+  }
+  renderWallet();
   // Read-only wallet-led theme on both the website and the installed PWA.
   // No seed phrase, transaction or signature. A pasted address is visual preview only.
   const themeTokens=[window.LAUNCHPAD_CONFIG?.platformToken,...(window.MEME_TOKENS||[])].filter(t=>t?.mint);
