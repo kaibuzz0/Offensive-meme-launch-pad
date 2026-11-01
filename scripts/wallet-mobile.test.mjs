@@ -21,7 +21,7 @@ async function harness({altered=false}={}){
    return {signed_payloads:[Buffer.concat([altered?Buffer.from('altered challenge'):msg,Buffer.alloc(64,1)]).toString('base64')]};
   }
  })};
- const sourceText=source.replace(/^import \{transact\} from '[^']+';\s*/,'const transact=globalThis.__mwaStub.transact;\n');
+ const sourceText=source.replace(/import \{transact\} from '[^']+';\s*/,'const transact=globalThis.__mwaStub.transact;\n');
  assert.notEqual(sourceText,source,'protocol import is stubbed for isolated adapter test');
  const url='data:text/javascript;base64,'+Buffer.from(sourceText).toString('base64')+'#'+Math.random();
  const module=await import(url);
