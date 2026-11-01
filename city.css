@@ -151,3 +151,23 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 :root[data-wallet-theme="offensive"] .platform-hero{
  background:linear-gradient(120deg,#24103b,#14121d)!important;
 }
+
+
+/* Rare Wandering Monk: legible bilingual captions without taking touch input. */
+.monk-verse[hidden]{display:none!important}
+.monk-verse{
+ position:absolute;z-index:24;top:170px;left:50%;transform:translateX(-50%);
+ width:min(460px,calc(100% - 24px));box-sizing:border-box;pointer-events:none;
+ display:flex;flex-direction:column;align-items:center;gap:5px;
+ padding:11px 15px;border:1px solid #ffe3a99c;border-radius:12px;
+ background:linear-gradient(160deg,#231d28ec,#312637e8);color:#fff2d4;
+ box-shadow:0 9px 24px #0009;text-align:center;font-size:13px;line-height:1.4;
+}
+.monk-verse strong{color:#ffe0a0;font:800 11px/1.35 Arial,sans-serif;letter-spacing:.04em}
+.monk-verse .monk-verse-hebrew{font:600 18px/1.5 "Noto Sans Hebrew","Arial Hebrew",Arial,sans-serif;direction:rtl;unicode-bidi:plaintext}
+.monk-verse small{font:11px/1.4 Arial,sans-serif;color:#e1cba9}
+@media(max-width:700px){
+ .monk-verse{top:165px;padding:9px 12px;font-size:12px;gap:3px}
+ .monk-verse .monk-verse-hebrew{font-size:16px}
+ .monk-verse strong{font-size:10px}
+}
