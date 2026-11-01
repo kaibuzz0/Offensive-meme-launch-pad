@@ -82,10 +82,10 @@
   result(e,p,'complete',reward);effect(e,p.x,p.y,`JOB COMPLETE +${reward}`);
   notify(p,`Contract complete! +${reward} play credits / +100 XP.`);
  }
- function hurt(e,p,amount){
-  if(p.ally){if(p.hp<=0||peaceful(p))return;p.hp=Math.max(0,p.hp-amount);if(!p.hp){p.recover=15;p.state='recovering';}return;}
+ function hurt(e,p,amount,zombie=false){
+  if(p.ally){if(p.hp<=0||!zombie&&peaceful(p))return;p.hp=Math.max(0,p.hp-amount);if(!p.hp){p.recover=15;p.state='recovering';}return;}
 
-  if(p.invulnerable>0||safe(p)||(p.contract?.countdown>0||p.defense?.countdown>0))return;
+  if(p.invulnerable>0||!zombie&&(safe(p)||p.contract?.countdown>0||p.defense?.countdown>0))return;
   p.hp=Math.max(0,p.hp-amount);p.invulnerable=.8;p.combo=0;
   effect(e,p.x,p.y,`−${amount} HP`,'#ff6b87');
   if(p.hp===0){
@@ -163,6 +163,96 @@
   }
   return null;
  }
+
+ // Undead hordes spawn only in the unbuilt greenbelt, beyond city and clan bases.
+ // No wallet gating, persistent saves, new currencies, or client-only hitboxes.
+ const ZOMBIE_MAX=12,settlements=[{ox:HUB.x,oy:HUB.y},...C.DISTRICTS,...C.NEIGHBORHOODS];
+ const zombieRandom=e=>Math.max(0,Math.min(.999999,(e.zombieRandom||Math.random)()));
+ const undead=b=>b?.kind==='zombie';
+ function deadZone(x,y){
+  if(C.areaAt(x,y)!=='greenbelt'||C.blocked(x,y))return false;
+  return settlements.every(r=>Math.hypot(Math.max(r.ox-x,0,x-r.ox-2240),Math.max(r.oy-y,0,y-r.oy-1660))>=100);
+ }
+ function summonZombies(e){
+  const a=e.arcade,alive=a.bots.filter(b=>undead(b)&&b.hp>0).length;
+  if(alive>=ZOMBIE_MAX)return 0;
+  const players=[...e.players.values()].filter(p=>!p.room&&p.hp>0);
+  if(!players.length)return 0;
+  const origin=players[Math.floor(zombieRandom(e)*players.length)];
+  let start;
+  for(let i=0;i<55;i++){
+   const radius=450+i%7*165+zombieRandom(e)*95,angle=zombieRandom(e)*Math.PI*2+i*1.256637;
+   const x=origin.x+Math.cos(angle)*radius,y=origin.y+Math.sin(angle)*radius;
+   if(deadZone(x,y)&&players.every(p=>distance(p,{x,y})>=275)){start={x,y};break;}
+  }
+  if(!start)return 0;
+  const quantity=Math.min(ZOMBIE_MAX-alive,2+Math.floor(zombieRandom(e)*3));
+  let added=0;
+  for(let i=0;i<quantity;i++){
+   const angle=i*2.39996,r=i*40,x=start.x+Math.cos(angle)*r,y=start.y+Math.sin(angle)*r;
+   if(!deadZone(x,y)||players.some(p=>distance(p,{x,y})<250))continue;
+   const b=spawn(e,'zombie',x,y,'zombie-'+(++e.serial));
+   Object.assign(b,{hp:85,maxHp:85,state:'rising',age:0,bite:0,speed:75+zombieRandom(e)*22,
+    originalX:x,originalY:y,faceX:1,faceY:0,phase:zombieRandom(e)*Math.PI*2});
+   added++;
+  }
+  if(added)for(const p of players)if(distance(p,start)<1100)
+   notify(p,'DEAD ZONE / Walkers are rising beyond the city. Undead attack every clan and faction.');
+  return added;
+ }
+ function tickZombies(e,dt){
+  const a=e.arcade;if(!e.players.size)return;
+  a.zombieNext??=22;a.zombieNext-=dt;
+  if(a.zombieNext<=0)a.zombieNext=summonZombies(e)?45+zombieRandom(e)*30:14;
+  for(const z of a.bots.filter(undead)){
+   z.age+=dt;
+   if(z.hp<=0){z.respawn=Math.min(5,z.respawn)-dt;continue;}
+   if(z.age>160){z.hp=0;z.respawn=0;continue;}
+   z.bite=Math.max(0,z.bite-dt);
+   const monk=e.monkEvent?.active;
+   const targets=[
+    ...[...e.players.values()].filter(p=>!p.room&&p.hp>0).map(obj=>({kind:'player',obj})),
+    ...a.guards.filter(g=>g.hp>0).map(obj=>({kind:'guard',obj})),
+    ...a.bots.filter(b=>b!==z&&!undead(b)&&b.hp>0&&(!b.eventId||e.conflict?.phase==='active')).map(obj=>({kind:'npc',obj})),
+    ...(monk&&monk.hp!==0?[{kind:'monk',obj:monk}]:[])
+   ].filter(t=>distance(z,t.obj)<690&&visible(z,t.obj))
+     .sort((x,y)=>distance(z,x.obj)-distance(z,y.obj));
+   const target=targets[0];
+   if(!target){
+    z.state='roam';z.attackTarget=null;
+    if(z.age>100&&![...e.players.values()].some(p=>!p.room&&distance(p,z)<1400)){
+     z.hp=0;z.respawn=0;continue;
+    }
+    const goal={x:z.originalX+Math.sin(a.time*.27+z.phase)*65,y:z.originalY+Math.cos(a.time*.22+z.phase)*60};
+    const d=Math.max(1,distance(z,goal));move(z,(goal.x-z.x)/d*20*dt,(goal.y-z.y)/d*20*dt);
+    continue;
+   }
+   const v=target.obj,dx=v.x-z.x,dy=v.y-z.y,d=Math.max(1,Math.hypot(dx,dy));
+   z.faceX=dx/d;z.faceY=dy/d;z.attackTarget=v.id||'wandering-monk';
+   if(d<56){
+    z.state='attack';
+    if(!z.bite){
+     z.bite=1.15+zombieRandom(e)*.3;
+     if(target.kind==='npc'){
+      v.hp=Math.max(0,v.hp-10);v.hitFlash=.15;
+      if(!v.hp){v.respawn=18;v.windup=0;v.targetId=null;}
+     }else if(target.kind==='monk')v.hp=Math.max(0,(v.hp??80)-10);
+     else hurt(e,v,10,true);
+     effect(e,v.x,v.y,'BITE','#b4dc7a');
+    }
+    continue;
+   }
+   z.state='chase';
+   // Direct steering with a bounded sidestep avoids costly global path searches.
+   const step=z.speed*dt,ox=z.x,oy=z.y;
+   move(z,z.faceX*step,z.faceY*step);
+   if(distance(z,{x:ox,y:oy})<.1){
+    const sign=Math.floor(a.time+z.phase)%2?1:-1;
+    move(z,-z.faceY*step*sign,z.faceX*step*sign);
+   }
+  }
+  a.bots=a.bots.filter(b=>!undead(b)||b.hp>0&&b.age<=160||b.respawn>0);
+ }
  P.join=function(...args){
   init(this);const p=base.join.apply(this,args);
   Object.assign(p,{hp:100,heat:0,fireCooldown:0,dashCooldown:0,dashTime:0,invulnerable:3,quiet:0,kills:0,jobs:0,deaths:0,contract:null,notice:'',noticeSeq:0,missionCooldown:0,facing:{x:1,y:0},dashVector:{x:1,y:0},policeSeen:false,lockTarget:null,combo:0,comboUntil:0,resultSeq:0,lastResult:null,fireHeld:false,fireAim:{x:1,y:0},shots:0});return p;
@@ -173,7 +263,7 @@
   const p=this.player(id);p.fireHeld=held;p.manualAim=manual===true;const n=Math.max(1,Math.hypot(x,y));p.fireAim={x:x/n,y:y/n};
  };
  P.tick=function(dt){
-  init(this);syncCrew(this);dt=Math.max(0,Math.min(.1,dt));base.tick.call(this,dt);const a=this.arcade;a.time+=dt;tickConflict(this,dt);
+  init(this);syncCrew(this);dt=Math.max(0,Math.min(.1,dt));base.tick.call(this,dt);const a=this.arcade;a.time+=dt;tickConflict(this,dt);tickZombies(this,dt);
   for(const p of this.players.values()){
    for(const k of ['fireCooldown','dashCooldown','invulnerable','missionCooldown'])p[k]=Math.max(0,p[k]-dt);
    p.quiet+=dt;
@@ -202,6 +292,7 @@
    p.fireCooldown=0;this.action(p.id,{type:'fire',x:p.fireAim.x,y:p.fireAim.y});
   }
   for(const b of [...a.bots]){
+    if(b.kind==='zombie')continue;
    if(b.eventId&&this.conflict?.phase!=='active'){b.state=this.conflict?.phase==='resolution'?'withdraw':'ready';continue;}
    if(b.hp<=0){if(!b.owner&&!b.eventId){b.respawn-=dt;if(b.respawn<=0)Object.assign(b,{x:b.homeX,y:b.homeY,hp:b.maxHp,cooldown:1.2,state:'patrol',windup:0,targetId:null});}continue;}
    if(!b.owner&&![...this.players.values()].some(p=>!p.room&&distance(b,p)<1300)){b.state='dormant';b.windup=0;b.targetId=null;b.attackTarget=null;b.aim=null;b.path=[];b.cooldown=Math.max(b.cooldown,1.2);continue;}
@@ -211,7 +302,7 @@
    const old=this.players.get(b.targetId)||a.guards.find(g=>g.id===b.targetId&&g.hp>0);
    const candidates=[...this.players.values(),...a.guards.filter(g=>g.hp>0)].filter(p=>!safe(p)&&C.npcHostile(b,p)&&p.invulnerable<3&&(!b.owner||b.owner===(p.ally?p.owner:p.id))&&distance(b,p)<(b.kind==='cop'?700:390)&&visible(b,p)).sort((p,q)=>distance(b,p)-distance(b,q));
    // Nearby rivals create street battles independent of player aggression.
-   const rival=!b.owner&&a.bots.filter(q=>q.hp>0&&!q.owner&&C.rivals(C.factionOf(b),C.factionOf(q))&&distance(b,q)<440&&visible(b,q)).sort((x,y)=>distance(b,x)-distance(b,y))[0];
+   const rival=!b.owner&&a.bots.filter(q=>q!==b&&q.hp>0&&!q.owner&&(q.kind==='zombie'||C.rivals(C.factionOf(b),C.factionOf(q)))&&distance(b,q)<440&&visible(b,q)).sort((x,y)=>distance(b,x)-distance(b,y))[0];
    if(rival&&(!candidates[0]||distance(b,rival)<distance(b,candidates[0]))){
     b.state='skirmish';b.aim={x:rival.x,y:rival.y};b.windup=0;
     if(distance(b,rival)>180)steer(this,b,rival,105,dt);
@@ -258,7 +349,7 @@
     q.x+=q.vx/650*travel/steps;q.y+=q.vy/650*travel/steps;
     if(C.blocked(q.x,q.y,this.players.get(q.creditOwner||q.owner)||a.guards.find(g=>g.id===q.owner))){hit=true;break;}
     if(q.side==='faction'){
-     const rival=a.bots.find(b=>b.id===q.owner&&b.hp>0&&!b.owner&&C.rivals(q.sourceFaction,C.factionOf(b)));
+     const rival=a.bots.find(b=>b.id===q.owner&&b.hp>0&&!b.owner&&(b.kind==='zombie'||C.rivals(q.sourceFaction,C.factionOf(b))));
      if(rival&&Math.hypot(q.x-rival.x,q.y-rival.y)<22){rival.hp-=q.damage;rival.hitFlash=.12;hit=true;if(rival.hp<=0){rival.respawn=18;rival.windup=0;effect(this,rival.x,rival.y,'FACTION KO','#a9cadf');}}
     }else if(q.side==='player'||q.side==='ally'){
      const b=a.bots.find(b=>b.hp>0&&(!b.eventId||this.conflict?.phase==='active')&&C.npcHostile(b,this.players.get(q.creditOwner||q.owner))&&Math.hypot(q.x-b.x,q.y-b.y)<22);
@@ -271,10 +362,10 @@
        b.respawn=18;b.windup=0;
        if(p){
         if(q.side==='ally')p.crewKills++;
-        if(q.side!=='ally'&&!b.eventId){p.kills++;p.credits+=b.kind==='gang'?18:10;p.xp+=20;
+        if(q.side!=='ally'&&!b.eventId){p.kills++;if(b.kind!=='zombie'){p.credits+=b.kind==='gang'?18:10;p.xp+=20;}
         p.combo=p.comboUntil>a.time?p.combo+1:1;p.comboUntil=a.time+4;
         }
-        if(q.side!=='ally')p.heat=Math.min(100,p.heat+(b.kind==='cop'?20:9));p.quiet=0;
+        if(q.side!=='ally'&&b.kind!=='zombie')p.heat=Math.min(100,p.heat+(b.kind==='cop'?20:9));p.quiet=0;
         if(b.kind==='gang'){
          const owner=b.owner?this.players.get(b.owner):p;
          if(b.owner&&owner?.contract?.type==='bounty'){owner.contract.progress++;if(owner.contract.progress>=4)win(this,owner);}
@@ -360,6 +451,6 @@
  P.leave=function(id){if(this.arcade){cleanup(this,id);this.arcade.guards=this.arcade.guards.filter(g=>g.owner!==id);}return base.leave.call(this,id);};
  P.snapshot=function(id){
   init(this);const s=base.snapshot.call(this,id);
-  s.conflict=conflictSnapshot(this,id);s.arcade={guards:this.arcade.guards.map(({plot,path,...g})=>({...g})),time:this.arcade.time,bots:this.arcade.bots.map(({path,plot,...b})=>({...b})),bullets:this.arcade.bullets.map(b=>({...b})),effects:this.arcade.effects.map(e=>({...e})),pickups:this.arcade.pickups.map(i=>({...i}))};return s;
+  s.conflict=conflictSnapshot(this,id);s.arcade={zombieNext:this.arcade.zombieNext,guards:this.arcade.guards.map(({plot,path,...g})=>({...g})),time:this.arcade.time,bots:this.arcade.bots.map(({path,plot,...b})=>({...b})),bullets:this.arcade.bullets.map(b=>({...b})),effects:this.arcade.effects.map(e=>({...e})),pickups:this.arcade.pickups.map(i=>({...i}))};return s;
  };
 })(typeof window==='undefined'?globalThis:window);
