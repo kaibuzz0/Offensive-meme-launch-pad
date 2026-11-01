@@ -230,7 +230,10 @@ try{
     const original=window.fetch.bind(window);
     window.fetch=(url,options)=>{
       if(String(url).includes('/api/city/theme'))return Promise.resolve({ok:true,json:async()=>({themeId:'offensive'})});
-      if(String(url).includes('/api/city/wallet/check'))window.__autoHolderChecks.push(JSON.parse(options.body));
+      if(String(url).includes('/api/city/wallet/check')){
+       window.__autoHolderChecks.push(JSON.parse(options.body));
+       return original(url,options).then(response=>{window.__holderProofHttpStatus=response.status;return response;});
+      }
       return original(url,options);
     };
     return true;
@@ -246,7 +249,7 @@ try{
   const check=await evalPage("window.__autoHolderChecks[0]");
   assert.equal(check.clan,'offensive','automatic theme uses its matching token for reserved area');
   assert.ok(typeof check.signature==='string'&&check.signature.length>80,'holder area requests a room-bound wallet signature');
-  await waitFor(()=>evalPage("document.querySelector('#city-toast')?.textContent.includes('Wallet signature did not match')"),'unsigned guest cannot bypass reserved lot');
+  await waitFor(()=>evalPage("window.__holderProofHttpStatus>=400"),'forged signature rejected by the real room server');
   const isLocked=await evalPage("(()=>{const C=MemeCityCore;return C.blocked(C.TOKEN_PLOTS[0].x+C.TOKEN_PLOTS[0].w/2,C.TOKEN_PLOTS[0].y+C.TOKEN_PLOTS[0].h/2,{holder:null});})()");
   assert.equal(isLocked,true,'invalid wallet signature does not unlock holder area');
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
