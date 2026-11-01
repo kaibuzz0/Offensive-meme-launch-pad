@@ -188,8 +188,41 @@ try{
  await evalPage("document.querySelector('.wallet-theme-trigger').click();true");
  await evalPage("Array.from(document.querySelectorAll('.wallet-theme-actions button')).find(b=>b.textContent==='Use default').click();true");
  assert.equal(await evalPage("document.documentElement.dataset.walletTheme"),'default','default theme is restorable');
- assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
- console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six clan skins, gated plots, shared site/PWA wallet theme and wallet-button feedback in Chromium.');
+ // Global wallet connection works BEFORE launching the game and across page changes.
+ await evalPage("document.querySelector('.wallet-theme-dialog').close();true");
+ assert.equal(await evalPage("!!document.querySelector('.global-wallet-trigger')"),true,'home has wallet connect');
+ await evalPage(`(()=>{
+  const publicKey='11111111111111111111111111111111';
+  const p={isConnected:false,publicKey:null,on:()=>{},connect:async function(){this.isConnected=true;this.publicKey={toString:()=>publicKey};return {publicKey:this.publicKey};},disconnect:async function(){this.isConnected=false;this.publicKey=null;}};
+  window.phantom={solana:p};
+  const real=window.fetch.bind(window);
+  window.fetch=(url,opts)=>String(url).includes('api.mainnet-beta.solana.com')?Promise.resolve({ok:true,json:async()=>({result:{value:[{account:{data:{parsed:{info:{owner:publicKey,mint:window.MEME_TOKENS.find(t=>t.id==='congress').mint,tokenAmount:{amount:'2500000',decimals:6}}}}}}]}})}):real(url,opts);
+  return true;
+ })()`);
+ await evalPage("document.querySelector('.global-wallet-trigger').click();document.querySelector('.global-wallet-actions button').click();true");
+ await waitFor(()=>evalPage("window.OffensiveWallet.state().connected===true"),'global wallet connected on homepage');
+ const connected=await evalPage("({label:document.querySelector('.global-wallet-trigger').textContent,address:window.OffensiveWallet.state().address,saved:localStorage.getItem('offensive-wallet-last-public-v1')})");
+ assert.match(connected.label,/Wallet 1111/);assert.equal(connected.address,'11111111111111111111111111111111');
+ assert.equal(connected.saved,connected.address,'only public reconnect hint is stored');
+ await waitFor(()=>evalPage("document.documentElement.dataset.walletTheme==='congress'"),'connected wallet automatically changes website theme');
+ for(const page of ['/beta.html','/creators.html','/city-roadmap.html','/tokens/offensive/','/tokens/redacted/','/tokens/you-missed/','/city.html']){
+  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+page});
+  await waitFor(()=>evalPage("!!document.querySelector('.global-wallet-trigger')&&!!window.OffensiveWallet"),'wallet button on '+page);
+  const state=await evalPage("({label:document.querySelector('.global-wallet-trigger').textContent,connected:window.OffensiveWallet.state().connected,remembered:window.OffensiveWallet.state().remembered,theme:document.documentElement.dataset.walletTheme})");
+  assert.equal(state.connected,false,'address hint is not a connected wallet on '+page);
+  assert.match(state.label,/Reconnect wallet/,'wallet reconnect shown on '+page);
+  assert.equal(state.remembered,'11111111111111111111111111111111');
+  assert.equal(state.theme,'congress','theme follows between website and app pages');
+ }
+ await evalPage("document.querySelector('.global-wallet-trigger').click();true");
+ await waitFor(()=>evalPage("document.querySelector('.global-wallet-dialog').open"),'wallet dialog on game page');
+ const noProvider=await evalPage("({phantom:document.querySelector('.global-wallet-links a')?.href,help:document.querySelector('.global-wallet-help')?.textContent})");
+ assert.ok(new URL(noProvider.phantom).hostname.includes('phantom'),'wallet-app handoff present');
+ assert.match(noProvider.help,/Installed apps/);
+ await evalPage("document.querySelector('.global-wallet-actions button').click();true");
+ await waitFor(()=>evalPage("document.querySelector('.global-wallet-status').textContent.includes('No Solana wallet detected')"),'visible missing-provider feedback in global wallet dialog');
+  assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
+ console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six clan skins, gated plots, global wallet connection on every site page, shared themes and wallet-button feedback in Chromium.');
 }finally{
  try{ws?.close();}catch{}
  if(chrome){
