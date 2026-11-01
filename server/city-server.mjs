@@ -59,10 +59,10 @@ export function createCityServer({origins=[],now=()=>Date.now(),themeReader=null
     // It never grants a multiplayer identity, spending authority or permanent save.
     if(route==='/solo-wallet/challenge'&&req.method==='POST'){
      soloRate(req.socket.remoteAddress||'unknown');cleanSolo();
-     if(soloProofs.size>=128){const e=Error('Wallet verification is busy. Retry shortly.');e.status=503;throw e;}
+     if(soloProofs.size>=1024){const e=Error('Wallet verification is busy. Retry shortly.');e.status=503;throw e;}
      const id='solo-'+randomBytes(24).toString('hex'),session={id};
      const challenge=holdings.challenge(session,body.address);
-     soloProofs.set(id,{session,expires:now()+12*60*1000,verified:false});
+     soloProofs.set(id,{session,expires:now()+12*60*1000,absoluteExpiry:now()+8*60*60*1000,verified:false});
      return json(res,200,{...challenge,proofId:id});
     }
     if(route==='/solo-wallet/check'&&req.method==='POST'){
@@ -71,7 +71,15 @@ export function createCityServer({origins=[],now=()=>Date.now(),themeReader=null
      if(!proof.verified&&typeof body.signature!=='string'){const e=Error('Sign the ownership challenge first.');e.status=401;throw e;}
      if(proof.verified&&body.signature!==undefined){const e=Error('Wallet challenge has already been used.');e.status=400;throw e;}
      const result=await holdings.check(proof.session,{},body);
+     // A revoked or expired challenge cannot be revived by a late RPC response.
+     if(soloProofs.get(body.proofId)!==proof||proof.expires<=now()){
+      const e=Error('Solo wallet proof was revoked or expired during verification.');e.status=401;throw e;
+     }
      proof.verified=true;
+     // Active players retain their cosmetic via fresh on-chain balance checks.
+     // Idle sessions expire in 12 minutes; every session must be re-signed
+     // after eight hours even if it was continuously used.
+     proof.expires=Math.min(proof.absoluteExpiry,now()+12*60*1000);
      return json(res,200,{...result,verifiedOwnership:true});
     }
     if(route==='/solo-wallet/revoke'&&req.method==='POST'){
