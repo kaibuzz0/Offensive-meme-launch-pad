@@ -71,3 +71,38 @@
 :root[data-wallet-theme="you-missed"] .global-wallet-trigger[data-connected=true],
 :root[data-wallet-theme="maduro"] .global-wallet-trigger[data-connected=true],
 :root[data-wallet-theme="offensive"] .global-wallet-trigger[data-connected=true]{border-color:var(--green,#b7f464)}
+
+
+/* Holder theme: visible on all pages, not merely a wallet-button color.
+   The single Connect Wallet control sets these CSS variables automatically. */
+:root[data-wallet-theme]:not([data-wallet-theme="default"]) body{
+ background:var(--theme-backdrop,#121510)!important;
+}
+:root[data-wallet-theme]:not([data-wallet-theme="default"]) .utility-bar,
+:root[data-wallet-theme]:not([data-wallet-theme="default"]) .header,
+:root[data-wallet-theme]:not([data-wallet-theme="default"]) .city-header{
+ background:var(--theme-surface,#1c2417);
+ border-color:var(--theme-line,#445237)!important;
+}
+:root[data-wallet-theme]:not([data-wallet-theme="default"]) .home-portal,
+:root[data-wallet-theme]:not([data-wallet-theme="default"]) .portal-details,
+:root[data-wallet-theme]:not([data-wallet-theme="default"]) .share-page,
+:root[data-wallet-theme]:not([data-wallet-theme="default"]) .token-card,
+:root[data-wallet-theme]:not([data-wallet-theme="default"]) .guide-grid article{
+ border-color:var(--theme-line,#445237)!important;
+}
+:root[data-wallet-theme]:not([data-wallet-theme="default"]) .compact-hero,
+:root[data-wallet-theme]:not([data-wallet-theme="default"]) .platform-hero{
+ background:linear-gradient(128deg,var(--theme-backdrop,#121510),var(--theme-surface,#1c2417));
+ border-left:5px solid var(--theme-accent,#b7f464);
+ padding-left:clamp(16px,3vw,32px);
+ border-radius:6px;
+}
+:root[data-wallet-theme]:not([data-wallet-theme="default"]) .global-wallet-trigger{
+ border:2px solid var(--theme-accent,#b7f464);
+ box-shadow:0 0 12px color-mix(in srgb,var(--theme-accent,#b7f464) 28%,transparent);
+}
+:root[data-wallet-theme="offensive"] .compact-hero,
+:root[data-wallet-theme="offensive"] .platform-hero{
+ background:linear-gradient(120deg,#24103b,#14121d)!important;
+}

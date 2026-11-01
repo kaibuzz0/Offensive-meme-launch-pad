@@ -173,10 +173,10 @@ try{
   window.__walletQa={listeners};
   window.phantom={solana:p};
   const real=window.fetch.bind(window);
-  window.fetch=(url,opts)=>String(url).includes('api.mainnet-beta.solana.com')?Promise.resolve({ok:true,json:async()=>({result:{value:[
-    {account:{data:{parsed:{info:{owner:publicKey,mint:window.LAUNCHPAD_CONFIG.platformToken.mint,tokenAmount:{amount:'10000000',decimals:6}}}}}},
-    {account:{data:{parsed:{info:{owner:publicKey,mint:window.MEME_TOKENS.find(t=>t.id==='congress').mint,tokenAmount:{amount:'2500000000',decimals:6}}}}}}
-  ]}})}):real(url,opts);
+  window.fetch=(url,opts)=>String(url).includes('/api/city/theme')
+   ?new Promise(resolve=>setTimeout(()=>resolve({ok:true,json:async()=>({
+     themeId:new URL(url,location.href).searchParams.get('address')===publicKey?'congress':'offensive'
+    })}),110)):real(url,opts);
   return true;
  })()`);
  await evalPage("document.querySelector('.global-wallet-trigger').click();document.querySelector('.global-wallet-actions button').click();true");
@@ -186,12 +186,15 @@ try{
  assert.equal(connected.saved,connected.address,'only public reconnect hint is stored');
  await waitFor(()=>evalPage("document.documentElement.dataset.walletTheme==='congress'"),'connected wallet automatically changes website theme');
  assert.equal(await evalPage("document.documentElement.style.getPropertyValue('--theme-accent')"),'#f2c94c','theme uses largest holding’s clan color');
- assert.match(await evalPage("document.querySelector('.global-wallet-theme-status').textContent"),/Theme applied automatically: Insider/,'user sees which token controls the theme');
+ assert.match(await evalPage("document.querySelector('.global-wallet-theme-status').textContent"),/Theme active: Insider/,'user sees which token controls the theme');
+ assert.equal(await evalPage("getComputedStyle(document.body).backgroundColor"),'rgb(33, 26, 16)','real page background changes, not just metadata');
+ assert.equal(await evalPage("document.querySelectorAll('.global-wallet-trigger').length"),1,'only one wallet connection button');
  assert.equal(await evalPage("document.querySelector('.wallet-theme-trigger')===null"),true,'no second theme button needed after connecting');
  // An account change must immediately clear any stale theme even if the RPC later fails.
  await evalPage("window.__walletQa.listeners.accountChanged?.({toString:()=> '11111111111111111111111111111112'});true");
  await waitFor(()=>evalPage("window.OffensiveWallet.state().address==='11111111111111111111111111111112'"),'account switch updates connected wallet');
- await waitFor(()=>evalPage("document.documentElement.dataset.walletTheme==='default'"),'account switch resets previous theme');
+ await waitFor(()=>evalPage("document.documentElement.dataset.walletTheme==='offensive'"),'new account applies the OFFENDED palette');
+ assert.equal(await evalPage("document.documentElement.style.getPropertyValue('--theme-backdrop')"),'#171122','OFFENDED has a visually different background');
  // Reconnect the original address to restore the tested high-balance theme.
  await evalPage("window.__walletQa.listeners.accountChanged?.({toString:()=> '11111111111111111111111111111111'});true");
  await waitFor(()=>evalPage("document.documentElement.dataset.walletTheme==='congress'"),'original wallet re-applies theme');

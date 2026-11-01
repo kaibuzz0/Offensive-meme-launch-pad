@@ -110,7 +110,7 @@
     publishWallet(null);walletStatus.textContent='Wallet disconnected. No site permissions are being retained.';
   }
   window.OffensiveWallet=Object.freeze({connect:connectWallet,disconnect:disconnectWallet,state:walletState,provider:getProvider});
-  walletButton.addEventListener('click',()=>{renderWallet();if(!walletDialog.open)walletDialog.showModal();});
+  walletButton.addEventListener('click',()=>{renderWallet();if(!walletDialog.open)walletDialog.showModal();const a=window.OffensiveWallet?.state().address;if(a&&document.documentElement.dataset.walletTheme==='default')void refreshTheme(a);});
   walletClose.addEventListener('click',()=>walletDialog.close());
   walletConnect.addEventListener('click',()=>{connectWallet().catch(()=>{});});
   walletDisconnect.addEventListener('click',()=>{disconnectWallet().catch(()=>{});});
@@ -129,42 +129,49 @@
   themeLine.setAttribute('role','status');themeLine.setAttribute('aria-live','polite');
   walletDialog.insertBefore(themeLine,walletActions);
   let themeRequest=0,themeRefresh=null;
+  // Distinctive themes, including an OFFENDED look different from default green.
+  const themePalettes=Object.freeze({
+    offensive:{accent:'#d2ff24',backdrop:'#171122',surface:'#252035',line:'#7255a0'},
+    redacted:{accent:'#c45bfa',backdrop:'#1d1227',surface:'#2b1d3b',line:'#8945b9'},
+    congress:{accent:'#f2c94c',backdrop:'#211a10',surface:'#322812',line:'#ac8532'},
+    exit:{accent:'#17ddc5',backdrop:'#102421',surface:'#183a33',line:'#288f82'},
+    'you-missed':{accent:'#ff7643',backdrop:'#25150f',surface:'#3d2319',line:'#a94a24'},
+    maduro:{accent:'#ff525f',backdrop:'#251218',surface:'#3d1e28',line:'#a83d50'}
+  });
   function paintTheme(id){
-    const token=themeById.get(id);
-    const color=token?.color||'#b7f464';
-    document.documentElement.dataset.walletTheme=token?.id||'default';
-    document.documentElement.style.setProperty('--green',color);
-    document.documentElement.style.setProperty('--theme-accent',color);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content',color);
+    const token=themeById.get(id),palette=themePalettes[token?.id];
+    const root=document.documentElement;
+    root.dataset.walletTheme=palette?token.id:'default';
+    root.style.setProperty('--green',palette?.accent||'#b7f464');
+    root.style.setProperty('--acid',palette?.accent||'#bdff56');
+    root.style.setProperty('--theme-accent',palette?.accent||'#b7f464');
+    root.style.setProperty('--theme-backdrop',palette?.backdrop||'#121510');
+    root.style.setProperty('--theme-surface',palette?.surface||'#1c2417');
+    root.style.setProperty('--theme-line',palette?.line||'#445237');
+    root.style.setProperty('--bg',palette?.backdrop||'#121310');
+    root.style.setProperty('--panel',palette?.surface||'#1c1e19');
+    root.style.setProperty('--line',palette?.line||'#36392f');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content',palette?.backdrop||'#121310');
+    walletButton.dataset.theme=palette?token.id:'default';
   }
   let savedTheme=null;try{savedTheme=localStorage.getItem(savedKey);}catch{}
   // Keep the most recently chosen visual theme across ordinary page navigation,
   // but never infer wallet ownership from this cosmetic preference.
   paintTheme(savedTheme);
-  const rpc='https://api.mainnet-beta.solana.com';
+  // One backend lookup for the site, PWA and Android wallet browser.
+  // The existing multiplayer Render host has CORS configured for GitHub Pages.
+  const themeAPI=['localhost','127.0.0.1','terminal.local'].includes(location.hostname)
+    ?'/api/city/theme':'https://offensive-meme-city-rooms.onrender.com/api/city/theme';
   async function themeFromBalances(publicKey){
-    const tokenMints=new Map(themeTokens.map(t=>[t.mint,t]));
-    const response=await fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      jsonrpc:'2.0',id:1,method:'getTokenAccountsByOwner',
-      params:[publicKey,{programId:'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'},{encoding:'jsonParsed'}]
-    }),signal:AbortSignal.timeout(12000),cache:'no-store'});
-    if(!response.ok)throw Error('Solana RPC returned '+response.status+'.');
-    const data=await response.json();
-    if(data.error||!Array.isArray(data.result?.value))throw Error('Solana balance lookup unavailable.');
-    const balances=new Map();
-    for(const row of data.result.value){
-      const info=row.account?.data?.parsed?.info,t=info?.tokenAmount,token=tokenMints.get(info?.mint);
-      if(!token||info.owner!==publicKey||!/^[0-9]+$/.test(t?.amount)||!Number.isInteger(t.decimals)||t.decimals<0||t.decimals>18)continue;
-      const prev=balances.get(token.id);
-      if(prev&&prev.decimals!==t.decimals)throw Error('Inconsistent token decimals.');
-      balances.set(token.id,{id:token.id,units:(prev?.units||0n)+BigInt(t.amount),decimals:t.decimals});
-    }
-    // Compare whole token quantities (not USD prices) without floating-point loss.
-    const holdings=[...balances.values()].filter(x=>x.units>0n).sort((a,b)=>{
-      const left=a.units*10n**BigInt(b.decimals),right=b.units*10n**BigInt(a.decimals);
-      return left===right?a.id.localeCompare(b.id):left>right?-1:1;
-    });
-    return holdings[0]?.id||null;
+    let response;
+    try{response=await fetch(themeAPI+'?address='+encodeURIComponent(publicKey),{
+      method:'GET',headers:{Accept:'application/json'},signal:AbortSignal.timeout(18000),cache:'no-store'
+    });}
+    catch{throw Error('Balance service unreachable. Check your connection and retry.');}
+    const data=await response.json().catch(()=>null);
+    if(!response.ok)throw Error(data?.error||'Balance service returned HTTP '+response.status);
+    if(!data||!(data.themeId===null||themeById.has(data.themeId)))throw Error('Unexpected balance service response.');
+    return data.themeId;
   }
   async function refreshTheme(publicKey){
     const request=++themeRequest;
@@ -176,7 +183,7 @@
       themeLine.textContent='Default theme · Connect a wallet to match your largest supported token automatically.';
       return;
     }
-    themeLine.textContent='Checking project token balances to apply your theme automatically…';
+    themeLine.textContent='Wallet connected. Checking your project-token holdings to apply a theme…';
     try{
       const id=await themeFromBalances(publicKey);
       if(request!==themeRequest||window.OffensiveWallet.state().address!==publicKey)return;
@@ -184,11 +191,12 @@
       if(id){try{localStorage.setItem(savedKey,id);}catch{}}
       const token=themeById.get(id);
       themeLine.textContent=token
-        ?'Theme applied automatically: '+token.name+' ($'+token.ticker+'). Based on your highest supported token quantity.'
-        :'No supported project tokens found in this wallet. Default website theme applied.';
+        ?'Theme active: '+token.name+' (ticker '+token.ticker+'). Website palette updated to match your largest supported token holding.'
+        :'Wallet connected. No supported project tokens found. Default theme active.';
+      if(token)walletButton.textContent='Wallet '+shortAddress(publicKey)+' · '+token.ticker;
     }catch(e){
       if(request!==themeRequest||window.OffensiveWallet.state().address!==publicKey)return;
-      themeLine.textContent='Wallet connected, but theme balance check failed: '+(e.message||'network unavailable')+' Default theme is active. Reconnect to retry.';
+      themeLine.textContent='Wallet connected, but theme lookup failed: '+(e.message||'network unavailable')+' Tap the wallet button to retry the theme check.';
     }
   }
   window.addEventListener('offensive-wallet-changed',event=>{void refreshTheme(event.detail?.address||null);});

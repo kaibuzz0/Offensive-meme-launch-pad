@@ -1,5 +1,6 @@
 import http from 'node:http';
 import {holdingsService} from './city-holdings.mjs';
+import {createThemeLookup} from './city-wallet-theme.mjs';
 import {createRooms} from './city-rooms.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -9,11 +10,14 @@ const root=fileURLToPath(new URL('../',import.meta.url));
 const scope={};for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-monk.js'])vm.runInNewContext(await fs.readFile(path.join(root,file),'utf8'),scope);
 const {Engine}=scope.MemeCityCore;
 const tokenScope={window:{}};for(const f of ['tokens.js','launchpad-config.js'])vm.runInNewContext(await fs.readFile(path.join(root,f),'utf8'),tokenScope);
-const mints=Object.fromEntries([tokenScope.window.LAUNCHPAD_CONFIG.platformToken,...tokenScope.window.MEME_TOKENS.filter(t=>t.mint)].map(t=>[t.id,t.mint]));
+const projectTokens=[tokenScope.window.LAUNCHPAD_CONFIG.platformToken,...tokenScope.window.MEME_TOKENS.filter(t=>t.mint)];
+const mints=Object.fromEntries(projectTokens.map(t=>[t.id,t.mint]));
 const contentTypes={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mp4':'video/mp4','.jpg':'image/jpeg','.webp':'image/webp','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
 const files=new Set(['index.html','beta.html','creators.html','city.html','city-roadmap.html','city-world2-preview.html','city-world2-preview.js','city-world2-simulation.js','city-topology.js','city-nav.js','city-map.js','city-save.js','city-center-save.js','city-migration.js','city-world2.js','city-world2-registry.js','city.css','city.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js','styles.css','app.js','tokens.js','launchpad-config.js','trade-core.js','trade.js','share-core.js','social.js','pwa.js','sw.js','manifest.webmanifest','offline.html','launchpad.js','launchpad.css']);
-export function createCityServer({origins=[],now=()=>Date.now()}={}){
+export function createCityServer({origins=[],now=()=>Date.now(),themeReader=null}={}){
  const holdings=holdingsService({mints,now});
+ const theme=themeReader||createThemeLookup({tokens:projectTokens,now});
+ const themeRates=new Map();
  const service=createRooms(Engine,{now}),engine=service.first.engine,sessions=service.sessions,streams=new Map();
  const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));};
  const server=http.createServer({requestTimeout:15000,headersTimeout:10000,maxHeaderSize:8192},async(req,res)=>{
@@ -29,6 +33,16 @@ export function createCityServer({origins=[],now=()=>Date.now()}={}){
    try{
     const route=url.pathname.slice('/api/city'.length);
     if(route==='/health'&&req.method==='GET')return json(res,200,service.health());
+    if(route==='/theme'&&req.method==='GET'){
+      // Public read-only cosmetic lookup. Never interpreted as wallet verification.
+      const address=url.searchParams.get('address'),ip=req.socket.remoteAddress||'unknown',stamp=now();
+      let entry=themeRates.get(ip);
+      if(!entry||stamp-entry.start>=60000)themeRates.set(ip,entry={start:stamp,count:0});
+      if(++entry.count>25)return json(res,429,{error:'Too many theme requests. Retry shortly.'});
+      if(themeRates.size>600)for(const [key,value]of themeRates)if(stamp-value.start>60000)themeRates.delete(key);
+      const result=await theme.lookup(address);
+      return json(res,200,result);
+    }
     let body={};if(req.method==='POST'){
      if(!String(req.headers['content-type']).startsWith('application/json'))return json(res,415,{error:'Use application/json.'});
      let data='';for await(const chunk of req){data+=chunk;if(Buffer.byteLength(data)>4096)return json(res,413,{error:'Request is too large.'});}try{body=JSON.parse(data);}catch{return json(res,400,{error:'Invalid JSON.'});}if(!body||typeof body!=='object'||Array.isArray(body))return json(res,400,{error:'Invalid action body.'});
