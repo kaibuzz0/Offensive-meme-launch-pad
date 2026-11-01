@@ -191,40 +191,12 @@
       if(id){try{localStorage.setItem(savedKey,id);}catch{}}
       const token=themeById.get(id);
       themeLine.textContent=token
-        ?'Theme active: '+token.name+' (
+        ?'Theme active: '+token.name+' (ticker '+token.ticker+'). Website palette updated to match your largest supported token holding.'
+        :'Wallet connected. No supported project tokens found. Default theme active.';
+      if(token)walletButton.textContent='Wallet '+shortAddress(publicKey)+' · '+token.ticker;
     }catch(e){
       if(request!==themeRequest||window.OffensiveWallet.state().address!==publicKey)return;
       themeLine.textContent='Wallet connected, but theme lookup failed: '+(e.message||'network unavailable')+' Tap the wallet button to retry the theme check.';
-    }
-  }
-  window.addEventListener('offensive-wallet-changed',event=>{void refreshTheme(event.detail?.address||null);});
-  const connectedAddress=window.OffensiveWallet.state().address;
-  if(connectedAddress)void refreshTheme(connectedAddress);
-  else themeLine.textContent='Connect a wallet to apply the theme automatically.';
-  if('serviceWorker' in navigator&&window.isSecureContext){
-    window.addEventListener('load',()=>{navigator.serviceWorker.register(new URL('sw.js',appRoot),{scope:appRoot.pathname,updateViaCache:'none'}).catch(()=>{/* Installation instructions still work if service workers are unavailable. */});});
-  }
-})();
-+token.ticker+'). Your website colors now match your largest supported token holding.'
-        :'Wallet connected. No supported project tokens found. Default theme active.';
-      walletButton.textContent=token?'Wallet '+shortAddress(publicKey)+' ·
-    }catch(e){
-      if(request!==themeRequest||window.OffensiveWallet.state().address!==publicKey)return;
-      themeLine.textContent='Wallet connected, but theme balance check failed: '+(e.message||'network unavailable')+' Default theme is active. Reconnect to retry.';
-    }
-  }
-  window.addEventListener('offensive-wallet-changed',event=>{void refreshTheme(event.detail?.address||null);});
-  const connectedAddress=window.OffensiveWallet.state().address;
-  if(connectedAddress)void refreshTheme(connectedAddress);
-  else themeLine.textContent='Connect a wallet to apply the theme automatically.';
-  if('serviceWorker' in navigator&&window.isSecureContext){
-    window.addEventListener('load',()=>{navigator.serviceWorker.register(new URL('sw.js',appRoot),{scope:appRoot.pathname,updateViaCache:'none'}).catch(()=>{/* Installation instructions still work if service workers are unavailable. */});});
-  }
-})();
-+token.ticker:walletButton.textContent;
-    }catch(e){
-      if(request!==themeRequest||window.OffensiveWallet.state().address!==publicKey)return;
-      themeLine.textContent='Wallet connected, but theme balance check failed: '+(e.message||'network unavailable')+' Default theme is active. Reconnect to retry.';
     }
   }
   window.addEventListener('offensive-wallet-changed',event=>{void refreshTheme(event.detail?.address||null);});
