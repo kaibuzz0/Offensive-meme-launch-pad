@@ -270,7 +270,7 @@ try{
  
  // Full live-browser test: real Ed25519 signing, mock on-chain holdings, solo Avatar UI.
  // No real account, transaction, network RPC or player save is used.
- const prelude='(()=>{const address='+JSON.stringify(soloAddress)+',pkcs8='+JSON.stringify(soloPrivatePkcs8)+';'
+ const prelude='(()=>{let actualRig;Object.defineProperty(window,"CityVisuals",{configurable:true,get(){return actualRig},set(v){actualRig={...v,person(c,o,time){if(o.id?.startsWith("player-"))window.__soloWorldSkull=!!o.offenderSkin;return v.person(c,o,time)}}}});const address='+JSON.stringify(soloAddress)+',pkcs8='+JSON.stringify(soloPrivatePkcs8)+';';
   +'const keyBytes=Uint8Array.from(atob(pkcs8),c=>c.charCodeAt(0));'
   +'window.phantom={solana:{isConnected:false,publicKey:null,on(){},off(){},'
   +'async connect(){this.isConnected=true;this.publicKey={toString:()=>address};return{publicKey:this.publicKey}},'
@@ -293,6 +293,7 @@ try{
  await evalPage("document.getElementById('offender-wallet-verify').click();true");
  await waitFor(()=>evalPage("document.querySelector('#panel-content').textContent.includes('OFFENDED SKULL ACTIVE')"),'solo signed holder skin');
  assert.notEqual(await headHash(),normalHead,'signed verification changes real Canvas skull appearance');
+ await waitFor(()=>evalPage('window.__soloWorldSkull===true'),'in-world player uses signed OFFENDED skull');
  assert.equal(await evalPage("document.getElementById('room-mode').textContent"),'SOLO / LOCAL SAVE');
  assert.equal(await evalPage("!!localStorage.getItem('offensive-meme-city-v1-center') && !localStorage.getItem('offensive-meme-city-v1-center')?.includes('proofId')"),true,'never store wallet proof in solo save');
  await evalPage("window.OffensiveWallet.disconnect();true");
@@ -300,6 +301,7 @@ try{
  await evalPage("document.querySelector('[data-panel=avatar]').click();true");
  await waitFor(()=>evalPage("document.querySelector('#panel-content').textContent.includes('FREE SKINS AVAILABLE')"),'holder skin revoked');
  assert.equal(await headHash(),normalHead,'disconnect restores the standard face');
+ await waitFor(()=>evalPage('window.__soloWorldSkull===false'),'in-world avatar loses holder skin on disconnect');
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
  console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six clan skins, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
 }finally{
