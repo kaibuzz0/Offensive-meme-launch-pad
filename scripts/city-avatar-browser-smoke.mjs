@@ -267,7 +267,7 @@ try{
   // Crypto rejection is covered by scripts/city-holdings.test.mjs; browser QA asserts that a signed challenge is attempted automatically.
   const isLocked=await evalPage("(()=>{const C=MemeCityCore;return C.blocked(C.TOKEN_PLOTS[0].x+C.TOKEN_PLOTS[0].w/2,C.TOKEN_PLOTS[0].y+C.TOKEN_PLOTS[0].h/2,{holder:null});})()");
   assert.equal(isLocked,true,'invalid wallet signature does not unlock holder area');
- 
+
  // Full live-browser test: real Ed25519 signing, mock on-chain holdings, solo Avatar UI.
  // No real account, transaction, network RPC or player save is used.
  const prelude='(()=>{let actualRig;Object.defineProperty(window,"CityVisuals",{configurable:true,get(){return actualRig},set(v){actualRig={...v,person(c,o,time){if(o.id?.startsWith("player-"))window.__soloWorldSkull=!!o.offenderSkin;return v.person(c,o,time)}}}});const address='+JSON.stringify(soloAddress)+',pkcs8='+JSON.stringify(soloPrivatePkcs8)+';';
