@@ -29,7 +29,7 @@ for(const page of ['index.html','beta.html','creators.html','city.html','city-ro
 const walletJs=read('pwa.js');
 for(const feature of ['OffensiveWallet','offensive-wallet-changed','global-wallet-trigger','disconnectWallet','walletLinks','walletKey'])
  assert.ok(walletJs.includes(feature),'Missing global wallet feature '+feature);
-assert.ok(!/localStorage\\.setItem\\([^)]*(?:signature|privateKey|secret)/i.test(walletJs),'No secret wallet material in persistent storage');
+assert.ok(!/signature|privateKey|secret|seedPhrase/i.test(walletJs.split('\n').filter(l=>l.includes('localStorage.setItem(')).join('\n')),'No secret wallet material in persistent storage');
 
 
 for(const file of ['index.html','creators.html']){
