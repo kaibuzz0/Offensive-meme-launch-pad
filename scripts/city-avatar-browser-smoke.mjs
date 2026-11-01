@@ -270,7 +270,7 @@ try{
 
  // Full live-browser test: real Ed25519 signing, mock on-chain holdings, solo Avatar UI.
  // No real account, transaction, network RPC or player save is used.
- const walletPrelude='(()=>{const address='+JSON.stringify(soloAddress)+',pkcs8='+JSON.stringify(soloPrivatePkcs8)+';';
+ const walletPrelude='(()=>{const address='+JSON.stringify(soloAddress)+',pkcs8='+JSON.stringify(soloPrivatePkcs8)+';'
   +'const keyBytes=Uint8Array.from(atob(pkcs8),c=>c.charCodeAt(0));'
   +'window.phantom={solana:{isConnected:false,publicKey:null,on(){},off(){},'
   +'async connect(){this.isConnected=true;this.publicKey={toString:()=>address};return{publicKey:this.publicKey}},'
