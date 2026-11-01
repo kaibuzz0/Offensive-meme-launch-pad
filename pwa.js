@@ -120,86 +120,81 @@
     if(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)){activeProvider=existingProvider;attachWallet(existingProvider);publishWallet(address);}
   }
   renderWallet();
-  // Read-only wallet-led theme on both the website and the installed PWA.
-  // No seed phrase, transaction or signature. A pasted address is visual preview only.
+  // The wallet is the ONE theme selector: connect once and apply the largest
+  // supported project-token holding automatically. No second theme button.
   const themeTokens=[window.LAUNCHPAD_CONFIG?.platformToken,...(window.MEME_TOKENS||[])].filter(t=>t?.mint);
   const themeById=new Map(themeTokens.map(t=>[t.id,t]));
   const savedKey='offensive-wallet-theme-v1';
+  const themeLine=document.createElement('p');themeLine.className='global-wallet-theme-status';
+  themeLine.setAttribute('role','status');themeLine.setAttribute('aria-live','polite');
+  walletDialog.insertBefore(themeLine,walletActions);
+  let themeRequest=0,themeRefresh=null;
   function paintTheme(id){
     const token=themeById.get(id);
+    const color=token?.color||'#b7f464';
     document.documentElement.dataset.walletTheme=token?.id||'default';
-    document.documentElement.style.setProperty('--green',token?.color||'#b7f464');
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content',token?.color||'#121310');
+    document.documentElement.style.setProperty('--green',color);
+    document.documentElement.style.setProperty('--theme-accent',color);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content',color);
   }
-  try{paintTheme(localStorage.getItem(savedKey));}catch{paintTheme(null);}
-  const themeButton=document.createElement('button');
-  themeButton.type='button';themeButton.className='wallet-theme-trigger';themeButton.textContent='Wallet theme ◈';
-  const themeHost=document.querySelector('.utility-bar>div')||document.querySelector('.utility-bar')||document.querySelector('.city-header')||document.querySelector('header');
-  themeHost?.append(themeButton);
-  if(themeHost){
-    const themeDialog=document.createElement('dialog');themeDialog.className='wallet-theme-dialog';
-    const title=document.createElement('h2');title.textContent='Theme from wallet';
-    const note=document.createElement('p');note.textContent='Compare how many tokens you hold from this project (whole-token quantities, not dollar value). The largest eligible balance sets the site accent. Appearance only — this does not unlock holder-only areas.';
-    const address=document.createElement('input');address.type='text';address.placeholder='Public Solana wallet address';address.maxLength=44;address.autocomplete='off';address.spellcheck=false;address.setAttribute('aria-label','Public Solana wallet address for a read-only theme preview');
-    const status=document.createElement('p');status.setAttribute('role','status');status.setAttribute('aria-live','polite');status.className='wallet-theme-status';
-    const controls=document.createElement('div');controls.className='wallet-theme-actions';
-    const byWallet=document.createElement('button');byWallet.type='button';byWallet.textContent='Connect wallet & match';
-    const byAddress=document.createElement('button');byAddress.type='button';byAddress.textContent='Preview public address';
-    const reset=document.createElement('button');reset.type='button';reset.textContent='Use default';
-    const close=document.createElement('button');close.type='button';close.textContent='Close';
-    controls.append(byWallet,byAddress,reset,close);
-    themeDialog.append(title,note,address,controls,status);document.body.append(themeDialog);
-    themeButton.addEventListener('click',()=>themeDialog.showModal());
-    close.addEventListener('click',()=>themeDialog.close());
-    reset.addEventListener('click',()=>{paintTheme(null);try{localStorage.removeItem(savedKey);}catch{}status.textContent='Default theme restored.';});
-    const rpc='https://api.mainnet-beta.solana.com';
-    async function scan(publicKey,preview){
-      const tokenMints=new Map(themeTokens.map(t=>[t.mint,t]));
-      if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(publicKey))throw Error('Enter a valid public Solana wallet address.');
-      status.textContent='Reading project token balances (no transaction or signature)…';
-      const response=await fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getTokenAccountsByOwner',params:[publicKey,{programId:'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'},{encoding:'jsonParsed'}]}),signal:AbortSignal.timeout(12000),cache:'no-store'});
-      if(!response.ok)throw Error('Solana balance lookup unavailable. Try again.');
-      const data=await response.json();if(data.error||!Array.isArray(data.result?.value))throw Error('Could not retrieve token balances.');
-      const balances=new Map();
-      for(const row of data.result.value){
-        const info=row.account?.data?.parsed?.info,t=info?.tokenAmount,token=tokenMints.get(info?.mint);
-        if(!token||info.owner!==publicKey||!/^[0-9]+$/.test(t?.amount)||!Number.isInteger(t.decimals)||t.decimals<0||t.decimals>18)continue;
-        const prev=balances.get(token.id);
-        if(prev&&prev.decimals!==t.decimals)throw Error('Inconsistent token decimals.');
-        balances.set(token.id,{id:token.id,units:(prev?.units||0n)+BigInt(t.amount),decimals:t.decimals});
-      }
-      const holdings=[...balances.values()].filter(x=>x.units>0n).sort((a,b)=>{
-        const aa=a.units*10n**BigInt(b.decimals),bb=b.units*10n**BigInt(a.decimals);
-        return aa===bb?a.id.localeCompare(b.id):aa>bb?-1:1;
-      });
-      const top=holdings[0];if(!top){paintTheme(null);status.textContent='No supported project tokens found. The default theme is active.';return;}
-      paintTheme(top.id);try{localStorage.setItem(savedKey,top.id);}catch{}
-      const t=themeById.get(top.id);
-      status.textContent=[preview?'Public-address preview: ':'Connected wallet: ',t.name,' (',t.ticker,') has your largest supported token quantity. Accent shared across website and installed app.'].join('');
+  let savedTheme=null;try{savedTheme=localStorage.getItem(savedKey);}catch{}
+  // Keep the most recently chosen visual theme across ordinary page navigation,
+  // but never infer wallet ownership from this cosmetic preference.
+  paintTheme(savedTheme);
+  const rpc='https://api.mainnet-beta.solana.com';
+  async function themeFromBalances(publicKey){
+    const tokenMints=new Map(themeTokens.map(t=>[t.mint,t]));
+    const response=await fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      jsonrpc:'2.0',id:1,method:'getTokenAccountsByOwner',
+      params:[publicKey,{programId:'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'},{encoding:'jsonParsed'}]
+    }),signal:AbortSignal.timeout(12000),cache:'no-store'});
+    if(!response.ok)throw Error('Solana RPC returned '+response.status+'.');
+    const data=await response.json();
+    if(data.error||!Array.isArray(data.result?.value))throw Error('Solana balance lookup unavailable.');
+    const balances=new Map();
+    for(const row of data.result.value){
+      const info=row.account?.data?.parsed?.info,t=info?.tokenAmount,token=tokenMints.get(info?.mint);
+      if(!token||info.owner!==publicKey||!/^[0-9]+$/.test(t?.amount)||!Number.isInteger(t.decimals)||t.decimals<0||t.decimals>18)continue;
+      const prev=balances.get(token.id);
+      if(prev&&prev.decimals!==t.decimals)throw Error('Inconsistent token decimals.');
+      balances.set(token.id,{id:token.id,units:(prev?.units||0n)+BigInt(t.amount),decimals:t.decimals});
     }
-    async function run(source){
-      byWallet.disabled=byAddress.disabled=true;
-      try{
-        let publicKey;
-        if(source==='wallet'){
-          publicKey=window.OffensiveWallet.state().address;
-          if(!publicKey){await window.OffensiveWallet.connect();return;} // the global connection event updates this theme
-        }else{publicKey=address.value.trim();}
-        await scan(publicKey,source==='address');
-      }catch(e){status.textContent=e.message||'Wallet theme unavailable.';}
-      finally{byWallet.disabled=byAddress.disabled=false;}
-    }
-    byWallet.addEventListener('click',()=>run('wallet'));
-    byAddress.addEventListener('click',()=>run('address'));
-    // Theme and wallet session stay synchronized on ALL pages, not just in Meme City.
-    window.addEventListener('offensive-wallet-changed',event=>{
-      const a=event.detail?.address;
-      if(a)scan(a,false).catch(e=>{status.textContent='Wallet connected, but theme lookup failed: '+(e.message||'RPC unavailable');});
-      else{paintTheme(null);try{localStorage.removeItem(savedKey);}catch{}status.textContent='Wallet disconnected; default theme restored.';}
+    // Compare whole token quantities (not USD prices) without floating-point loss.
+    const holdings=[...balances.values()].filter(x=>x.units>0n).sort((a,b)=>{
+      const left=a.units*10n**BigInt(b.decimals),right=b.units*10n**BigInt(a.decimals);
+      return left===right?a.id.localeCompare(b.id):left>right?-1:1;
     });
-    const current=window.OffensiveWallet.state().address;
-    if(current)scan(current,false).catch(e=>{status.textContent='Wallet connected; theme check unavailable: '+(e.message||'RPC unavailable');});
+    return holdings[0]?.id||null;
   }
+  async function refreshTheme(publicKey){
+    const request=++themeRequest;
+    clearTimeout(themeRefresh);themeRefresh=null;
+    // Do not display a previous holder's theme while checking a new account.
+    paintTheme(null);
+    try{localStorage.removeItem(savedKey);}catch{}
+    if(!publicKey){
+      themeLine.textContent='Default theme · Connect a wallet to match your largest supported token automatically.';
+      return;
+    }
+    themeLine.textContent='Checking project token balances to apply your theme automatically…';
+    try{
+      const id=await themeFromBalances(publicKey);
+      if(request!==themeRequest||window.OffensiveWallet.state().address!==publicKey)return;
+      paintTheme(id);
+      if(id){try{localStorage.setItem(savedKey,id);}catch{}}
+      const token=themeById.get(id);
+      themeLine.textContent=token
+        ?'Theme applied automatically: '+token.name+' ($'+token.ticker+'). Based on your highest supported token quantity.'
+        :'No supported project tokens found in this wallet. Default website theme applied.';
+    }catch(e){
+      if(request!==themeRequest||window.OffensiveWallet.state().address!==publicKey)return;
+      themeLine.textContent='Wallet connected, but theme balance check failed: '+(e.message||'network unavailable')+' Default theme is active. Reconnect to retry.';
+    }
+  }
+  window.addEventListener('offensive-wallet-changed',event=>{void refreshTheme(event.detail?.address||null);});
+  const connectedAddress=window.OffensiveWallet.state().address;
+  if(connectedAddress)void refreshTheme(connectedAddress);
+  else themeLine.textContent='Connect a wallet to apply the theme automatically.';
   if('serviceWorker' in navigator&&window.isSecureContext){
     window.addEventListener('load',()=>{navigator.serviceWorker.register(new URL('sw.js',appRoot),{scope:appRoot.pathname,updateViaCache:'none'}).catch(()=>{/* Installation instructions still work if service workers are unavailable. */});});
   }
