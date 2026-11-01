@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
 import path from 'node:path';
 const root=path.resolve(import.meta.dirname,'..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
@@ -26,6 +27,12 @@ for(const page of ['index.html','beta.html','creators.html','city.html','city-ro
  assert.ok(content.includes('pwa.js?v=30-android-wallet'),page+' must load shared wallet runtime');
  assert.ok(content.includes('styles.css?v=28-reliable-theme')||content.includes('city.css?v=28-reliable-theme'),page+' must load wallet controls CSS');
 }
+// Android PWA adapter is a locally published ES module; it must not rely on
+// a second wallet page/button or ever persist signing material.
+const androidModule=read('wallet-mobile.js');
+execFileSync(process.execPath,['--check',path.join(root,'wallet-mobile.js')]);
+assert.ok(androidModule.includes("mobile-wallet-adapter-protocol@2.3.0"),'Pinned Solana Mobile protocol is required.');
+assert.ok(androidModule.includes('signMessages('),'Mobile wallets must support the existing signed holder check.');
 const walletJs=read('pwa.js');
 for(const feature of ['OffensiveWallet','offensive-wallet-changed','global-wallet-trigger','disconnectWallet','walletLinks','walletKey'])
  assert.ok(walletJs.includes(feature),'Missing global wallet feature '+feature);
