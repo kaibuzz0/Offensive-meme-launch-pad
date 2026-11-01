@@ -283,7 +283,8 @@ try{
  await waitFor(()=>evalPage("!!window.OffensiveWallet?.connect && !!document.querySelector('.global-wallet-trigger')"),'new solo wallet session');
  assert.equal(await evalPage("document.querySelectorAll('.global-wallet-trigger').length"),1,'one global wallet button');
  await evalPage("document.querySelector('.global-wallet-trigger').click();true");
- await waitFor(()=>evalPage("window.OffensiveWallet.state().connected"),'solo wallet connected');
+ await waitFor(()=>evalPage("window.OffensiveWallet.state().connected || !!document.querySelector('.global-wallet-status')?.textContent.match(/No wallet detected|valid Solana|cancelled|unavailable/)"),'solo wallet response');
+ assert.equal(await evalPage("window.OffensiveWallet.state().connected"),true,JSON.stringify(await evalPage("({provider:!!window.phantom?.solana,providerConnect:typeof window.phantom?.solana?.connect,state:window.OffensiveWallet.state(),status:document.querySelector('.global-wallet-status')?.textContent})"))));
  await waitFor(()=>evalPage("window.OffensiveWallet.state().themeId==='offensive'"),'OFFENDED theme selected');
  await evalPage("document.querySelector('.global-wallet-dialog').close();document.querySelector('#start-button').click();document.querySelector('[data-panel=avatar]').click();true");
  await waitFor(()=>evalPage("!!document.getElementById('offender-wallet-verify')"),'solo verify button');
