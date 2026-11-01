@@ -77,7 +77,7 @@ const city=read('city.html'),landing=read('index.html'),pages=read('.github/work
 for(const id of ['city-canvas','start-button','city-intro','room-mode','hud-credits','hud-level','mission-title','health-value','joystick','fire'])
  assert.ok(city.includes('id="'+id+'"'),'Original playable V1 HUD or control missing: '+id);
 assert.ok(city.includes('SOLO / LOCAL SAVE'),'Original V1 solo gameplay must be the default');
-assert.ok(city.includes('city.js?v=32-wandering-monk'),'Restored V1 playable engine must be loaded with the refreshed script version');
+assert.ok(city.includes('city.js?v=33-zombies'),'Restored V1 playable engine must be loaded with the refreshed script version');
 assert.ok(city.includes('id="monk-verse"')&&city.includes('city-monk.js?v=32-wandering-monk'),'Bilingual monk dialogue must ship in the playable city');
 assert.ok(!city.includes('city-v2-release-gate.js'),'V1 entry must never force world2');
 assert.ok(!city.includes('href="city-world2-preview.html"'),'Do not advertise V2 preview in the restored game');
