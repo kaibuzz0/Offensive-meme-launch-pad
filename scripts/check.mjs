@@ -23,7 +23,7 @@ console.log(`PASS: ${tokens.length} unique listings, all artwork, mint format ch
 // Global wallet entry must be present on every public website page, including token share pages.
 for(const page of ['index.html','beta.html','creators.html','city.html','city-roadmap.html',...tokens.map(t=>'tokens/'+t.id+'/index.html'),'tokens/offensive/index.html']){
  const content=read(page);
- assert.ok(content.includes('pwa.js?v=29-one-wallet'),page+' must load shared wallet runtime');
+ assert.ok(content.includes('pwa.js?v=30-android-wallet'),page+' must load shared wallet runtime');
  assert.ok(content.includes('styles.css?v=28-reliable-theme')||content.includes('city.css?v=28-reliable-theme'),page+' must load wallet controls CSS');
 }
 const walletJs=read('pwa.js');
@@ -70,7 +70,7 @@ const city=read('city.html'),landing=read('index.html'),pages=read('.github/work
 for(const id of ['city-canvas','start-button','city-intro','room-mode','hud-credits','hud-level','mission-title','health-value','joystick','fire'])
  assert.ok(city.includes('id="'+id+'"'),'Original playable V1 HUD or control missing: '+id);
 assert.ok(city.includes('SOLO / LOCAL SAVE'),'Original V1 solo gameplay must be the default');
-assert.ok(city.includes('city.js?v=29-one-wallet'),'Restored V1 playable engine must be loaded with the refreshed script version');
+assert.ok(city.includes('city.js?v=30-android-wallet'),'Restored V1 playable engine must be loaded with the refreshed script version');
 assert.ok(!city.includes('city-v2-release-gate.js'),'V1 entry must never force world2');
 assert.ok(!city.includes('href="city-world2-preview.html"'),'Do not advertise V2 preview in the restored game');
 const cardStart=landing.indexOf('<article class="home-portal game-portal"'),detailsStart=landing.indexOf('<details class="portal-details"',cardStart);
