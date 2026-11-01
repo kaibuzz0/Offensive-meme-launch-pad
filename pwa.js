@@ -48,16 +48,33 @@
   // Connection is initiated by the one site-wide Wallet button; this dialog is status/help only.
   const walletDisconnect=document.createElement('button');walletDisconnect.type='button';walletDisconnect.textContent='Disconnect';
   const walletClose=document.createElement('button');walletClose.type='button';walletClose.textContent='Close';
+  const mobileButton=document.createElement('button');mobileButton.type='button';mobileButton.className='global-wallet-android';mobileButton.textContent='Use an installed Android wallet';mobileButton.hidden=true;
   const walletLinks=document.createElement('div');walletLinks.className='global-wallet-links';
   const walletHelp=document.createElement('p');walletHelp.className='global-wallet-help';
-  walletHelp.textContent='Installed apps and regular mobile browsers may not expose a Solana wallet. For a connection, open this same page inside a wallet’s built-in browser. The installed app cannot silently gain access to your wallet.';
+  walletHelp.textContent='On Android, Connect Wallet can open a compatible installed wallet app. Phantom also works through its in-app browser. You never need to enter a seed phrase.';
   const pageUrl=location.href,refUrl=new URL('.',appRoot).href;
   for(const [name,base] of [['Open in Phantom','https://phantom.com/ul/browse/'],['Open in Solflare','https://solflare.com/ul/v1/browse/']]){
     const link=document.createElement('a');link.className='global-wallet-app-link';link.textContent=name+' ↗';link.href=base+encodeURIComponent(pageUrl)+'?ref='+encodeURIComponent(refUrl);link.rel='noopener noreferrer';walletLinks.append(link);
   }
-  walletActions.append(walletDisconnect,walletClose);walletDialog.append(walletHeading,walletDescription,walletStatus,walletActions,walletHelp,walletLinks);
+  walletActions.append(mobileButton,walletDisconnect,walletClose);walletDialog.append(walletHeading,walletDescription,walletStatus,walletActions,walletHelp,walletLinks);
   walletHost.append(walletButton);document.body.append(walletDialog);
-  const getProvider=()=>window.phantom?.solana||window.solflare||window.solana||null;
+  // Prefer the existing injected Phantom/Solflare provider; otherwise pair with
+  // the installed Android wallet via Mobile Wallet Adapter (MWA).
+  const android=/Android/i.test(navigator.userAgent);
+  let mobileWallet=null,mobileLoading=android,mobileError=null;
+  const getProvider=()=>window.phantom?.solana||window.solflare||window.backpack?.solana||window.backpack||window.solana||mobileWallet||null;
+  if(android){
+    import('./wallet-mobile.js?v=30-android-wallet').then(m=>{
+      mobileWallet=m.createMobileWallet();mobileLoading=false;
+      mobileButton.hidden=!!(window.phantom?.solana||window.solflare||window.solana);
+      mobileButton.disabled=false;
+      window.dispatchEvent(new Event('offensive-mobile-wallet-ready'));
+    }).catch(e=>{
+      mobileLoading=false;mobileError=e;
+      mobileButton.hidden=true;
+      walletHelp.textContent='Android wallet pairing is unavailable here. Open this page in Phantom or Solflare with the links below.';
+    });
+  }
   const shortAddress=a=>a.slice(0,4)+'…'+a.slice(-4);
   let remembered='';try{remembered=localStorage.getItem(walletKey)||'';}catch{}
   function walletState(){
@@ -69,6 +86,8 @@
     walletButton.setAttribute('aria-label',connected?'Connected Solana wallet '+activeAddress:'Connect Solana wallet');
     walletButton.dataset.connected=String(connected);
     walletDisconnect.disabled=!connected||walletBusy;
+    mobileButton.hidden=!android||!!(window.phantom?.solana||window.solflare||window.solana);
+    mobileButton.disabled=walletBusy||mobileLoading||!mobileWallet;
 
     if(connected)walletStatus.textContent='Connected: '+activeAddress+' · Theme changes automatically. In Together, approve the signature request to open matching token areas.';
     else if(!walletStatus.textContent||walletStatus.textContent.startsWith('Connected:'))walletStatus.textContent=remembered?'Previous wallet '+shortAddress(remembered)+' remembered. Reconnect to authorize this page.':'No wallet connected. Connect in a compatible wallet browser.';
@@ -90,10 +109,14 @@
       else{activeProvider=null;publishWallet(null);}
     });
   }
-  async function connectWallet(){
+  async function connectWallet(preferred=null){
     if(walletBusy)return activeAddress;
-    const p=getProvider();
-    if(!p?.connect){walletStatus.textContent='No Solana wallet detected. Open this page inside Phantom or Solflare using the links below, then tap Connect wallet.';if(!walletDialog.open)walletDialog.showModal();throw Error('No compatible Solana wallet injected in this browser.');}
+    const p=preferred||getProvider();
+    if(!p?.connect){
+      walletStatus.textContent=mobileLoading?'Preparing Android wallet connection. Use the Android wallet option below once ready.':mobileError?'Android wallet adapter unavailable. Open this page in Phantom or Solflare using the links below.':'No wallet detected. Android: choose an installed compatible wallet, or open this page in Phantom/Solflare using the links below.';
+      if(!walletDialog.open)walletDialog.showModal();
+      throw Error('A compatible Solana wallet is required.');
+    }
     walletBusy=true;walletStatus.textContent='Requesting wallet connection permission…';renderWallet();
     try{
       const result=await p.connect();
@@ -120,6 +143,11 @@
   walletClose.addEventListener('click',()=>walletDialog.close());
 
   walletDisconnect.addEventListener('click',()=>{disconnectWallet().catch(()=>{});});
+  mobileButton.addEventListener('click',async()=>{
+    if(walletBusy)return;
+    if(!mobileWallet){walletStatus.textContent='Android wallet support is still initializing. Please retry.';return;}
+    try{await connectWallet(mobileWallet);}catch{/* clear error is shown in the existing wallet status */}
+  });
   const existingProvider=getProvider();
   if(existingProvider?.isConnected&&existingProvider.publicKey){
     const address=existingProvider.publicKey.toString();
