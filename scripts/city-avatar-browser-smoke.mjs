@@ -4,17 +4,32 @@
  */
 import assert from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
+import {generateKeyPairSync} from 'node:crypto';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import path from 'node:path';
 import {tmpdir} from 'node:os';
 import {setTimeout as delay} from 'node:timers/promises';
 import {createCityServer} from '../server/city-server.mjs';
+import {holdingsService} from '../server/city-holdings.mjs';
 
 const chromeBin=process.env.CHROME_BIN||['google-chrome','google-chrome-stable','chromium','chromium-browser']
  .map(n=>spawnSync('which',[n],{encoding:'utf8'})).find(x=>x.status===0)?.stdout.trim();
 if(!chromeBin)throw Error('World V1 visual QA requires installed Chrome/Chromium.');
 const profile=await mkdtemp(path.join(tmpdir(),'meme-city-v1-visual-'));
-const room=createCityServer({origins:['http://127.0.0.1']});
+const soloKeys=generateKeyPairSync('ed25519');
+const abc='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function toBase58(buf){let n=0n;for(const b of buf)n=n*256n+BigInt(b);let v='';while(n){v=abc[Number(n%58n)]+v;n/=58n;}for(const b of buf){if(b!==0)break;v='1'+v;}return v;}
+const soloAddress=toBase58(soloKeys.publicKey.export({format:'der',type:'spki'}).subarray(-32));
+const soloPrivatePkcs8=soloKeys.privateKey.export({format:'der',type:'pkcs8'}).toString('base64');
+const soloMint='A4gTwKUpL64nVTFDMSfDZxKcQRJNwwZ95X1MgoZPpump';
+const fakeHoldings=holdingsService({mints:{offensive:soloMint},fetcher:async(_url,options)=>{
+ const args=JSON.parse(options.body),address=args.params[0],mint=args.params[1].mint;
+ const rows=address===soloAddress&&mint===soloMint?[{account:{data:{parsed:{info:{owner:soloAddress,mint:soloMint,tokenAmount:{amount:'3000000',decimals:6}}}}}}]:[];
+ return {ok:true,json:async()=>({result:{value:rows}})};
+}});
+const room=createCityServer({origins:['http://127.0.0.1'],holdingsReader:fakeHoldings,
+ themeReader:{lookup:async address=>({themeId:address===soloAddress?'offensive':null,matchedTokens:address===soloAddress?1:0,verifiedOwnership:false})}
+});
 let chrome,ws,server=room.server;
 const exceptions=[],pending=new Map();
 let serial=0;
@@ -252,6 +267,47 @@ try{
   // Crypto rejection is covered by scripts/city-holdings.test.mjs; browser QA asserts that a signed challenge is attempted automatically.
   const isLocked=await evalPage("(()=>{const C=MemeCityCore;return C.blocked(C.TOKEN_PLOTS[0].x+C.TOKEN_PLOTS[0].w/2,C.TOKEN_PLOTS[0].y+C.TOKEN_PLOTS[0].h/2,{holder:null});})()");
   assert.equal(isLocked,true,'invalid wallet signature does not unlock holder area');
+
+ // Full live-browser test: real Ed25519 signing, mock on-chain holdings, solo Avatar UI.
+ // No real account, transaction, network RPC or player save is used.
+ const walletPrelude='(()=>{const address='+JSON.stringify(soloAddress)+',pkcs8='+JSON.stringify(soloPrivatePkcs8)+';'
+  +'const keyBytes=Uint8Array.from(atob(pkcs8),c=>c.charCodeAt(0));'
+  +'window.phantom={solana:{isConnected:false,publicKey:null,on(){},off(){},'
+  +'async connect(){this.isConnected=true;this.publicKey={toString:()=>address};return{publicKey:this.publicKey}},'
+  +'async disconnect(){this.isConnected=false;this.publicKey=null},'
+  +'async signMessage(message){const key=await crypto.subtle.importKey("pkcs8",keyBytes,{name:"Ed25519"},false,["sign"]);'
+  +'return{signature:new Uint8Array(await crypto.subtle.sign("Ed25519",key,message))}}'
+  +'}}})();';
+  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?solo=1&signed-skin-qa=1'});
+ await waitFor(()=>evalPage("!!window.OffensiveWallet?.connect && !!document.querySelector('.global-wallet-trigger')"),'new solo wallet session');
+ // Install the synthetic browser wallet on this fresh page only; the already
+ // initialized wallet runtime discovers providers dynamically upon click.
+ await evalPage(walletPrelude);
+ assert.equal(await evalPage("!!window.phantom?.solana && typeof window.phantom.solana.signMessage==='function'"),true);
+ assert.equal(await evalPage("document.querySelectorAll('.global-wallet-trigger').length"),1,'one global wallet button');
+ await evalPage("document.querySelector('.global-wallet-trigger').click();true");
+ await waitFor(()=>evalPage("window.OffensiveWallet.state().connected || !!document.querySelector('.global-wallet-status')?.textContent.match(/No wallet detected|valid Solana|cancelled|unavailable/)"),'solo wallet response');
+ const soloDiag=await evalPage("({provider:!!window.phantom?.solana,providerConnect:typeof window.phantom?.solana?.connect,state:window.OffensiveWallet.state(),status:document.querySelector('.global-wallet-status')?.textContent})");
+ assert.equal(await evalPage("window.OffensiveWallet.state().connected"),true,JSON.stringify(soloDiag));
+ await waitFor(()=>evalPage("window.OffensiveWallet.state().themeId==='offensive'"),'OFFENDED theme selected');
+ await evalPage("document.querySelector('.global-wallet-dialog').close();document.querySelector('#start-button').click();document.querySelector('[data-panel=avatar]').click();true");
+ await waitFor(()=>evalPage("!!document.getElementById('offender-wallet-verify')"),'solo verify button');
+ assert.match(await evalPage("document.getElementById('offender-wallet-verify').textContent"),/Verify holder skin in solo/);
+ const headHash=()=>evalPage("(()=>{const g=document.querySelector('.wardrobe-canvas').getContext('2d'),d=g.getImageData(204,70,74,140).data;let h=0;for(let i=0;i<d.length;i+=4)h=(h*31+d[i]*7+d[i+1]*3+d[i+2])>>>0;return h;})()");
+ const normalHead=await headHash();
+ await evalPage("document.getElementById('offender-wallet-verify').click();true");
+ await waitFor(()=>evalPage("document.querySelector('#panel-content').textContent.includes('OFFENDED SKULL ACTIVE')"),'solo signed holder skin');
+ assert.notEqual(await headHash(),normalHead,'signed verification changes real Canvas skull appearance');
+ const worldSource=await readFile(new URL('../city.js',import.meta.url),'utf8');
+ assert.match(worldSource,/holder:me\.holder/,'actual in-world player renderer must receive the solo holder proof');
+ assert.equal(await evalPage("document.getElementById('room-mode').textContent"),'SOLO / LOCAL SAVE');
+ assert.equal(await evalPage("!!localStorage.getItem('offensive-meme-city-v1-center') && !localStorage.getItem('offensive-meme-city-v1-center')?.includes('proofId')"),true,'never store wallet proof in solo save');
+ await evalPage("window.OffensiveWallet.disconnect();true");
+ await waitFor(()=>evalPage("!window.OffensiveWallet.state().connected"),'wallet disconnected');
+ await evalPage("document.querySelector('[data-panel=avatar]').click();true");
+ await waitFor(()=>evalPage("document.querySelector('#panel-content').textContent.includes('FREE SKINS AVAILABLE')"),'holder skin revoked');
+ assert.equal(await headHash(),normalHead,'disconnect restores the standard face');
+
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
  console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six clan skins, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
 }finally{
