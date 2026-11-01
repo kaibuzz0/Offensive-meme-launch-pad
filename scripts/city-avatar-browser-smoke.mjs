@@ -216,6 +216,39 @@ try{
  assert.ok(new URL(noProvider.phantom).hostname.includes('phantom'),'wallet-app handoff present');
  assert.match(noProvider.help,/Installed apps/);
  await waitFor(()=>evalPage("document.querySelector('.global-wallet-status').textContent.includes('No Solana wallet detected')"),'one wallet button explains missing providers in installed PWA');
+  // A single site wallet powers the next Together room's holder access.
+  // Fake signatures must NOT unlock anything; the real room server rejects them.
+  await evalPage(`(()=>{
+    document.querySelector('.global-wallet-dialog').close();
+    const address='11111111111111111111111111111111';
+    window.phantom={solana:{
+      isConnected:false,publicKey:null,on:()=>{},
+      connect:async function(){this.isConnected=true;this.publicKey={toString:()=>address};return{publicKey:this.publicKey};},
+      signMessage:async()=>({signature:new Uint8Array(64)})
+    }};
+    window.__autoHolderChecks=[];
+    const original=window.fetch.bind(window);
+    window.fetch=(url,options)=>{
+      if(String(url).includes('/api/city/theme'))return Promise.resolve({ok:true,json:async()=>({themeId:'offensive'})});
+      if(String(url).includes('/api/city/wallet/check'))window.__autoHolderChecks.push(JSON.parse(options.body));
+      return original(url,options);
+    };
+    return true;
+  })()`);
+  await evalPage("document.querySelector('.global-wallet-trigger').click();true");
+  await waitFor(()=>evalPage("window.OffensiveWallet.state().themeId==='offensive'"),'single wallet connects and identifies OFFENDED');
+  await evalPage("document.querySelector('.global-wallet-dialog').close();document.getElementById('start-button').click();true");
+  await evalPage("document.querySelector('[data-panel=multiplayer]').click();true");
+  await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Quick play'))"),'free Together action');
+  await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Quick play')).click();true");
+  await waitFor(()=>evalPage("document.querySelector('#room-mode').textContent.startsWith('ONLINE /')"),'connected free multiplayer');
+  await waitFor(()=>evalPage("window.__autoHolderChecks.length>0"),'theme automatically initiates signed holder check without another Connect button');
+  const check=await evalPage("window.__autoHolderChecks[0]");
+  assert.equal(check.clan,'offensive','automatic theme uses its matching token for reserved area');
+  assert.ok(typeof check.signature==='string'&&check.signature.length>80,'holder area requests a room-bound wallet signature');
+  await waitFor(()=>evalPage("document.querySelector('#city-toast')?.textContent.includes('Wallet signature did not match')"),'unsigned guest cannot bypass reserved lot');
+  const isLocked=await evalPage("(()=>{const C=MemeCityCore;return C.blocked(C.TOKEN_PLOTS[0].x+C.TOKEN_PLOTS[0].w/2,C.TOKEN_PLOTS[0].y+C.TOKEN_PLOTS[0].h/2,{holder:null});})()");
+  assert.equal(isLocked,true,'invalid wallet signature does not unlock holder area');
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
  console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six clan skins, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
 }finally{
