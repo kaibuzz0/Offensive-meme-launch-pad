@@ -15,7 +15,7 @@ test('backend theme detects largest real token quantity and caches same address'
   assert.equal(parsed.method,'getTokenAccountsByOwner');
   assert.equal(parsed.params[0],wallet);
   assert.equal(parsed.params[1].programId,'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-  return json([row(tokens[0].mint,'950000000',6),row(tokens[1].mint,'20',0),
+  return json([row(tokens[0].mint,'950000000',6),row(tokens[1].mint,'20000000',6),
    row(tokens[1].mint,'980000000',6),row('OTHER','99999999999999999',6),
    row(tokens[1].mint,'999900000000',6,otherWallet)]);
  };
