@@ -138,7 +138,7 @@ try{
  assert.equal(target.hostname,'solflare.com');assert.ok(target.pathname.startsWith('/ul/v1/browse/'),'official mobile wallet browse link');
  assert.equal(decodeURIComponent(target.pathname.slice('/ul/v1/browse/'.length)), 'http://127.0.0.1:'+server.address().port+'/city.html?release=offender-skin');
  await evalPage("document.getElementById('offender-wallet-verify').click();true");
- const status=await waitFor(()=>evalPage("document.querySelector('#offender-wallet-status')?.textContent.includes('No compatible Solana wallet found')"),'visible missing-wallet message in Avatar modal');
+ const status=await waitFor(()=>evalPage("document.querySelector('#offender-wallet-status')?.textContent.includes('single Connect wallet button')"),'visible single-wallet instruction in Avatar modal');
  assert.equal(status,true);
  assert.equal(await evalPage("document.querySelector('#offender-wallet-status').getAttribute('aria-live')"),'polite','accessible inline status announces errors');
  assert.equal(await evalPage("document.querySelector('#offender-wallet-status').closest('dialog').open"),true,'wallet errors stay visible inside the open modal');
