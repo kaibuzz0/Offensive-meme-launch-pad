@@ -178,8 +178,34 @@
    const rings=o.simplified?4:8,sides=o.simplified?8:12;
    for(let j=0;j<rings;j++)for(let k=0;k<sides;k++){const a=low+(high-low)*j/rings,b=low+(high-low)*(j+1)/rings,u=k*Math.PI*2/sides,v=(k+1)*Math.PI*2/sides;face([point(a,u),point(a,v),point(b,v),point(b,u)],color);}
   }
-  const style=o.style||{},offender=o.offenderSkin===true&&(o.role||'player')==='player',fit=!offender&&(o.role||'player')==='player'?CLAN_FITS[o.clanSkin]:null,tone=offender?'#c6f916':fit?.tone||skin[style.skin||0],coat=offender?'#20172c':fit?.coat||(o.role==='cop'?'#324c68':o.role==='gang'?'#4b293c':o.role==='guard'?(o.color||'#6e8e78'):o.gear?.outfit?'#5e7654':'#303e4d');
+  const style=o.style||{},role=o.role||'player',zombie=role==='zombie',monk=role==='monk',
+   offender=o.offenderSkin===true&&role==='player',fit=!offender&&role==='player'?CLAN_FITS[o.clanSkin]:null,
+   tone=zombie?'#9aa982':monk?'#d0ab88':offender?'#c6f916':fit?.tone||skin[style.skin||0],
+   coat=zombie?'#4c5548':monk?'#725746':offender?'#20172c':fit?.coat||(role==='cop'?'#324c68':role==='gang'?'#4b293c':role==='guard'?(o.color||'#6e8e78'):o.gear?.outfit?'#5e7654':'#303e4d');
   box([0,0,59],[18,34,36],coat);
+  if(zombie){
+   // UNDEAD: torn jacket, visible exposed shirt and mismatched shoulder patches.
+   // These meshes ride the same torso, arms and hip joints as the living player.
+   box([9.5,0,62],[1.8,19,25],'#303c32');
+   face([[10,-7,77],[10,1,77],[10,-9,54]],'#a6b29a');
+   for(const side of [-1,1]){
+    box([1,side*17.7,68],[11,1.3,10],side<0?'#6d765e':'#353f36');
+    box([-1,side*17.9,51],[10,1.4,5],'#858c6b');
+   }
+   box([11,6,53],[1.5,9,5],'#672d38');
+  }
+  if(monk){
+   // WANDERING MONK: earth-colored robe, hood, rope belt and gold stole.
+   // His fire tornadoes/healing field remain spell effects, not a second body.
+   box([8.8,0,58],[1.7,23,32],'#9e7860');
+   for(const side of [-1,1]){
+    box([10,side*11.6,59],[2,4,32],'#edc486');
+    box([1,side*17.8,67],[12,1.7,17],'#5b4343');
+   }
+   box([10.9,0,43],[2.6,30,4],'#dab572');
+   box([11.7,4,44],[3.1,5.5,9],'#f3dea5');
+   box([-6,0,57],[3,27,32],'#544345');
+  }
   // Six meme-inspired holder skins share the same solid 360-degree rig.
   // Accessories are geometry in the painter-sorted model, not flat PNG sprites.
   if(fit&&o.clanSkin==='maduro'){
@@ -302,10 +328,38 @@
      box([11.5,0,88],[1.1,12,1.7],'#633d37');
     }
    }
+   if(zombie){
+    // Hollow sockets, glowing pale eyes, crooked teeth and rotten cheekbones
+    // on the actual rotating head mesh, not a screen-facing zombie overlay.
+    for(const side of [-1,1]){
+     box([8.9,side*5.4,98],[2,6.4,5.8],'#27352e');
+     box([10.3,side*5.5,98],[1.2,2.7,2.3],'#ddf58d');
+     box([10,side*7,88],[2.4,3.4,4.4],'#69785e');
+    }
+    box([10.6,0,87.1],[1.6,12.8,4],'#2a342b');
+    for(const side of [-4,-1.5,1.5,4])box([11.5,side,87.2],[.7,1.5,2.9],'#c9d5a8');
+    box([8.9,-9,103],[2.2,5,3.6],'#536148');
+    box([-5.5,0,108],[8,12,3],'#4e5c49');
+   }
+   if(monk){
+    // Deep fabric hood and gray beard, retaining the shared 360 face/head.
+    oval([-4,0,100],[8.8,12,11.3],'#554042',.15);
+    box([10.5,0,88],[2.8,12.5,8.5],'#e4e1c7');
+    box([10.8,0,85],[1.5,9,3.2],'#bfbba6');
+    for(const side of [-1,1]){
+     box([9.6,side*5.2,97],[1.4,2.4,2.2],'#433732');
+     box([10.2,side*6.5,105],[2,8,3],'#d0ac82');
+    }
+    for(let i=0;i<16;i++){
+     const a=i*Math.PI/8,b=(i+1)*Math.PI/8;
+     face([[17*Math.cos(a),17*Math.sin(a),121],[17*Math.cos(b),17*Math.sin(b),121],
+       [21*Math.cos(b),21*Math.sin(b),121],[21*Math.cos(a),21*Math.sin(a),121]],'#f2d18c');
+    }
+   }
   }
   // The same meme is printed on the chest and back and wraps out of view in profile.
   for(const side of [-1,1]){
-   const faction=['cop','gang','guard'].includes(o.role),badgeColor=o.role==='cop'?'#8db9e4':o.role==='gang'?'#c56d83':o.color||'#b7ef84';
+   const faction=['cop','gang','guard','zombie','monk'].includes(o.role),badgeColor=o.role==='zombie'?'#6c7c62':o.role==='monk'?'#d9b779':o.role==='cop'?'#8db9e4':o.role==='gang'?'#c56d83':o.color||'#b7ef84';
    face([[side*9.25,-13,74],[side*9.25,13,74],[side*9.25,13,47],[side*9.25,-13,47]],badgeColor,faction?'insignia':'meme');
    // Factions keep distinctive uniforms without changing the shared arm rig.
    face([[-7,side*17.3,71],[7,side*17.3,71],[7,side*17.3,53],[-7,side*17.3,53]],badgeColor,faction?'insignia':'meme');
@@ -317,8 +371,9 @@
   if(o.holderTier>=1)box([9.9,-10,75],[1,5,5],o.color||'#b7ef84');
   for(const side of [-1,1]){
    const stride=(o.stridePose||0)*side,travel=o.travel||{x:ca,y:sa},forward=travel.x*ca+travel.y*sa,lateral=-travel.x*sa+travel.y*ca,hip=[0,side*8,40],knee=[stride*.5*forward,side*8+stride*.5*lateral,23],ankle=[stride*forward,side*8+stride*lateral,5+Math.max(0,stride)*.5];
-   limb(hip,knee,6,offender?'#141522':fit?.pants||denim[style.pants||0]);limb(knee,ankle,5,offender?'#141522':fit?.pants||denim[style.pants||0]);
-   face([[stride*.15-4,side*14.2,36],[stride*.15+4,side*14.2,36],[stride*.65+4,side*14.2,16],[stride*.65-4,side*14.2,16]],'#263949',style.print===1?'pattern':'ticker');box([ankle[0]+3,ankle[1],ankle[2]-2],[15,11,6],o.gear?.feet?'#375c66':'#202a35');box([ankle[0]+3,ankle[1],ankle[2]-4],[16,12,2],offender?'#c6f916':fit?.trim||'#a7b3bd');
+   const legColor=zombie?'#424c3e':monk?'#5e4843':offender?'#141522':fit?.pants||denim[style.pants||0];
+   limb(hip,knee,6,legColor);limb(knee,ankle,5,legColor);
+   face([[stride*.15-4,side*14.2,36],[stride*.15+4,side*14.2,36],[stride*.65+4,side*14.2,16],[stride*.65-4,side*14.2,16]],'#263949',style.print===1?'pattern':'ticker');box([ankle[0]+3,ankle[1],ankle[2]-2],[15,11,6],o.gear?.feet?'#375c66':'#202a35');box([ankle[0]+3,ankle[1],ankle[2]-4],[16,12,2],zombie?'#839574':monk?'#ad8a63':offender?'#c6f916':fit?.trim||'#a7b3bd');
   }
   // A weapon changes the pose and adds a rifle, never the character model.
   // Keep direct rigSurfaces() callers backward-compatible with the armed model,
@@ -362,7 +417,7 @@
      else if(id==='you-missed')text(c,'!',15,23,24,fit.trim);
      else if(id==='maduro')text(c,'↓',15,22,23,fit.trim);
     }
-    else if(f.print==='insignia'){c.fillStyle='#142733';c.fillRect(0,0,30,28);c.fillStyle=o.role==='cop'?'#8db9e4':o.role==='gang'?'#c56d83':'#9bdcca';c.fillRect(1,1,28,4);text(c,o.role==='cop'?'INSIDER':o.role==='gang'?'RUG':'DEFENDER',15,18,o.role==='guard'?5:7,'#f1f6ef');}
+    else if(f.print==='insignia'){c.fillStyle=o.role==='monk'?'#59463e':o.role==='zombie'?'#37483c':'#142733';c.fillRect(0,0,30,28);c.fillStyle=o.role==='cop'?'#8db9e4':o.role==='gang'?'#c56d83':'#9bdcca';c.fillRect(1,1,28,4);text(c,o.role==='monk'?'HEALER':o.role==='zombie'?'UNDEAD':o.role==='cop'?'INSIDER':o.role==='gang'?'RUG':'DEFENDER',15,18,o.role==='guard'?5:7,'#f1f6ef');}
     else {c.fillStyle='#132332';c.fillRect(0,0,30,28);const logo=logoTexture(o.image);if(logo){c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(logo,1,0,28,28);}else{text(c,'o!',15,19,19,'#e7f6cc');}c.strokeStyle='#e7f6cc88';c.lineWidth=1;c.strokeRect(.5,.5,29,27);}c.restore();
    }
   }
