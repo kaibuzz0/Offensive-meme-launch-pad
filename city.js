@@ -419,7 +419,7 @@
  function cabinetPanel(content){
   const inArcade=me.room?.id==='arcade',near=inArcade&&
    Math.hypot(me.room.x-I.ROOM.activity.x,me.room.y-I.ROOM.activity.y)<=110;
-  const run=me.cabinet,result=me.cabinetResult;
+  const run=state.self?.cabinet,result=state.self?.cabinetResult;
   content.append(node('p','district-kicker','CHAOS ARCADE / RUG RUNNER'),
    node('h3','district-heading','Dodge the rugs. Catch the chips.'),
    node('p','','Twelve gates, three lanes, three hearts. The red lane is dangerous; the glowing green lane pays points. You may move only one lane left or right before each gate. Choose a lane, then press ADVANCE. Time never runs out while you think.'));
@@ -926,9 +926,9 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
  $('#ride-toggle').addEventListener('click',()=>action({type:'ride'}));$('#medkit-use').addEventListener('click',()=>action({type:'medkit'}));
  $('#interact').addEventListener('click',interact);$('#fire').addEventListener('click',()=>fire());$('#dash').addEventListener('click',()=>action({type:'dash'},true));$('#zoom-toggle').addEventListener('click',()=>{cameraZoom=cameraZoom===1?1.35:1;$('#zoom-toggle').textContent=cameraZoom===1?'+ Detail':'− Wide';});$('#fullscreen-exit').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();}catch{toast('Use your browser’s back or Escape control to exit fullscreen.');}});$('#pause-toggle').addEventListener('click',()=>panel('pause'));$('#fullscreen-toggle').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if($('.game-shell').requestFullscreen)await $('.game-shell').requestFullscreen();else toast('Fullscreen is unavailable in this browser.');}catch{toast('Fullscreen could not open. The game still works in this view.');}});$('#quick-job').addEventListener('click',()=>panel(me.quarantineRun||state.quarantine?.phase==='active'&&Math.hypot(me.x-C.QUARANTINE.x,me.y-C.QUARANTINE.y)<C.QUARANTINE.radius?'quarantine':me.blockJob||state.conflict?.entry&&state.conflict.phase!=='cooldown'?'clans':me.room?(me.room.id==='arcade'?'arcadeCabinet':'places'):me.rising?.arena?'survival':!me.contract&&!me.defense?'journey':me.defense?'crew':me.area==='greenbelt'?'map':me.area==='hub'?'missions':me.area==='fortress'?'build':me.area==='creator'?'collections':me.area==='arena'?'arena':'social'));$('#sound-toggle').addEventListener('click',()=>{soundOn=!soundOn;$('#sound-toggle').textContent=soundOn?'Sound on ♫':'Sound off ♫';if(soundOn)tone(660,.12,'triangle');});$('#close-panel').addEventListener('click',closePanel);
  $('#city-panel').addEventListener('cancel',e=>{
-  if(activePanel!=='arcadeCabinet'||me.cabinet?.phase!=='playing')return;
+  if(activePanel!=='arcadeCabinet'||state.self?.cabinet?.phase!=='playing')return;
   e.preventDefault();
-  if(!me.cabinet.paused)void action({type:'arcadePause'},true).then(ok=>{if(ok)panel('arcadeCabinet');});
+  if(!state.self.cabinet.paused)void action({type:'arcadePause'},true).then(ok=>{if(ok)panel('arcadeCabinet');});
   else closePanel();
  });$('#city-panel').addEventListener('close',()=>{activePanel='';keys.clear();held.clear();});
  document.querySelectorAll('[data-panel]').forEach(b=>b.addEventListener('click',()=>panel(b.dataset.panel)));
@@ -939,7 +939,7 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
  joystick.addEventListener('pointerdown',e=>{e.preventDefault();if(!entered||activePanel||stickPointer!==null)return;stickPointer=e.pointerId;joystick.setPointerCapture(e.pointerId);setStick(e);});joystick.addEventListener('pointermove',e=>{if(e.pointerId===stickPointer)setStick(e);});for(const name of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(name,e=>{if(e.pointerId!==stickPointer)return;stickPointer=null;stick={x:0,y:0};knob.style.transform='';});
  window.addEventListener('keydown',e=>{if(activePanel||['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;const k=e.key.toLowerCase();if(k==='escape'&&!activePanel&&entered){e.preventDefault();panel('pause');return;}if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','e',' ','shift','v','h','j','m'].includes(k)){e.preventDefault();if(!entered)return;keys.add(k);if(k==='e'&&!e.repeat)interact();if(k===' '&&!e.repeat)fire();if(k==='shift'&&!e.repeat)action({type:'dash'},true);if(k==='v'&&!e.repeat)action({type:'ride'});if(k==='h'&&!e.repeat)action({type:'medkit'});if(k==='j'&&!e.repeat)panel('journey');if(k==='m'&&!e.repeat)panel('map');}});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();held.clear();stick={x:0,y:0};firing=false;mouseFiring=false;stickPointer=null;knob.style.transform="";});document.addEventListener('visibilitychange',()=>{keys.clear();held.clear();stick={x:0,y:0};firing=false;mouseFiring=false;stickPointer=null;knob.style.transform="";save();});window.addEventListener('pagehide',save);
  document.addEventListener('visibilitychange',()=>{
-  if(document.hidden&&me.cabinet?.phase==='playing'&&!me.cabinet.paused){
+  if(document.hidden&&state.self?.cabinet?.phase==='playing'&&!state.self.cabinet.paused){
    void action({type:'arcadePause'},true);
   }else if(!document.hidden&&activePanel==='arcadeCabinet')panel('arcadeCabinet');
  });
