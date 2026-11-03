@@ -31,7 +31,7 @@
   if(a?.type==='enterBuilding'){
    if(p.room)throw Error('You are already inside.');const b=buildings(p).find(b=>b.roomId===a.building);if(!b)throw Error('Unknown building.');const entry=door(b);
    if(distance(p,entry)>100)throw Error('Walk to the building’s front door.');
-   if(p.contract||p.defense||p.rising?.arena)throw Error('Finish or abandon your challenge before going inside.');if(p.heat>=22)throw Error('Lose your wanted pursuit before going inside.');
+   if(p.contract||p.defense||p.rising?.arena||p.quarantineRun)throw Error('Finish or abandon your challenge before going inside.');if(p.heat>=22)throw Error('Lose your wanted pursuit before going inside.');
    p.room={id:b.roomId,name:b.name,theme:b.theme,activity:b.activity,accent:b.accent,...ROOM.spawn};p.fireHeld=false;p.dashTime=0;p.input={x:0,y:0};if(p.rising){p.rising.riding=false;p.rising.speed=0;}
    if(!p.places.visited.includes(b.roomId)){p.places.visited.push(b.roomId);p.xp+=15;p.credits+=10;}p.area='interior';return `Welcome to ${b.name}. Walk inside; E at the front door returns to the street.`;
   }
@@ -40,7 +40,7 @@
    p.room=null;p.area=C.areaAt(p.x,p.y);p.input={x:0,y:0};p.invulnerable=Math.max(p.invulnerable,1);return 'Back on the street.';
   }
   if(p.room){
-   if(['ride','fire','dash','contract','startSurvival','defenseDrill','checkpoint','build','demolish','starterfort','hire'].includes(a?.type))throw Error('Step outside for that activity.');
+   if(['ride','fire','dash','contract','startSurvival','startQuarantine','defenseDrill','checkpoint','build','demolish','starterfort','hire'].includes(a?.type))throw Error('Step outside for that activity.');
    if(['restock','list','purchase'].includes(a?.type)){
     const building=BUILDINGS.find(b=>b.roomId===p.room.id),service=a.type==='restock'?'supplies':'market';
     if(!building||building.activity!==service||distance(p.room,ROOM.activity)>110)throw Error('Use the matching service terminal inside its building.');
