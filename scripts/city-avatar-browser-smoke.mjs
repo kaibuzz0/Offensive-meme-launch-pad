@@ -181,7 +181,7 @@ try{
  assert.equal(await evalPage("document.documentElement.scrollWidth <= document.documentElement.clientWidth+3"),true,'emulated phone game has no horizontal overflow');
  await delay(450);
  const gameCanvas=await evalPage("({width:document.getElementById('city-canvas').width,height:document.getElementById('city-canvas').height})");
- assert.ok(gameCanvas.width>300&&gameCanvas.height>300,'original playable world canvas active');
+ assert.ok(gameCanvas.width>300&&gameCanvas.height>300,'original playable world canvas active; '+JSON.stringify({gameCanvas,exceptions,territory:await evalPage('!!window.CityTerritory'),scripts:await evalPage("Array.from(document.scripts).map(s=>s.src).filter(s=>s.includes('territory'))")}));
  const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
  assert.ok(shot.data.length>2000,'real mobile-viewport screenshot captured');
  // Center City must also render the playable map with a home plot, independent
