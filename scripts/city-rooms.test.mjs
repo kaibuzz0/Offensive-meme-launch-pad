@@ -44,21 +44,29 @@ test('server grants the OFFENDER skin identity only for an unexpired verified OF
  p.holder=null;state=read();assert.equal(state.self.holderClan,null);
 });
 
-test('six clan cosmetics are server-authorized, visible to peers and distinct from holder status',()=>{
+test('five launched beta avatar skins require a signed matching balance; every peer sees proof changes',()=>{
  const {r,join,step}=setup(),a=join(),b=join(),s=r.auth(a.session),other=r.auth(b.session);
- const skinIds=['redacted','congress','exit','you-missed','maduro','rug'];
- for(const id of skinIds){
-  step(1100);const res=r.action(s,{type:'clanSkin',skin:id});
-  assert.match(res.message,/skin equipped/);
+ const p=r.first.engine.player(s.id),skins=['redacted','congress','exit','you-missed','maduro'];
+ for(const id of skins){
+  step(1100);
+  assert.throws(()=>r.action(s,{type:'clanSkin',skin:id}),/Verify a positive balance/,'unverified outfits are not free');
+  p.clanSkin=id;
+  assert.equal(r.snapshot(s).self.clanSkin,null,'legacy saves or local mutations cannot spoof unlocks');
+  assert.equal(r.snapshot(other).players.find(x=>x.id===s.id).clanSkin,null);
+  p.holder={clan:id,tier:1,expires:Date.now()+120000};
+  assert.match(r.action(s,{type:'clanSkin',skin:id}).message,/Verified token skin equipped/);
   assert.equal(r.snapshot(s).self.clanSkin,id);
-  assert.equal(r.snapshot(other).players.find(p=>p.id===s.id).clanSkin,id,'peer can see cosmetic '+id);
-  assert.equal(r.snapshot(s).self.holderClan,null,'no token holdings implied by changing cosmetics');
+  assert.equal(r.snapshot(other).players.find(x=>x.id===s.id).clanSkin,id,'validated cosmetic visible to peers');
+  p.holder.expires=Date.now()-1;
+  assert.equal(r.snapshot(s).self.clanSkin,null);
+  assert.equal(r.snapshot(other).players.find(x=>x.id===s.id).clanSkin,null);
+  p.holder=null;
  }
+ assert.throws(()=>r.action(s,{type:'clanSkin',skin:'rug'}),/Verify a positive balance/,'mintless Rug token cannot unlock');
  assert.throws(()=>r.action(s,{type:'clanSkin',skin:'offensive'}),/Unknown clan avatar skin/);
  assert.throws(()=>r.action(s,{type:'clanSkin',skin:{a:1}}),/Unknown clan avatar skin/);
  r.action(s,{type:'clanSkin',skin:null});
  assert.equal(r.snapshot(s).self.clanSkin,null);
- assert.equal(r.snapshot(other).players.find(p=>p.id===s.id).clanSkin,null);
 });
 
 test('empty corner expansion parcels require signed-token entitlement; regular map remains free',()=>{
