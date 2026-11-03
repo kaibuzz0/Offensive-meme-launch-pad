@@ -546,7 +546,7 @@
   for(const b of [...a.bots]){
     if(b.kind==='zombie')continue;
    if(b.eventId&&this.conflict?.phase!=='active'){b.state=this.conflict?.phase==='resolution'?'withdraw':'ready';continue;}
-   if(b.hp<=0){if(!b.owner&&!b.eventId){b.respawn-=dt;if(b.respawn<=0)Object.assign(b,{x:b.homeX,y:b.homeY,hp:b.maxHp,cooldown:1.2,state:'patrol',windup:0,targetId:null});}continue;}
+   if(b.hp<=0){if(!b.owner&&!b.eventId&&!b.territoryRole){b.respawn-=dt;if(b.respawn<=0)Object.assign(b,{x:b.homeX,y:b.homeY,hp:b.maxHp,cooldown:1.2,state:'patrol',windup:0,targetId:null});}continue;}
    if(!b.owner&&![...this.players.values()].some(p=>!p.room&&distance(b,p)<1300)){b.state='dormant';b.windup=0;b.targetId=null;b.attackTarget=null;b.aim=null;b.path=[];b.cooldown=Math.max(b.cooldown,1.2);continue;}
    if(b.owner&&(this.players.get(b.owner)?.contract?.countdown>0||b.raid&&this.players.get(b.owner)?.defense?.countdown>0)){b.state='ready';continue;}
    b.cooldown=Math.max(0,b.cooldown-dt);
@@ -554,9 +554,15 @@
    const old=this.players.get(b.targetId)||a.guards.find(g=>g.id===b.targetId&&g.hp>0);
    const candidates=[...this.players.values(),...a.guards.filter(g=>g.hp>0)].filter(p=>!safe(p)&&C.npcHostile(b,p)&&p.invulnerable<3&&(!b.owner||b.owner===(p.ally?p.owner:p.id))&&distance(b,p)<(b.kind==='cop'?700:390)&&visible(b,p)).sort((p,q)=>distance(b,p)-distance(b,q));
    // Nearby rivals create street battles independent of player aggression.
-   const rival=!b.owner&&a.bots.filter(q=>q!==b&&q.hp>0&&!q.owner&&(q.kind==='zombie'||C.rivals(C.factionOf(b),C.factionOf(q)))&&distance(b,q)<440&&visible(b,q)).sort((x,y)=>distance(b,x)-distance(b,y))[0];
+   const defend=!!(this.territoryEvent&&b.resident&&b.faction===this.territoryEvent.clan&&distance(b,this.territoryEvent)<900);
+   const rival=!b.owner&&a.bots.filter(q=>q!==b&&q.hp>0&&!q.owner&&
+    (q.kind==='zombie'||C.rivals(C.factionOf(b),C.factionOf(q)))&&
+    distance(b,q)<(defend&&q.territoryRole==='invader'?680:440)&&visible(b,q))
+    .sort((x,y)=>distance(b,x)-distance(b,y)+
+     (defend&&x.territoryRole==='invader'?-120:0)-
+     (defend&&y.territoryRole==='invader'?-120:0))[0];
    if(rival&&(!candidates[0]||distance(b,rival)<distance(b,candidates[0]))){
-    b.state='skirmish';b.aim={x:rival.x,y:rival.y};b.windup=0;
+    b.state=defend&&rival.territoryRole==='invader'?'defending':'skirmish';b.aim={x:rival.x,y:rival.y};b.windup=0;
     if(distance(b,rival)>180)steer(this,b,rival,105,dt);
     if(!b.cooldown){bullet(this,b,rival,'faction',rival.id,12);b.cooldown=1.1;}
     continue;
@@ -608,17 +614,21 @@
      if(b){
       const actual=Math.min(b.hp,q.damage);b.hp-=q.damage;hit=true;b.hitFlash=.12;
       if(b.quarantineOwner&&q.side==='player'&&(q.creditOwner||q.owner)===b.quarantineOwner&&this.quarantineEvent?.owner===b.quarantineOwner)this.quarantineEvent.damage+=actual;
+      const defense=this.territoryEvent,contributor=this.players.get(q.creditOwner||q.owner);
+      if(defense?.phase==='active'&&b.territoryRole==='invader'&&b.territoryOwner===defense.owner&&
+       q.side==='player'&&contributor?.id===defense.owner&&!contributor.room&&
+       distance(contributor,defense)<=610)defense.damage+=actual;
       const event=this.conflict,entry=event?.participants.get(q.owner);if(q.side==='player'&&b.eventId===event?.id&&event.phase==='active'&&entry&&entry.side!==b.faction){const contributor=this.players.get(q.owner);if(contributor&&!contributor.room&&distance(contributor,CONFLICT)<=CONFLICT.radius)entry.damage+=actual;}
       const p=this.players.get(q.creditOwner||q.owner);effect(this,b.x,b.y,String(q.damage),'#ffcc71');
-      if(p&&b.kind==='cop'){p.heat=Math.max(p.heat,75);p.quiet=0;}
+      if(p&&b.kind==='cop'&&!b.territoryRole){p.heat=Math.max(p.heat,75);p.quiet=0;}
       if(b.hp<=0){
        b.respawn=18;b.windup=0;
        if(p){
         if(q.side==='ally')p.crewKills++;
-        if(q.side!=='ally'&&!b.eventId){p.kills++;if(b.kind!=='zombie'){p.credits+=b.kind==='gang'?18:10;p.xp+=20;}
+        if(q.side!=='ally'&&!b.eventId&&!b.territoryRole){p.kills++;if(b.kind!=='zombie'){p.credits+=b.kind==='gang'?18:10;p.xp+=20;}
         p.combo=p.comboUntil>a.time?p.combo+1:1;p.comboUntil=a.time+4;
         }
-        if(q.side!=='ally'&&b.kind!=='zombie')p.heat=Math.min(100,p.heat+(b.kind==='cop'?20:9));p.quiet=0;
+        if(q.side!=='ally'&&b.kind!=='zombie'&&!b.territoryRole)p.heat=Math.min(100,p.heat+(b.kind==='cop'?20:9));p.quiet=0;
         if(b.kind==='gang'){
          const owner=b.owner?this.players.get(b.owner):p;
          if(b.owner&&owner?.contract?.type==='bounty'){owner.contract.progress++;if(owner.contract.progress>=4)win(this,owner);}
