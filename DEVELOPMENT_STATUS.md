@@ -1,3 +1,15 @@
+## One-world quarantine survival vertical slice — November 3, 2026
+
+- **Branch:** `codex/one-world-quarantine-archetypes` / [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28), based on production main `549b628`. **Not merged/deployed.**
+- Four zombie roles (Walker, Runner, Tank and Spitter) inhabit the current greenbelt and use the existing solid 360° NPC rig, with bounded telegraphed attacks.
+- **Full encounter now implemented:** `C.QUARANTINE` bunker station (3500, 4250) is discoverable through the same map and UI. Start within 125 units; three finite waves, warning countdowns, 205-second clock, direct on-screen threats, fight/retreat/expiry/death handling, one running event per room, persistent session authority for Solo or temporary Together rooms. No new game, portal or world client.
+- **Economy:** reward once only on real combat completion when owner contributes at least 55 damage (120 play credits, 100 XP). Only the server/Engine awards credit. No financial tokens or on-chain transfers. Short cooldown and exact cleanup prevent repeated instant payouts.
+- **Save integrity:** no new persistent keys or save fields. Existing play credits/XP are saved using current Solo logic; temporary in-progress wave state is intentionally not saved. On restart a wave is lost, not the character.
+- **Verification:** All Node game/server tests, static files, benchmark and mobile-sized Chromium smoke passed at [run 41574127627](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41574127627) (head `3cddbcb` before this documentation commit). The browser test confirms the one-world map marker, modal start restrictions and unchanged Solo entry, not an end-to-end real Android run. Physical Android FPS/touch and owner acceptance remain outstanding.
+- **Next slice:** fortress structural HP + repair + meaningful siege, reusing existing `defenseDrill` and `plot` mechanics. Then one fully playable in-building Chaos Arcade cabinet. All remain on the **single current world**.
+
+---
+
 
 ## Current production / one-world recovery — November 2–3, 2026
 
