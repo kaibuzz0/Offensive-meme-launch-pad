@@ -92,11 +92,14 @@ test('horde cap, expiration, and no save mutations',()=>{
  assert.equal(zombies().filter(z=>z.hp>0).length,0,'old zombies retire instead of respawning in protected areas');
 });
 
-test('Canvas zombie is a separate visual NPC, not a recolored faction avatar',()=>{
+test('zombie in Solo City uses the same NPC player model, never a separate custom body',()=>{
  const city=fs.readFileSync(new URL('../city.js',import.meta.url),'utf8');
  const html=fs.readFileSync(new URL('../city.html',import.meta.url),'utf8');
- assert.ok(city.includes('function drawZombie('));
- assert.ok(city.includes("if(b.kind==='zombie'){drawZombie("));
- assert.ok(html.includes('city-arcade.js?v=33-zombies'));
- assert.ok(html.includes('city.js?v=33-zombies')||html.includes('city.js?v=34-verified-skins'));
+ assert.equal(city.includes('function drawZombie('),false,'old incompatible Canvas sprite removed');
+ assert.ok(city.includes("if(b.kind==='zombie'){"));
+ assert.ok(city.includes("role:'zombie'"),'shared actor renderer uses zombie outfit');
+ assert.ok(city.includes('V.person(ctx,{id:'),'the existing player rig draws zombies');
+ assert.ok(html.includes('city-arcade.js?v=35-unified-npc-rig'));
+ assert.ok(html.includes('city-visuals.js?v=35-unified-npc-rig'));
+ assert.ok(html.includes('city.js?v=35-unified-npc-rig'));
 });

@@ -590,35 +590,27 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
  function smoothBot(b,dt){
   if(!online)return b;let pos=positions.get(b.id);if(!pos||Math.hypot(pos.x-b.x,pos.y-b.y)>160){pos={x:b.x,y:b.y};positions.set(b.id,pos);}const k=Math.min(1,dt*14);pos.x+=(b.x-pos.x)*k;pos.y+=(b.y-pos.y)*k;return{...b,...pos};
  }
- function drawZombie(b,time){
-  const sway=reduced?0:Math.sin(time/250+b.phase)*2.5;
-  ctx.save();ctx.translate(b.x+sway,b.y);
-  ctx.fillStyle='#0009';ctx.beginPath();ctx.ellipse(0,4,21,8,0,0,Math.PI*2);ctx.fill();
-  if(b.state==='attack'){ctx.strokeStyle='#bbed7488';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(0,0,36,15,0,0,Math.PI*2);ctx.stroke();}
-  if(b.hitFlash>0){ctx.shadowColor='#f7ff9e';ctx.shadowBlur=18;}
-  // Torn knees, uneven stance, rotted tunic and outstretched claw hands.
-  ctx.strokeStyle='#44483f';ctx.lineWidth=12;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(-10,-33);ctx.lineTo(-13+(sway/3),-5);ctx.moveTo(10,-33);ctx.lineTo(12-(sway/3),-5);ctx.stroke();
-  ctx.strokeStyle='#777c66';ctx.lineWidth=7;
-  ctx.beginPath();ctx.moveTo(-14,-8);ctx.lineTo(-21,1);ctx.moveTo(13,-7);ctx.lineTo(23,1);ctx.stroke();
-  ctx.fillStyle='#4c564a';ctx.beginPath();ctx.moveTo(-17,-72);ctx.lineTo(17,-72);ctx.lineTo(24,-28);ctx.lineTo(-23,-27);ctx.closePath();ctx.fill();
-  ctx.fillStyle='#31392d';ctx.beginPath();ctx.moveTo(-7,-63);ctx.lineTo(2,-48);ctx.lineTo(-11,-36);ctx.closePath();ctx.fill();
-  ctx.strokeStyle='#768d67';ctx.lineWidth=10;
-  ctx.beginPath();ctx.moveTo(-17,-69);ctx.lineTo(-33,-54);ctx.lineTo(-38,-49+sway);
-  ctx.moveTo(17,-69);ctx.lineTo(32,-56);ctx.lineTo(38,-48-sway);ctx.stroke();
-  ctx.fillStyle='#9daf78';for(const x of [-38,38]){ctx.beginPath();ctx.arc(x,-48,6,0,Math.PI*2);ctx.fill();}
-  ctx.fillStyle='#8b9a73';ctx.beginPath();ctx.ellipse(0,-91,17,20,-.14,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#52634f';ctx.fillRect(-13,-107,15,5);
-  for(const x of [-7,8]){ctx.fillStyle='#111c17';ctx.beginPath();ctx.arc(x,-93,5,0,Math.PI*2);ctx.fill();ctx.fillStyle='#d4ff8e';ctx.beginPath();ctx.arc(x,-93,2,0,Math.PI*2);ctx.fill();}
-  ctx.strokeStyle='#302823';ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(-9,-78);ctx.quadraticCurveTo(0,-71,9,-80);ctx.stroke();
-  ctx.strokeStyle='#c9aa80';ctx.lineWidth=1;for(const x of [-5,0,5]){ctx.beginPath();ctx.moveTo(x,-78);ctx.lineTo(x+1,-74);ctx.stroke();}
-  ctx.restore();
-  roundRect(b.x-21,b.y-124,42,5,2,'#182018');
-  roundRect(b.x-21,b.y-124,42*Math.max(0,b.hp)/b.maxHp,5,2,'#acd779');
-  label(b.state==='attack'?'! UNDEAD BITE':'DEAD ZONE / WALKER',b.x,b.y-135,9,b.state==='attack'?'#ffb38d':'#c9ee97');
- }
  function drawBot(raw,time,dt){
-  const b=smoothBot(raw,dt);if(b.kind==='zombie'){drawZombie(b,time);return;}const cop=b.kind==='cop',ranged=cop||b.ranged;
+  const b=smoothBot(raw,dt);
+  if(b.kind==='zombie'){
+   // The same solid 360-degree human rig as the player, with a rotting skin.
+   // Only combat AI and the bite indicator differ; no custom zombie sprite.
+   const ax=Number.isFinite(b.faceX)?b.faceX:1,ay=Number.isFinite(b.faceY)?b.faceY:0;
+   ctx.save();if(b.hitFlash>0){ctx.shadowColor='#e1ff9b';ctx.shadowBlur=17;}
+   V.person(ctx,{id:'npc-'+b.id,x:b.x,y:b.y,role:'zombie',color:'#acdb80',
+    style:{skin:2,hair:1,pants:1},phase:b.phase,armed:false,
+    moving:b.state==='chase'||b.state==='roam',aim:{x:ax,y:ay},
+    scale:V.npcScale()},time);
+   ctx.restore();
+   if(b.state==='attack'){ctx.strokeStyle='#bbed7488';ctx.lineWidth=3;
+    ctx.beginPath();ctx.ellipse(b.x,b.y,36,15,0,0,Math.PI*2);ctx.stroke();}
+   roundRect(b.x-21,b.y-124,42,5,2,'#182018');
+   roundRect(b.x-21,b.y-124,42*Math.max(0,b.hp)/b.maxHp,5,2,'#acd779');
+   label(b.state==='attack'?'! UNDEAD BITE':'DEAD ZONE / WALKER',
+    b.x,b.y-135,9,b.state==='attack'?'#ffb38d':'#c9ee97');
+   return;
+  }
+  const cop=b.kind==='cop',ranged=cop||b.ranged;
   ctx.fillStyle='#0006';ctx.beginPath();ctx.ellipse(b.x,b.y+5,18,7,0,0,Math.PI*2);ctx.fill();
   if(b.state==='attack'){
    const progress=1-b.windup/(b.windupMax||.6);ctx.strokeStyle='#ffb168';ctx.lineWidth=3;ctx.beginPath();ctx.arc(b.x,b.y,58,0,Math.PI*2*progress);ctx.stroke();
