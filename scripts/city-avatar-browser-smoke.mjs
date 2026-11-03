@@ -103,6 +103,59 @@ try{
   return result;
  })()`);
  assert.equal(samples.length,112,'all seven humanoid roles render the same live Canvas rig at eight bearings');
+ // Real browser rendering of the current city's facades, not source existence.
+ // Enforce multiple visually distinct archetypes and opacity in real pixels.
+ const architecture=await evalPage(`(()=>{
+  const D=window.CityDistricts,C=window.MemeCityCore,
+   buildings=['launch','arcade','club','shop','market','garage','congress-0','redacted-annex-1']
+    .map(id=>C.WORLD.buildings.find(b=>b.id===id))
+    .concat(C.districtBlocks('creator')[0],C.districtBlocks('arena')[0],C.districtBlocks('social')[1]);
+  return buildings.map(b=>{
+   const canvas=document.createElement('canvas');
+   canvas.width=b.w+180;canvas.height=b.h+240;
+   const g=canvas.getContext('2d');g.translate(65-b.x,120-b.y);
+   D.building(g,b,null);
+   const bytes=g.getImageData(0,0,canvas.width,canvas.height).data;
+   let painted=0,hash=2166136261,colors=new Set();
+   for(let i=0;i<bytes.length;i+=4*7){
+    if(bytes[i+3]>60)painted++;
+    const tone=(bytes[i]<<16)|(bytes[i+1]<<8)|bytes[i+2];
+    if(bytes[i+3]>150)colors.add(tone);
+    hash=Math.imul(hash^tone,16777619)>>>0;
+   }
+   return {name:b.label,kind:D.buildingProfile(b).kind,painted,colors:colors.size,hash,
+    width:canvas.width,height:canvas.height};
+  });
+ })()`);
+ assert.equal(architecture.length,11,'all main businesses and representative district landmarks rendered');
+ assert.ok(new Set(architecture.map(b=>b.kind)).size>=9,'at least nine unique architectural styles');
+ assert.ok(new Set(architecture.map(b=>b.hash)).size>=10,'glass, materials, storefronts and roof geometry must paint distinct pixels');
+ for(const b of architecture){
+  assert.ok(b.painted>650,'architecture produced transparent or missing geometry: '+b.name);
+  assert.ok(b.colors>20,'modern facade materials need varied lighting and reflections: '+b.name);
+ }
+ // The same walk-in room systems receive cached, venue-specific interiors.
+ const rooms=await evalPage(`(()=>{
+  const themes=['arcade','garage','cafe','gallery'],result=[];
+  for(const theme of themes){
+   const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=900;
+   const g=canvas.getContext('2d'),r={id:theme,name:theme,theme,accent:'#9cced1'},
+    p={room:r,places:{souvenirs:[]}};
+   window.CityRoomVisuals.draw(g,p,1000,new Map(),()=>{});
+   const bytes=g.getImageData(0,0,1200,900).data;
+   let hash=2166136261,painted=0;
+   for(let i=0;i<bytes.length;i+=4*13){
+    if(bytes[i+3]>60)painted++;
+    hash=Math.imul(hash^((bytes[i]<<16)|(bytes[i+1]<<8)|bytes[i+2]),16777619)>>>0;
+   }
+   result.push({theme,hash,painted});
+  }
+  return result;
+ })()`);
+ assert.equal(rooms.length,4);
+ assert.equal(new Set(rooms.map(r=>r.hash)).size,4,'cafe, garage, arcade and gallery interiors have distinct pixel art');
+ assert.ok(rooms.every(r=>r.painted>4000),'all four interiors paint their full backgrounds');
+
  // Bilingual monk should paint actual Hebrew/English and both fire tornadoes
  // on the same real Canvas used by the game, including a reduced-motion frame.
  const monkPixels=await evalPage(`(()=>{
@@ -330,7 +383,7 @@ try{
  assert.equal(await headHash(),normalHead,'disconnect restores the standard face');
 
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
- console.log('PASS: 112 real Canvas armed/unarmed V1 character renders, Center City map, six verified-only skin cards, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
+ console.log('PASS: 112 real Canvas armed/unarmed V1 character renders, modern 2.5D building archetypes and themed interiors, Center City map, six verified-only skin cards, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
 }finally{
  try{ws?.close();}catch{}
  if(chrome){
