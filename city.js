@@ -23,17 +23,18 @@
  function node(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;}
  function button(text,fn,cls='panel-button'){const b=node('button',cls,text);b.type='button';b.addEventListener('click',fn);return b;}
  function hasOffenderSkin(p){return !!((p?.holder?.clan==='offensive'&&p.holder.tier>=1&&p.holder.expires>Date.now())||(p?.holderClan==='offensive'&&p.holderTier>=1));}
+ function verifiedBetaSkin(p){return C.verifiedSkin(p);}
  function wardrobe(editable){
-  const shell=node('section','wardrobe'),preview=node('div','wardrobe-stage'),canvas=node('canvas','wardrobe-canvas');canvas.width=480;canvas.height=540;canvas.setAttribute('aria-label','Full-body avatar preview, showing the OFFENDER skull skin for verified OFFENDED holders');let back=false;
+  const shell=node('section','wardrobe'),preview=node('div','wardrobe-stage'),canvas=node('canvas','wardrobe-canvas');canvas.width=480;canvas.height=540;canvas.setAttribute('aria-label','Full-body 360-degree avatar showing the verified beta-token skin or OFFENDED skull when unlocked');let back=false;
   const render=()=>{
-   const c=canvas.getContext('2d'),t=catalog.get(me.avatar),g=c.createLinearGradient(0,0,480,540);g.addColorStop(0,'#263441');g.addColorStop(1,'#101e29');c.fillStyle=g;c.fillRect(0,0,480,540);
+   const c=canvas.getContext('2d'),skinId=verifiedBetaSkin(me),t=catalog.get(skinId)||catalog.get(me.avatar),g=c.createLinearGradient(0,0,480,540);g.addColorStop(0,'#263441');g.addColorStop(1,'#101e29');c.fillStyle=g;c.fillRect(0,0,480,540);
    c.strokeStyle='#a8becc13';c.lineWidth=1;for(let y=36;y<540;y+=36){c.beginPath();c.moveTo(0,y);c.lineTo(480,y);c.stroke();}
    const glow=c.createRadialGradient(240,265,10,240,265,240);glow.addColorStop(0,'#91a8b326');glow.addColorStop(1,'#91a8b300');c.fillStyle=glow;c.fillRect(0,0,480,540);
-   V.person(c,{x:240,y:468,scale:3.5,armed:true,offenderSkin:hasOffenderSkin(me),clanSkin:me.clanSkin,aim:back?{x:.5,y:-1}:{x:1,y:0},upgraded:!!clothingGear(me,true).hand,ticker:t.ticker,coinName:t.name,color:t.color||'#b7ee88',image:art.get(me.avatar),style:me.style,gear:clothingGear(me,true),back},0);
-   c.font='600 12px Arial';c.textAlign='left';c.fillStyle='#b8cbd4';c.fillText(hasOffenderSkin(me)?'OFFENDER SKIN / VERIFIED HOLDER':me.clanSkin?'CLAN SKIN / '+me.clanSkin.toUpperCase():'OFFENSIVE / STREETWEAR',22,30);c.font='700 10px monospace';c.fillStyle='#a4c0c8';c.fillText(back?'BACK PRINT':'FRONT PRINT',22,510);c.textAlign='right';c.fillText('$'+t.ticker,458,510);
+   V.person(c,{x:240,y:468,scale:3.5,armed:true,offenderSkin:hasOffenderSkin(me),clanSkin:skinId,aim:back?{x:.5,y:-1}:{x:1,y:0},upgraded:!!clothingGear(me,true).hand,ticker:t.ticker,coinName:t.name,color:t.color||'#b7ee88',image:art.get(skinId||me.avatar),style:me.style,gear:clothingGear(me,true),back},0);
+   c.font='600 12px Arial';c.textAlign='left';c.fillStyle='#b8cbd4';c.fillText(hasOffenderSkin(me)?'OFFENDER SKIN / VERIFIED HOLDER':skinId?'VERIFIED SKIN / '+skinId.toUpperCase():'CLASSIC / TOKEN SHIRT',22,30);c.font='700 10px monospace';c.fillStyle='#a4c0c8';c.fillText(back?'BACK PRINT':'FRONT PRINT',22,510);c.textAlign='right';c.fillText('$'+t.ticker,458,510);
   };
   const rotate=button('View back print ↻',()=>{back=!back;rotate.textContent=back?'View front print ↻':'View back print ↻';render();},'wardrobe-turn');preview.append(canvas,rotate);shell.append(preview);
-  const info=node('div','wardrobe-details'),t=catalog.get(me.avatar);info.append(node('p','wardrobe-kicker','YOUR CURRENT FIT'),node('h3','',`$${t.ticker}`),node('p','',hasOffenderSkin(me)?'Verified OFFENDER skull skin is currently active.':me.clanSkin?'Wearing the '+(clanSkinCards.find(t=>t.id===me.clanSkin)?.name||'clan')+' skin on the same existing character.':'Classic streetwear. Choose a clan skin above or customise your regular clothes below.'));
+  const info=node('div','wardrobe-details'),worn=verifiedBetaSkin(me),t=catalog.get(worn)||catalog.get(me.avatar);info.append(node('p','wardrobe-kicker','YOUR CURRENT FIT'),node('h3','',`${t.ticker}`),node('p','',hasOffenderSkin(me)?'Verified OFFENDED skull skin is currently active.':worn?'Verified '+(clanSkinCards.find(t=>t.id===worn)?.name||worn)+' holder skin active.': 'Classic streetwear is active. Holding an eligible beta token and verifying its balance unlocks its own skin.'));
   for(const [slot,labelText]of [['outfit','Jacket / shirt'],['head','Eyewear'],['feet','Footwear'],['hand','Equipment']]){const uid=me.equipped[slot],owned=me.inventory.find(i=>i.uid===uid),item=ITEMS.find(i=>i.id===owned?.item);const row=node('div','outfit-slot');row.append(node('span','',labelText),node('strong','',item?.name||({outfit:'Meme-print tee',head:'No eyewear',feet:'Canvas sneakers',hand:'Starter blaster'}[slot])));info.append(row);}
   if(editable){for(const [key,labelText,options]of [['skin','Skin tone',['Warm tan','Light peach','Rich brown','Deep brown','Golden beige','Medium bronze']],['hair','Hair',['Short crop','Wavy','Locs','Street cap']],['pants','Denim',['Midnight','Charcoal','Olive','Washed blue']],['print','Trouser print',['Ticker stripe','Repeating meme','Coin-name panel']]]){
     const label=node('label','style-choice',labelText),select=node('select');select.setAttribute('aria-label',labelText);for(let i=0;i<options.length;i++){const option=node('option','',options[i]);option.value=i;option.selected=(me.style?.[key]||0)===i;select.append(option);}select.addEventListener('change',async()=>{const next={skin:me.style?.skin||0,hair:me.style?.hair||0,pants:me.style?.pants||0,print:me.style?.print||0,[key]:Number(select.value)};if(await action({type:'style',style:next},true))render();});label.append(select);info.append(label);
@@ -234,6 +235,7 @@
    if(soloProof?.proofId&&soloProof.proofId!==challenge.proofId)void soloWalletRequest('/solo-wallet/revoke',{proofId:soloProof.proofId}).catch(()=>{});
    const proof={proofId:challenge.proofId,address,clan};soloProof=proof;
    engine.player('solo').holder=result.tier>0?{clan:result.clan,tier:result.tier,expires:result.expires}:null;
+   if(result.tier>0&&C.CLAN_SKINS.includes(result.clan))engine.player('solo').clanSkin=result.clan;
    refreshState();clearInterval(soloTimer);
    soloTimer=setInterval(()=>void refreshSoloProof(proof,epoch),60000);
    const msg=result.tier?(clan==='offensive'?'OFFENDED skull verified and unlocked in solo play!':'Holder skin and matching solo reserve unlocked!')+' Tier '+result.tier+'.':'Wallet ownership verified, but no qualifying balance found.';
@@ -340,8 +342,8 @@
   content.append(node('p','beta-note','INSIDER security fights the RUGMASTERS. Rival NPCs battle without your help; faction KOs never pay you idle rewards. Join any clan free and earn stripes through block jobs. Rugmasters recruits are ignored by ambient Rug crews; mission enemies remain hostile. Insider security still pursues crimes.'));
   if(me.blockJob)content.append(node('p','',`${me.blockJob.type.toUpperCase()} · ${Math.ceil(me.blockJob.remaining)}s left`),button('Abandon block job',async()=>{await action({type:'abandonBlock'});panel('clans');}));
   for(const n of C.NEIGHBORHOODS){const card=node('article','clan-card');card.style.setProperty('--clan',n.color);card.append(node('h3','',n.clan),node('p','',`${n.name} · Reputation ${me.reputation?.[n.id]||0} · Rank ${window.CityClans.rank(me,n.id)}/3`),node('p','','Complete 3 / 6 / 9 jobs for visible bronze / silver / gold clan stripes.'));
-   const lore=C.FACTIONS[n.id];card.append(node('p','',`${lore.role} · Allies: ${lore.allies.map(id=>C.NEIGHBORHOODS.find(n=>n.id===id).clan).join(', ')} · Rivals: ${lore.enemies.map(id=>C.NEIGHBORHOODS.find(n=>n.id===id).clan).join(', ')}`));card.append(button(me.clan===n.id?'Your clan':'Join clan',async()=>{if(await action({type:'joinClan',clan:n.id}))panel('clans');}),button(n.id==='offensive'?'OFFENDER holder skin →':'Wear clan skin →',async()=>{if(n.id==='offensive'){panel('avatar');return;}if(await action({type:'clanSkin',skin:n.id},true))panel('avatar');}),button('Walk to block →',()=>track(n)));
-   if(n.id==='exit')card.append(button('Wear Rug Me Harder skin →',async()=>{if(await action({type:'clanSkin',skin:'rug'},true))panel('avatar');}));
+   const lore=C.FACTIONS[n.id];card.append(node('p','',`${lore.role} · Allies: ${lore.allies.map(id=>C.NEIGHBORHOODS.find(n=>n.id===id).clan).join(', ')} · Rivals: ${lore.enemies.map(id=>C.NEIGHBORHOODS.find(n=>n.id===id).clan).join(', ')}`));card.append(button(me.clan===n.id?'Your clan':'Join clan',async()=>{if(await action({type:'joinClan',clan:n.id}))panel('clans');}),button(n.id==='offensive'?'OFFENDED holder skin →':'Verify token avatar skin →',()=>panel('avatar')),button('Walk to block →',()=>track(n)));
+   if(n.id==='exit')card.append(button('Rug Me Harder skin / pending mint →',()=>panel('avatar')));
    if(me.clan===n.id)for(const [job,label]of [['circuit','Street circuit'],['delivery','Courier run'],['hold','Hold the block'],['salvage','Salvage scramble']])card.append(button(label,async()=>{if(await action({type:'blockJob',job})){tracked=null;closePanel();}}));
    content.append(card);
   }
@@ -424,20 +426,26 @@
    content.append(node('p','','Meme tokens can lose all value. Check the full mint address and wallet quote before approving. The game never asks for a seed phrase or private key.'));
   }
   if(type==='avatar'){
-   content.append(node('p','district-kicker','CLAN AVATAR SKINS / FREE COSMETICS'),node('p','', 'Choose any of the six token-artwork outfits. Same 360° player, movement, hitbox and weapons. A verified OFFENDED holder skin takes visual priority while verified.'));
-   const skinGrid=node('div','clan-skin-grid');
+   content.append(node('p','district-kicker','TOKEN AVATAR SKINS / VERIFIED HOLDERS'),
+    node('p','', 'The existing 360° character receives a different head, outfit and meme details for each verified beta token. These are cosmetics only: no new hitboxes, attacks or movement abilities.'));
+   const skinGrid=node('div','clan-skin-grid'),worn=verifiedBetaSkin(me);
    for(const t of clanSkinCards){
     const tile=node('div','clan-skin-tile'),img=node('img');img.src=t.art;img.alt=t.name+' token artwork inspiration';img.loading='lazy';tile.dataset.skin=t.id;
-    const wear=button(me.clanSkin===t.id?'Equipped ✓':'Wear skin',async()=>{if(await action({type:'clanSkin',skin:t.id},true))panel('avatar');});
-    wear.setAttribute('aria-pressed',String(me.clanSkin===t.id));
-    tile.append(img,node('strong','',t.name),wear);skinGrid.append(tile);
+    const owns=!!t.mint&&(me.holder?.clan===t.id&&me.holder.tier>=1&&me.holder.expires>Date.now()||me.holderClan===t.id&&me.holderTier>=1);
+    let status,label,act;
+    if(!t.mint){status='COMING SOON · No verified mint yet';label='Awaiting token launch';act=()=>{};}
+    else if(worn===t.id){status='UNLOCKED · WEARING';label='Equipped ✓';act=()=>{};}
+    else if(owns){status='UNLOCKED · VERIFIED';label='Wear verified skin';act=async()=>{if(await action({type:'clanSkin',skin:t.id},true))panel('avatar');};}
+    else{status='LOCKED · Verify 1+ token';label='Verify '+t.ticker+' balance';act=()=>verifyHoldings(t.id);}
+    const wear=button(label,act);wear.disabled=!t.mint||worn===t.id;wear.setAttribute('aria-pressed',String(worn===t.id));
+    tile.append(img,node('strong','',t.name),node('small','',status),wear);skinGrid.append(tile);
    }
    content.append(skinGrid);
-   content.append(button(me.clanSkin?'Return to classic avatar':'Classic avatar equipped',async()=>{if(await action({type:'clanSkin',skin:null},true))panel('avatar');},'panel-button'));
+   content.append(button(worn?'Return to classic avatar':'Classic avatar',async()=>{if(await action({type:'clanSkin',skin:null},true))panel('avatar');},'panel-button'));
    content.append(wardrobe(true));
-    content.append(node('p','beta-note',hasOffenderSkin(me)?'OFFENDED SKULL ACTIVE · Signed wallet ownership unlocks the skull in solo and Together.':'FREE SKINS AVAILABLE · Connect once with the site wallet. Verify your largest eligible token right here in normal play; no need to join Together. The signature cannot spend tokens.'));
-    const verifyButton=button(online?'Verify holder skin in Together →':'Verify holder skin in solo →',()=>verifyHoldings(currentWalletTheme()||'offensive'));
-    verifyButton.id='offender-wallet-verify';verifyButton.disabled=walletCheckBusy;content.append(verifyButton);
+   content.append(node('p','beta-note',hasOffenderSkin(me)?'OFFENDED SKULL ACTIVE · Verified through the same signed read-only Solana wallet check.':'Connect once with the site wallet, then select the token skin to verify. A signature proves wallet control; the server checks that token’s actual balance. No token transfer, payment, or separate wallet control.'));
+   const verifyButton=button(online?'Verify OFFENDED / theme token in Together →':'Verify OFFENDED / theme token in solo →',()=>verifyHoldings(currentWalletTheme()||'offensive'));
+   verifyButton.id='offender-wallet-verify';verifyButton.disabled=walletCheckBusy;content.append(verifyButton);
     const feedback=node('p','wallet-inline-status',offenderWalletStatus);feedback.id='offender-wallet-status';feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite');content.append(feedback);
     if(online&&(!walletProvider()?.connect||!walletProvider()?.signMessage)){
      content.append(node('p','wallet-browser-help','No wallet detected here. On Android, wallet verification must be opened inside a supported wallet browser, such as Phantom or Solflare. Rejoin Together there before verifying.'));
@@ -522,13 +530,13 @@
  function clothingGear(p,isMe){return isMe?Object.fromEntries(Object.entries(me.equipped).map(([slot,uid])=>[slot,me.inventory.find(i=>i.uid===uid)?.item])):p.equipped||{};}
  function peerPosition(p,at){if(at)return at;let old=positions.get(p.id);if(!old||Math.hypot(old.x-p.x,old.y-p.y)>250)old={x:p.x,y:p.y,time:performance.now()};const t=performance.now(),k=1-Math.exp(-Math.min(.1,(t-old.time)/1000)*16);old.x+=(p.x-old.x)*k;old.y+=(p.y-old.y)*k;old.time=t;positions.set(p.id,old);return old;}
  function character(p,isMe,at=null){
-  const pos=peerPosition(p,at),x=at?.x??(isMe?paintX:pos.x),y=at?.y??(isMe?paintY:pos.y),token=catalog.get(p.avatar)||tokens[0],equipped=clothingGear(p,isMe);
+  const pos=peerPosition(p,at),x=at?.x??(isMe?paintX:pos.x),y=at?.y??(isMe?paintY:pos.y),wearing=verifiedBetaSkin(p),token=catalog.get(wearing)||catalog.get(p.avatar)||tokens[0],equipped=clothingGear(p,isMe);
   const m=isMe?movement():null,moving=isMe?Math.hypot(m.x,m.y)>.1:!!p.moving,riding=isMe?me.rising.riding:!!p.riding;
   const facing=isMe?(shotFlash>0?me.facing||aim:manualAim&&!keys.has(' ')?aim:me.facing||aim):p.facing||{x:1,y:0},back=facing.y<-.55&&Math.abs(facing.x)<.65;
   if(riding)RV.board(ctx,x,y,facing,performance.now(),moving);
-  V.person(ctx,{id:'player-'+p.id+(me.room?':room-'+me.room.id:''),x,y,offenderSkin:hasOffenderSkin(p),clanSkin:p.clanSkin,dashing:isMe&&me.dashTime>0,ticker:token.ticker,coinName:token.name,color:token.color||'#b7ee88',image:art.get(p.avatar),style:p.style,gear:equipped,clanRank:p.clanRank||0,holderTier:p.holder?.expires>Date.now()?p.holder.tier:p.holderTier||0,role:'player',moving:moving&&!riding,back,armed:!me.room&&!riding&&!['creator','social'].includes(me.area),aim:facing,flash:isMe?shotFlash>.07:!!p.firing,recoil:isMe?Math.max(0,shotFlash/.12):p.recoil||0,upgraded:!!equipped.hand,gesture:isMe&&(me.area==='social'||!!me.room)&&emoteUntil>performance.now()},performance.now());
+  V.person(ctx,{id:'player-'+p.id+(me.room?':room-'+me.room.id:''),x,y,offenderSkin:hasOffenderSkin(p),clanSkin:wearing,dashing:isMe&&me.dashTime>0,ticker:token.ticker,coinName:token.name,color:token.color||'#b7ee88',image:art.get(wearing||p.avatar),style:p.style,gear:equipped,clanRank:p.clanRank||0,holderTier:p.holder?.expires>Date.now()?p.holder.tier:p.holderTier||0,role:'player',moving:moving&&!riding,back,armed:!me.room&&!riding&&!['creator','social'].includes(me.area),aim:facing,flash:isMe?shotFlash>.07:!!p.firing,recoil:isMe?Math.max(0,shotFlash/.12):p.recoil||0,upgraded:!!equipped.hand,gesture:isMe&&(me.area==='social'||!!me.room)&&emoteUntil>performance.now()},performance.now());
   if(isMe&&me.invulnerable>0){ctx.strokeStyle='#a6dfe779';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(x,y-52,31,55,0,0,Math.PI*2);ctx.stroke();}
-  label(isMe?`${me.name} · L${C.level(me.xp)}${hasOffenderSkin(p)?' · OFFENDER':p.clanSkin?' · '+p.clanSkin.toUpperCase():''}`:`${p.name} · L${p.level}${hasOffenderSkin(p)?' · OFFENDER':p.clanSkin?' · '+p.clanSkin.toUpperCase():''}`,x,y-119,9,isMe?'#e6f4e0':'#d7dfef');
+  label(isMe?`${me.name} · L${C.level(me.xp)}${hasOffenderSkin(p)?' · OFFENDER':wearing?' · '+wearing.toUpperCase():''}`:`${p.name} · L${p.level}${hasOffenderSkin(p)?' · OFFENDER':wearing?' · '+wearing.toUpperCase():''}`,x,y-119,9,isMe?'#e6f4e0':'#d7dfef');
   if(p.clan){const clan=C.NEIGHBORHOODS.find(n=>n.id===p.clan);label(`${clan?.clan||''} ${'◆'.repeat(p.clanRank||0)}${p.holderTier?' / HOLDER '+p.holderTier:''}`,x,y-134,9,clan?.color||'#cce4ca');}if(isMe){ctx.strokeStyle='#d1e3c688';ctx.lineWidth=1.3;ctx.beginPath();ctx.ellipse(x,y+3,21,8,0,0,Math.PI*2);ctx.stroke();}
  }
  function beacon(t,time,color){const pulse=1+Math.sin(time/240)*.1;ctx.strokeStyle=color;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(t.x,t.y,32*pulse,17*pulse,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle=color+'22';ctx.beginPath();ctx.moveTo(t.x-23,t.y);ctx.lineTo(t.x-10,t.y-95);ctx.lineTo(t.x+10,t.y-95);ctx.lineTo(t.x+23,t.y);ctx.fill();label('↓',t.x,t.y-58+Math.sin(time/300)*7,30,color);label(t.name,t.x,t.y+37,12,color);}
