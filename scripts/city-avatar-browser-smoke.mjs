@@ -224,6 +224,28 @@ try{
  await delay(250);
  const desktopMapShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
  assert.ok(desktopMapShot.data.length>2000,'desktop expanded-city map rendered in Chrome');
+ // Same original game page: a real playable fortress siege can be started and
+ // abandoned through the one mobile/desktop Squad panel, without new clients.
+ await send('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
+ await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?siege-visual-qa=1'});
+ await waitFor(()=>evalPage("!!window.MemeCityCore?.PLOT&&!!document.getElementById('start-button')"),'original fortress game');
+ await evalPage("document.getElementById('start-button').click();document.querySelector('[data-panel=menu]').click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Hire / command defenders'))"),'one-world fortress menu');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Hire / command defenders')).click();true");
+ const siegeReady=await evalPage("({title:document.querySelector('#panel-title').textContent,start:Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Start fortress siege'))?.disabled})");
+ assert.match(siegeReady.title,/Your defenders/);
+ assert.equal(siegeReady.start,false,'same spawn and Squad panel can begin a real siege');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Start fortress siege')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('#mission-kicker').textContent==='FORTRESS DEFENSE'"),'live siege HUD');
+ assert.match(await evalPage("document.querySelector('#mission-detail').textContent"),/CORE 200\/200 HP/);
+ await evalPage("document.querySelector('[data-panel=menu]').click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('URGENT / Fortress siege repairs'))"),'accessible siege repair menu');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('URGENT / Fortress siege repairs')).click();true");
+ const siegeUi=await evalPage("({text:document.querySelector('#panel-content').textContent,button:Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Retreat / abandon siege'))})");
+ assert.match(siegeUi.text,/Command Core: 200 \/ 200 HP/);
+ assert.equal(siegeUi.button,true,'repair and retreat live in the original Squad panel');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Retreat / abandon siege')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('#mission-kicker').textContent!=='FORTRESS DEFENSE'"),'live siege retreat ends without a replacement world');
  // Regression: the Avatar wallet button must report missing providers INSIDE its modal.
  // Previously the only error notification was behind the modal and appeared inert on phones.
  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?release=wallet-feedback-qa'});
