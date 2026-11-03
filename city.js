@@ -414,12 +414,114 @@
   content.append(button('Build a district outpost →',()=>panel('outposts')));
   content.append(button('Optional token purchases & holder gear →',()=>panel('tokens')));
  }
+ // A real in-building arcade cabinet, running inside the original City menu.
+ // Gates and awards are decided exclusively by the existing solo/room Engine.
+ function cabinetPanel(content){
+  const inArcade=me.room?.id==='arcade',near=inArcade&&
+   Math.hypot(me.room.x-I.ROOM.activity.x,me.room.y-I.ROOM.activity.y)<=110;
+  const run=me.cabinet,result=me.cabinetResult;
+  content.append(node('p','district-kicker','CHAOS ARCADE / RUG RUNNER'),
+   node('h3','district-heading','Dodge the rugs. Catch the chips.'),
+   node('p','','Twelve gates, three lanes, three hearts. The red lane is dangerous; the glowing green lane pays points. You may move only one lane left or right before each gate. Choose a lane, then press ADVANCE. Time never runs out while you think.'));
+  const best=me.places?.arcadeBest||0,claimed=me.places?.arcadeClaimed===true;
+  content.append(node('p','beta-note',`BEST SCORE ${best} · ${claimed?'FIRST-CLEAR PRIZE CLAIMED':'FIRST CLEAR: 35 PLAY CREDITS + 30 XP'} · Need ${I.CABINET_MIN_SCORE} points and at least one heart after 12 gates. No wagers, purchases, wallet signatures, or crypto.`));
+  if(!inArcade){
+   content.append(node('p','','This game is inside the original Chaos Arcade building. Walk to its street entrance, enter, and approach the back activity terminal. No second world or external page is needed.'));
+   content.append(button('Map route to Chaos Arcade entrance →',()=>track(I.door(I.BUILDINGS.find(b=>b.roomId==='arcade')))));
+   return;
+  }
+  if(!near){
+   content.append(node('p','','Walk closer to the activity terminal near the back of this room, then press E to start playing.'),
+    button('Return to my character →',closePanel));
+   return;
+  }
+  const shell=node('section','rug-runner');
+  shell.tabIndex=0;shell.setAttribute('role','group');
+  shell.setAttribute('aria-label','Rug Runner cabinet. Left and right arrows shift one lane per gate. Space advances. P pauses or resumes.');
+  const board=node('canvas','rug-runner-board');board.width=660;board.height=350;
+  board.setAttribute('role','img');board.setAttribute('aria-label','Three-lane arcade track showing the next danger and bonus lanes');
+  const status=node('p','rug-runner-status');
+  const labels=['LEFT','CENTER','RIGHT'];
+  const gate=run?.gate,playing=run?.phase==='playing',paused=run?.paused;
+  function drawCabinet(){
+   const c=board.getContext('2d'),w=board.width,h=board.height;
+   const bg=c.createLinearGradient(0,0,0,h);bg.addColorStop(0,'#18112b');bg.addColorStop(.6,'#13344e');bg.addColorStop(1,'#11192c');
+   c.fillStyle=bg;c.fillRect(0,0,w,h);
+   c.lineWidth=2;c.strokeStyle='#9e7ac344';
+   for(let y=12;y<h;y+=34){c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke();}
+   const xs=[135,330,525];
+   for(let lane=0;lane<3;lane++){
+    const x=xs[lane],danger=playing&&gate?.danger===lane,bonus=playing&&gate?.bonus===lane;
+    c.fillStyle=danger?'#6c2b43':bonus?'#1e7669':'#23415d';
+    c.fillRect(x-84,53,168,285);
+    c.strokeStyle=danger?'#ff8193':bonus?'#7df5c0':'#80adca';c.lineWidth=3;c.strokeRect(x-84,53,168,285);
+    c.fillStyle='#e6f3ed';c.textAlign='center';c.font='bold 13px monospace';c.fillText(labels[lane],x,80);
+    c.font='bold 33px Arial';c.fillStyle=danger?'#ffb0be':bonus?'#a4ffce':'#99bbd0';
+    c.fillText(danger?'✖':bonus?'◆':'·',x,155);
+    c.font='bold 12px monospace';c.fillText(danger?'RUG':bonus?'+POINTS':'SAFE',x,179);
+    for(let k=0;k<4;k++){c.fillStyle=danger?'#ff708b18':bonus?'#72f5b318':'#a6eaff14';c.fillRect(x-76,200+k*33,152,4);}
+   }
+   const pos=xs[playing?run.lane:1];
+   c.fillStyle='#b8ecff66';c.beginPath();c.ellipse(pos,306,47,13,0,0,Math.PI*2);c.fill();
+   V.person(c,{id:'rug-runner-player',x:pos,y:306,role:'player',scale:.65,
+    aim:{x:0,y:-1},moving:false,style:me.style,armed:false},0);
+   c.fillStyle='#f1ecff';c.textAlign='left';c.font='bold 15px monospace';
+   c.fillText(playing?`GATE ${run.turn+1} / ${I.CABINET_TURNS}`:'RUG RUNNER',16,25);
+   c.fillText(playing?`SCORE ${run.score}  ·  ♥ ${run.hp}`:`BEST ${best}`,365,25);
+   if(paused||!playing){
+    c.fillStyle='#0a0d25b3';c.fillRect(0,52,w,h-52);
+    c.textAlign='center';c.fillStyle='#d7ffda';c.font='bold 32px Arial';
+    c.fillText(paused?'PAUSED':result?.status==='won'?'TRACK CLEARED':result?.status==='lost'?'TRY AGAIN':'PRESS START',w/2,h/2-8);
+    c.font='bold 15px monospace';c.fillStyle='#d2e7ee';
+    c.fillText(paused?'Resume whenever you are ready.':result?`Final score ${result.score} · Prize ${result.reward} credits`:'12 TURNS · 3 HEARTS · ONE PRIZE',w/2,h/2+29);
+   }
+  }
+  drawCabinet();
+  shell.append(board);
+  const controls=node('div','rug-runner-controls');
+  const command=async(a)=>{if(await action(a,true)){panel('arcadeCabinet');}};
+  if(playing){
+   status.textContent=`GATE ${run.turn+1} / 12 · ${run.hp} hearts · ${run.score} points. ${paused?'Paused.':`Red hazard: ${labels[gate.danger]}. Green points: ${labels[gate.bonus]}. Your lane: ${labels[run.lane]}. ${run.shifted?'Move used for this gate.':'One lane move available.'}`}`;
+   if(paused)controls.append(button('Resume cabinet',()=>command({type:'arcadeResume'})));
+   else{
+    const left=button('◀ LEFT / A',()=>command({type:'arcadeShift',delta:-1}));
+    left.disabled=run.shifted||run.lane===0;
+    const right=button('RIGHT / D ▶',()=>command({type:'arcadeShift',delta:1}));
+    right.disabled=run.shifted||run.lane===2;
+    controls.append(left,right,button('ADVANCE GATE / SPACE',()=>command({type:'arcadeStep'})),
+     button('Pause / P',()=>command({type:'arcadePause'})));
+   }
+   controls.append(button('Quit / no prize',()=>command({type:'arcadeQuit'})));
+  }else{
+   status.textContent=result?`LAST RUN: ${result.status.toUpperCase()} · ${result.score} points · ${result.reward} credits / ${result.xp} XP awarded.`:
+    'Ready for the first Rug Runner challenge.';
+   controls.append(button(result?'Play another round →':'Start Rug Runner →',()=>command({type:'arcadeStart'})));
+  }
+  status.setAttribute('role','status');status.setAttribute('aria-live','polite');
+  shell.append(status,controls);
+  shell.addEventListener('keydown',event=>{
+   if(event.target!==shell||!playing)return;
+   const key=event.key.toLowerCase();
+   const input=paused?(key==='p'||key===' ' ? {type:'arcadeResume'}:null):
+    key==='arrowleft'||key==='a'?{type:'arcadeShift',delta:-1}:
+    key==='arrowright'||key==='d'?{type:'arcadeShift',delta:1}:
+    key===' '||key==='enter'?{type:'arcadeStep'}:
+    key==='p'?{type:'arcadePause'}:null;
+   if(!input)return;
+   event.preventDefault();event.stopPropagation();void command(input);
+  });
+  content.append(shell,
+   node('p','builder-help','Touch: select LEFT / RIGHT then ADVANCE. Keyboard: ← / → (or A/D), SPACE to advance, P to pause or resume. Tab reaches every button. Close this panel to return to the same game world; the turn-based cabinet never advances while unattended.'),
+   button('Return to the arcade room →',closePanel));
+  shell.focus({preventScroll:true});
+ }
  function panel(type){activePanel=type;$('#joystick-knob').style.transform='';keys.clear();held.clear();stick={x:0,y:0};firing=false;const content=$('#panel-content');content.replaceChildren();$('#panel-status').textContent='';
-  const titles={outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',quarantine:'Quarantine bunker survival',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
+  const titles={outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',quarantine:'Quarantine bunker survival',arcadeCabinet:'Chaos Arcade / Rug Runner',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
   if(online&&C.CAPABILITIES.online.soloPanels.includes(type)){content.append(node('p','beta-note','This activity is available in solo mode. Your online journey uses different objectives that you can complete in this room.'),button('Online journey →',()=>panel('journey')));if(!$('#city-panel').open)$('#city-panel').showModal();return;}if(type==='outposts')outpostPanel(content);if(type==='clans')clanPanel(content);if(type==='places')placePanel(content);
   if(type==='multiplayer')multiplayerPanel(content);
   if(['journey','mobility','supplies','fortress','survival'].includes(type))risingPanel(type,content);
   if(type==='quarantine')quarantinePanel(content);
+  if(type==='arcadeCabinet')cabinetPanel(content);
   if(type==='crew')crewPanel(content);
   if(type==='districts')districtsPanel(content);
   if(type==='build')buildEditor(content);
@@ -442,7 +544,7 @@
   if(type==='menu'){
    content.append(node('p','','Everything you need, one stop away. Solo play pauses while menus are open.'));
    if(me.defense)content.append(button('URGENT / Fortress siege repairs →',()=>panel('crew')));
-   for(const [title,type]of [['District outpost workshop','outposts'],['Clans & block jobs','clans'],['Play together','multiplayer'],['Explore building interiors','places'],['Your city journey','journey'],['Hoverboard & travel','mobility'],['Arena survival','survival'],['Quarantine bunker / undead waves','quarantine'],['Medkits & supplies','supplies'],['Upgrade fortress HQ','fortress'],['Explore districts','districts'],['Build my fortress','build'],['Hire / command defenders','crew'],['Beta token purchases','tokens'],['Equipment shop','shop'],['Player marketplace','market'],['Room chat','chat'],['Controls & guide','help'],['Pause / resume','pause']])content.append(button(title,()=>panel(type)));
+   for(const [title,type]of [['District outpost workshop','outposts'],['Clans & block jobs','clans'],['Play together','multiplayer'],['Explore building interiors','places'],['Chaos Arcade / Rug Runner','arcadeCabinet'],['Your city journey','journey'],['Hoverboard & travel','mobility'],['Arena survival','survival'],['Quarantine bunker / undead waves','quarantine'],['Medkits & supplies','supplies'],['Upgrade fortress HQ','fortress'],['Explore districts','districts'],['Build my fortress','build'],['Hire / command defenders','crew'],['Beta token purchases','tokens'],['Equipment shop','shop'],['Player marketplace','market'],['Room chat','chat'],['Controls & guide','help'],['Pause / resume','pause']])content.append(button(title,()=>panel(type)));
   }
   if(type==='summary'){
    const r=me.lastResult;if(r){
@@ -552,7 +654,7 @@
    else{const log=node('div','chat-log');log.setAttribute('aria-label','Room messages');for(const m of state.chat)log.append(node('p','',`${m.name}: ${m.text}`));if(!state.chat.length)log.append(node('p','','No messages yet. Say hello.'));const form=node('form','chat-form'),input=node('input');input.maxLength=180;input.required=true;input.placeholder='Message the room…';input.setAttribute('aria-label','Chat message');const send=node('button','panel-button','Send');send.type='submit';form.append(input,send);form.addEventListener('submit',async e=>{e.preventDefault();if(await action({type:'chat',text:input.value}))panel('chat');});content.append(log,form,node('p','','Messages are visible to everyone in this room. Do not post private information.'))}
   }
   if(type==='help'){
-   content.append(node('p','beta-note','Welcome to City Rising: an eight-chapter journey, twelve landmarks, hoverboards, medkits, upgradeable HQs and a three-wave boss arena. Open Journey for the next objective; J opens the journal, M the map, V toggles the board and H uses a medkit. This is arcade fiction; there is no player-versus-player damage.'),node('p','','Move: WASD / arrows, or drag the thumbstick on your phone. The world is continuous: open Map to mark walking routes between all districts. Open Squad in Fortress Heights to hire NPC defenders with play credits; order them to hold your position, patrol the plot or follow you. Desktop directional buttons also work. Interact: E or the green action button. Follow the green mission beacon; blue markers lead to shops you track.'),node('p','','Open Missions for repeatable combat, courier, and pursuit jobs. Your original orientation route also remains available: visit Launch House, Creator Alley, then Night Market. Each stop earns 50 XP and 40 play credits, plus a completion bonus. Everyone begins at level 1 with 180 credits.'),node('p','','Your character has a human face and wears the meme artwork on the shirt and jacket. The ticker is printed on the shirt and trousers. Open Avatar for a large wardrobe preview, skin tone, hair, and denim choices. Shop gear changes your visible jacket, visor, boots, and blaster. Hold the Fire button / Space to auto-aim at hostile bots, or aim with the mouse and hold the left mouse button. Both hands grip the rifle; muzzle fire follows the aim direction. Dash with Shift or the Dash button. Blasting near cops raises your wanted meter. Stop firing and break their line of sight to lose heat. Getting busted costs up to 25 play credits and returns you to the safe plaza.'),node('p','',online?'You are in a live shared room. The server owns movement, inventory, mission rewards, chat and trading. Progress is temporary and resets with the room.':'You are playing solo with browser-local saves. Open Together for online rooms. Verified holder cosmetics are available in online rooms; permanent online accounts are not active.'));
+   content.append(node('p','beta-note','Welcome to City Rising: an eight-chapter journey, twelve landmarks, hoverboards, medkits, upgradeable HQs and a three-wave boss arena. Open Journey for the next objective; J opens the journal, M the map, V toggles the board and H uses a medkit. This is arcade fiction; there is no player-versus-player damage.'),node('p','','Inside Chaos Arcade, walk to the activity terminal and play Rug Runner: dodge hazards across three lanes. This free twelve-turn cabinet rewards one first-clear prize and remembers your best score. Move: WASD / arrows, or drag the thumbstick on your phone. The world is continuous: open Map to mark walking routes between all districts. Open Squad in Fortress Heights to hire NPC defenders with play credits; order them to hold your position, patrol the plot or follow you. Desktop directional buttons also work. Interact: E or the green action button. Follow the green mission beacon; blue markers lead to shops you track.'),node('p','','Open Missions for repeatable combat, courier, and pursuit jobs. Your original orientation route also remains available: visit Launch House, Creator Alley, then Night Market. Each stop earns 50 XP and 40 play credits, plus a completion bonus. Everyone begins at level 1 with 180 credits.'),node('p','','Your character has a human face and wears the meme artwork on the shirt and jacket. The ticker is printed on the shirt and trousers. Open Avatar for a large wardrobe preview, skin tone, hair, and denim choices. Shop gear changes your visible jacket, visor, boots, and blaster. Hold the Fire button / Space to auto-aim at hostile bots, or aim with the mouse and hold the left mouse button. Both hands grip the rifle; muzzle fire follows the aim direction. Dash with Shift or the Dash button. Blasting near cops raises your wanted meter. Stop firing and break their line of sight to lose heat. Getting busted costs up to 25 play credits and returns you to the safe plaza.'),node('p','',online?'You are in a live shared room. The server owns movement, inventory, mission rewards, chat and trading. Progress is temporary and resets with the room.':'You are playing solo with browser-local saves. Open Together for online rooms. Verified holder cosmetics are available in online rooms; permanent online accounts are not active.'));
    content.append(button('Track the next mission →',()=>{if(me.completed){toast('Your orientation route is complete. Explore the neighborhood.');closePanel();}else track({...WORLD.route[me.route],id:'route'});}));
    if(!online)content.append(button('Reset solo progress',()=>{if(!confirm('Reset this browser’s solo character, gear, and play credits?'))return;try{localStorage.removeItem(saveKey);}catch{}location.reload();}));
   }
@@ -821,7 +923,13 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
  for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>{firing=false;mouseFiring=false;});
  $('#start-button').addEventListener('click',()=>{entered=true;$('#city-intro').hidden=true;canvas.focus({preventScroll:true});toast('Move with WASD or the thumbstick. Hold Fire for auto-aim. Open Journey for your first chapter. V / Ride mounts your hoverboard.');if(new URLSearchParams(location.search).has('room'))panel('multiplayer');});
  $('#ride-toggle').addEventListener('click',()=>action({type:'ride'}));$('#medkit-use').addEventListener('click',()=>action({type:'medkit'}));
- $('#interact').addEventListener('click',interact);$('#fire').addEventListener('click',()=>fire());$('#dash').addEventListener('click',()=>action({type:'dash'},true));$('#zoom-toggle').addEventListener('click',()=>{cameraZoom=cameraZoom===1?1.35:1;$('#zoom-toggle').textContent=cameraZoom===1?'+ Detail':'− Wide';});$('#fullscreen-exit').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();}catch{toast('Use your browser’s back or Escape control to exit fullscreen.');}});$('#pause-toggle').addEventListener('click',()=>panel('pause'));$('#fullscreen-toggle').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if($('.game-shell').requestFullscreen)await $('.game-shell').requestFullscreen();else toast('Fullscreen is unavailable in this browser.');}catch{toast('Fullscreen could not open. The game still works in this view.');}});$('#quick-job').addEventListener('click',()=>panel(me.quarantineRun||state.quarantine?.phase==='active'&&Math.hypot(me.x-C.QUARANTINE.x,me.y-C.QUARANTINE.y)<C.QUARANTINE.radius?'quarantine':me.blockJob||state.conflict?.entry&&state.conflict.phase!=='cooldown'?'clans':me.room?'places':me.rising?.arena?'survival':!me.contract&&!me.defense?'journey':me.defense?'crew':me.area==='greenbelt'?'map':me.area==='hub'?'missions':me.area==='fortress'?'build':me.area==='creator'?'collections':me.area==='arena'?'arena':'social'));$('#sound-toggle').addEventListener('click',()=>{soundOn=!soundOn;$('#sound-toggle').textContent=soundOn?'Sound on ♫':'Sound off ♫';if(soundOn)tone(660,.12,'triangle');});$('#close-panel').addEventListener('click',closePanel);$('#city-panel').addEventListener('close',()=>{activePanel='';keys.clear();held.clear();});
+ $('#interact').addEventListener('click',interact);$('#fire').addEventListener('click',()=>fire());$('#dash').addEventListener('click',()=>action({type:'dash'},true));$('#zoom-toggle').addEventListener('click',()=>{cameraZoom=cameraZoom===1?1.35:1;$('#zoom-toggle').textContent=cameraZoom===1?'+ Detail':'− Wide';});$('#fullscreen-exit').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();}catch{toast('Use your browser’s back or Escape control to exit fullscreen.');}});$('#pause-toggle').addEventListener('click',()=>panel('pause'));$('#fullscreen-toggle').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if($('.game-shell').requestFullscreen)await $('.game-shell').requestFullscreen();else toast('Fullscreen is unavailable in this browser.');}catch{toast('Fullscreen could not open. The game still works in this view.');}});$('#quick-job').addEventListener('click',()=>panel(me.quarantineRun||state.quarantine?.phase==='active'&&Math.hypot(me.x-C.QUARANTINE.x,me.y-C.QUARANTINE.y)<C.QUARANTINE.radius?'quarantine':me.blockJob||state.conflict?.entry&&state.conflict.phase!=='cooldown'?'clans':me.room?(me.room.id==='arcade'?'arcadeCabinet':'places'):me.rising?.arena?'survival':!me.contract&&!me.defense?'journey':me.defense?'crew':me.area==='greenbelt'?'map':me.area==='hub'?'missions':me.area==='fortress'?'build':me.area==='creator'?'collections':me.area==='arena'?'arena':'social'));$('#sound-toggle').addEventListener('click',()=>{soundOn=!soundOn;$('#sound-toggle').textContent=soundOn?'Sound on ♫':'Sound off ♫';if(soundOn)tone(660,.12,'triangle');});$('#close-panel').addEventListener('click',closePanel);
+ $('#city-panel').addEventListener('cancel',e=>{
+  if(activePanel!=='arcadeCabinet'||me.cabinet?.phase!=='playing')return;
+  e.preventDefault();
+  if(!me.cabinet.paused)void action({type:'arcadePause'},true).then(ok=>{if(ok)panel('arcadeCabinet');});
+  else closePanel();
+ });$('#city-panel').addEventListener('close',()=>{activePanel='';keys.clear();held.clear();});
  document.querySelectorAll('[data-panel]').forEach(b=>b.addEventListener('click',()=>panel(b.dataset.panel)));
  document.querySelectorAll('[data-move]').forEach(b=>{const release=()=>{held.delete(b.dataset.move);b.classList.remove('pressed');};b.addEventListener('pointerdown',e=>{e.preventDefault();if(!entered)return;b.setPointerCapture(e.pointerId);held.add(b.dataset.move);b.classList.add('pressed');});b.addEventListener('pointerup',release);b.addEventListener('pointercancel',release);b.addEventListener('lostpointercapture',release);});
  const fireButton=$('#fire');fireButton.addEventListener('pointerdown',e=>{e.preventDefault();if(!entered||activePanel)return;fireButton.setPointerCapture(e.pointerId);firing=true;fire();});for(const name of ['pointerup','pointercancel','lostpointercapture'])fireButton.addEventListener(name,()=>firing=false);
