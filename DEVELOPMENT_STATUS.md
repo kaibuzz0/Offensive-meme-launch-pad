@@ -1,3 +1,15 @@
+## One-world repairable fortress siege — November 3, 2026
+
+- **Branch:** `codex/one-world-quarantine-archetypes` / [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28). **Not merged or live.**
+- Extended the original `defenseDrill`, `city-arcade.js`, shared `C.blocked()` map collision, `city-districts.js` plotted building renderer, and current `city.js` Squad panel. **No alternate client, map, tokens, wallet or save format.**
+- **Single-assault siege:** four initial attackers, three-second warning, 120-second limit, a 200-HP command core, and per-structure HP (walls 70 / towers 120 / HQ 185 / trees/lamps 45). Raider strikes have capped cooldowns and register real collision breaches. A breached wall becomes temporarily walkable for players and attackers, is painted damaged in the original world, and becomes solid after repair.
+- **Repairs:** from inside the fortress and within proximity of the part. Eight game credits repair +34 structural HP, 18 repair +48 core HP. Full-health parts cannot be repaired or charged, and an occupied breached tile cannot be reclosed until cleared. Building/demolition is locked during battle. Spending and HP are enforced by the existing engine; no client-supplied balances.
+- **Outcomes:** victory still rewards +60 play credits/+40 XP **exactly once**. Core breach, player bust, timeout or manual retreat award zero; existing bust fee still applies. Temporary raid bots and projectiles are removed. Saved `plot`, `crew`, building IDs, `offensive-meme-city-v1-center` schema and collision footprint outside active sieges remain intact.
+- **Proof:** [CI run 41575766266](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41575766266) passed full tests, static checks, deterministic benchmark and mobile Chromium checks for gameplay head `63aa797`. Browser QA exercised the **actual current game's** fortress menu → start siege → core HUD → repair panel → retreat. Physical Android hardware still untested. No real public rollout authorized.
+- **Next slice:** playable touch and keyboard minigame inside the **existing Chaos Arcade interior** with legitimate game-only progress, focus/pause/return, and no betting. Additional multi-wave siege patterns and territory effects remain separate future work.
+
+---
+
 ## One-world quarantine survival vertical slice — November 3, 2026
 
 - **Branch:** `codex/one-world-quarantine-archetypes` / [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28), based on production main `549b628`. **Not merged/deployed.**
