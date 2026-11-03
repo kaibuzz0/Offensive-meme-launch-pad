@@ -45,7 +45,7 @@ test('only the existing Chaos Arcade room activity is connected to playable Rug 
  assert.throws(()=>g.e.action(g.p.id,{type:'arcadeStart'}),/actual Chaos Arcade/);
  Object.assign(g.p.room,g.I.ROOM.exit);g.e.action(g.p.id,{type:'exitBuilding'});
  enter(g);
- assert.equal(g.I.activity(g.p),null,'entrance is not the playable cabinet');
+ assert.equal(g.I.activity(g.p).kind,'exit','entrance is the exit, not the playable cabinet');
  assert.throws(()=>g.e.action(g.p.id,{type:'arcadeStart'}),/Walk to/);
  atTerminal(g);
  assert.equal(g.I.activity(g.p).panel,'arcadeCabinet');
