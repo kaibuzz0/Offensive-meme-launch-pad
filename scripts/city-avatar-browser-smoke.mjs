@@ -59,7 +59,7 @@ try{
  const port=await waitFor(async()=>{
   try{return Number((await readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0])||null;}
   catch{return null;}
- },'Chrome DevTools port');
+ },'Chrome DevTools port',25000);
  const tabResponse=await fetch('http://127.0.0.1:'+port+'/json/new?about:blank',{method:'PUT'});
  assert.equal(tabResponse.status,200);
  const tab=await tabResponse.json();
