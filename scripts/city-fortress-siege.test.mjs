@@ -106,11 +106,11 @@ test('siege victory is paid exactly once; cancellation, timeout and player defea
   if(status==='busted'){Object.assign(p,{x:C.DISTRICTS[0].ox+1400,y:C.DISTRICTS[0].oy+1300,hp:1,invulnerable:0});p.defense.countdown=0;const b=raids(e)[0];Object.assign(b,{x:p.x+10,y:p.y,cooldown:0});tick(e,1.2);if(p.defense)throw Error('Busted player did not interrupt the siege');}
   assert.equal(p.defense,null,status+' should close');
   assert.equal(p.defenseResult.status,status);
-  assert.equal(p.credits,status==='won'?credits+60:credits);
+  assert.equal(p.credits,status==='won'?credits+60:status==='busted'?credits-25:credits);
   assert.equal(p.xp,status==='won'?40:0);
   assert.equal(raids(e).length,0);
   tick(e,1);
-  assert.equal(p.credits,status==='won'?credits+60:credits,'no later payout');
+  assert.equal(p.credits,status==='won'?credits+60:status==='busted'?credits-25:credits,'no later payout');
  }
 });
 test('fortress attack remains solo-only and repair commands cannot be passed through room authority',()=>{
