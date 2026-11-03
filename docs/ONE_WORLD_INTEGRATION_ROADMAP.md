@@ -1,7 +1,7 @@
 # MEME CITY — ONE PLAYABLE WORLD / ARCHIVED V2 FEATURE RECOVERY
 
-**Baseline:** `main` at `549b628755b5f5717a3d535dcc75a8ab99d5de46` (major building graphics overhaul).  
-**Canonical game:** `city.html`, the existing `MemeCityCore.Engine`, `city.js` Canvas HUD and rendering, `city-arcade.js` simulation and optional Render multiplayer.  
+**Baseline:** `main` at `549b628755b5f5717a3d535dcc75a8ab99d5de46` (major building graphics overhaul).
+**Canonical game:** `city.html`, the existing `MemeCityCore.Engine`, `city.js` Canvas HUD and rendering, `city-arcade.js` simulation and optional Render multiplayer.
 **Design reference:** User-supplied `MEME_CITY_WORLD_V2_COMPLETE_HISTORY_DESIGN_IDEAS_AND_FAILURE_REPORT.md` (October 31, 2026), sections 2–3, 6–9, 20, and archived master handoff (especially stages 3–10).
 
 ## Invariant: only one world
@@ -46,7 +46,7 @@ We are **not** building World V3, replacing `city.html`, switching `main` to `ci
 
 ## Exact integration boundaries
 
-**Current codebase:** `city-core.js` (world/collision), `city-arcade.js` (AI/combat), `city-visuals.js` (shared actor skins), `city.js` (render and controls), `city-interiors.js` and `city-room-visuals.js` (real doors), `city-map.js` / `city-nav.js`, `city-clans.js`, `server/city-rooms.mjs`.  
+**Current codebase:** `city-core.js` (world/collision), `city-arcade.js` (AI/combat), `city-visuals.js` (shared actor skins), `city.js` (render and controls), `city-interiors.js` and `city-room-visuals.js` (real doors), `city-map.js` / `city-nav.js`, `city-clans.js`, `server/city-rooms.mjs`.
 **Historical reference only:** `city-world2-*.js/html`, old prototype authority, migration candidates, debug pages and the archived V2 vault. Copy *concepts* only after matching current game rules. Never flip the public route.
 
 ## QA status on branch
