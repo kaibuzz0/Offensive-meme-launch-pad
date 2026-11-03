@@ -135,6 +135,14 @@
  const validIds=['offensive','you-missed','maduro','redacted','congress','exit'];
   // Cosmetic avatar outfits: Rug Me Harder is a second Rugmasters design, not a seventh clan.
   const CLAN_SKINS=Object.freeze(['redacted','congress','exit','you-missed','maduro','rug']);
+  // Never interpret a saved outfit preference or public wallet theme as proof.
+  // Only the current server-validated signed holder balance can activate a skin.
+  const verifiedSkin=p=>{
+   const proof=p?.holder?.expires>Date.now()&&p.holder.tier>=1?p.holder:
+    p?.holderTier>=1&&p.holderClan?{clan:p.holderClan,tier:p.holderTier}:null;
+   return proof&&CLAN_SKINS.includes(proof.clan)&&p.clanSkin===proof.clan?proof.clan:null;
+  };
+
   // Empty corners of Center City reserved as optional social/creative expansions.
   // They have no missions, item rewards or combat bonuses. Public roads remain open.
   const TOKEN_PLOTS=Object.freeze([
@@ -202,7 +210,7 @@
     if(!Number.isInteger(a.style.print??0)||(a.style.print??0)<0||(a.style.print??0)>2)throw Error('Invalid clothing print.');
     p.style={skin:a.style.skin,hair:a.style.hair,pants:a.style.pants,print:a.style.print??0};return 'Streetwear updated.';
    }
-   if(a.type==='clanSkin'){if(a.skin!==null&&!CLAN_SKINS.includes(a.skin))throw Error('Unknown clan avatar skin.');p.clanSkin=a.skin;return a.skin?'Clan skin equipped. Your movement and weapons are unchanged.':'Classic streetwear equipped.';}
+   if(a.type==='clanSkin'){if(a.skin!==null&&!CLAN_SKINS.includes(a.skin))throw Error('Unknown clan avatar skin.');if(a.skin!==null&&!(p.holder?.clan===a.skin&&p.holder.tier>=1&&p.holder.expires>Date.now()))throw Error('Verify a positive balance of the matching beta token before wearing this skin.');p.clanSkin=a.skin;return a.skin?'Verified token skin equipped. Your movement and weapons are unchanged.':'Classic streetwear equipped.';}
     if(a.type==='avatar'){if(!validIds.includes(a.avatar))throw Error('Unknown beta avatar.');p.avatar=a.avatar;return 'Meme identity changed. No token holdings are implied.';}
    if(a.type==='checkpoint'){const target=WORLD.route[p.route];if(!target||p.completed)throw Error('Route already completed.');if(dist(p,target)>110)throw Error('Walk closer to the mission beacon.');p.xp+=50;p.credits+=40;p.route++;if(p.route===WORLD.route.length){p.completed=true;p.xp+=100;p.credits+=60;}return p.completed?'City orientation complete! +100 XP / +60 credits bonus.':`Checkpoint reached: ${target.name}. +50 XP / +40 play credits.`;}
    if(a.type==='buy'){if(nearest(p)?.id!=='shop')throw Error('Visit Bad Taste Supply to buy gear.');const item=ITEMS.find(i=>i.id===a.item);if(!item)throw Error('Unknown item.');if(p.credits<item.price)throw Error('Not enough play credits. Complete your city route.');p.credits-=item.price;const owned={uid:`gear-${++this.serial}`,item:item.id};p.inventory.push(owned);p.equipped[item.slot]=owned.uid;return `${item.name} purchased and equipped.`;}
@@ -214,7 +222,7 @@
    throw Error('Unknown action.');
   }
   leave(id){for(const [lid,l]of this.listings)if(l.seller===id)this.listings.delete(lid);this.players.delete(id);}
-  snapshot(id){const p=this.player(id);return {self:{...p,plot:p.plot.map(o=>({...o})),crew:p.crew.map(o=>({...o,...(o.post?{post:{...o.post}}:{})})),input:undefined,lastChat:undefined},players:[...this.players.values()].map(x=>({id:x.id,name:x.name,avatar:x.avatar,clanSkin:x.clanSkin||null,x:x.x,y:x.y,level:level(x.xp),area:x.area,style:{...x.style},equipped:Object.fromEntries(Object.entries(x.equipped).map(([slot,uid])=>[slot,x.inventory.find(i=>i.uid===uid)?.item]))})),listings:[...this.listings.values()].map(l=>({id:l.id,seller:l.seller,sellerName:l.sellerName,item:l.owned.item,price:l.price})),chat:this.chat};}
+  snapshot(id){const p=this.player(id);return {self:{...p,plot:p.plot.map(o=>({...o})),crew:p.crew.map(o=>({...o,...(o.post?{post:{...o.post}}:{})})),input:undefined,lastChat:undefined},players:[...this.players.values()].map(x=>({id:x.id,name:x.name,avatar:x.avatar,clanSkin:verifiedSkin(x),x:x.x,y:x.y,level:level(x.xp),area:x.area,style:{...x.style},equipped:Object.fromEntries(Object.entries(x.equipped).map(([slot,uid])=>[slot,x.inventory.find(i=>i.uid===uid)?.item]))})),listings:[...this.listings.values()].map(l=>({id:l.id,seller:l.seller,sellerName:l.sellerName,item:l.owned.item,price:l.price})),chat:this.chat};}
  }
  // Ground-plane combat coordinates never include visual body height.
  const WEAPON=Object.freeze({barrel:50,height:58,recoil:2,shotInterval:.25});
@@ -233,5 +241,5 @@
  Engine.CAPABILITIES=CAPABILITIES;
  Engine.LAYOUT_VERSION=LAYOUT_VERSION;
  const RELEASE=Object.freeze({name:'Living Blocks',version:'Alpha 12'});
- root.MemeCityCore=Object.freeze({LAYOUT_VERSION,buildAccess,WEAPON,weaponAnchor,CAPABILITIES,RELEASE,WORLD,HUB,SCENERY,ITEMS,DISTRICTS,NEIGHBORHOODS,FACTIONS,CLAN_SKINS,TOKEN_PLOTS,plotAccess,factionOf,rivals,npcHostile,outpostLot,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
+ root.MemeCityCore=Object.freeze({LAYOUT_VERSION,buildAccess,WEAPON,weaponAnchor,CAPABILITIES,RELEASE,WORLD,HUB,SCENERY,ITEMS,DISTRICTS,NEIGHBORHOODS,FACTIONS,CLAN_SKINS,verifiedSkin,TOKEN_PLOTS,plotAccess,factionOf,rivals,npcHostile,outpostLot,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
 })(typeof window==='undefined'?globalThis:window);

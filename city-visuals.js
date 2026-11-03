@@ -180,6 +180,51 @@
   }
   const style=o.style||{},offender=o.offenderSkin===true&&(o.role||'player')==='player',fit=!offender&&(o.role||'player')==='player'?CLAN_FITS[o.clanSkin]:null,tone=offender?'#c6f916':fit?.tone||skin[style.skin||0],coat=offender?'#20172c':fit?.coat||(o.role==='cop'?'#324c68':o.role==='gang'?'#4b293c':o.role==='guard'?(o.color||'#6e8e78'):o.gear?.outfit?'#5e7654':'#303e4d');
   box([0,0,59],[18,34,36],coat);
+  // Six meme-inspired holder skins share the same solid 360-degree rig.
+  // Accessories are geometry in the painter-sorted model, not flat PNG sprites.
+  if(fit&&o.clanSkin==='maduro'){
+   // SPECIAL DELIVERY / TAKEN: red tracksuit, airlift cargo harness and crate.
+   box([-14,0,59],[11,30,32],'#786443');
+   box([-19,0,58],[3,31,29],'#bc9553');
+   box([-21,0,59],[1.4,17,12],'#e7ce88');
+   for(const side of [-1,1]){box([0,side*20,64],[13,2,5],'#f3e9e7');box([6,side*15.8,61],[1.6,3.5,32],'#52443a');}
+   box([10.4,0,65],[2,2,25],'#f7ddd6');
+  }
+  if(fit&&o.clanSkin==='redacted'){
+   // FINEPRINT: the oversized black censor marker, papers and purple tie.
+   box([-12,-11,61],[3,20,25],'#ebebe9');box([-14,-11,61],[1.5,17,3],'#0b0d14');
+   box([12.3,-13.5,61],[3,5,27],'#100f19');box([13,-13.5,76],[4,5,6],'#312b39');
+   for(const h of [54,60,67])box([10.7,3,h],[1.6,12,2.1],'#171221');
+  }
+  if(fit&&o.clanSkin==='congress'){
+   // INSIDER / CUNTS: money-filled pinstripe suit and gold chain.
+   for(const side of [-1,1]){
+    box([10,side*13,61],[2.1,8,16],'#5dbd74');
+    box([11.3,side*13,63],[.8,8,2],'#f4e78c');
+    box([0,side*17.7,59],[9,1.2,29],'#d1b760');
+   }
+   box([10.9,0,46],[1.8,12,3],'#c5a24a');
+  }
+  if(fit&&o.clanSkin==='you-missed'){
+   // SHOOTER: flag-pinned navy jacket and exaggerated red power tie.
+   box([10.8,0,68],[2.3,7.5,27],'#d12834');
+   box([11.5,-12,72],[1.7,5.5,5.2],'#e9c96a');
+   box([12,-12,74],[.6,4,2.2],'#cf454a');
+  }
+  if(fit&&o.clanSkin==='exit'){
+   // RUGGEDAF: patched shirt, frayed sleeves and a heavy coin sack.
+   oval([-13,-18,50],[10,11,14],'#8a6b4c');
+   oval([-11,-18,61],[7.2,9.1,4.5],'#a58a5e');
+   for(const side of [-1,1]){box([0,side*18.5,56],[9,1.6,9],'#17dcbb');box([10,side*13,48],[1.6,6,7],'#b8b0a0');}
+   for(const side of [-1,0,1])oval([-10+side*3.5,-18,65+Math.abs(side)*1.5],[2.8,2.8,1.7],'#c7ef75');
+  }
+  if(fit&&o.clanSkin==='rug'){
+   // RUGME: patterned red rug slung like a cape behind a suited promoter.
+   face([[-11,-19,82],[-12,13,82],[-18,18,25],[-18,-21,25]],'#a52755');
+   for(let h=34;h<=73;h+=13)box([-17,0,h],[1.6,34,2.1],'#e9be6b');
+   for(const side of [-1,1])box([-16,side*17,47],[2,3,27],'#f0c16c');
+   box([11,0,69],[1.7,5,20],'#d5b867');
+  }
   if(fit){
    for(const side of [-1,1]){box([1,side*17.6,64],[10,1.5,20],fit.trim);box([-1,side*13,43],[10,1.5,2],fit.trim);}
    box([9.6,0,69],[1.2,3.7,21],fit.tie);
@@ -222,6 +267,40 @@
     if(o.clanSkin==='you-missed')box([-4,0,109],[8,12,4],'#f4cc68');
     if(o.clanSkin==='maduro')box([9.35,0,90],[1.5,13,3],'#191e21');
     if(o.clanSkin==='rug')for(const side of [-1,1])box([9.2,side*5,98],[1.7,8,5],'#121016');
+    // Token-icon facial features preserve the same walk/shoot yaw.
+    if(o.clanSkin==='maduro'){
+     box([10.2,0,90.4],[1.8,16.2,3.3],'#15191c');
+     for(const side of [-1,1])box([9.7,side*5.5,103],[1.4,6.4,2],'#1c1b1e');
+    }
+    if(o.clanSkin==='redacted'){
+     box([10.2,0,94.3],[1.4,18,4.3],'#0b0b12');
+     box([10.5,0,103],[1.4,18,3],'#0c0b16');
+    }
+    if(o.clanSkin==='congress'){
+     oval([8.8,0,90],[3.7,5.5,4.4],'#dc8f82');
+     for(const side of [-1,1]){
+      box([11,side*5.7,98],[2,8.7,7],'#161d17');
+      box([12,side*5.7,98],[.8,4.1,5],'#c5e846');
+      box([11.9,side*5.7,103],[1.1,9,1.2],'#f2d264');
+     }
+    }
+    if(o.clanSkin==='you-missed'){
+     oval([-3.3,0,111],[8.8,10.5,5.2],'#f4c852',0,Math.PI/2);
+     box([10.6,0,88],[1.4,10,1.6],'#a45b43');
+     box([9.4,-4.8,101],[1.2,6,2.1],'#f4d35f');
+    }
+    if(o.clanSkin==='exit'){
+     for(const side of [-1,1]){
+      box([9.2,side*5.8,98],[1.5,6.5,6.5],'#f7e4d7');
+      box([10.2,side*5.8,98],[1.2,2.7,3],'#302f35');
+      box([10.9,side*5.8,92],[1.4,2.2,10],'#19c9df');
+     }
+     box([9.6,0,87],[1.2,9,5],'#151e22');
+    }
+    if(o.clanSkin==='rug'){
+     for(const side of [-1,1])box([10.9,side*5,98],[1.5,8,5],'#0d1020');
+     box([11.5,0,88],[1.1,12,1.7],'#633d37');
+    }
    }
   }
   // The same meme is printed on the chest and back and wraps out of view in profile.

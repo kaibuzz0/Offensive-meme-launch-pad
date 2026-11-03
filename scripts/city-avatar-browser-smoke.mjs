@@ -183,15 +183,16 @@ try{
  await evalPage("document.getElementById('offender-wallet-verify').click();true");
  await waitFor(()=>evalPage("document.querySelector('#offender-wallet-status')?.textContent.includes('single Connect wallet button')"),'game uses the single shared connection, not a second wallet popup');
  assert.equal(await evalPage("document.getElementById('offender-wallet-verify').disabled"),false,'retry works after a rejected wallet connection');
- // Six skin cards are clickable inside the actual mobile Avatar UI.
+ // The actual mobile Avatar UI must not grant any token outfit for free.
  assert.equal(await evalPage("document.querySelectorAll('.clan-skin-grid [data-skin]').length"),6,'six skins appear in the Avatar panel');
  for(const id of ['redacted','congress','exit','you-missed','maduro','rug']){
-  await evalPage("document.querySelector('[data-skin="+id+"] button').click();true");
-  await waitFor(()=>evalPage("document.querySelector('[data-skin="+id+"] button')?.getAttribute('aria-pressed')==='true'"),'equipped '+id+' clan skin');
-  assert.equal(await evalPage("document.querySelector('.wardrobe-canvas')?.width"),480,'existing 360-degree rig is retained');
+  const card=await evalPage("(()=>{const tile=document.querySelector('[data-skin="+id+"]');return {label:tile.querySelector('button').textContent,disabled:tile.querySelector('button').disabled,pressed:tile.querySelector('button').getAttribute('aria-pressed')};})()");
+  assert.equal(card.pressed,'false','unverified '+id+' must be locked');
+  if(id==='rug'){assert.equal(card.disabled,true,'unminted RUGME cannot be verified');assert.match(card.label,/Awaiting token launch/);}
+  else assert.match(card.label,/Verify /,'balance check is the only path to unlock '+id);
  }
- await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Return to classic avatar')).click();true");
- await waitFor(()=>evalPage("Array.from(document.querySelectorAll('.clan-skin-tile button')).every(b=>b.getAttribute('aria-pressed')==='false')"),'classic outfit restored');
+ assert.equal(await evalPage("document.querySelector('.wardrobe-canvas')?.width"),480,'existing 360-degree rig is retained');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent==='Classic avatar').click();true");
  // Connecting the main wallet MUST set the site theme, no separate theme UI.
  assert.equal(await evalPage("document.querySelectorAll('[data-install-app]').length>0"),true,'game remains installable');
  assert.equal(await evalPage("document.querySelector('.wallet-theme-trigger')===null"),true,'no redundant Wallet theme button in game');
@@ -325,11 +326,11 @@ try{
  await evalPage("window.OffensiveWallet.disconnect();true");
  await waitFor(()=>evalPage("!window.OffensiveWallet.state().connected"),'wallet disconnected');
  await evalPage("document.querySelector('[data-panel=avatar]').click();true");
- await waitFor(()=>evalPage("document.querySelector('#panel-content').textContent.includes('FREE SKINS AVAILABLE')"),'holder skin revoked');
+ await waitFor(()=>evalPage("document.querySelector('#panel-content').textContent.includes('Connect once with the site wallet')"),'holder skin revoked');
  assert.equal(await headHash(),normalHead,'disconnect restores the standard face');
 
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
- console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six clan skins, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
+ console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six verified-only skin cards, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
 }finally{
  try{ws?.close();}catch{}
  if(chrome){

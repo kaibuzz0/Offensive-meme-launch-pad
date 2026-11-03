@@ -98,5 +98,5 @@ test('Canvas zombie is a separate visual NPC, not a recolored faction avatar',()
  assert.ok(city.includes('function drawZombie('));
  assert.ok(city.includes("if(b.kind==='zombie'){drawZombie("));
  assert.ok(html.includes('city-arcade.js?v=33-zombies'));
- assert.ok(html.includes('city.js?v=33-zombies'));
+ assert.ok(html.includes('city.js?v=33-zombies')||html.includes('city.js?v=34-verified-skins'));
 });
