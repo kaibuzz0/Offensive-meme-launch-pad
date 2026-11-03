@@ -203,6 +203,21 @@ try{
  assert.ok(mapData.plot[0]>mapData.fort[0]&&mapData.plot[0]<mapData.fort[0]+2240);
  assert.ok(mapData.shopRegions>=4);assert.ok(mapData.painted);
  assert.ok(mapData.mapWidth>=800&&mapData.mapHeight>=800);
+ // New quarantine scenario must be a physical destination inside the old
+ // map and an ordinary mobile-friendly game panel, not a separate World V2 UI.
+ assert.equal(await evalPage("window.MemeCityCore.WORLD.stations.filter(s=>s.id==='quarantine-bunker').length"),1);
+ assert.equal(await evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Quarantine Bunker / zombie survival'))"),true,
+  'quarantine location is navigable from the same mobile world map');
+ await evalPage("document.querySelector('#close-panel').click();document.querySelector('[data-panel=menu]').click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Quarantine bunker / undead waves'))"),'one-world quarantine menu entry');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Quarantine bunker / undead waves')).click();true");
+ const qPanel=await evalPage("({title:document.querySelector('#panel-title').textContent,copy:document.querySelector('#panel-content').textContent,hasRoute:Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Mark Quarantine Bunker'))})");
+ assert.match(qPanel.title,/Quarantine bunker/i);
+ assert.match(qPanel.copy,/Walk to the marked bunker/,'remote player cannot bypass physical entry');
+ assert.match(qPanel.copy,/Go to bunker to unlock start/,'start is proximity gated on phone');
+ assert.equal(qPanel.hasRoute,true,'existing map routing is available');
+ assert.equal(await evalPage("document.querySelector('#city-intro').hidden"),true,'quarantine does not replace the one-tap solo game');
+ await evalPage("document.querySelector('#close-panel').click();true");
  const mobileMapShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
  assert.ok(mobileMapShot.data.length>2000,'mobile expanded-city map rendered in Chrome');
  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
