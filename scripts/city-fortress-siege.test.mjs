@@ -8,7 +8,7 @@ function game(){
   vm.runInNewContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),c);
  const C=c.MemeCityCore,e=new C.Engine(),p=e.join('siege','Fortress QA','offensive');
  for(const b of e.arcade.bots){b.hp=0;b.respawn=10000;}
- e.arcade.zombieNext=1000;e.conflict.remaining=9999;
+ e.arcade.zombieNext=1000;
  Object.assign(p,{x:C.WORLD.spawn.x,y:C.WORLD.spawn.y,invulnerable:1000});
  return {C,e,p,root:c};
 }
