@@ -8,13 +8,13 @@ import path from 'node:path';
 import vm from 'node:vm';
 import {fileURLToPath} from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url));
-const scope={};for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-monk.js'])vm.runInNewContext(await fs.readFile(path.join(root,file),'utf8'),scope);
+const scope={};for(const file of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-territory.js','city-monk.js'])vm.runInNewContext(await fs.readFile(path.join(root,file),'utf8'),scope);
 const {Engine}=scope.MemeCityCore;
 const tokenScope={window:{}};for(const f of ['tokens.js','launchpad-config.js'])vm.runInNewContext(await fs.readFile(path.join(root,f),'utf8'),tokenScope);
 const projectTokens=[tokenScope.window.LAUNCHPAD_CONFIG.platformToken,...tokenScope.window.MEME_TOKENS.filter(t=>t.mint)];
 const mints=Object.fromEntries(projectTokens.map(t=>[t.id,t.mint]));
 const contentTypes={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mp4':'video/mp4','.jpg':'image/jpeg','.webp':'image/webp','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
-const files=new Set(['index.html','beta.html','creators.html','city.html','city-roadmap.html','city-world2-preview.html','city-world2-preview.js','city-world2-simulation.js','city-topology.js','city-nav.js','city-map.js','city-save.js','city-center-save.js','city-migration.js','city-world2.js','city-world2-registry.js','city.css','city.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js','styles.css','app.js','tokens.js','launchpad-config.js','trade-core.js','trade.js','share-core.js','social.js','pwa.js','sw.js','manifest.webmanifest','offline.html','launchpad.js','launchpad.css']);
+const files=new Set(['index.html','beta.html','creators.html','city.html','city-roadmap.html','city-world2-preview.html','city-world2-preview.js','city-world2-simulation.js','city-topology.js','city-nav.js','city-map.js','city-save.js','city-center-save.js','city-migration.js','city-world2.js','city-world2-registry.js','city.css','city.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-territory.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js','styles.css','app.js','tokens.js','launchpad-config.js','trade-core.js','trade.js','share-core.js','social.js','pwa.js','sw.js','manifest.webmanifest','offline.html','launchpad.js','launchpad.css']);
 export function createCityServer({origins=[],now=()=>Date.now(),themeReader=null,holdingsReader=null}={}){
  const holdings=holdingsReader||holdingsService({mints,now});
  const theme=themeReader||createThemeLookup({tokens:projectTokens,now});
