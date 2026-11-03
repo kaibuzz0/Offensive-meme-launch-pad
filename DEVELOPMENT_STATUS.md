@@ -1,3 +1,15 @@
+## One-world playable Chaos Arcade cabinet — November 3, 2026
+
+- **Branch:** `codex/one-world-quarantine-archetypes`, [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28). **Unmerged / undeployed.**
+- **Actual location:** The existing Chaos Arcade business keeps its current physical street door, room ID `arcade`, original room geometry and world map. Its back activity terminal now opens the free **Rug Runner** mini-game in the current `city.html` modal; no new world, game client, URL, gambling or separate wallet.
+- **Controls and presentation:** Twelve timed-by-player (not real-time) three-lane gates, one lane move per gate, bonus chips versus red hazard, three hearts, score and clear condition (score >=108 with at least one heart). Mobile touch buttons, keyboard left/right/A/D/Space, explicit pause/resume, tab/focus interruption safety, retry, quit/return to the original room, and stylized 2D Canvas with the existing rotating character model.
+- **Engine authority:** `city-interiors.js` holds the cabinet simulation on the existing `MemeCityCore.Engine` in Solo and on the authoritative Render room engine in Together. Server receives only finite allowed controls, not selected hazards, calculated scores, HP or rewards; off-site, forged, nonadjacent, double shifts and actions during pause fail closed.
+- **Economy and saves:** A genuine first clear awards exactly **35 play credits / 30 XP once per character**. Future clears improve the best score only. Additive optional `places.arcadeBest` and `places.arcadeClaimed` fields extend the existing nested `places` object without a save key/version migration; historic saves default to best=0/claimed=false. Online guest progress is temporary per existing room behavior. No crypto/token transactions.
+- **Testing:** New `scripts/city-chaos-arcade.test.mjs` covers location, turn loop, collisions, pause, scoring, a one-time/reload-safe reward, forged inputs, session-only online authority, and private snapshots. Mobile Chromium end-to-end test enters the **original** room, plays the actual cabinet via its controls, verifies first-clear prize and safe exit. Check the latest full CI result before merge; physical Android remains untested.
+- **Next:** deepen territory/faction scenarios and keep modernizing the streets/lighting in the same map; optional second cabinet only after physical Android acceptance. Maintain owner visual acceptance as a production release blocker.
+
+---
+
 ## One-world repairable fortress siege — November 3, 2026
 
 - **Branch:** `codex/one-world-quarantine-archetypes` / [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28). **Not merged or live.**
