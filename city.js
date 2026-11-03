@@ -111,6 +111,35 @@
    content.append(button(r.arena?'Abandon arena run':'Start survival →',async()=>{if(await action({type:r.arena?'endSurvival':'startSurvival'}))closePanel();}),button('Mark the arena terminal →',()=>track({...g,name:'Marshal / survival arena'})),button('Squad orders →',()=>panel('crew')),button('Medkits & supplies →',()=>panel('supplies')),node('p','beta-note','Start beside Marshal in Arena District. The run ends if you leave the district, get busted, abandon it or run out of time. Full completion rewards are paid once per completed run. All rewards are in-game only.'));
   }
  }
+ function quarantinePanel(content){
+  const q=state.quarantine||{...C.QUARANTINE,phase:'idle',cooldown:0},bunker=C.QUARANTINE;
+  const distance=Math.hypot(me.x-bunker.x,me.y-bunker.y),near=!me.room&&distance<=125;
+  content.append(node('p','district-kicker','ONE CITY / QUARANTINE BUNKER'),
+   node('h3','district-heading','Three waves in the dead zone'),
+   node('p','','Walk to the marked bunker in the existing city wilderness. Face Walkers, fast Runners, armored Tanks and Spitters with dodgeable toxic warnings. The same weapons, character rig, medkits and map work here.'),
+   node('p','', 'Complete all three waves within 205 seconds. Deal at least 55 damage yourself to earn 120 play credits and 100 XP. Teammates can assist in Together; only the starting player earns the personal completion payout. No tokens, wagers or on-chain transfers.'));
+  if(q.result)content.append(node('p','arena-result',
+   `LAST RUN / ${q.result.status.toUpperCase()} · wave ${q.result.wave}/3 · ${q.result.damage} damage · ${q.result.reward} play credits`));
+  if(q.phase==='active'){
+   content.append(node('p','beta-note',`WAVE ${q.wave}/3 · ${q.enemies} undead active · ${Math.ceil(q.remaining)}s remaining · ${q.ownerName||'A player'} is defending · ${q.mine?Math.floor(q.damage)+'/55 damage contributed':'Assist by fighting the zombies'}`));
+   if(q.mine)content.append(button('Retreat / end quarantine →',async()=>{
+    if(await action({type:'endQuarantine'}))panel('quarantine');
+   }));
+   else content.append(node('p','','This shared room has a running bunker defense. You can fight alongside the owner, but cannot start another run until it ends.'));
+  }else{
+   const start=button(q.cooldown>0?`Bunker resetting · ${Math.ceil(q.cooldown)}s`:
+    near?'Start three-wave quarantine →':'Go to bunker to unlock start →',async()=>{
+    if(!near)return track(bunker);
+    if(await action({type:'startQuarantine'}))closePanel();
+   });
+   start.disabled=q.cooldown>0;
+   content.append(start);
+  }
+  content.append(button('Mark Quarantine Bunker on world map →',()=>track(bunker)),
+   button('Open world map →',()=>panel('map')),
+   button('Medkits & supplies →',()=>panel('supplies')),
+   node('p','beta-note','The event ends on defeat, retreat, leaving the quarantine perimeter, or timeout. Enemy waves disappear when it ends. Earned play credits and XP use the existing Solo save; online guest rooms remain temporary.'));
+ }
  function risingHUD(){
   if(!me.rising)return;const r=me.rising,goal=R.objective(me),a=r.arena,g=R.nearest(me);
   const seconds=state.arcade.time;$('#city-clock').textContent=`${RV.clock(seconds)} / ${Math.floor(seconds/80)%3===1?'LIGHT RAIN':'CLEAR SKIES'}`;$('#landmark-count').textContent=`◇ ${r.found.length}/12 · HQ ${r.fortLevel}`;
@@ -351,10 +380,11 @@
   content.append(button('Optional token purchases & holder gear →',()=>panel('tokens')));
  }
  function panel(type){activePanel=type;$('#joystick-knob').style.transform='';keys.clear();held.clear();stick={x:0,y:0};firing=false;const content=$('#panel-content');content.replaceChildren();$('#panel-status').textContent='';
-  const titles={outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
+  const titles={outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',quarantine:'Quarantine bunker survival',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
   if(online&&C.CAPABILITIES.online.soloPanels.includes(type)){content.append(node('p','beta-note','This activity is available in solo mode. Your online journey uses different objectives that you can complete in this room.'),button('Online journey →',()=>panel('journey')));if(!$('#city-panel').open)$('#city-panel').showModal();return;}if(type==='outposts')outpostPanel(content);if(type==='clans')clanPanel(content);if(type==='places')placePanel(content);
   if(type==='multiplayer')multiplayerPanel(content);
   if(['journey','mobility','supplies','fortress','survival'].includes(type))risingPanel(type,content);
+  if(type==='quarantine')quarantinePanel(content);
   if(type==='crew')crewPanel(content);
   if(type==='districts')districtsPanel(content);
   if(type==='build')buildEditor(content);
@@ -376,7 +406,7 @@
   }
   if(type==='menu'){
    content.append(node('p','','Everything you need, one stop away. Solo play pauses while menus are open.'));
-   for(const [title,type]of [['District outpost workshop','outposts'],['Clans & block jobs','clans'],['Play together','multiplayer'],['Explore building interiors','places'],['Your city journey','journey'],['Hoverboard & travel','mobility'],['Arena survival','survival'],['Medkits & supplies','supplies'],['Upgrade fortress HQ','fortress'],['Explore districts','districts'],['Build my fortress','build'],['Hire / command defenders','crew'],['Beta token purchases','tokens'],['Equipment shop','shop'],['Player marketplace','market'],['Room chat','chat'],['Controls & guide','help'],['Pause / resume','pause']])content.append(button(title,()=>panel(type)));
+   for(const [title,type]of [['District outpost workshop','outposts'],['Clans & block jobs','clans'],['Play together','multiplayer'],['Explore building interiors','places'],['Your city journey','journey'],['Hoverboard & travel','mobility'],['Arena survival','survival'],['Quarantine bunker / undead waves','quarantine'],['Medkits & supplies','supplies'],['Upgrade fortress HQ','fortress'],['Explore districts','districts'],['Build my fortress','build'],['Hire / command defenders','crew'],['Beta token purchases','tokens'],['Equipment shop','shop'],['Player marketplace','market'],['Room chat','chat'],['Controls & guide','help'],['Pause / resume','pause']])content.append(button(title,()=>panel(type)));
   }
   if(type==='summary'){
    const r=me.lastResult;if(r){
@@ -404,7 +434,7 @@
    if(tracked){g.strokeStyle='#6ee5f3';g.lineWidth=3;g.beginPath();g.arc(tracked.x*sx,tracked.y*sy,7,0,Math.PI*2);g.stroke();}
    const note=node('p','beta-note',tracked?(routePath?'Safe route to ':'No safe path found to ')+tracked.name+' · tap another marker to change it.':'Tap a location marker to set your waypoint.');content.append(note);
    map.addEventListener('click',event=>{const point=M.fromCanvas(event.clientX,event.clientY,map.getBoundingClientRect(),WORLD),place=M.closest(mapPoints,point,190);if(place)track(place);else note.textContent='No nearby destination marker. Tap a marked location or use the buttons below.';});
-   const links=node('div','map-destinations');if(state.conflict)links.append(button('Founders Crossing conflict →',()=>track(state.conflict)));
+   const links=node('div','map-destinations');links.append(button('Quarantine Bunker / zombie survival →',()=>track(C.QUARANTINE)));if(state.conflict)links.append(button('Founders Crossing conflict →',()=>track(state.conflict)));
    for(const place of mapPoints.filter(p=>p.kind==='door'&&['supplies','shop','market'].includes(p.activity)))links.append(button(place.name+' →',()=>track(place)));
    for(const place of mapPoints.filter(p=>p.kind==='district'))links.append(button(place.name+' →',()=>track(place)));
    for(const plot of C.TOKEN_PLOTS)links.append(button((C.plotAccess(me,plot.id)?'OPEN · ':'LOCKED · ')+plot.name+' →',()=>track({x:plot.x+plot.w/2,y:plot.y+plot.h+65,name:plot.name+' entrance'})));
@@ -519,11 +549,26 @@
   $('#monk-verse-english').textContent=q.en;
   $('#monk-verse-source').textContent=q.ref+' · '+q.kind;
  }
- function updateUI(){updateMonkVerse();const t=catalog.get(me.avatar);$('#hud-avatar').src=window.MEME_TOKENS.find(x=>x.id===me.clanSkin)?.art||t.art;$('#hud-name').textContent=me.name;$('#hud-level').textContent=`Level ${C.level(me.xp)} · ${me.xp} XP`;$('#hud-credits').textContent=me.credits;const l=C.level(me.xp),start=50*(l-1)**2,end=50*l*l;$('#xp-fill').style.width=`${Math.min(100,100*(me.xp-start)/(end-start))}%`;$('#population').textContent=`${online?state.players.length:1} player${online&&state.players.length!==1?'s':''} · ${(state.arcade?.bots.filter(b=>b.hp>0&&Math.hypot(b.x-me.x,b.y-me.y)<1000).length||0)} bots · ${(state.arcade?.bots.filter(b=>b.kind==='zombie'&&b.hp>0&&Math.hypot(b.x-me.x,b.y-me.y)<1100).length||0)} walkers`;
+ function updateUI(){updateMonkVerse();const t=catalog.get(me.avatar);$('#hud-avatar').src=window.MEME_TOKENS.find(x=>x.id===me.clanSkin)?.art||t.art;$('#hud-name').textContent=me.name;$('#hud-level').textContent=`Level ${C.level(me.xp)} · ${me.xp} XP`;$('#hud-credits').textContent=me.credits;const l=C.level(me.xp),start=50*(l-1)**2,end=50*l*l;$('#xp-fill').style.width=`${Math.min(100,100*(me.xp-start)/(end-start))}%`;$('#population').textContent=`${online?state.players.length:1} player${online&&state.players.length!==1?'s':''} · ${(state.arcade?.bots.filter(b=>b.hp>0&&Math.hypot(b.x-me.x,b.y-me.y)<1000).length||0)} bots · ${(state.arcade?.bots.filter(b=>b.kind==='zombie'&&b.hp>0&&Math.hypot(b.x-me.x,b.y-me.y)<1100).length||0)} undead`;
   if(me.shots>lastShots){tone(440,.07,'sawtooth');shotFlash=.12;}lastShots=me.shots;const c=me.contract,target=WORLD.route[me.route];$('#mission-title').textContent=c?({bounty:`Street Sweep · ${c.progress}/4 KOs`,courier:'Deliver to Creator Alley',escape:'Lose the Heat · evade patrols'}[c.type]):target?`${me.route+1}/3 · Visit ${target.name}`:'Pick a new contract ⚡';$('#mission-detail').textContent=c?`${c.countdown>0?'GET READY '+Math.ceil(c.countdown):Math.ceil(c.remaining)+'s left'} · ${c.type==='bounty'?'Hold Fire. Auto-aim locks onto hostile bots.':c.type==='courier'?'Follow the purple beacon. Interact to deliver.':'Break line of sight. Stay hidden to cool your heat.'}`:'Open Missions for combat, delivery, and pursuit jobs.';
   const station=C.nearest(me),delivery=c?.type==='courier'&&Math.hypot(me.x-WORLD.route[1].x,me.y-WORLD.route[1].y)<100,checkpoint=target&&Math.hypot(me.x-target.x,me.y-target.y)<110;$('#interact').textContent=delivery?'E / DELIVER PACKAGE':checkpoint?'E / CLAIM CHECKPOINT':station?`E / ${station.hint.toUpperCase()}`:'E / EXPLORE';$('#interact').disabled=me.area!=='fortress'&&!delivery&&!checkpoint&&!station;if(me.area==='fortress'&&!station)$('#interact').textContent='E / BUILD';$('#fire').hidden=['creator','social'].includes(me.area);$('#dash').textContent=me.dashCooldown>0?`DASH ${me.dashCooldown.toFixed(1)}s`:'DASH ↯';$('#dash').disabled=me.dashCooldown>0;$('#district').textContent=me.area!=='hub'?([...C.DISTRICTS,...C.NEIGHBORHOODS].find(d=>d.id===me.area)?.name||'Dead Zone / Undead').toUpperCase():me.y<HUB.y+650?'CREATOR ALLEY':me.y>HUB.y+1000?'NIGHT MARKET':'FOUNDER PLAZA';
   $('#combat-score').textContent=`${me.kills} ${me.kills===1?'KO':'KOs'} · ${me.jobs} ${me.jobs===1?'job':'jobs'}`;$('#health-value').textContent=Math.ceil(me.hp);$('#health-fill').style.width=`${me.hp}%`;$('#health-fill').style.background=me.hp<35?'#ff5e79':'#6cf0bf';$('#mission-fill').style.width=c?`${100*c.remaining/(c.duration||90)}%`:'0%';$('#mission-kicker').textContent=c?'ACTIVE CONTRACT':'EXPLORE / PICK A JOB';const stars=me.heat<1?0:Math.ceil(me.heat/20);$('#wanted-stars').textContent='★'.repeat(stars)+'☆'.repeat(5-stars);$('#wanted-label').textContent=stars?`${me.policeSeen?'SPOTTED':me.quiet>5?'COOLING':'SEARCHING'} · ${Math.ceil(me.heat)}%`:'OFF THE RADAR';$('.game-shell').classList.toggle('wanted',me.heat>=22);if(me.hp<lastHP){tone(90,.13,'triangle',.05);if(!reduced)$('.game-shell').classList.add('hit');setTimeout(()=>$('.game-shell').classList.remove('hit'),160);}lastHP=me.hp;$('#combo-label').textContent=me.combo>1?`${me.combo} KO STREAK`:'';const ready=c?.countdown||me.defense?.countdown||0;$('#ready-countdown').hidden=!(entered&&ready>0&&!activePanel);$('#ready-countdown').textContent=ready>0?Math.ceil(ready):'';$('#dash').style.setProperty('--charge',`${100*(1-me.dashCooldown/2.8)}%`);$('.game-shell').dataset.area=me.area;if(me.area!=='hub'&&!c){const d=[...C.DISTRICTS,...C.NEIGHBORHOODS].find(d=>d.id===me.area)||{name:'Garden Roads'};$('#mission-kicker').textContent='DISTRICT / '+(me.area==='fortress'?'YOUR PRIVATE PLOT':'SOLO ALPHA');if(!c)$('#mission-title').textContent=d.name;$('#mission-detail').textContent=me.area==='fortress'?`${me.plot.length} pieces built · open Build to edit your fortress.`:me.area==='creator'?'Explore collections and change your streetwear.':me.area==='arena'?'Walk to the terminal to start Street Sweep here.':me.area==='social'?'Explore the waterfront. Use an emote to say hello.':'Follow the streets to any district. Open Map for directions.';$('#quick-job').textContent=me.area==='fortress'?'Build my fortress →':me.area==='creator'?'Explore collections →':me.area==='arena'?'Challenge terminal →':me.area==='social'?'Emotes →':'Open world map →';}else $('#quick-job').textContent='Choose contract →';if(me.blockJob){$('#mission-kicker').textContent='CLAN JOB / '+me.blockJob.type.toUpperCase();$('#mission-title').textContent=me.blockJob.type==='salvage'?'Salvage scramble':me.blockJob.type==='hold'?'Hold the block':'Follow the checkpoints';$('#mission-detail').textContent=`${Math.ceil(me.blockJob.remaining)}s left · ${me.blockJob.index}/${me.blockJob.points.length} stops · +1 reputation`;$('#quick-job').textContent='Clans & jobs →';}if(me.defense){$('#mission-kicker').textContent='FORTRESS DEFENSE';$('#mission-title').textContent=`${state.arcade.bots.filter(b=>b.raid&&b.owner===me.id&&b.hp>0).length} raiders remaining`;$('#mission-detail').textContent=`${me.defense.countdown>0?'GET READY '+Math.ceil(me.defense.countdown):Math.ceil(me.defense.timeLeft)+'s'} · defend your plot with your squad.`;$('#quick-job').textContent='Squad orders →';}if(me.lastResult&&me.lastResult.id!==lastResult){lastResult=me.lastResult.id;if(me.lastResult.status!=='abandoned')panel('summary');}if(me.noticeSeq&&me.noticeSeq!==lastNotice){lastNotice=me.noticeSeq;toast(me.notice);tone(me.notice.startsWith('Busted')?80:780,.18,'triangle');}
-  risingHUD();interiorsHUD();const ev=state.conflict;if(ev?.entry&&!me.room&&!me.contract&&!me.blockJob&&ev.phase!=='cooldown'){$('#mission-kicker').textContent='CROSSING / '+ev.phase.toUpperCase();$('#mission-title').textContent=ev.phase==='resolution'?ev.summary:`INSIDER ${ev.insiders} vs RUGS ${ev.rugs}`;$('#mission-detail').textContent=`${Math.ceil(ev.remaining)}s · ${Math.floor(ev.entry.damage)}/60 damage · ${Math.floor(ev.entry.active)}/10 active seconds`;$('#mission-fill').style.width=`${100*Math.min(1,ev.entry.damage/60,ev.entry.active/10)}%`;$('#quick-job').textContent='Conflict & clans →';}
+  risingHUD();interiorsHUD();const quarantine=state.quarantine;
+  if(quarantine?.phase==='active'&&!me.room&&(quarantine.mine||Math.hypot(me.x-quarantine.x,me.y-quarantine.y)<quarantine.radius)){
+   $('#mission-kicker').textContent='QUARANTINE / THREE WAVES';
+   $('#mission-title').textContent=quarantine.next>0?
+    `Wave ${quarantine.wave+1} incoming in ${Math.ceil(quarantine.next)}s`:
+    `Wave ${quarantine.wave}/3 · ${quarantine.enemies} undead remaining`;
+   $('#mission-detail').textContent=`${Math.ceil(quarantine.remaining)}s · ${quarantine.mine?
+    Math.floor(quarantine.damage)+'/55 personal damage':'Assist '+quarantine.ownerName} · dodge toxic impact zones`;
+   $('#mission-fill').style.width=`${100*quarantine.remaining/205}%`;
+   $('#quick-job').textContent='Quarantine / retreat →';
+   if(quarantine.mine&&quarantine.next>0){
+    $('#ready-countdown').hidden=!(entered&&!activePanel);
+    $('#ready-countdown').textContent=Math.ceil(quarantine.next);
+   }
+  }
+  const ev=state.conflict;if(ev?.entry&&!me.room&&!me.contract&&!me.blockJob&&ev.phase!=='cooldown'){$('#mission-kicker').textContent='CROSSING / '+ev.phase.toUpperCase();$('#mission-title').textContent=ev.phase==='resolution'?ev.summary:`INSIDER ${ev.insiders} vs RUGS ${ev.rugs}`;$('#mission-detail').textContent=`${Math.ceil(ev.remaining)}s · ${Math.floor(ev.entry.damage)}/60 damage · ${Math.floor(ev.entry.active)}/10 active seconds`;$('#mission-fill').style.width=`${100*Math.min(1,ev.entry.damage/60,ev.entry.active/10)}%`;$('#quick-job').textContent='Conflict & clans →';}
  }
  function roundRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
  function label(text,x,y,size=12,color='#d7e9c6'){ctx.font=`700 ${size}px Arial`;ctx.textAlign='center';ctx.fillStyle=color;ctx.fillText(text,x,y);}
@@ -543,6 +588,7 @@
  function draw(time,dt){if(me.room){drawInterior(time,dt);return;}const rect=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height,zoom=(w<600?.72:.88)*cameraZoom;ctx.fillStyle='#13232d';ctx.fillRect(0,0,w,h);paintX+=(me.x-paintX)*Math.min(1,dt*18);paintY+=(me.y-paintY)*Math.min(1,dt*18);const camX=paintX-w/(2*zoom),camY=paintY-h*.61/zoom;ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camX,-camY);worldView={x:camX,y:camY,zoom};D.land(ctx);if(routePath?.length>1){ctx.save();ctx.beginPath();routePath.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.strokeStyle="#6ee5f3bc";ctx.lineWidth=5;ctx.setLineDash([16,14]);ctx.stroke();ctx.restore();}
  const visible=(x,y,bw=200,bh=200)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150;
  const layers=[];
+ if(visible(C.QUARANTINE.x-245,C.QUARANTINE.y-180,490,360))drawQuarantineSite(time);
  for(const plot of C.TOKEN_PLOTS)if(visible(plot.x,plot.y,plot.w,plot.h)){
   const unlocked=C.plotAccess(me,plot.id);ctx.save();ctx.fillStyle=unlocked?plot.color+'22':'#09121e77';ctx.fillRect(plot.x,plot.y,plot.w,plot.h);ctx.strokeStyle=unlocked?plot.color:'#81909a';ctx.lineWidth=unlocked?8:4;ctx.setLineDash(unlocked?[]:[36,20]);ctx.strokeRect(plot.x,plot.y,plot.w,plot.h);ctx.setLineDash([]);
   label(plot.name.toUpperCase(),plot.x+plot.w/2,plot.y+230,30,plot.color);label(unlocked?'HOLDER VERIFIED / EXPANSION OPEN':'RESERVED / VERIFY MATCHING TOKEN',plot.x+plot.w/2,plot.y+295,18,unlocked?'#e3fad4':'#d2dadc');label('EMPTY CREATIVE LOT · NO COMBAT OR PAYOUT BONUS',plot.x+plot.w/2,plot.y+340,15,'#c5ced1');ctx.restore();
@@ -602,6 +648,32 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
  }
  function smoothBot(b,dt){
   if(!online)return b;let pos=positions.get(b.id);if(!pos||Math.hypot(pos.x-b.x,pos.y-b.y)>160){pos={x:b.x,y:b.y};positions.set(b.id,pos);}const k=Math.min(1,dt*14);pos.x+=(b.x-pos.x)*k;pos.y+=(b.y-pos.y)*k;return{...b,...pos};
+ }
+ function drawQuarantineSite(time){
+  // A playable landmark on the SAME world canvas. Artwork never changes
+  // `C.blocked()`, public roads, saved coordinates or building door IDs.
+  const q=C.QUARANTINE,x=q.x,y=q.y,active=state.quarantine?.phase==='active';
+  ctx.save();
+  ctx.fillStyle='#162b2b99';ctx.strokeStyle=active?'#c1f88c':'#91c79b';
+  ctx.lineWidth=5;ctx.setLineDash([18,12]);ctx.beginPath();
+  ctx.ellipse(x,y,180,90,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+  ctx.strokeStyle='#91ae90a0';ctx.lineWidth=9;
+  ctx.strokeRect(x-99,y-69,198,132);
+  ctx.fillStyle='#283b3c';ctx.fillRect(x-98,y-66,196,129);
+  ctx.strokeStyle='#a3c7b6';ctx.lineWidth=4;ctx.strokeRect(x-88,y-56,176,110);
+  for(let i=0;i<8;i++){
+   ctx.fillStyle=i%2?'#d7bf73':'#253e37';
+   ctx.fillRect(x-94+i*24,y-67,24,8);
+   ctx.fillRect(x-94+i*24,y+56,24,8);
+  }
+  // Distinct signal shelter, hazard signage and an interact pad. All visual.
+  ctx.fillStyle='#162e32';ctx.fillRect(x-43,y-39,86,68);
+  ctx.strokeStyle='#b0e4bc';ctx.lineWidth=3;ctx.strokeRect(x-43,y-39,86,68);
+  ctx.fillStyle='#e5dc9e';ctx.font='bold 17px Arial';ctx.textAlign='center';
+  ctx.fillText('BIOHAZARD',x,y-16);ctx.fillText('BUNKER',x,y+9);
+  ctx.fillStyle=active?'#ffba87':'#a9efc0';ctx.fillRect(x-22,y+37,44,6);
+  if(active&&!reduced){ctx.strokeStyle=Math.floor(time/220)%2?'#c4f89f':'#e5bc78';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,132,0,Math.PI*2);ctx.stroke();}
+  ctx.restore();
  }
  function drawZombieHazards(time){
   // Warnings belong to the existing world canvas, not a separate HUD/game.
