@@ -87,7 +87,7 @@ try{
  // not merely verify that a method exists or syntactically parses.
  const samples=await evalPage(`(()=>{
   const result=[];
-  for(const role of ['player','cop','gang','guard','civilian'])
+  for(const role of ['player','cop','gang','guard','civilian','zombie','monk'])
    for(const armed of [true,false])
     for(let deg=0;deg<360;deg+=45){
      const image=document.createElement('canvas');image.width=190;image.height=200;
@@ -102,7 +102,7 @@ try{
     }
   return result;
  })()`);
- assert.equal(samples.length,80);
+ assert.equal(samples.length,112,'all seven humanoid roles render the same live Canvas rig at eight bearings');
  // Bilingual monk should paint actual Hebrew/English and both fire tornadoes
  // on the same real Canvas used by the game, including a reduced-motion frame.
  const monkPixels=await evalPage(`(()=>{
@@ -120,7 +120,7 @@ try{
  assert.equal(monkPixels.count,20,'exactly twenty paired monk readings');
  assert.match(monkPixels.hebrew,/[א-ת]/,'Canvas monk uses Hebrew scripture');
  assert.match(monkPixels.english,/brokenhearted/);
- assert.ok(monkPixels.painted>2500,'monk robe, twin tornadoes, healing circle and speech actually paint');
+ assert.ok(monkPixels.painted>2500,'shared monk avatar skin, twin tornadoes, healing circle and bilingual speech actually paint');
  assert.equal(await evalPage("!!document.querySelector('#monk-verse[hidden]')"),true,'bilingual HUD stays hidden when no monk is present');
 
  for(const p of samples)assert.ok(p.painted>200,'Real Canvas body missing for '+JSON.stringify(p));
@@ -330,7 +330,7 @@ try{
  assert.equal(await headHash(),normalHead,'disconnect restores the standard face');
 
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
- console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six verified-only skin cards, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
+ console.log('PASS: 112 real Canvas armed/unarmed V1 character renders, Center City map, six verified-only skin cards, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
 }finally{
  try{ws?.close();}catch{}
  if(chrome){
