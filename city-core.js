@@ -249,7 +249,7 @@
   for(const o of pieces)if(o.kind==='home'&&o.row+1<rows&&solid.has((o.row+1)*cols+o.col))return 'Keep the Meme HQ front entrance clear.';
   return '';
  }
- const CAPABILITIES=Object.freeze({online:Object.freeze({actions:Object.freeze(['arcadeStart','arcadeShift','arcadeStep','arcadePause','arcadeResume','arcadeQuit','startQuarantine','endQuarantine','joinConflict','deliver','joinClan','clanSkin','blockJob','abandonBlock','avatar','style','checkpoint','buy','equip','list','purchase','cancel','chat','fire','dash','contract','abandon','ride','medkit','restock','claimChapter','enterBuilding','exitBuilding']),soloPanels:Object.freeze(['build','outposts','crew','fortress','survival'])}),solo:Object.freeze({persistent:'browser-local'})});
+ const CAPABILITIES=Object.freeze({online:Object.freeze({actions:Object.freeze(['startTerritoryDefense','endTerritoryDefense','arcadeStart','arcadeShift','arcadeStep','arcadePause','arcadeResume','arcadeQuit','startQuarantine','endQuarantine','joinConflict','deliver','joinClan','clanSkin','blockJob','abandonBlock','avatar','style','checkpoint','buy','equip','list','purchase','cancel','chat','fire','dash','contract','abandon','ride','medkit','restock','claimChapter','enterBuilding','exitBuilding']),soloPanels:Object.freeze(['build','outposts','crew','fortress','survival'])}),solo:Object.freeze({persistent:'browser-local'})});
  Engine.CAPABILITIES=CAPABILITIES;
  Engine.LAYOUT_VERSION=LAYOUT_VERSION;
  const RELEASE=Object.freeze({name:'Living Blocks',version:'Alpha 12'});
