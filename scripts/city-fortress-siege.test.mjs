@@ -98,12 +98,12 @@ test('core destruction loses siege once, cleans all raiders and never charges a 
 });
 test('siege victory is paid exactly once; cancellation, timeout and player defeat do not pay',()=>{
  for(const status of ['won','abandoned','expired','busted']){
-  const {e,p}=game(),credits=p.credits;
+  const {C,e,p}=game(),credits=p.credits;
   e.action(p.id,{type:'defenseDrill'});
   if(status==='won'){for(const b of raids(e))b.hp=0;e.tick(.05);}
   if(status==='abandoned')e.action(p.id,{type:'endDefense'});
   if(status==='expired'){p.defense.countdown=0;p.defense.timeLeft=.01;e.tick(.05);}
-  if(status==='busted'){p.hp=1;p.invulnerable=0;p.defense.countdown=0;const b=raids(e)[0];Object.assign(b,{x:p.x+10,y:p.y,cooldown:0});tick(e,.8);if(p.defense)throw Error('Busted player did not interrupt the siege');}
+  if(status==='busted'){Object.assign(p,{x:C.DISTRICTS[0].ox+1400,y:C.DISTRICTS[0].oy+1300,hp:1,invulnerable:0});p.defense.countdown=0;const b=raids(e)[0];Object.assign(b,{x:p.x+10,y:p.y,cooldown:0});tick(e,1.2);if(p.defense)throw Error('Busted player did not interrupt the siege');}
   assert.equal(p.defense,null,status+' should close');
   assert.equal(p.defenseResult.status,status);
   assert.equal(p.credits,status==='won'?credits+60:credits);
