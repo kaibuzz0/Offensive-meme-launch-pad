@@ -190,6 +190,7 @@
   return settlements.every(r=>Math.hypot(Math.max(r.ox-x,0,x-r.ox-2240),Math.max(r.oy-y,0,y-r.oy-1660))>=100);
  }
  function summonZombies(e){
+  if(e.quarantineEvent)return 0; // Bunker waves own the undead budget.
   const a=e.arcade,alive=a.bots.filter(b=>undead(b)&&b.hp>0).length;
   if(alive>=ZOMBIE_MAX)return 0;
   // Both the solo Engine and Together rooms spawn walkers in the same dead zones.
@@ -309,6 +310,105 @@
   a.zombieHazards=a.zombieHazards.filter(h=>h.warning>0).slice(-ZOMBIE_HAZARD_MAX);
   a.bots=a.bots.filter(b=>!undead(b)||b.hp>0&&b.age<=160||b.respawn>0);
  }
+
+ // ONE WORLD / QUARANTINE BUNKER. This is an event on the existing greenbelt,
+ // not a new map, UI runtime, building door, currency or save format.
+ // One encounter per room; Solo uses the same authoritative Engine methods.
+ const QUARANTINE=C.QUARANTINE;
+ const QUARANTINE_WAVES=Object.freeze([
+  ['walker','walker','runner'],
+  ['walker','runner','runner','spitter'],
+  ['walker','runner','tank','spitter','tank']
+ ]);
+ const QUARANTINE_REWARD=120,QUARANTINE_XP=100,QUARANTINE_MIN_DAMAGE=55;
+ function finishQuarantine(e,status){
+  const q=e.quarantineEvent;if(!q)return;
+  const a=e.arcade,p=e.players.get(q.owner);
+  const ids=new Set(a.bots.filter(b=>b.quarantineOwner===q.owner).map(b=>b.id));
+  a.zombieHazards=(a.zombieHazards||[]).filter(h=>!ids.has(h.source));
+  a.bullets=a.bullets.filter(b=>!ids.has(b.sourceId));
+  a.bots=a.bots.filter(b=>b.quarantineOwner!==q.owner);
+  e.quarantineEvent=null;
+  if(!p)return;
+  p.quarantineRun=null;
+  p.quarantineCooldown=status==='won'?55:status==='abandoned'?15:30;
+  const qualified=status==='won'&&q.damage>=QUARANTINE_MIN_DAMAGE;
+  const reward=qualified?QUARANTINE_REWARD:0,xp=qualified?QUARANTINE_XP:0;
+  if(qualified){p.credits+=reward;p.xp+=xp;p.jobs++;}
+  p.quarantineResult={status:status==='won'&&!qualified?'assisted':status,
+   wave:q.wave,damage:Math.round(q.damage),reward,xp,
+   elapsed:Math.round(205-Math.max(0,q.remaining))};
+  const line=qualified?`QUARANTINE CLEARED / +${reward} play credits / +${xp} XP. All three waves defeated.`:
+   status==='won'?`Quarantine cleared by allies. Deal at least ${QUARANTINE_MIN_DAMAGE} damage yourself to earn a personal reward.`:
+   status==='abandoned'?'Quarantine run abandoned. No rewards.':
+   status==='busted'?'Quarantine run lost. You recovered at the city spawn.':
+   status==='left'?'You left the quarantine perimeter. Run ended.':
+   status==='expired'?'Quarantine containment failed. The wave timer expired.':'Quarantine event closed.';
+  notify(p,line);effect(e,p.x,p.y,qualified?'BUNKER SECURED':'RUN ENDED',qualified?'#a6f7bc':'#f5c59d');
+ }
+ function quarantineWave(e){
+  const q=e.quarantineEvent;if(!q)return;
+  const owner=e.players.get(q.owner);if(!owner){finishQuarantine(e,'left');return;}
+  const a=e.arcade,types=QUARANTINE_WAVES[q.wave];if(!types)return;
+  const alive=a.bots.filter(b=>b.kind==='zombie'&&b.hp>0).length;
+  // Trim only dead challenge corpses, never another player's actors.
+  a.bots=a.bots.filter(b=>b.quarantineOwner!==q.owner||b.hp>0);
+  const budget=Math.min(types.length,ZOMBIE_MAX-alive,64-a.bots.length);
+  if(budget<2){finishQuarantine(e,'expired');return;}
+  let spawned=0;
+  for(let i=0;i<budget;i++){
+   const variant=types[i],type=ZOMBIE_TYPES[variant];let at=null;
+   for(let j=0;j<60;j++){
+    const angle=(i*1.256637+j*.618033+q.wave*.7),
+     radius=270+(i%3)*72+(j%4)*28,
+     x=QUARANTINE.x+Math.cos(angle)*radius,y=QUARANTINE.y+Math.sin(angle)*radius;
+    if(deadZone(x,y)&&distance(owner,{x,y})>=180){at={x,y};break;}
+   }
+   if(!at)continue;
+   const z=spawn(e,'zombie',at.x,at.y,'quarantine-'+(++e.serial));
+   Object.assign(z,{zombieType:variant,quarantineOwner:q.owner,quarantineWave:q.wave+1,
+    hp:type.hp,maxHp:type.hp,age:0,bite:0,attackWait:0,spitWait:0,spitCooldown:1.2,
+    state:'rising',speed:type.speed,originalX:at.x,originalY:at.y,
+    faceX:1,faceY:0,phase:i*.8});
+   spawned++;
+  }
+  if(spawned<2){finishQuarantine(e,'expired');return;}
+  q.wave++;q.spawned=true;q.next=0;
+  notify(owner,`QUARANTINE / WAVE ${q.wave} OF 3 · ${spawned} undead approaching. Defend the bunker!`);
+  effect(e,QUARANTINE.x,QUARANTINE.y,`WAVE ${q.wave}`,'#c6f18c');
+ }
+ function tickQuarantine(e,dt){
+  for(const p of e.players.values())p.quarantineCooldown=Math.max(0,(p.quarantineCooldown||0)-dt);
+  const q=e.quarantineEvent;if(!q)return;
+  const p=e.players.get(q.owner);
+  if(!p||p.room||p.deaths>q.startDeaths||p.hp<=0){
+   finishQuarantine(e,p?'busted':'left');return;
+  }
+  if(distance(p,QUARANTINE)>QUARANTINE.radius||C.areaAt(p.x,p.y)!=='greenbelt'){
+   finishQuarantine(e,'left');return;
+  }
+  q.remaining-=dt;
+  if(q.remaining<=0){finishQuarantine(e,'expired');return;}
+  if(q.spawned){
+   const living=e.arcade.bots.some(b=>b.quarantineOwner===q.owner&&b.hp>0);
+   if(living)return;
+   q.spawned=false;
+   if(q.wave===3){finishQuarantine(e,'won');return;}
+   q.next=4;
+   notify(p,`WAVE ${q.wave} CLEARED / Next wave in 4 seconds. Heal and regroup.`);
+  }
+  q.next=Math.max(0,q.next-dt);
+  if(!q.next)quarantineWave(e);
+ }
+ function quarantineSnapshot(e,id){
+  const q=e.quarantineEvent,p=e.players.get(id);
+  return {...QUARANTINE,phase:q?'active':'idle',owner:q?.owner||null,
+   ownerName:q?e.players.get(q.owner)?.name||'Guest':null,
+   mine:q?.owner===id,wave:q?.wave||0,next:q?.next||0,remaining:q?.remaining||0,
+   enemies:q?e.arcade.bots.filter(b=>b.quarantineOwner===q.owner&&b.hp>0).length:0,
+   damage:q?.owner===id?q.damage:0,minDamage:QUARANTINE_MIN_DAMAGE,
+   cooldown:p?.quarantineCooldown||0,result:p?.quarantineResult||null};
+ }
  P.join=function(...args){
   init(this);const p=base.join.apply(this,args);
   Object.assign(p,{hp:100,heat:0,fireCooldown:0,dashCooldown:0,dashTime:0,invulnerable:3,quiet:0,kills:0,jobs:0,deaths:0,contract:null,notice:'',noticeSeq:0,missionCooldown:0,facing:{x:1,y:0},dashVector:{x:1,y:0},policeSeen:false,lockTarget:null,combo:0,comboUntil:0,resultSeq:0,lastResult:null,fireHeld:false,fireAim:{x:1,y:0},shots:0});return p;
@@ -320,6 +420,7 @@
  };
  P.tick=function(dt){
   init(this);syncCrew(this);dt=Math.max(0,Math.min(.1,dt));base.tick.call(this,dt);const a=this.arcade;a.time+=dt;tickConflict(this,dt);tickZombies(this,dt);
+  tickQuarantine(this,dt);
   for(const p of this.players.values()){
    for(const k of ['fireCooldown','dashCooldown','invulnerable','missionCooldown'])p[k]=Math.max(0,p[k]-dt);
    p.quiet+=dt;
@@ -411,6 +512,7 @@
      const b=a.bots.find(b=>b.hp>0&&(!b.eventId||this.conflict?.phase==='active')&&C.npcHostile(b,this.players.get(q.creditOwner||q.owner))&&Math.hypot(q.x-b.x,q.y-b.y)<22);
      if(b){
       const actual=Math.min(b.hp,q.damage);b.hp-=q.damage;hit=true;b.hitFlash=.12;
+      if(b.quarantineOwner&&q.side==='player'&&(q.creditOwner||q.owner)===b.quarantineOwner&&this.quarantineEvent?.owner===b.quarantineOwner)this.quarantineEvent.damage+=actual;
       const event=this.conflict,entry=event?.participants.get(q.owner);if(q.side==='player'&&b.eventId===event?.id&&event.phase==='active'&&entry&&entry.side!==b.faction){const contributor=this.players.get(q.owner);if(contributor&&!contributor.room&&distance(contributor,CONFLICT)<=CONFLICT.radius)entry.damage+=actual;}
       const p=this.players.get(q.creditOwner||q.owner);effect(this,b.x,b.y,String(q.damage),'#ffcc71');
       if(p&&b.kind==='cop'){p.heat=Math.max(p.heat,75);p.quiet=0;}
@@ -449,11 +551,37 @@
   if(peaceful(p)&&['fire','contract'].includes(action.type))throw Error('This district is a peaceful zone.');
   if(action.type==='contract'&&!['hub','arena','fortress'].includes(C.areaAt(p.x,p.y)))throw Error('Start contracts from your fortress, Founder Square or Arena District.');
   const crewResult=crewAction(this,p,action);if(crewResult!==null)return crewResult;
+  if(action.type==='startQuarantine'){
+   if(p.room||C.areaAt(p.x,p.y)!=='greenbelt'||distance(p,QUARANTINE)>125)
+    throw Error('Walk to the Quarantine Bunker marker in the dead zone.');
+   if(p.contract||p.defense||p.blockJob||p.rising?.arena||p.quarantineRun)
+    throw Error('Finish or abandon your existing challenge first.');
+   if(this.quarantineEvent)throw Error('A quarantine run is already active in this room.');
+   if(p.quarantineCooldown>0)throw Error('Quarantine bunker is resetting. Try again shortly.');
+   if(p.heat>=22)throw Error('Lose the wanted patrol before starting quarantine.');
+   if(a.bots.length>59)throw Error('Too many active NPCs. Try quarantine after street conflicts end.');
+   // Relocate only non-engaged ambient zombies near this one bunker to avoid
+   // combining roaming hordes with the finite three-wave scenario.
+   a.bots=a.bots.filter(b=>b.kind!=='zombie'||b.quarantineOwner||
+    distance(b,QUARANTINE)>QUARANTINE.radius+300||b.state==='attack');
+   if(a.bots.filter(b=>b.kind==='zombie'&&b.hp>0).length>7)
+    throw Error('An active horde is blocking the bunker. Clear it first.');
+   if(p.rising){p.rising.riding=false;p.rising.speed=0;}
+   p.quarantineResult=null;p.quarantineRun=true;
+   this.quarantineEvent={owner:id,wave:0,next:4,remaining:205,spawned:false,
+    startDeaths:p.deaths,damage:0};
+   notify(p,'QUARANTINE BUNKER / Four seconds to prepare. Three waves, 205 seconds. Get clear of the marked impacts.');
+   return 'Quarantine started! Survive three waves. Deal at least 55 damage to earn 120 play credits and 100 XP.';
+  }
+  if(action.type==='endQuarantine'){
+   if(this.quarantineEvent?.owner!==id)throw Error('You have no active quarantine run.');
+   finishQuarantine(this,'abandoned');return 'You retreated from quarantine. No rewards awarded.';
+  }
   if(action.type==='joinConflict'){
    const c=conflictState(this);if(!['announced','gathering','active'].includes(c.phase)||c.phase==='active'&&c.remaining<60)throw Error('Enrollment is closed. Watch this round or return for the next one.');
    if(p.room||distance(p,CONFLICT)>CONFLICT.radius)throw Error('Walk to Founders Crossing to join.');
    if(!['congress','exit'].includes(p.clan))throw Error('Join Insider Cunts or Rugmasters first.');
-   if(p.contract||p.blockJob||p.defense||p.rising?.arena)throw Error('Finish your current challenge first.');
+   if(p.contract||p.blockJob||p.defense||p.rising?.arena||p.quarantineRun)throw Error('Finish your current challenge first.');
    if(c.participants.has(id))throw Error('Already enrolled in this conflict.');
    c.participants.set(id,{side:p.clan,damage:0,active:0,paid:false});return 'Enrolled. Deal 60 damage to rival event troops and actively play in the ring for 10 seconds. Rewards arrive once at resolution.';
   }
@@ -474,6 +602,7 @@
    p.dashVector={...p.facing};p.dashCooldown=2.8;p.dashTime=.22;p.invulnerable=Math.max(p.invulnerable,.3);return 'DASH';
   }
   if(action.type==='contract'){
+   if(p.quarantineRun)throw Error('Finish or retreat from quarantine first.');
    if(p.defense)throw Error('Finish your fortress defense drill first.');
    if(p.area==='arena'&&action.job!=='bounty')throw Error('Street Sweep runs here. Other jobs start in Founder Square.');
    if(p.contract)throw Error('Finish or abandon your current contract first.');
@@ -504,9 +633,9 @@
   if(action.type==='travel')a.bullets=a.bullets.filter(q=>q.owner!==id);
   return message;
  };
- P.leave=function(id){if(this.arcade){cleanup(this,id);this.arcade.guards=this.arcade.guards.filter(g=>g.owner!==id);}return base.leave.call(this,id);};
+ P.leave=function(id){if(this.quarantineEvent?.owner===id)finishQuarantine(this,'left');if(this.arcade){cleanup(this,id);this.arcade.guards=this.arcade.guards.filter(g=>g.owner!==id);}return base.leave.call(this,id);};
  P.snapshot=function(id){
   init(this);const s=base.snapshot.call(this,id);
-  s.conflict=conflictSnapshot(this,id);s.arcade={zombieNext:this.arcade.zombieNext,zombieHazards:(this.arcade.zombieHazards||[]).map(h=>({...h})),guards:this.arcade.guards.map(({plot,path,...g})=>({...g})),time:this.arcade.time,bots:this.arcade.bots.map(({path,plot,...b})=>({...b})),bullets:this.arcade.bullets.map(b=>({...b})),effects:this.arcade.effects.map(e=>({...e})),pickups:this.arcade.pickups.map(i=>({...i}))};return s;
+  s.conflict=conflictSnapshot(this,id);s.quarantine=quarantineSnapshot(this,id);s.arcade={zombieNext:this.arcade.zombieNext,zombieHazards:(this.arcade.zombieHazards||[]).map(h=>({...h})),guards:this.arcade.guards.map(({plot,path,...g})=>({...g})),time:this.arcade.time,bots:this.arcade.bots.map(({path,plot,...b})=>({...b})),bullets:this.arcade.bullets.map(b=>({...b})),effects:this.arcade.effects.map(e=>({...e})),pickups:this.arcade.pickups.map(i=>({...i}))};return s;
  };
 })(typeof window==='undefined'?globalThis:window);
