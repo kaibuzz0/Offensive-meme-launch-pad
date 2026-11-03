@@ -326,11 +326,11 @@ try{
  await evalPage("window.OffensiveWallet.disconnect();true");
  await waitFor(()=>evalPage("!window.OffensiveWallet.state().connected"),'wallet disconnected');
  await evalPage("document.querySelector('[data-panel=avatar]').click();true");
- await waitFor(()=>evalPage("document.querySelector('#panel-content').textContent.includes('FREE SKINS AVAILABLE')"),'holder skin revoked');
+ await waitFor(()=>evalPage("document.querySelector('#panel-content').textContent.includes('Connect once with the site wallet')"),'holder skin revoked');
  assert.equal(await headHash(),normalHead,'disconnect restores the standard face');
 
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
- console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six clan skins, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
+ console.log('PASS: 80 real Canvas armed/unarmed V1 character renders, Center City map, six verified-only skin cards, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
 }finally{
  try{ws?.close();}catch{}
  if(chrome){
