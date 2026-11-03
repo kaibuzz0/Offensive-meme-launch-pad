@@ -77,7 +77,8 @@ const city=read('city.html'),landing=read('index.html'),pages=read('.github/work
 for(const id of ['city-canvas','start-button','city-intro','room-mode','hud-credits','hud-level','mission-title','health-value','joystick','fire'])
  assert.ok(city.includes('id="'+id+'"'),'Original playable V1 HUD or control missing: '+id);
 assert.ok(city.includes('SOLO / LOCAL SAVE'),'Original V1 solo gameplay must be the default');
-assert.ok(city.includes('city.js?v=35-unified-npc-rig'),'Restored V1 playable engine must be loaded with the refreshed script version');
+assert.ok(city.includes('city.js?v=36-modern-buildings'),'Restored V1 playable engine must be loaded with the refreshed script version');
+assert.ok(city.includes('city-districts.js?v=36-modern-buildings')&&city.includes('city-room-visuals.js?v=36-modern-buildings'),'Modern exterior and interior renderers must be shipped together');
 assert.ok(city.includes('city-visuals.js?v=35-unified-npc-rig')&&city.includes('city-clans.js?v=34-verified-skins')&&city.includes('city-core.js?v=34-verified-skins'),'Signed beta-token cosmetics must use the updated shared player rig');
 assert.ok(city.includes('id="monk-verse"')&&city.includes('city-monk.js?v=35-unified-npc-rig'),'Bilingual monk dialogue must ship in the playable city');
 assert.ok(!city.includes('city-v2-release-gate.js'),'V1 entry must never force world2');

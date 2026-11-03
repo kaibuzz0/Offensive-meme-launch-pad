@@ -19,6 +19,75 @@
    for(const x of [84,1113]){box(g,x,165,3,590,r.accent+'66',1);}
    const images=[...art.values()].filter(img=>img.complete&&img.naturalWidth);
    for(let i=0;i<4;i++){const x=200+i*245;box(g,x-43,79,86,78,'#081a2d',4);if(images.length)g.drawImage(images[i%images.length],x-35,85,70,64);box(g,x-46,153,92,3,r.accent,1);}
+   // Modern interiors follow their exterior identity. All of this is baked
+   // into the same cached room floor; activity and collision furniture stay put.
+   const nightlife=['club','arcade'].includes(r.theme),
+    industrial=['garage','studio','shop','arena'].includes(r.theme),
+    gallery=['gallery','lobby','home'].includes(r.theme),
+    hospitality=['cafe','lounge','market'].includes(r.theme);
+   // Recessed structural wall bays, reflective glass and integrated LED strips.
+   for(let i=0;i<6;i++){
+    const x=117+i*164;
+    box(g,x,88,141,65,'#102739',4);
+    box(g,x+4,92,133,55,gradient(g,x+4,92,133,55,'#63858e','#1b3548'),2);
+    poly(g,[[x+9,96],[x+61,96],[x+21,145]],'#e6faf01b');
+    box(g,x+70,92,3,55,'#abc9cc7c');
+    box(g,x+4,143,133,3,r.accent+'ad',1);
+   }
+   // Ceiling trusses, vents and indirect lighting add building volume.
+   box(g,85,65,1030,20,'#0f2334',4);
+   box(g,90,76,1020,3,'#d8e6db44',1);
+   for(let i=0;i<8;i++){
+    const x=135+i*131;
+    box(g,x,77,69,6,'#4d6975',2);
+    box(g,x+8,81,53,2,nightlife?r.accent:'#bcddcd99',1);
+    const pool=g.createRadialGradient(x+35,170,7,x+35,170,105);
+    pool.addColorStop(0,nightlife?r.accent+'18':'#f6e7bb12');
+    pool.addColorStop(1,'#fff8ee00');
+    g.fillStyle=pool;g.fillRect(x-70,85,210,200);
+   }
+   // Floor inlays and specular diagonal light bands: no extra collision.
+   for(let y=205;y<742;y+=84){
+    box(g,120,y,960,2,(industrial?'#a2c3c3':'#d7e9d3')+'18',1);
+    for(let x=154;x<1070;x+=168)box(g,x,y+8,80,2,r.accent+'23',1);
+   }
+   if(nightlife){
+    // RGB architectural wall, concert screens and dance-floor running lights.
+    for(let x=160;x<1040;x+=76){
+     box(g,x,155,48,6,'#101c35',2);box(g,x+4,156,40,3,r.accent,1);
+     box(g,x+17,195,13,40,r.accent+'50',3);
+    }
+    for(let i=0;i<12;i++){
+     const x=390+(i%6)*71,y=370+Math.floor(i/6)*252;
+     box(g,x,y,40,4,i%2?r.accent:'#7cbfe9',2);
+    }
+    box(g,375,342,450,13,'#12263a',4);box(g,400,344,400,2,r.accent,1);
+   }else if(industrial){
+    // Brushed concrete floors, security screens and emergency strip lighting.
+    for(const x of [130,1010]){
+     box(g,x,265,64,186,'#1a3441',5);box(g,x+7,277,50,58,'#214b5a',3);
+     box(g,x+10,283,44,3,'#7edfcb',1);
+     for(let i=0;i<3;i++)box(g,x+12,294+i*13,38,5,i===1?r.accent:'#a7bfc080',2);
+    }
+    for(let x=168;x<1060;x+=130){box(g,x,675,95,7,'#263d48',1);box(g,x+5,676,85,2,'#93adac',1);}
+   }else if(hospitality){
+    // Warm timber trim, hanging sconces and a lobby floor runner.
+    box(g,350,343,500,22,'#342f35',8);
+    for(let x=170;x<1050;x+=150){box(g,x,166,13,56,'#b9a28a',4);
+     box(g,x-4,207,21,10,'#ffdda9',5);}
+    box(g,560,560,80,180,r.accent+'35',3);
+   }else if(gallery){
+    // Art-gallery architectural light boxes and quiet wall niches.
+    for(const x of [140,910]){
+     box(g,x,255,150,120,'#162b3c',5);box(g,x+8,262,134,103,r.accent+'2c',4);
+     box(g,x+17,275,116,74,'#7999aa44',2);
+    }
+    box(g,350,330,500,10,'#1b3547',4);box(g,356,332,488,2,r.accent,2);
+   }
+   // Entrance arrows are a floor graphic, not new door geometry.
+   for(const dx of [-21,0,21]){
+    poly(g,[[600+dx,730],[588+dx,709],[612+dx,709]],r.accent+'65');
+   }
    if(['club','arcade'].includes(r.theme)){
     box(g,450,405,300,220,'#12283a',4);for(let y=410;y<620;y+=30)for(let x=455;x<745;x+=30){box(g,x,y,26,26,((x+y)/30|0)%2?r.accent+'40':'#7e9cd22b',3);}
    }else{box(g,450,430,300,150,warm?'#7d5f61':'#254650',9);g.strokeStyle=r.accent+'44';g.lineWidth=2;g.strokeRect(460,440,280,130);text(g,r.theme==='home'?'HOME TURF':'OFFENSIVE / '+r.name.toUpperCase(),600,510,14,r.accent);}

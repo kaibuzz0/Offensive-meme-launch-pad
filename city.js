@@ -549,7 +549,7 @@
  }
  for(const n of C.NEIGHBORHOODS){const lot=C.outpostLot(n.id);if(!visible(lot.x,lot.y,220,220))continue;ctx.strokeStyle=n.color+'88';ctx.lineWidth=1;for(let row=0;row<3;row++)for(let col=0;col<3;col++)ctx.strokeRect(lot.x+col*64,lot.y+row*64,62,62);label('YOUR OUTPOST / MENU → WORKSHOP',lot.x+96,lot.y+215,10,n.color);}
  for(const o of me.outposts||[]){const lot=C.outpostLot(o.clan),t=catalog.get(o.clan);if(visible(lot.x,lot.y,220,220))layers.push({y:lot.y+o.row*64+58,draw:()=>{ctx.save();ctx.translate(lot.x-(C.PLOT.x-C.DISTRICTS[0].ox),lot.y-(C.PLOT.y-C.DISTRICTS[0].oy));D.piece(ctx,o,art.get(o.clan),t?.ticker||'MEME');const style=window.CityClans.outpostStyle(me,o.clan);if(style!=='classic'){ctx.strokeStyle=style==='holo'?'#c8a7ff':'#85fff0';ctx.lineWidth=2;ctx.strokeRect(C.PLOT.x-C.DISTRICTS[0].ox+o.col*64+2,C.PLOT.y-C.DISTRICTS[0].oy+o.row*64+2,58,58);if(style==='holo'){ctx.globalAlpha=.2;ctx.fillStyle='#c8a7ff';ctx.fillRect(C.PLOT.x-C.DISTRICTS[0].ox+o.col*64+2,C.PLOT.y-C.DISTRICTS[0].oy+o.row*64-45,58,102);ctx.globalAlpha=1;}}ctx.restore();}});}
- if(visible(HUB.x,HUB.y,2240,1660)){drawGround();layers.push(...streetLayers(time,visible));}for(const b of WORLD.buildings)if(visible(b.x,b.y,b.w,b.h))layers.push({y:b.y+b.h,draw:()=>drawCachedBuilding(b)});
+ if(visible(HUB.x,HUB.y,2240,1660)){drawGround();layers.push(...streetLayers(time,visible));}for(const b of WORLD.buildings)if(visible(b.x,b.y,b.w,b.h))layers.push({y:b.y+b.h,draw:()=>drawCachedBuilding(b,time)});
  for(const d of C.DISTRICTS)if(visible(d.ox,d.oy,2240,1660)){ctx.save();ctx.translate(d.ox,d.oy);D.floor(ctx,d.id);ctx.restore();for(const l of D.districtProps(ctx,d.id,me,art,catalog,time))layers.push({y:l.y+d.oy,draw:()=>{ctx.save();ctx.translate(d.ox,d.oy);l.draw();ctx.restore();}});}
  if(state.monk&&visible(state.monk.x-550,state.monk.y-550,1100,1100))layers.push({y:Math.max(state.monk.y,state.monk.tornado.y),draw:()=>window.CityMonk.draw(ctx,state.monk,reduced)});layers.push(...D.scenery(ctx,me,visible));IV.doors(ctx,me,time);RV.diamonds(ctx,me,state.arcade.time*1000);layers.push(...RV.layers(ctx,me,state.arcade.time*1000));
  for(const station of WORLD.stations)if(visible(station.x,station.y,80,80)){beacon(station,time,station.kind==='directions'?'#9daebf':'#8eb9b5');}
@@ -577,10 +577,23 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
   }
   ctx.drawImage(groundCache,HUB.x,HUB.y);
  }
- function drawCachedBuilding(b){
-  const ids={launch:'offensive',arcade:'you-missed',club:'maduro',shop:'redacted',market:'congress',garage:'exit'},img=art.get(b.token||ids[b.id]);const ready=!!img?.complete&&!!img.naturalWidth;let cached=buildingCache.get(b.id);
-  if(!cached||cached.ready!==ready){const surface=document.createElement('canvas');surface.width=b.w+180;surface.height=b.h+240;const display=ctx;ctx=surface.getContext('2d');ctx.translate(65-b.x,120-b.y);D.building(ctx,b,img);ctx=display;cached={surface,ready};buildingCache.set(b.id,cached);}
+ function drawCachedBuilding(b,time){
+  const ids={launch:'offensive',arcade:'you-missed',club:'maduro',shop:'redacted',market:'congress',garage:'exit'},
+    img=art.get(b.token||ids[b.id]),ready=!!img?.complete&&!!img.naturalWidth;
+  let cached=buildingCache.get(b.id);
+  // Pre-render structural geometry at high native world resolution. Keep only
+  // the latest 30 facades in memory; mobile devices never retain the full city.
+  if(!cached||cached.ready!==ready||cached.src!==(ready?img.src:null)){
+   const surface=document.createElement('canvas');surface.width=b.w+180;surface.height=b.h+240;
+   const display=ctx;ctx=surface.getContext('2d');ctx.translate(65-b.x,120-b.y);
+   try{D.building(ctx,b,img);}finally{ctx=display;}
+   cached={surface,ready,src:ready?img.src:null};
+   buildingCache.delete(b.id);buildingCache.set(b.id,cached);
+   if(buildingCache.size>30)buildingCache.delete(buildingCache.keys().next().value);
+  }
   ctx.drawImage(cached.surface,b.x-65,b.y-120);
+  // Only nearby facades receive the subtle animated lighting overlay.
+  if(!reduced&&Math.hypot(b.x+b.w/2-me.x,b.y+b.h/2-me.y)<930)D.buildingFX(ctx,b,time,reduced);
  }
  function streetLayers(time,visibleActor=()=>true){
   const t=state.arcade.time,layers=[];
