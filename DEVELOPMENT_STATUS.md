@@ -1,3 +1,15 @@
+## One-world District Defense / faction NPC response — November 3, 2026
+
+- **Development branch:** `codex/one-world-quarantine-archetypes`, [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28); public `main` remains unchanged. This adds gameplay to the **same world**.
+- **Encounter location:** Every established clan terminal is valid. A signed holder token is not necessary. Join a clan and walk to its existing beacon; start one shared encounter per room (4-second warmup, up to 115 seconds, two waves of three/four invaders plus one friendly responder per wave). Defenders and nearby resident NPCs autonomously prioritize rivals in the original combat engine, map and shared 360° rig.
+- **Real outcomes:** Player wins by clearing both waves while remaining alive/inside their district. The initiating player must deal at least 65 points of actual direct blaster damage and stay actively engaged for seven seconds to earn exactly +55 *play credits*, +50 XP and +1 clan reputation. Allied NPCs or other players can help but cannot passively farm or claim another player's reward. No PvP, currency transfer, or actual crypto payout.
+- **Safety:** Server validates location, clan, cooldown, combat state and no existing room defense. Event NPCs have a bounded count and are fully removed along with stray projectiles on win/retreat/disconnect/bust/timeout/leave-district. Temporary event state is not saved; earned reputation uses the existing `clans` save field. All saved structures, item ownership, wallets, and door IDs remain untouched.
+- **Code:** `city-territory.js` wraps the same `MemeCityCore.Engine`; `city-arcade.js` adapts resident NPC rally behavior and suppresses generic ambient bounties/heat; `city.js` exposes clan-panel controls, alerts, map routes and a mission HUD. Both `city.html` and `server/city-server.mjs` load the module; `pages.yml` packages it with the existing game.
+- **Verification:** `scripts/city-territory-defense.test.mjs` covers all six districts, actual weapon participation, autonomous responder wave count, no passive rewards, personal/online eligibility, concurrency, exact-once economy/reputation and cleanup. Full mobile Chromium UI workflow now covers joining a clan, physically starting, seeing wave one, locating alert in old map, and retreat. Check the latest PR CI result before release.
+- **Future:** civilian evasive/courier behavior, persistent territorial control and map/lighting polish. Do not revive the old V2 alternate client or replace the public world.
+
+---
+
 ## One-world playable Chaos Arcade cabinet — November 3, 2026
 
 - **Branch:** `codex/one-world-quarantine-archetypes`, [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28). **Unmerged / undeployed.**
