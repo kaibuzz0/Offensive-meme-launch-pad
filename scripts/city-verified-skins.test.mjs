@@ -7,7 +7,7 @@ const scope={window:{}};
 for(const f of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-visuals.js'])
  vm.runInNewContext(fs.readFileSync(new URL('../'+f,import.meta.url),'utf8'),scope);
 vm.runInNewContext(fs.readFileSync(new URL('../tokens.js',import.meta.url),'utf8'),scope);
-const C=scope.MemeCityCore,V=scope.window.CityVisuals,tokens=scope.window.MEME_TOKENS;
+const C=scope.window.MemeCityCore,V=scope.window.CityVisuals,tokens=scope.window.MEME_TOKENS;
 const skins=['you-missed','maduro','redacted','congress','exit','rug'];
 const distinctive={
  'you-missed':'#d12834',maduro:'#786443',redacted:'#ebebe9',
