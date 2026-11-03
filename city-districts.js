@@ -92,7 +92,7 @@
  }
  // Window patterns are deterministic across Solo and Together, and never use
  // Math.random(), Date.now() or high-cost per-frame shader effects.
- function buildingSeed(b){let seed=2166136261;for(const ch of b.id)seed=Math.imul(seed^ch.charCodeAt(0),16777619)>>>0;return seed;}
+ function buildingSeed(b){let seed=2166136261;for(const ch of String(b.id||b.label||'city-building'))seed=Math.imul(seed^ch.charCodeAt(0),16777619)>>>0;return seed;}
  function building(c,b,image){
   const {x,y,w,h}=b,p=buildingProfile(b),accent=p.accent,ground=y+h,
    top=y-57,shopTop=ground-94,upper=Math.max(35,shopTop-top-10),seed=buildingSeed(b),
