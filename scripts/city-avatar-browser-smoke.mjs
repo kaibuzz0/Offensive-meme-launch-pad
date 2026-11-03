@@ -217,7 +217,7 @@ try{
  assert.match(qPanel.copy,/Go to bunker to unlock start/,'start is proximity gated on phone');
  assert.equal(qPanel.hasRoute,true,'existing map routing is available');
  assert.equal(await evalPage("document.querySelector('#city-intro').hidden"),true,'quarantine does not replace the one-tap solo game');
- await evalPage("document.querySelector('#close-panel').click();true");
+ await evalPage("document.querySelector('#close-panel').click();document.querySelector('[data-panel=map]').click();true");
  const mobileMapShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
  assert.ok(mobileMapShot.data.length>2000,'mobile expanded-city map rendered in Chrome');
  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
