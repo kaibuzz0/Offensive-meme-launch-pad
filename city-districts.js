@@ -60,31 +60,208 @@
   box(c,30,-10,5,5,'#e8e4c2',1);box(c,30,5,5,5,'#e8e4c2',1);box(c,-36,-10,3,5,'#bb6978',1);box(c,-36,5,3,5,'#bb6978',1);box(c,35,-6,2,12,'#879b9e',1);
   const beam=c.createLinearGradient(35,0,100,0);beam.addColorStop(0,'#fff0c417');beam.addColorStop(1,'#fff0c400');poly(c,[[35,-10],[100,-27],[100,27],[35,10]],beam);c.restore();
  }
+
+ // The architecture is paint-only. Building footprints, door coordinates,
+ // navigation, occlusion ordering and every saved player plot remain unchanged.
+ // Details are baked once into offscreen canvases, not rebuilt every frame.
+ const ARCHITECTURE=Object.freeze({
+  headquarters:{wall:'#45525c',shadow:'#192a35',roof:'#344751',trim:'#b4c6c4',glass:'#315769',glassLit:'#b8f0d1',metal:'#889fa7',title:'COMMAND'},
+  arcade:{wall:'#47415e',shadow:'#211a37',roof:'#37334f',trim:'#b7a1ce',glass:'#292b55',glassLit:'#e4a4ff',metal:'#9688ac',title:'ARCADE'},
+  nightlife:{wall:'#4e425b',shadow:'#211e34',roof:'#352c48',trim:'#bca5c1',glass:'#34315c',glassLit:'#f2acdf',metal:'#a991ba',title:'AFTER DARK'},
+  industrial:{wall:'#555f62',shadow:'#273840',roof:'#40565f',trim:'#afc0bb',glass:'#2e4b58',glassLit:'#b7e4dc',metal:'#8ca0a2',title:'WORKS'},
+  market:{wall:'#4a5862',shadow:'#1c303b',roof:'#334955',trim:'#a8c5ca',glass:'#315d69',glassLit:'#ebd7a3',metal:'#8daeb2',title:'EXCHANGE'},
+  medical:{wall:'#4b6164',shadow:'#173d46',roof:'#355b60',trim:'#c1dfd9',glass:'#376b71',glassLit:'#b8ffe4',metal:'#a2d4cb',title:'MEDICAL'},
+  creative:{wall:'#594d65',shadow:'#28233a',roof:'#453a52',trim:'#c7b8cf',glass:'#405168',glassLit:'#dcc6fa',metal:'#a8a1bc',title:'CREATIVE'},
+  cafe:{wall:'#665951',shadow:'#42362e',roof:'#53443e',trim:'#d8c7a6',glass:'#536c67',glassLit:'#ffe0a6',metal:'#b7a58d',title:'SOCIAL'},
+  arena:{wall:'#596269',shadow:'#293d43',roof:'#414e54',trim:'#b9c3b8',glass:'#334f5e',glassLit:'#ffcf9b',metal:'#97a9ad',title:'ARENA'},
+  generic:{wall:'#4b5964',shadow:'#20333e',roof:'#394c56',trim:'#b2c8c9',glass:'#315465',glassLit:'#c3e9e2',metal:'#8da6a8',title:'CITY'}
+ });
+ function buildingProfile(b){
+  const name=(b.id+' '+(b.label||'')+' '+(b.activity||'')+' '+(b.theme||'')).toLowerCase();
+  let kind='generic';
+  if(/proving ground|arena|stadium/.test(name))kind='arena';
+  else if(/medic|clinic|medical|hospital/.test(name))kind='medical';
+  else if(/arcade|game center/.test(name))kind='arcade';
+  else if(/club|unfiltered|nightlife/.test(name))kind='nightlife';
+  else if(/hq|headquarter|fortress|command|launch/.test(name))kind='headquarters';
+  else if(/garage|motors|workshop|factory|supply|outfitters/.test(name))kind='industrial';
+  else if(/market|exchange|trading|insider|token/.test(name))kind='market';
+  else if(/gallery|studio|print|creator|art/.test(name))kind='creative';
+  else if(/cafe|lounge|common room|boardwalk/.test(name))kind='cafe';
+  return {kind,...ARCHITECTURE[kind],accent:b.hue||'#90c7be'};
+ }
+ // Window patterns are deterministic across Solo and Together, and never use
+ // Math.random(), Date.now() or high-cost per-frame shader effects.
+ function buildingSeed(b){let seed=2166136261;for(const ch of b.id)seed=Math.imul(seed^ch.charCodeAt(0),16777619)>>>0;return seed;}
  function building(c,b,image){
-  const x=b.x,y=b.y,w=b.w,h=b.h,face=y+h-85,accent=b.hue||'#829491';c.save();
-  poly(c,[[x+15,y+h],[x+w+15,y+h],[x+w+65,y+h+45],[x+65,y+h+45]],'#040c154a');
-  // Stepped roof, masonry side returns and a full-height shopfront.
-  box(c,x,y-54,w,h-31,grad(c,x,y,w,h,'#57646b','#293c48'),4);
-  box(c,x+8,y-46,w-16,h-47,grad(c,x,y,w,h,'#263b47','#1a2b37'),2);
-  for(let yy=y-32;yy<face-14;yy+=16){c.strokeStyle='#cfdae018';c.lineWidth=.7;c.beginPath();c.moveTo(x+10,yy);c.lineTo(x+w-10,yy);c.stroke();for(let xx=x+12+(Math.floor(yy/16)%2)*24;xx<x+w-14;xx+=48){c.beginPath();c.moveTo(xx,yy);c.lineTo(xx,yy+15);c.stroke();}}
-  box(c,x+15,y-36,w-30,h-100,grad(c,x,y,w,h,'#43555e','#253846'),3);
-  // Rooftop planters, ventilation and skylights read at game scale.
-  for(let i=0;i<3;i++){const xx=x+30+i*53;box(c,xx,y-18,43,30,'#152832',3);box(c,xx+2,y-20,39,24,'#7b8d92',2);c.strokeStyle='#30434e';for(let j=0;j<4;j++){c.beginPath();c.moveTo(xx+6+j*8,y-16);c.lineTo(xx+6+j*8,y);c.stroke();}}
-  box(c,x+w-93,y-25,66,48,'#172831',3);box(c,x+w-89,y-29,58,44,'#667c83',3);c.strokeStyle='#263b45';for(let j=0;j<4;j++){c.beginPath();c.ellipse(x+w-60,y-7,7+j*4,5+j*3,0,0,7);c.stroke();}
-  if(image?.complete&&image.naturalWidth){c.save();c.beginPath();c.roundRect(x+w/2-46,y+28,92,80,5);c.clip();c.drawImage(image,x+w/2-46,y+22,92,92);c.fillStyle='#182c4328';c.fillRect(x+w/2-46,y+22,92,92);c.restore();box(c,x+w/2-48,y+108,96,4,accent,1);}
-  box(c,x,face,w,85,grad(c,0,face,0,85,'#52616a','#233340'));
-  // Architectural piers divide reflective glazing into bays.
-  for(let xx=x+14;xx<x+w-30;xx+=54){box(c,xx,face+8,42,59,'#0a1c29',2);box(c,xx+3,face+11,36,51,grad(c,xx,face,36,50,'#93acb1','#2d5362'));poly(c,[[xx+5,face+12],[xx+23,face+12],[xx+5,face+43]],'#eaf1e51b');box(c,xx+19,face+11,2,51,'#203b49');box(c,xx+3,face+35,36,2,'#203b49');}
-  box(c,x+w/2-29,face+12,58,73,'#10222e',2);box(c,x+w/2-24,face+17,48,63,grad(c,0,face,0,73,'#6b909d','#1c3e51'));box(c,x+w/2,face+17,2,63,'#a6b3ae');box(c,x+w/2+17,face+48,2,10,'#e0d0a6');
-  box(c,x-4,face-35,w+8,35,grad(c,x,0,w,0,'#152b38','#233c48'),3);box(c,x-4,face-35,w+8,3,accent,1);
-  text(c,b.label,x+w/2,face-12,Math.min(18,w/19),'#f0eee4');
-  box(c,x-6,y-58,w+12,9,'#a1aea9',2);box(c,x-6,y-49,w+12,4,'#122834');box(c,x,y+h-5,w,6,'#9caaa5');
-  for(const xx of [x+9,x+w-16]){box(c,xx,face+3,7,75,'#8b9b9e');lamp(c,xx+4,y+h+10);}
-  const wash=c.createLinearGradient(0,y+h,0,y+h+65);wash.addColorStop(0,accent+'35');wash.addColorStop(1,accent+'00');c.fillStyle=wash;c.fillRect(x+15,y+h+6,w-30,65);
-  // Lit shopfront glass and a canopy give every building a clearer street-level entrance.
-  const neon=b.hue||'#a5cfca';box(c,x+w/2-40,face+3,80,5,neon,2);box(c,x+w/2-36,face+8,72,3,'#e0f4de88',1);
-  c.strokeStyle=neon+'77';c.lineWidth=1.5;c.strokeRect(x+w/2-28,face+14,56,67);
-  text(c,'OPEN',x+w-43,face+49,8,'#d9f7ce');
+  const {x,y,w,h}=b,p=buildingProfile(b),accent=p.accent,ground=y+h,
+   top=y-57,shopTop=ground-94,upper=Math.max(35,shopTop-top-10),seed=buildingSeed(b),
+   cols=Math.max(2,Math.min(15,Math.floor((w-50)/62))),rows=Math.max(1,Math.min(5,Math.floor(upper/48))),
+   bay=(w-44)/cols; // Visual width only: never changes collision geometry.
+  c.save();
+  // Contact shadow and two offset silhouettes make buildings sit in the scene.
+  const shadow=c.createRadialGradient(x+w/2,ground+12,15,x+w/2,ground+12,w*.73);
+  shadow.addColorStop(0,'#020c17a8');shadow.addColorStop(1,'#020c1700');
+  c.fillStyle=shadow;c.fillRect(x-w*.24,ground-35,w*1.5,115);
+  poly(c,[[x+12,ground-1],[x+w+12,ground-1],[x+w+49,ground+35],[x+48,ground+35]],'#06131d63');
+  // West/south/east structure: roof projects forward, with an actual return wall.
+  poly(c,[[x+w-6,top],[x+w+29,top+25],[x+w+29,ground-6],[x+w-6,ground]],p.shadow);
+  box(c,x+1,top,w-3,ground-top,grad(c,x,top,w,ground-top,p.wall,p.shadow),3);
+  box(c,x+11,top+10,w-23,shopTop-top-9,
+    grad(c,x+10,top+6,w,Math.max(20,shopTop-top),p.wall,p.shadow),1);
+  box(c,x+10,top+4,w-21,4,p.trim+'99',1);
+  // Material detail: masonry courses, seams, and high vertical pilasters.
+  const course=p.kind==='industrial'||p.kind==='arena'?16:28;
+  c.save();c.beginPath();c.rect(x+12,top+13,w-26,Math.max(0,shopTop-top-13));c.clip();
+  for(let yy=top+14;yy<shopTop-2;yy+=course){
+   c.strokeStyle=p.kind==='industrial'?'#c1d6d51b':'#dce6e51a';c.lineWidth=1;
+   c.beginPath();c.moveTo(x+14,yy);c.lineTo(x+w-14,yy);c.stroke();
+   if(p.kind==='industrial')for(let xx=x+19;xx<x+w-16;xx+=22)box(c,xx,yy+2,1,course-3,'#050e1b25');
+  }
+  for(let i=0;i<Math.min(18,Math.ceil(w/80));i++){
+   const xx=x+18+(i*83)%Math.max(20,w-36),yy=top+13+((i*57)%Math.max(14,shopTop-top-22));
+   box(c,xx,yy,9,2,i%2?'#eff9f311':'#07182425',1);
+  }
+  c.restore();
+  // Full-depth floor-to-ceiling glazing: layered glass, heavy mullions,
+  // interior light, blinds, and angled reflections.
+  const windowArea=Math.max(28,shopTop-top-28),rowH=Math.min(52,windowArea/rows);
+  for(let floor=0;floor<rows;floor++)for(let i=0;i<cols;i++){
+   const wx=x+22+bay*i+4,wy=top+16+floor*rowH,
+    ww=Math.max(15,bay-13),wh=Math.max(13,rowH-8),
+    lit=((seed+i*17+floor*29)>>>0)%5!==0;
+   box(c,wx-3,wy-3,ww+6,wh+6,'#152531',2);
+   box(c,wx,wy,ww,wh,grad(c,wx,wy,ww,wh,lit?p.glassLit:p.glass,p.glass),1);
+   box(c,wx+2,wy+2,ww*.31,wh*.7,'#f4fff122',1);
+   poly(c,[[wx+ww*.55,wy],[wx+ww*.83,wy],[wx+ww*.38,wy+wh],[wx+ww*.1,wy+wh]],'#e5f8f21d');
+   box(c,wx+ww*.47,wy,2,wh,p.metal,0);
+   box(c,wx,wy+wh*.56,ww,1.4,p.metal+'b8');
+   if(lit){box(c,wx+ww*.05,wy+wh-4,ww*.9,2,accent+'66');}
+   if(p.kind==='nightlife'||p.kind==='arcade')box(c,wx+2,wy+wh-2,ww-4,2,accent+'bb');
+  }
+  for(let i=0;i<=cols;i++){const xx=x+16+i*(w-32)/cols;box(c,xx,top+7,3,shopTop-top-4,p.metal+'96');}
+  // 2.5D roof: visible pitched slab, parapet lip, side return, coping
+  // highlights and HVAC equipment. All remain inside the cached sprite.
+  poly(c,[[x-6,top-7],[x+w-6,top-7],[x+w+25,top+23],[x+25,top+23]],p.roof);
+  poly(c,[[x-6,top-7],[x+w-6,top-7],[x+w-6,top+1],[x-6,top+1]],p.trim);
+  poly(c,[[x+w-6,top-7],[x+w+25,top+23],[x+w+25,top+30],[x+w-6,top+1]],p.shadow);
+  c.strokeStyle='#f5fcf54a';c.lineWidth=1.5;c.beginPath();c.moveTo(x+20,top+19);c.lineTo(x+w+16,top+19);c.stroke();
+  // Vents, fans, solar panels, roof access and safety rails vary by footprint.
+  for(let i=0;i<Math.min(5,Math.max(1,Math.floor(w/180)));i++){
+   const xx=x+35+i*((w-85)/Math.max(1,Math.min(5,Math.floor(w/180))));
+   box(c,xx,top-28,Math.min(42,w/9),21,'#142a35',3);
+   box(c,xx+3,top-29,Math.min(35,w/10),10,p.metal,1);
+   c.strokeStyle='#142d35';c.lineWidth=1;
+   for(let j=0;j<4;j++){c.beginPath();c.moveTo(xx+6+j*7,top-27);c.lineTo(xx+6+j*7,top-21);c.stroke();}
+  }
+  if(['headquarters','arena'].includes(p.kind)){
+   // Fortified merlons and broad roof spotlights.
+   for(let xx=x+20;xx<x+w-20;xx+=55)box(c,xx,top-24,25,18,p.metal,2);
+   for(const xx of [x+23,x+w-28]){
+    box(c,xx,top-48,5,28,p.trim,1);box(c,xx-8,top-52,22,10,'#d3d6ce',2);
+    poly(c,[[xx-10,top-43],[xx+10,top-43],[xx+66,top+42],[xx-66,top+42]],'#fff3c00d');
+   }
+  }else if(p.kind==='industrial'){
+   for(let i=0;i<2;i++){const xx=x+w*.7+i*35;
+    box(c,xx,top-57,20,46,'#344852',3);box(c,xx-3,top-60,26,6,p.trim,2);
+    c.strokeStyle='#b5c4c049';c.lineWidth=3;c.beginPath();c.moveTo(xx+4,top-52);c.lineTo(xx+4,top-21);c.stroke();
+   }
+  }else{
+   box(c,x+w*.76,top-34,Math.min(72,w*.15),24,'#1a3543',2);
+   box(c,x+w*.76+4,top-30,Math.min(64,w*.14),16,'#5f8290',1);
+  }
+  // Ground floor uses deep recessed glass with realistic entrance framing.
+  box(c,x-3,shopTop,w+6,94,grad(c,x,shopTop,w,94,p.wall,p.shadow),2);
+  box(c,x-6,shopTop-11,w+12,13,p.roof,2);
+  box(c,x-6,shopTop-11,w+12,3,p.trim,1);
+  const doorW=Math.max(52,Math.min(80,w*.23)),doorX=x+w/2-doorW/2,doorY=shopTop+10;
+  for(let i=0;i<Math.min(10,Math.floor((w-32)/56));i++){
+   const wx=x+18+i*((w-36)/Math.min(10,Math.floor((w-32)/56))),ww=Math.max(23,(w-36)/Math.min(10,Math.floor((w-32)/56))-7);
+   if(wx+ww>doorX-7&&wx<doorX+doorW+7)continue;
+   box(c,wx-2,shopTop+9,ww+4,65,'#142635',2);
+   box(c,wx,shopTop+12,ww,58,grad(c,wx,shopTop,ww,58,p.glassLit,p.glass),1);
+   poly(c,[[wx+4,shopTop+13],[wx+ww*.45,shopTop+13],[wx+4,shopTop+46]],'#f4fbf431');
+   box(c,wx+ww*.5,shopTop+12,2,58,p.trim+'9c');
+  }
+  // Door is visually centered exactly above CityInteriors.door(b).
+  box(c,doorX-9,doorY-5,doorW+18,78,'#10222d',3);
+  box(c,doorX-4,doorY,doorW+8,69,p.metal,2);
+  box(c,doorX,doorY+4,doorW,61,grad(c,doorX,doorY,doorW,62,p.glassLit,p.glass),1);
+  box(c,doorX+doorW/2-1,doorY+4,2,61,'#c9d3cd');
+  for(const side of [-1,1])box(c,doorX+doorW/2+side*(doorW*.28),doorY+35,2.4,13,'#e9dbb1',1);
+  poly(c,[[doorX+3,doorY+7],[doorX+doorW*.45,doorY+7],[doorX+4,doorY+52]],'#fffbe633');
+  box(c,doorX-14,ground-3,doorW+28,6,p.trim,1);
+  // A real layered marquee replaces the old flat text strip.
+  box(c,x+13,shopTop-32,w-26,28,'#0c1c2bdc',4);
+  box(c,x+17,shopTop-28,w-34,20,grad(c,x+17,shopTop-28,w-34,20,p.roof,p.shadow),2);
+  box(c,x+15,shopTop-33,w-30,2.5,accent,1);
+  box(c,x+17,shopTop-8,w-34,2,accent+'bf',1);
+  c.font=`800 ${Math.min(17,Math.max(10,w/24))}px Arial`;
+  c.fillStyle='#f1f6ed';c.textAlign='center';c.textBaseline='alphabetic';
+  c.fillText((b.label||p.title).toUpperCase(),x+w/2,shopTop-12,w-56);
+  // Venue-specific authored street architecture, not just hue swaps.
+  if(p.kind==='arcade'||p.kind==='nightlife'){
+   for(const xx of [x+11,x+w-16]){box(c,xx,shopTop-31,6,109,'#13182d');
+    for(let j=0;j<9;j++)box(c,xx+1,shopTop-26+j*11,4,7,j%2?accent:p.glassLit,2);}
+   for(let i=0;i<Math.min(9,Math.floor(w/42));i++)box(c,x+26+i*(w-52)/Math.max(1,Math.min(9,Math.floor(w/42))-1||1),shopTop-10,6,3,'#f3fff1',1);
+  }else if(p.kind==='cafe'){
+   poly(c,[[x+15,shopTop+3],[x+w-15,shopTop+3],[x+w-27,shopTop+31],[x+29,shopTop+31]],'#d3c09e');
+   for(let i=0;i<8;i++)poly(c,[[x+15+i*(w-30)/8,shopTop+4],[x+15+(i+1)*(w-30)/8,shopTop+4],
+    [x+29+(i+1)*(w-58)/8,shopTop+31],[x+29+i*(w-58)/8,shopTop+31]],i%2?'#e9d1b2':accent);
+  }else if(p.kind==='industrial'){
+   for(const xx of [x+21,x+w-90]){box(c,xx,shopTop+16,65,59,'#1b323e',2);
+    for(let j=0;j<6;j++)box(c,xx+3,shopTop+21+j*9,59,2,p.metal+'91');
+   }
+  }else if(p.kind==='medical'){
+   const xx=x+w-41,yy=shopTop+39;
+   box(c,xx-14,yy-5,28,10,'#e5fff2',2);box(c,xx-5,yy-14,10,28,'#e5fff2',2);
+  }else if(p.kind==='headquarters'){
+   for(const xx of [x+20,x+w-25]){box(c,xx,shopTop+8,10,73,p.metal,2);
+    box(c,xx-6,shopTop+9,22,7,'#d9cdb1',1);}
+  }else if(p.kind==='creative'){
+   for(let i=0;i<5;i++){const xx=x+26+i*(w-52)/5;if(xx>doorX-30&&xx<doorX+doorW+15)continue;
+    box(c,xx,shopTop+31,26,26,['#d5b3df','#a1d8cd','#efceaa','#b4c6e5','#e0b2cb'][i],3);}
+  }else if(p.kind==='market'){
+   box(c,x+w-77,shopTop+33,47,22,'#122c38',3);
+   c.font='700 13px Arial';c.fillStyle='#cbf5ca';c.fillText('▲',x+w-53,shopTop+48);
+  }
+  // Identity decal, subtle neon tubes, wall lights and a lit footpath.
+  if(image?.complete&&image.naturalWidth){
+   const badge=Math.min(73,Math.max(32,w*.17)),bx=x+w-15-badge,by=top+32;
+   box(c,bx-6,by-6,badge+12,badge+12,'#132835',7);
+   box(c,bx-4,by-4,badge+8,badge+8,accent+'65',6);
+   c.save();c.beginPath();c.roundRect(bx,by,badge,badge,4);c.clip();c.drawImage(image,bx,by,badge,badge);c.restore();
+   box(c,bx-4,by+badge+3,badge+8,3,accent,2);
+  }
+  for(const xx of [x+10,x+w-12]){
+   box(c,xx,shopTop+6,7,44,p.metal,2);box(c,xx-5,shopTop+9,17,11,'#ffe7b9',3);
+   const glow=c.createRadialGradient(xx+3,shopTop+18,1,xx+3,shopTop+18,50);
+   glow.addColorStop(0,'#ffe6b730');glow.addColorStop(1,'#ffe6b700');
+   c.fillStyle=glow;c.fillRect(xx-46,shopTop-30,100,100);
+  }
+  box(c,x-5,ground-5,w+10,7,p.trim,1);
+  box(c,x+8,ground+4,w-16,4,accent+'88',1);
+  const wash=c.createLinearGradient(0,ground,0,ground+50);
+  wash.addColorStop(0,accent+'31');wash.addColorStop(1,accent+'00');
+  c.fillStyle=wash;c.fillRect(x+12,ground+6,w-24,50);
+  // Plaques / bollards are drawn beside, never across, the entry.
+  for(const xx of [x+16,x+w-23]){
+   box(c,xx,ground+5,7,15,'#7e8e8a',3);box(c,xx-1,ground+4,9,4,'#c2d7c9',2);
+  }
+  c.restore();
+ }
+ function buildingFX(c,b,time,reduced=false){
+  // Lightweight screen-space lighting, applied only when a building is near
+  // the camera. No expensive geometry or dynamic light maps per frame.
+  if(reduced)return;
+  const p=buildingProfile(b),phase=1+Math.sin(time/430+buildingSeed(b)%11)*.14;
+  const x=b.x+b.w/2,y=b.y+b.h-96;
+  c.save();c.globalAlpha=Math.max(.2,Math.min(.75,phase*.55));
+  c.strokeStyle=p.accent;c.lineWidth=2;
+  c.beginPath();c.moveTo(x-b.w*.29,y-36);c.lineTo(x+b.w*.29,y-36);c.stroke();
+  if(['nightlife','arcade','market'].includes(p.kind)){
+   c.fillStyle=p.accent+'33';c.fillRect(x-b.w*.29,y-38,b.w*.58,4);
+  }
   c.restore();
  }
  function hubGround(c){
@@ -186,5 +363,5 @@
   }
   return layers;
  }
- root.CityDistricts=Object.freeze({land,car,building,hubGround,floor,piece,districtProps,scenery,tree,lamp});
+ root.CityDistricts=Object.freeze({land,car,building,buildingFX,buildingProfile,hubGround,floor,piece,districtProps,scenery,tree,lamp});
 })(window);
