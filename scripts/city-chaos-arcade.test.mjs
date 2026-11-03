@@ -109,8 +109,8 @@ test('historical saved characters load without new required fields; prize is dur
  const saved=g.I.save(g.p);
  assert.equal(saved.arcadeBest,result.score);
  assert.equal(saved.arcadeClaimed,true);
- assert.deepEqual(saved.visited,['arcade']);
- assert.deepEqual(saved.souvenirs,['arcade']);
+ assert.deepEqual(Array.from(saved.visited),['arcade']);
+ assert.deepEqual(Array.from(saved.souvenirs),['arcade']);
  const reloaded=game();
  reloaded.I.restore(reloaded.p,saved);
  assert.equal(reloaded.p.places.arcadeBest,result.score);
@@ -122,7 +122,7 @@ test('historical saved characters load without new required fields; prize is dur
  tampered.I.restore(tampered.p,{visited:['arcade','forged'],souvenirs:['forged'],arcadeBest:Infinity,arcadeClaimed:'true'});
  assert.equal(tampered.p.places.arcadeBest,0);
  assert.equal(tampered.p.places.arcadeClaimed,false);
- assert.deepEqual(tampered.p.places.visited,['arcade']);
+ assert.deepEqual(Array.from(tampered.p.places.visited),['arcade']);
 });
 
 test('quitting and exiting reset only the cabinet session, preserve character/world and pay no bonus',()=>{
@@ -185,5 +185,5 @@ test('online actions are room-authoritative and reject remote starts and forged 
  assert.equal(result.status,'won',JSON.stringify(result));
  assert.equal(result.reward,35);
  assert.equal(p.credits,starter+35);
- assert.equal(rooms.snapshot(sb).self.cabinet,undefined,'other players see only their own cabinet data');
+ assert.equal(rooms.snapshot(sb).self.cabinet,null,'other players see only their own cabinet data');
 });
