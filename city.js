@@ -444,7 +444,7 @@
    content.append(button(worn?'Return to classic avatar':'Classic avatar',async()=>{if(await action({type:'clanSkin',skin:null},true))panel('avatar');},'panel-button'));
    content.append(wardrobe(true));
    content.append(node('p','beta-note',hasOffenderSkin(me)?'OFFENDED SKULL ACTIVE · Verified through the same signed read-only Solana wallet check.':'Connect once with the site wallet, then select the token skin to verify. A signature proves wallet control; the server checks that token’s actual balance. No token transfer, payment, or separate wallet control.'));
-   const verifyButton=button(online?'Verify OFFENDED / theme token in Together →':'Verify OFFENDED / theme token in solo →',()=>verifyHoldings(currentWalletTheme()||'offensive'));
+   const verifyButton=button(online?'Verify holder skin in Together →':'Verify holder skin in solo →',()=>verifyHoldings(currentWalletTheme()||'offensive'));
    verifyButton.id='offender-wallet-verify';verifyButton.disabled=walletCheckBusy;content.append(verifyButton);
     const feedback=node('p','wallet-inline-status',offenderWalletStatus);feedback.id='offender-wallet-status';feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite');content.append(feedback);
     if(online&&(!walletProvider()?.connect||!walletProvider()?.signMessage)){
