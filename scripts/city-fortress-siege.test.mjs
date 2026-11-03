@@ -54,6 +54,7 @@ test('raiders create actual passable breaches; proximity-checked paid repair res
  assert.throws(()=>e.action(p.id,{type:'repairDefense',target:'piece',col:8,row:8}),/Walk next/);
  // Move the character to the open adjacent tile, not into the breached wall.
  Object.assign(p,{x:pt.x+105,y:pt.y});
+ Object.assign(b,{x:pt.x,y:pt.y}); // a raider occupies the currently open breach
  assert.throws(()=>e.action(p.id,{type:'repairDefense',target:'piece',col:8,row:8}),/Clear the breached tile/,'raider must be displaced before wall becomes solid');
  Object.assign(b,{x:pt.x+200,y:pt.y+200});
  assert.match(e.action(p.id,{type:'repairDefense',target:'piece',col:8,row:8}),/34 integrity/);
@@ -102,7 +103,7 @@ test('siege victory is paid exactly once; cancellation, timeout and player defea
   if(status==='won'){for(const b of raids(e))b.hp=0;e.tick(.05);}
   if(status==='abandoned')e.action(p.id,{type:'endDefense'});
   if(status==='expired'){p.defense.countdown=0;p.defense.timeLeft=.01;e.tick(.05);}
-  if(status==='busted'){p.hp=0;p.defense.countdown=0;e.tick(.05);if(p.defense)throw Error('Bust state did not interrupt the siege');}
+  if(status==='busted'){p.hp=1;p.invulnerable=0;p.defense.countdown=0;const b=raids(e)[0];Object.assign(b,{x:p.x+10,y:p.y,cooldown:0});tick(e,.8);if(p.defense)throw Error('Busted player did not interrupt the siege');}
   assert.equal(p.defense,null,status+' should close');
   assert.equal(p.defenseResult.status,status);
   assert.equal(p.credits,status==='won'?credits+60:credits);
