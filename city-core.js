@@ -106,6 +106,11 @@
   p.x+=at.x;p.y+=at.y;
  }
  WORLD.spawn={x:origin('fortress').x+1120,y:origin('fortress').y+1460};
+ // Quarantine is a playable encounter site in the SAME World V1 coordinate
+ // space, not a portal or another world. All physical door IDs stay untouched.
+ const QUARANTINE=Object.freeze({id:'quarantine-bunker',name:'Quarantine Bunker',
+  hint:'Quarantine survival',kind:'quarantine',x:3500,y:4250,radius:760});
+ WORLD.stations.push({...QUARANTINE});
  WORLD.stations.push(...DISTRICTS.map(d=>({...d})),
   ...DISTRICTS.map(d=>({id:'road-'+d.id,x:d.x,y:d.y,name:d.name,
     hint:d.hint,kind:'directions',district:d.id})));
@@ -237,9 +242,9 @@
   for(const o of pieces)if(o.kind==='home'&&o.row+1<rows&&solid.has((o.row+1)*cols+o.col))return 'Keep the Meme HQ front entrance clear.';
   return '';
  }
- const CAPABILITIES=Object.freeze({online:Object.freeze({actions:Object.freeze(['joinConflict','deliver','joinClan','clanSkin','blockJob','abandonBlock','avatar','style','checkpoint','buy','equip','list','purchase','cancel','chat','fire','dash','contract','abandon','ride','medkit','restock','claimChapter','enterBuilding','exitBuilding']),soloPanels:Object.freeze(['build','outposts','crew','fortress','survival'])}),solo:Object.freeze({persistent:'browser-local'})});
+ const CAPABILITIES=Object.freeze({online:Object.freeze({actions:Object.freeze(['startQuarantine','endQuarantine','joinConflict','deliver','joinClan','clanSkin','blockJob','abandonBlock','avatar','style','checkpoint','buy','equip','list','purchase','cancel','chat','fire','dash','contract','abandon','ride','medkit','restock','claimChapter','enterBuilding','exitBuilding']),soloPanels:Object.freeze(['build','outposts','crew','fortress','survival'])}),solo:Object.freeze({persistent:'browser-local'})});
  Engine.CAPABILITIES=CAPABILITIES;
  Engine.LAYOUT_VERSION=LAYOUT_VERSION;
  const RELEASE=Object.freeze({name:'Living Blocks',version:'Alpha 12'});
- root.MemeCityCore=Object.freeze({LAYOUT_VERSION,buildAccess,WEAPON,weaponAnchor,CAPABILITIES,RELEASE,WORLD,HUB,SCENERY,ITEMS,DISTRICTS,NEIGHBORHOODS,FACTIONS,CLAN_SKINS,verifiedSkin,TOKEN_PLOTS,plotAccess,factionOf,rivals,npcHostile,outpostLot,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
+ root.MemeCityCore=Object.freeze({LAYOUT_VERSION,buildAccess,WEAPON,weaponAnchor,CAPABILITIES,RELEASE,WORLD,HUB,QUARANTINE,SCENERY,ITEMS,DISTRICTS,NEIGHBORHOODS,FACTIONS,CLAN_SKINS,verifiedSkin,TOKEN_PLOTS,plotAccess,factionOf,rivals,npcHostile,outpostLot,BUILD_KIT,PLOT,CREW_TYPES,restoreCrew,areaAt,region,oldPosition,districtBlocks,restorePlot,Engine,level,nearest,blocked,validIds});
 })(typeof window==='undefined'?globalThis:window);
