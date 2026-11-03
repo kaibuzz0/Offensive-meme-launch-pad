@@ -101,5 +101,5 @@ test('zombie in Solo City uses the same NPC player model, never a separate custo
  assert.ok(city.includes('V.person(ctx,{id:'),'the existing player rig draws zombies');
  assert.ok(html.includes('city-arcade.js?v=35-unified-npc-rig'));
  assert.ok(html.includes('city-visuals.js?v=35-unified-npc-rig'));
- assert.ok(html.includes('city.js?v=36-modern-buildings'));
+ assert.ok(html.includes('city.js?v=37-one-world-quarantine'));
 });
