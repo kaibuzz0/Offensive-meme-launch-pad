@@ -219,17 +219,19 @@
   c.fillStyle=glow;c.beginPath();c.arc(0,0,175,0,Math.PI*2);c.fill();
   c.strokeStyle='#ffe7a77a';c.lineWidth=2;c.beginPath();c.arc(0,0,175,0,Math.PI*2);c.stroke();
   if(!reduced){c.strokeStyle='#b6ffd85c';c.lineWidth=2;for(let i=0;i<3;i++){c.beginPath();c.ellipse(0,0,30+(phase*70+i*40)%145,9+(phase*25+i*15)%47,0,0,Math.PI*2);c.stroke();}}
-  // Golden healer: hood, sleeves, rope belt, clasped hands and halo.
-  c.fillStyle='#352a3980';c.beginPath();c.ellipse(0,4,30,10,0,0,7);c.fill();
-  const robe=c.createLinearGradient(-25,-85,27,0);robe.addColorStop(0,'#534044');robe.addColorStop(.5,'#ac8060');robe.addColorStop(1,'#493843');
-  c.fillStyle=robe;c.beginPath();c.moveTo(-15,-83);c.quadraticCurveTo(-27,-55,-28,0);c.quadraticCurveTo(0,8,28,0);c.lineTo(17,-82);c.closePath();c.fill();
-  c.strokeStyle='#decba4';c.lineWidth=3;c.beginPath();c.moveTo(-22,-38);c.quadraticCurveTo(0,-32,22,-38);c.moveTo(4,-36);c.lineTo(10,-9);c.stroke();
-  c.fillStyle='#ceb08c';c.beginPath();c.ellipse(0,-89,12,17,0,0,7);c.fill();
-  c.strokeStyle='#72524b';c.lineWidth=7;c.beginPath();c.arc(0,-89,17,Math.PI*.85,Math.PI*2.15);c.stroke();
-  c.strokeStyle='#c5a184';c.lineWidth=7;c.lineCap='round';
-  for(const side of [-1,1]){c.beginPath();c.moveTo(side*19,-67);c.lineTo(side*12,-52);c.lineTo(side*3,-65);c.stroke();}
-  c.fillStyle='#efcdab';c.beginPath();c.ellipse(0,-65,5,9,0,0,7);c.fill();
-  c.strokeStyle='#ffedab';c.lineWidth=2;c.beginPath();c.ellipse(0,-119,21,6,0,0,7);c.stroke();
+  // The monk is the SAME depth-sorted, walking/turning/arm-gesturing
+  // player/NPC character rig. Only his robe, hood, beard and halo are skins.
+  // Keep healing circles, Bible quotations and fire tornadoes as effects.
+  c.restore();
+  const torch=m.tornadoes?.[0]||m.tornado||{x:m.x+1,y:m.y};
+  const dx=torch.x-m.x,dy=torch.y-m.y,d=Math.hypot(dx,dy)||1;
+  root.CityVisuals.person(c,{
+   id:'wandering-monk-'+(m.owner||'solo'),x:m.x,y:m.y,role:'monk',
+   color:'#e9c98b',style:{skin:1,hair:1,pants:1},armed:false,
+   aim:{x:dx/d,y:dy/d},moving:false,gesture:!reduced&&Math.floor(phase/4)%2===0,
+   scale:root.CityVisuals.npcScale()
+  },phase*1000);
+  c.save();c.translate(m.x,m.y);
   c.textAlign='center';c.fillStyle='#fff1b8';c.font='700 11px Arial';
   c.fillText('WANDERING MONK · HEALING',0,-140);
   c.font='700 12px Georgia';c.fillStyle='#ffe8a0';c.fillText(m.praise||PRAISE,0,-185,420);
