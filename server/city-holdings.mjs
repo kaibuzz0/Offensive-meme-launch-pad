@@ -10,7 +10,7 @@ export function holdingsService({mints,rpc=process.env.SOLANA_RPC_URL||'https://
  async function check(s,p,body){limit(s);const epoch=s.walletEpoch||0;const mint=mints[body.clan];if(!mint)throw Error('Unknown token.');s.walletBusy=true;
   try{if(body.signature!==undefined){const c=s.walletChallenge;delete s.walletChallenge;if(!c||c.expires<now())throw Error('Wallet challenge expired.');if(typeof body.signature!=='string'||!/^[A-Za-z0-9+/]{86}==$/.test(body.signature))throw Error('Invalid wallet signature.');const key=createPublicKey({key:Buffer.concat([Buffer.from('302a300506032b6570032100','hex'),decode58(c.address)]),format:'der',type:'spki'});if(!verify(null,Buffer.from(c.message),key,Buffer.from(body.signature,'base64')))throw Error('Wallet signature did not match.');s.walletAddress=c.address;}
    if(!s.walletAddress)throw Error('Verify wallet ownership first.');p.holder=null;
-   const tier=await balance(s.walletAddress,mint);if((s.walletEpoch||0)!==epoch)throw Error('Wallet disconnected during verification.');p.holder={clan:body.clan,tier,expires:now()+120000};return {tier,clan:body.clan,expires:p.holder.expires};
+   const tier=await balance(s.walletAddress,mint);if((s.walletEpoch||0)!==epoch)throw Error('Wallet disconnected during verification.');p.holder={clan:body.clan,tier,expires:now()+120000};if(tier>=1&&body.clan!=='offensive')p.clanSkin=body.clan;else if(!tier&&p.clanSkin===body.clan)p.clanSkin=null;return {tier,clan:body.clan,expires:p.holder.expires};
   }finally{s.walletBusy=false;}
  }
  return {challenge,check};
