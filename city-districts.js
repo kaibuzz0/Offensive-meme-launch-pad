@@ -352,11 +352,27 @@
    sceneryCache.set(key,sprite);
   }c.drawImage(sprite,o.x-100,o.y-210);
  }}));}
+ // Previously district landmark buildings rebuilt their entire facade every
+ // animation frame. Bake them once like the 47 real storefront buildings.
+ const landmarkSprites=new Map();
+ function landmarkBuilding(c,b,image){
+  const ready=!!image?.complete&&!!image.naturalWidth;
+  const key=(b.label||b.id)+'|'+b.w+'|'+b.h+'|'+(ready?image.src:'');
+  let sprite=landmarkSprites.get(key);
+  if(!sprite){
+   const canvas=document.createElement('canvas');
+   canvas.width=b.w+180;canvas.height=b.h+240;
+   const g=canvas.getContext('2d');g.translate(65-b.x,120-b.y);
+   building(g,b,image);sprite=canvas;landmarkSprites.set(key,sprite);
+   if(landmarkSprites.size>8)landmarkSprites.delete(landmarkSprites.keys().next().value);
+  }
+  c.drawImage(sprite,b.x-65,b.y-120);
+ }
  function districtProps(c,area,player,art,catalog,time){
   const token=catalog.get(player.avatar),image=art.get(player.avatar);const layers=[];
   if(area==='fortress')for(const o of player.plot||[])layers.push({y:P.y+o.row*64+58,draw:()=>piece(c,o,image,token.ticker)});
   else{
-   for(const b of C.districtBlocks(area))layers.push({y:b.y+b.h,draw:()=>building(c,b,image)});
+   for(const b of C.districtBlocks(area))layers.push({y:b.y+b.h,draw:()=>{landmarkBuilding(c,b,image);buildingFX(c,b,time);}});
    if(area==='creator'){let i=0;for(const t of catalog.values()){const xx=400+i*280;layers.push({y:1060,draw:()=>{box(c,xx-47,1000,94,18,'#142b3a',3);box(c,xx-45,907,90,96,'#a4b2ac',3);box(c,xx-39,913,78,78,'#1c3448',2);const img=art.get(t.id);if(img?.complete&&img.naturalWidth)c.drawImage(img,xx-35,917,70,70);text(c,'$'+t.ticker,xx,1036,11,'#d6c8eb');}});i++;}}
    if(area==='social')for(let i=0;i<4;i++){const x=490+i*125,y=1045+Math.sin(time/1700+i)*8;layers.push({y,draw:()=>root.CityVisuals.person(c,{id:'boardwalk-'+i,x,y,role:'civilian',style:{skin:i+1,hair:i,pants:i},color:['#927b87','#708b82','#8c9272','#6d7b98'][i],moving:true,phase:i,scale:.85},time)});}
    if(area==='social'){for(let i=0;i<5;i++)layers.push({y:1040+i*12,draw:()=>{const xx=1500+(i%3)*100,yy=1000+i*15;c.fillStyle='#1b3448';c.beginPath();c.ellipse(xx,yy,33,17,0,0,7);c.fill();box(c,xx-3,yy,6,35,'#a0aaa3');box(c,xx-25,yy-10,50,8,'#b2b6a6',3);}});}
