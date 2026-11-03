@@ -166,7 +166,23 @@
 
  // Undead hordes spawn only in the unbuilt greenbelt, beyond city and clan bases.
  // No wallet gating, persistent saves, new currencies, or client-only hitboxes.
- const ZOMBIE_MAX=12,settlements=[{ox:HUB.x,oy:HUB.y},...C.DISTRICTS,...C.NEIGHBORHOODS];
+ const ZOMBIE_MAX=12,ZOMBIE_HAZARD_MAX=8,settlements=[{ox:HUB.x,oy:HUB.y},...C.DISTRICTS,...C.NEIGHBORHOODS];
+ // Archived V2 encounter concepts are implemented in the *existing* live
+ // Engine and current city coordinates. All actors still use the same NPC rig.
+ const ZOMBIE_TYPES=Object.freeze({
+  walker:Object.freeze({hp:85,speed:79,damage:10,windup:.4,cooldown:1.25,label:'WALKER'}),
+  runner:Object.freeze({hp:46,speed:148,damage:7,windup:.24,cooldown:1.45,label:'RUNNER'}),
+  tank:Object.freeze({hp:230,speed:43,damage:18,windup:.95,cooldown:1.9,label:'TANK'}),
+  spitter:Object.freeze({hp:66,speed:67,damage:8,windup:.55,cooldown:1.8,label:'SPITTER'})
+ });
+ function zombieVariant(roll){return roll<.49?'walker':roll<.74?'runner':roll<.90?'spitter':'tank';}
+ function zombieDamage(e,kind,obj,damage){
+  if(kind==='npc'){
+   obj.hp=Math.max(0,obj.hp-damage);obj.hitFlash=.15;
+   if(!obj.hp){obj.respawn=18;obj.windup=0;obj.targetId=null;}
+  }else if(kind==='monk')obj.hp=Math.max(0,(obj.hp??80)-damage);
+  else hurt(e,obj,damage,true);
+ }
  const zombieRandom=e=>Math.max(0,Math.min(.999999,(e.zombieRandom||Math.random)()));
  const undead=b=>b?.kind==='zombie';
  function deadZone(x,y){
@@ -193,24 +209,28 @@
   for(let i=0;i<quantity;i++){
    const angle=i*2.39996,r=i*40,x=start.x+Math.cos(angle)*r,y=start.y+Math.sin(angle)*r;
    if(!deadZone(x,y)||players.some(p=>distance(p,{x,y})<250))continue;
+   const variant=zombieVariant(zombieRandom(e)),type=ZOMBIE_TYPES[variant];
    const b=spawn(e,'zombie',x,y,'zombie-'+(++e.serial));
-   Object.assign(b,{hp:85,maxHp:85,state:'rising',age:0,bite:0,speed:75+zombieRandom(e)*22,
-    originalX:x,originalY:y,faceX:1,faceY:0,phase:zombieRandom(e)*Math.PI*2});
+   Object.assign(b,{zombieType:variant,hp:type.hp,maxHp:type.hp,state:'rising',
+    age:0,bite:0,attackWait:0,spitWait:0,spitCooldown:1.2,
+    speed:type.speed,originalX:x,originalY:y,
+    faceX:1,faceY:0,phase:zombieRandom(e)*Math.PI*2});
    added++;
   }
   if(added)for(const p of players)if(distance(p,start)<1100)
-   notify(p,'DEAD ZONE / Walkers are rising beyond the city. Undead attack every clan and faction.');
+   notify(p,'QUARANTINE / Walkers, runners, tanks and spitters roam beyond the city. All factions are at risk.');
   return added;
  }
  function tickZombies(e,dt){
   const a=e.arcade;if(!e.players.size)return;
+  a.zombieHazards??=[];
   a.zombieNext??=8;a.zombieNext-=dt;
   if(a.zombieNext<=0)a.zombieNext=summonZombies(e)?45+zombieRandom(e)*30:14;
   for(const z of a.bots.filter(undead)){
    z.age+=dt;
    if(z.hp<=0){z.respawn=Math.min(5,z.respawn)-dt;continue;}
    if(z.age>160){z.hp=0;z.respawn=0;continue;}
-   z.bite=Math.max(0,z.bite-dt);
+   z.bite=Math.max(0,z.bite-dt);z.spitCooldown=Math.max(0,(z.spitCooldown||0)-dt);
    const monk=e.monkEvent?.active;
    const targets=[
     ...[...e.players.values()].filter(p=>!p.room&&p.hp>0).map(obj=>({kind:'player',obj})),
@@ -231,17 +251,35 @@
    }
    const v=target.obj,dx=v.x-z.x,dy=v.y-z.y,d=Math.max(1,Math.hypot(dx,dy));
    z.faceX=dx/d;z.faceY=dy/d;z.attackTarget=v.id||'wandering-monk';
+   const type=ZOMBIE_TYPES[z.zombieType]||ZOMBIE_TYPES.walker;
+   // Windups give players/guards an actual reaction window. Damage is issued
+   // once by the shared authoritative simulation, never by the renderer.
    if(d<56){
-    z.state='attack';
-    if(!z.bite){
-     z.bite=1.15+zombieRandom(e)*.3;
-     if(target.kind==='npc'){
-      v.hp=Math.max(0,v.hp-10);v.hitFlash=.15;
-      if(!v.hp){v.respawn=18;v.windup=0;v.targetId=null;}
-     }else if(target.kind==='monk')v.hp=Math.max(0,(v.hp??80)-10);
-     else hurt(e,v,10,true);
-     effect(e,v.x,v.y,'BITE','#b4dc7a');
-    }
+    if(!z.attackWait&&!z.bite){z.attackWait=type.windup;z.bite=type.cooldown;z.state='windup';}
+    else if(z.attackWait>0){
+     z.attackWait=Math.max(0,z.attackWait-dt);z.state='windup';
+     if(!z.attackWait&&distance(z,v)<65){
+      zombieDamage(e,target.kind,v,type.damage);effect(e,v.x,v.y,
+       z.zombieType==='tank'?'HEAVY BITE':'BITE','#b4dc7a');
+     }
+    }else z.state='attack';
+    continue;
+   }
+   z.attackWait=0;
+   // Spitters mark a specific impact point, pause, then create one bounded
+   // delayed hazard. It affects every living faction, never other undead.
+   if(z.zombieType==='spitter'&&d>=80&&d<390){
+    if(z.spitWait>0){
+     z.spitWait=Math.max(0,z.spitWait-dt);z.state='spit';
+     if(!z.spitWait&&a.zombieHazards.length<ZOMBIE_HAZARD_MAX){
+      a.zombieHazards.push({id:++e.serial,x:z.spitAim.x,y:z.spitAim.y,
+       warning:.85,radius:55,damage:9,source:z.id});
+      effect(e,z.x,z.y,'SPIT!','#b8f38c');
+     }
+    }else if(!z.spitCooldown){
+     z.spitWait=.65;z.spitCooldown=4.2;z.spitAim={x:v.x,y:v.y};
+     z.state='spit';
+    }else z.state='stalk';
     continue;
    }
    z.state='chase';
@@ -253,6 +291,22 @@
     move(z,-z.faceY*step*sign,z.faceX*step*sign);
    }
   }
+  // Resolve delayed toxic impacts only once, with capped active warnings.
+  a.zombieHazards??=[];
+  for(const h of a.zombieHazards){
+   h.warning-=dt;
+   if(h.warning>0)continue;
+   const victims=[
+    ...[...e.players.values()].filter(p=>!p.room&&p.hp>0).map(obj=>({kind:'player',obj})),
+    ...a.guards.filter(g=>g.hp>0).map(obj=>({kind:'guard',obj})),
+    ...a.bots.filter(b=>b.hp>0&&!undead(b)).map(obj=>({kind:'npc',obj})),
+    ...(e.monkEvent?.active&&e.monkEvent.active.hp>0?[{kind:'monk',obj:e.monkEvent.active}]:[])
+   ];
+   for(const target of victims)if(distance(h,target.obj)<=h.radius&&visible(h,target.obj))
+    zombieDamage(e,target.kind,target.obj,h.damage);
+   effect(e,h.x,h.y,'TOXIC SPLASH','#b2f383');
+  }
+  a.zombieHazards=a.zombieHazards.filter(h=>h.warning>0).slice(-ZOMBIE_HAZARD_MAX);
   a.bots=a.bots.filter(b=>!undead(b)||b.hp>0&&b.age<=160||b.respawn>0);
  }
  P.join=function(...args){
@@ -453,6 +507,6 @@
  P.leave=function(id){if(this.arcade){cleanup(this,id);this.arcade.guards=this.arcade.guards.filter(g=>g.owner!==id);}return base.leave.call(this,id);};
  P.snapshot=function(id){
   init(this);const s=base.snapshot.call(this,id);
-  s.conflict=conflictSnapshot(this,id);s.arcade={zombieNext:this.arcade.zombieNext,guards:this.arcade.guards.map(({plot,path,...g})=>({...g})),time:this.arcade.time,bots:this.arcade.bots.map(({path,plot,...b})=>({...b})),bullets:this.arcade.bullets.map(b=>({...b})),effects:this.arcade.effects.map(e=>({...e})),pickups:this.arcade.pickups.map(i=>({...i}))};return s;
+  s.conflict=conflictSnapshot(this,id);s.arcade={zombieNext:this.arcade.zombieNext,zombieHazards:(this.arcade.zombieHazards||[]).map(h=>({...h})),guards:this.arcade.guards.map(({plot,path,...g})=>({...g})),time:this.arcade.time,bots:this.arcade.bots.map(({path,plot,...b})=>({...b})),bullets:this.arcade.bullets.map(b=>({...b})),effects:this.arcade.effects.map(e=>({...e})),pickups:this.arcade.pickups.map(i=>({...i}))};return s;
  };
 })(typeof window==='undefined'?globalThis:window);
