@@ -105,7 +105,7 @@
   const p=this.player(id),r=p.rising;
   if(!r)return base.action.call(this,id,a);
   if(a?.type==='ride'){
-   if(p.contract||p.defense||r.arena)throw Error('Finish your active challenge before riding.');
+   if(p.contract||p.defense||r.arena||p.quarantineRun)throw Error('Finish your active challenge before riding.');
    if(p.heat>=22)throw Error('Lose the cops before taking out the board.');
    r.riding=!r.riding;r.speed=0;p.fireHeld=false;return r.riding?'Hoverboard mounted. Steer normally; V / Ride to dismount.':'Back on foot.';
   }
@@ -129,7 +129,7 @@
   }
   if(a?.type==='startSurvival'){
    if(dist(p,GUIDES.find(g=>g.id==='marshal'))>180)throw Error('Walk to Marshal’s arena terminal.');
-   if(p.contract||p.defense||r.arena)throw Error('Finish or abandon your active challenge first.');if(r.arenaCooldown>0)throw Error('The arena is resetting. Try again shortly.');
+   if(p.contract||p.defense||r.arena||p.quarantineRun)throw Error('Finish or abandon your active challenge first.');if(r.arenaCooldown>0)throw Error('The arena is resetting. Try again shortly.');
    if(this.arcade.bots.length+12>64)throw Error('Arena is busy. Finish other challenges first.');
    r.riding=false;r.speed=0;r.arenaResult=null;r.arena={wave:0,next:3,remaining:240,spawned:false,startDeaths:p.deaths};return 'Arena survival: 3 waves. Stand ready. Defeat the Rug Baron to win.';
   }
