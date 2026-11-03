@@ -553,7 +553,7 @@
  for(const d of C.DISTRICTS)if(visible(d.ox,d.oy,2240,1660)){ctx.save();ctx.translate(d.ox,d.oy);D.floor(ctx,d.id);ctx.restore();for(const l of D.districtProps(ctx,d.id,me,art,catalog,time))layers.push({y:l.y+d.oy,draw:()=>{ctx.save();ctx.translate(d.ox,d.oy);l.draw();ctx.restore();}});}
  if(state.monk&&visible(state.monk.x-550,state.monk.y-550,1100,1100))layers.push({y:Math.max(state.monk.y,state.monk.tornado.y),draw:()=>window.CityMonk.draw(ctx,state.monk,reduced)});layers.push(...D.scenery(ctx,me,visible));IV.doors(ctx,me,time);RV.diamonds(ctx,me,state.arcade.time*1000);layers.push(...RV.layers(ctx,me,state.arcade.time*1000));
  for(const station of WORLD.stations)if(visible(station.x,station.y,80,80)){beacon(station,time,station.kind==='directions'?'#9daebf':'#8eb9b5');}
- const chapter=R.objective(me),journeyTarget=chapter&&!chapter.ready?chapter.target:null;const target=me.contract?(me.contract.type==='courier'?{...WORLD.route[1],name:'DELIVERY DROP'}:null):me.rising?.arena?null:tracked?null:journeyTarget||WORLD.route[me.route];if(target&&visible(target.x,target.y))beacon(target,time,'#bdff56');if(tracked&&visible(tracked.x,tracked.y))beacon(tracked,time,'#6ee5f3');if(me.blockJob){const q=me.blockJob.points[me.blockJob.index];if(q)beacon({...q,name:me.blockJob.type==='hold'?`HOLD ${Math.floor(me.blockJob.held)}/25s`:me.blockJob.type==='salvage'?`${me.blockJob.index<4?'SALVAGE '+(me.blockJob.index+1)+'/4':'RETURN TO CLAN'} · ${Math.min(2,Math.floor(me.blockJob.held))}/2s`:'BLOCK CHECKPOINT'},time,'#6ee5f3');}if(state.conflict&&state.conflict.phase!=='cooldown'){const ev=state.conflict;ctx.strokeStyle=ev.winner==='congress'?'#83b8ed':ev.winner==='exit'?'#f184a2':'#ffbd69';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(ev.x,ev.y,130,50,0,0,7);ctx.stroke();beacon({...ev,name:`CROSSING / ${ev.phase.toUpperCase()} ${Math.ceil(ev.remaining)}s · ${ev.insiders} vs ${ev.rugs}`},time,ctx.strokeStyle);}drawCombat(time,dt);
+ const chapter=R.objective(me),journeyTarget=chapter&&!chapter.ready?chapter.target:null;const target=me.contract?(me.contract.type==='courier'?{...WORLD.route[1],name:'DELIVERY DROP'}:null):me.rising?.arena?null:tracked?null:journeyTarget||WORLD.route[me.route];if(target&&visible(target.x,target.y))beacon(target,time,'#bdff56');if(tracked&&visible(tracked.x,tracked.y))beacon(tracked,time,'#6ee5f3');if(me.blockJob){const q=me.blockJob.points[me.blockJob.index];if(q)beacon({...q,name:me.blockJob.type==='hold'?`HOLD ${Math.floor(me.blockJob.held)}/25s`:me.blockJob.type==='salvage'?`${me.blockJob.index<4?'SALVAGE '+(me.blockJob.index+1)+'/4':'RETURN TO CLAN'} · ${Math.min(2,Math.floor(me.blockJob.held))}/2s`:'BLOCK CHECKPOINT'},time,'#6ee5f3');}if(state.conflict&&state.conflict.phase!=='cooldown'){const ev=state.conflict;ctx.strokeStyle=ev.winner==='congress'?'#83b8ed':ev.winner==='exit'?'#f184a2':'#ffbd69';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(ev.x,ev.y,130,50,0,0,7);ctx.stroke();beacon({...ev,name:`CROSSING / ${ev.phase.toUpperCase()} ${Math.ceil(ev.remaining)}s · ${ev.insiders} vs ${ev.rugs}`},time,ctx.strokeStyle);}drawZombieHazards(time);drawCombat(time,dt);
  for(const p of state.players)if(!p.room&&visible(p.x,p.y))layers.push({y:p.y,draw:()=>character(p.id===me.id?{...p,x:me.x,y:me.y,...(!online?{holder:me.holder}:{})}:p,p.id===me.id)});
  for(const b of state.arcade?.bots||[])if(b.hp>0&&visible(b.x,b.y))layers.push({y:b.y,draw:()=>drawBot(b,time,dt)});
  for(const g of state.arcade?.guards||[])if(visible(g.x,g.y))layers.push({y:g.y,draw:()=>drawGuard(g,time)});
@@ -603,6 +603,19 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
  function smoothBot(b,dt){
   if(!online)return b;let pos=positions.get(b.id);if(!pos||Math.hypot(pos.x-b.x,pos.y-b.y)>160){pos={x:b.x,y:b.y};positions.set(b.id,pos);}const k=Math.min(1,dt*14);pos.x+=(b.x-pos.x)*k;pos.y+=(b.y-pos.y)*k;return{...b,...pos};
  }
+ function drawZombieHazards(time){
+  // Warnings belong to the existing world canvas, not a separate HUD/game.
+  for(const h of state.arcade?.zombieHazards||[]){
+   if(!visible(h.x-h.radius,h.y-h.radius,h.radius*2,h.radius*2))continue;
+   const ratio=Math.max(0,Math.min(1,h.warning/.85)),pulse=reduced?1:.9+Math.sin(time/110)*.1;
+   ctx.save();ctx.fillStyle='#b6ee7a26';ctx.strokeStyle='#dcff9f';ctx.lineWidth=3;
+   ctx.beginPath();ctx.ellipse(h.x,h.y,h.radius*pulse,h.radius*.42*pulse,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+   ctx.strokeStyle='#ffb17d';ctx.lineWidth=4;
+   ctx.beginPath();ctx.ellipse(h.x,h.y,h.radius+5,(h.radius+5)*.42,0,-Math.PI/2,
+    -Math.PI/2+Math.PI*2*(1-ratio));ctx.stroke();
+   label('TOXIC IMPACT · MOVE!',h.x,h.y-24,10,'#f6ecb3');ctx.restore();
+  }
+ }
  function drawBot(raw,time,dt){
   const b=smoothBot(raw,dt);
   if(b.kind==='zombie'){
@@ -610,17 +623,27 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
    // Only combat AI and the bite indicator differ; no custom zombie sprite.
    const ax=Number.isFinite(b.faceX)?b.faceX:1,ay=Number.isFinite(b.faceY)?b.faceY:0;
    ctx.save();if(b.hitFlash>0){ctx.shadowColor='#e1ff9b';ctx.shadowBlur=17;}
-   V.person(ctx,{id:'npc-'+b.id,x:b.x,y:b.y,role:'zombie',color:'#acdb80',
+   const variant=b.zombieType||'walker',size=variant==='tank'?1.22:variant==='runner'?.91:1;
+   V.person(ctx,{id:'npc-'+b.id,x:b.x,y:b.y,role:'zombie',zombieType:variant,
+    color:variant==='spitter'?'#9cfaac':variant==='tank'?'#a6b4bd':'#acdb80',
     style:{skin:2,hair:1,pants:1},phase:b.phase,armed:false,
     moving:b.state==='chase'||b.state==='roam',aim:{x:ax,y:ay},
-    scale:V.npcScale()},time);
+    scale:V.npcScale()*size},time);
    ctx.restore();
-   if(b.state==='attack'){ctx.strokeStyle='#bbed7488';ctx.lineWidth=3;
-    ctx.beginPath();ctx.ellipse(b.x,b.y,36,15,0,0,Math.PI*2);ctx.stroke();}
-   roundRect(b.x-21,b.y-124,42,5,2,'#182018');
-   roundRect(b.x-21,b.y-124,42*Math.max(0,b.hp)/b.maxHp,5,2,'#acd779');
-   label(b.state==='attack'?'! UNDEAD BITE':'DEAD ZONE / WALKER',
-    b.x,b.y-135,9,b.state==='attack'?'#ffb38d':'#c9ee97');
+   if(['attack','windup','spit'].includes(b.state)){
+    ctx.strokeStyle=b.state==='spit'?'#d2ff74b0':b.state==='windup'?'#ffbc70d0':'#bbed7488';
+    ctx.lineWidth=b.state==='windup'||b.state==='spit'?4:2;
+    ctx.beginPath();ctx.ellipse(b.x,b.y,variant==='tank'?44:36,variant==='tank'?20:15,0,0,Math.PI*2);ctx.stroke();
+    if(b.spitAim&&b.state==='spit'){
+     ctx.setLineDash([4,9]);ctx.strokeStyle='#c4ff9daa';ctx.beginPath();
+     ctx.moveTo(b.x,b.y-52);ctx.lineTo(b.spitAim.x,b.spitAim.y);ctx.stroke();ctx.setLineDash([]);
+    }
+   }
+   const barWidth=variant==='tank'?54:42,barY=variant==='tank'?144:124;
+   roundRect(b.x-barWidth/2,b.y-barY,barWidth,5,2,'#182018');
+   roundRect(b.x-barWidth/2,b.y-barY,barWidth*Math.max(0,b.hp)/b.maxHp,5,2,variant==='spitter'?'#8deac8':'#acd779');
+   label(b.state==='spit'?'! TOXIC SPIT':b.state==='windup'?'! INCOMING BITE':'QUARANTINE / '+variant.toUpperCase(),
+    b.x,b.y-barY-11,9,['spit','windup'].includes(b.state)?'#ffc58d':'#c9ee97');
    return;
   }
   const cop=b.kind==='cop',ranged=cop||b.ranged;
