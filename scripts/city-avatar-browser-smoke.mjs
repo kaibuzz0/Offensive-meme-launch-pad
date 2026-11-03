@@ -246,6 +246,62 @@ try{
  assert.equal(siegeUi.button,true,'repair and retreat live in the original Squad panel');
  await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Retreat / abandon siege')).click();true");
  await waitFor(()=>evalPage("document.querySelector('#mission-kicker').textContent!=='FORTRESS DEFENSE'"),'live siege retreat ends without a replacement world');
+ // Play the real Chaos Arcade cabinet at a phone viewport, in the existing
+ // city.html engine. Inject only a starting *street coordinate* for QA; still
+ // require the original building door, indoor walk and activity terminal.
+ await send('Page.addScriptToEvaluateOnNewDocument',{source:
+  "if(location.search.includes('cabinet-qa')){try{localStorage.removeItem('offensive-meme-city-v1-center')}catch{};Object.defineProperty(window,'MemeCityCore',{configurable:true,set:function(core){Object.defineProperty(window,'MemeCityCore',{value:core,configurable:true,writable:true});const old=core.Engine.prototype.join;core.Engine.prototype.join=function(){const p=old.apply(this,arguments);if(arguments[0]==='solo'){const b=core.WORLD.buildings.find(x=>x.id==='arcade');p.x=b.x+b.w/2;p.y=b.y+b.h+37;}return p;};}});}"});
+ await send('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
+ await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?solo=1&cabinet-qa=1'});
+ await waitFor(()=>evalPage("!!document.querySelector('#start-button') && !!window.CityInteriors?.ROOM"),'original city with arcade entrance');
+ await evalPage("document.querySelector('#start-button').click();true");
+ await waitFor(()=>evalPage("document.querySelector('#interact')?.textContent.includes('ENTER CHAOS ARCADE')"),'physical Chaos Arcade entrance');
+ await evalPage("document.querySelector('#interact').click();true");
+ await waitFor(()=>evalPage("document.querySelector('#district')?.textContent==='CHAOS ARCADE'"),'original interior successfully entered');
+ await send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowUp',code:'ArrowUp',windowsVirtualKeyCode:38});
+ await delay(2100);await send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowUp',code:'ArrowUp',windowsVirtualKeyCode:38});
+ await waitFor(()=>evalPage("document.querySelector('#interact')?.textContent.includes('PLAY')"),'walked through the real indoor room to arcade cabinet');
+ await evalPage("document.querySelector('#interact').click();true");
+ await waitFor(()=>evalPage("!!document.querySelector('.rug-runner-board')&&document.querySelector('#city-panel').open"),'in-building playable arcade UI');
+ const pixel=await evalPage("(()=>{const c=document.querySelector('.rug-runner-board').getContext('2d');const d=c.getImageData(0,0,660,350).data;let painted=0;for(let i=3;i<d.length;i+=4*11)painted+=d[i]>0?1:0;return painted;})()");
+ assert.ok(pixel>12000,'neon cabinet renders detailed real Canvas pixels');
+ assert.match(await evalPage("document.querySelector('#panel-content').textContent"),/FIRST CLEAR: 35 PLAY CREDITS/);
+ await evalPage("Array.from(document.querySelectorAll('.rug-runner-controls button')).find(b=>b.textContent.includes('Start Rug Runner')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('GATE 1 / 12')"),'first actual arcade gate');
+ await evalPage("Array.from(document.querySelectorAll('.rug-runner-controls button')).find(b=>b.textContent.includes('Pause / P')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('Paused')"),'arcade pause works');
+ await evalPage("Array.from(document.querySelectorAll('.rug-runner-controls button')).find(b=>b.textContent.includes('Resume cabinet')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('Red hazard')"),'arcade resumes');
+ let gatesPlayed=0;
+ for(;gatesPlayed<12;gatesPlayed++){
+  const before=await evalPage("document.querySelector('.rug-runner-status').textContent");
+  if(!before.includes('GATE '))break;
+  const lane=(before.match(/Your lane: (LEFT|CENTER|RIGHT)/)||[])[1];
+  const danger=(before.match(/Red hazard: (LEFT|CENTER|RIGHT)/)||[])[1];
+  const bonus=(before.match(/Green points: (LEFT|CENTER|RIGHT)/)||[])[1];
+  const names=['LEFT','CENTER','RIGHT'],here=names.indexOf(lane),d=names.indexOf(danger),prize=names.indexOf(bonus);
+  assert.ok(here>=0&&d>=0&&prize>=0,'the user can read actual gate hazards and prizes');
+  const candidates=[here,here-1,here+1].filter(n=>n>=0&&n<=2&&n!==d);
+  const target=candidates.includes(prize)?prize:candidates[0]??here;
+  if(target!==here){
+   const direction=target<here?'LEFT / A':'RIGHT / D';
+   await evalPage("Array.from(document.querySelectorAll('.rug-runner-controls button')).find(b=>b.textContent.includes("+JSON.stringify(direction)+")).click();true");
+   await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('Move used for this gate')"),'one legal lane move');
+  }
+  await evalPage("Array.from(document.querySelectorAll('.rug-runner-controls button')).find(b=>b.textContent.includes('ADVANCE GATE')).click();true");
+  if(gatesPlayed<11)await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('GATE "+(gatesPlayed+2)+" / 12')"),'the next authoritative arcade gate');
+  else await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('LAST RUN:')"),'complete twelve-gate arcade round');
+ }
+ assert.equal(gatesPlayed,12,'twelve user-controlled turns play on a phone-sized screen');
+ assert.match(await evalPage("document.querySelector('.rug-runner-status').textContent"),/LAST RUN: WON/);
+ assert.match(await evalPage("document.querySelector('#panel-content').textContent"),/FIRST-CLEAR PRIZE CLAIMED/);
+ await evalPage("Array.from(document.querySelectorAll('.rug-runner-controls button')).find(b=>b.textContent.includes('Play another round')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('GATE 1 / 12')"),'high-score retry is playable');
+ await evalPage("Array.from(document.querySelectorAll('.rug-runner-controls button')).find(b=>b.textContent.includes('Quit / no prize')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('LAST RUN: ABANDONED')"),'arcade quit safely stops reward');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Return to the arcade room')).click();true");
+ assert.equal(await evalPage("document.querySelector('#city-panel').open"),false,'returns to exact same indoor city world');
+ assert.equal(await evalPage("document.querySelector('#district').textContent"),'CHAOS ARCADE');
  // Regression: the Avatar wallet button must report missing providers INSIDE its modal.
  // Previously the only error notification was behind the modal and appeared inert on phones.
  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?release=wallet-feedback-qa'});
