@@ -176,6 +176,8 @@
  function summonZombies(e){
   const a=e.arcade,alive=a.bots.filter(b=>undead(b)&&b.hp>0).length;
   if(alive>=ZOMBIE_MAX)return 0;
+  // Both the solo Engine and Together rooms spawn walkers in the same dead zones.
+  // Explorers encounter them quickly, but no zombie can originate inside a base.
   const players=[...e.players.values()].filter(p=>!p.room&&p.hp>0&&C.areaAt(p.x,p.y)==='greenbelt');
   if(!players.length)return 0;
   const origin=players[Math.floor(zombieRandom(e)*players.length)];
@@ -202,7 +204,7 @@
  }
  function tickZombies(e,dt){
   const a=e.arcade;if(!e.players.size)return;
-  a.zombieNext??=22;a.zombieNext-=dt;
+  a.zombieNext??=8;a.zombieNext-=dt;
   if(a.zombieNext<=0)a.zombieNext=summonZombies(e)?45+zombieRandom(e)*30:14;
   for(const z of a.bots.filter(undead)){
    z.age+=dt;
