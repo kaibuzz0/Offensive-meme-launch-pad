@@ -56,9 +56,9 @@ test('zombies bite hostile and friendly NPCs and hired guards instead of sharing
  const g=e.arcade.guards.find(g=>g.owner===p.id);
  assert.ok(g,'hired defender was created');
  Object.assign(g,{x:z.x+20,y:z.y,hp:80,cooldown:1000});
- z.bite=0;
+ z.bite=100;z.attackWait=.01;
  e.tick(.05);
- assert.ok(g.hp<80,'zombies damage player-owned guards');
+ assert.ok(g.hp<80,'the telegraphed bite damages player-owned guards');
 });
 
 test('player fire and armed NPCs can kill walkers without generating credits or wanted heat',()=>{
