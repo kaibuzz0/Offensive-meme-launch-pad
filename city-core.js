@@ -172,7 +172,12 @@
   if([...WORLD.buildings,...districtSolids].some(b=>x>b.x-15&&x<b.x+b.w+15&&y>b.y-12&&y<b.y+b.h+22))return true;
   const social=DISTRICTS.find(d=>d.id==='social');if(x>social.ox+180&&x<social.ox+925&&y>social.oy+1260&&y<social.oy+1525)return true;
   if((p?.outposts||[]).some(o=>{const lot=outpostLot(o.clan);return lot&&BUILD_KIT.find(k=>k.id===o.kind)?.solid&&x>lot.x+o.col*64-4&&x<lot.x+o.col*64+60&&y>lot.y+o.row*64-4&&y<lot.y+o.row*64+60;}))return true;
-  return (p?.plot||[]).some(o=>BUILD_KIT.find(k=>k.id===o.kind)?.solid&&x>PLOT.x+o.col*64-4&&x<PLOT.x+o.col*64+60&&y>PLOT.y+o.row*64-4&&y<PLOT.y+o.row*64+60);
+  return (p?.plot||[]).some(o=>BUILD_KIT.find(k=>k.id===o.kind)?.solid&&
+   // A siege breach opens only the currently damaged tile, never edits the
+   // owner's actual saved plot layout. Repair restores its original collision.
+   !p?.defense?.pieces?.some(t=>t.col===o.col&&t.row===o.row&&t.hp<=0)&&
+   x>PLOT.x+o.col*64-4&&x<PLOT.x+o.col*64+60&&
+   y>PLOT.y+o.row*64-4&&y<PLOT.y+o.row*64+60);
  }
  function nearest(p){return WORLD.stations.find(s=>dist(p,s)<105)||null;}
  function cleanName(name){return String(name||'Guest').replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,22)||'Guest';}
@@ -186,6 +191,7 @@
    p.area=areaAt(p.x,p.y);
    if(a.type==='travel')throw Error('Districts are connected by roads now. Walk to your destination.');
    if(a.type==='starterfort'){
+    if(p.defense)throw Error('Finish the fortress siege before changing your structures.');
     if(p.area!=='fortress'||p.plot.length)throw Error('Starter layout needs an empty fortress plot.');
     const plan=[{col:4,row:2,kind:'tower'},{col:11,row:2,kind:'tower'},...Array.from({length:6},(_,i)=>({col:i+5,row:2,kind:'wall'})),{col:7,row:5,kind:'home'},{col:5,row:6,kind:'banner'},{col:10,row:6,kind:'banner'},{col:3,row:7,kind:'tree'},{col:12,row:7,kind:'tree'},{col:6,row:8,kind:'lamp'},{col:9,row:8,kind:'lamp'}];
     const cost=plan.reduce((sum,o)=>sum+BUILD_KIT.find(k=>k.id===o.kind).cost,0);
@@ -194,6 +200,7 @@
     p.credits-=cost;p.plot=plan.map(o=>({...o,rotation:0}));return `Starter fortress built for ${cost} play credits.`;
    }
    if(a.type==='build'||a.type==='demolish'){
+    if(p.defense)throw Error('Finish the fortress siege before building or demolishing.');
     if(p.area!=='fortress')throw Error('Visit your fortress to build.');
     if(!Number.isInteger(a.col)||a.col<0||a.col>=PLOT.cols||!Number.isInteger(a.row)||a.row<0||a.row>=PLOT.rows)throw Error('Choose a tile inside your plot.');
     const index=p.plot.findIndex(o=>o.col===a.col&&o.row===a.row);
