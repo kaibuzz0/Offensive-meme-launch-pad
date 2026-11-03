@@ -1,3 +1,24 @@
+# CURRENT INSTRUCTION — ONE MEME CITY / DO NOT CREATE ANOTHER WORLD
+
+**Supersedes the October 31 historical V2 preview instructions below.**
+**Verified current production baseline:** `main` commit `549b628755b5f5717a3d535dcc75a8ab99d5de46`. The live game is `city.html`, backed by `MemeCityCore.Engine`, the original City HUD, browser-local solo saves and optional Together rooms. It already has the centered fortress, connected map, updated buildings, 47 building entrances, guards, NPCs, monk, and zombie encounters.
+
+**Active integration draft:** `codex/one-world-quarantine-archetypes` / PR #28. The first recovery slice implements four zombie archetypes, shared player/NPC skins and warning-marked ranged hazards directly in the *existing* city engine. CI run [41572576502](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41572576502) passed game/server tests, static validation, benchmark and Chromium smoke on commit `83bbebd1` (before this handoff update). Physical Android still untested. **Not merged or deployed.**
+
+**Canonical roadmap:** [docs/ONE_WORLD_INTEGRATION_ROADMAP.md](docs/ONE_WORLD_INTEGRATION_ROADMAP.md). The attached historical archive `MEME_CITY_WORLD_V2_COMPLETE_HISTORY_DESIGN_IDEAS_AND_FAILURE_REPORT.md` is a design source, **not** an instruction to reactivate `city-world2-*`, another game client, or a default-route redirect.
+
+## Next coding steps (same existing game only)
+
+1. Check current `main`, PR #28, latest CI and any newer commits. Preserve all work; use `city.html` and `city-arcade.js`, not a World V2-only page.
+2. Extend this first zombie slice to one playable Quarantine survival event with visible start/retreat, bounded waves, four types, once-only server-owned rewards, original world map marker and legitimate solo/room behavior. Preserve greenbelt spawn restrictions and current saves.
+3. Then deliver a complete fortress siege with structural repair, and one fully playable free Chaos Arcade cabinet **inside its existing building**. Reuse `city-interiors.js`, `city-room-visuals.js`, `city.js` and `MemeCityCore.Engine`, no new world.
+4. Keep one-tap Solo offline, current 360 rig, existing HUD, map, all doors, city IDs, `offensive-meme-city-v1-center` storage key, wallet/holder verification and optional Together unaffected.
+5. Run Node tests/static checks/benchmarks, real Chromium phone-layout QA, and document that physical Android frame rate/inputs remain unverified until device testing. Push focused commits and update PR. **No silent public merge/deploy; obtain owner review first.**
+
+---
+
+## Archived historical handoff (October 31, 2026; not current instructions)
+
 > **Latest pushed and verified — October 31, 2026:** world2 offline gameplay preview is now wired to a limited collision-aware simulation with gangs, police heat response, fortress defender, simple raids, directional combat, preview-only checkpoint XP/credits and guarded staged character loading. Latest code `777a924b`. [Node 22 CI https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41223390175](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41223390175) **170/170 passed**. Draft PR #1 remains open. **Do not confuse this with integration into the production core/server, or claim physical browser/Android testing.**
 
 ## Immediate engineering priorities after round 3
