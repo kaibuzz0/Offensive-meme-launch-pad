@@ -90,7 +90,7 @@
   effect(e,p.x,p.y,`−${amount} HP`,'#ff6b87');
   if(p.hp===0){
    const fine=Math.min(25,p.credits);p.credits-=fine;
-   result(e,p,'busted');p.defense=null;cleanup(e,p.id);
+   result(e,p,'busted');if(p.defense)finishSiege(e,p,'busted');cleanup(e,p.id);
    Object.assign(p,{x:WORLD.spawn.x,y:WORLD.spawn.y,hp:100,heat:0,invulnerable:5,dashTime:0,policeSeen:false});p.deaths++;
    notify(p,`Busted! Back at the plaza. ${fine} play-credit recovery fee. Your equipment is safe.`);
   }
@@ -126,13 +126,90 @@
   }else b.path=[];
   const d=Math.max(1,distance(b,goal));move(b,(goal.x-b.x)/d*speed*dt,(goal.y-b.y)/d*speed*dt);
  }
- function cleanupRaid(e,id){e.arcade.bots=e.arcade.bots.filter(b=>!(b.raid&&b.owner===id));}
+ function cleanupRaid(e,id){
+  const ids=new Set(e.arcade.bots.filter(b=>b.raid&&b.owner===id).map(b=>b.id));
+  e.arcade.bots=e.arcade.bots.filter(b=>!ids.has(b.id));
+  e.arcade.bullets=e.arcade.bullets.filter(q=>!ids.has(q.sourceId));
+ }
+ const FORT_CORE=Object.freeze({x:C.PLOT.x+C.PLOT.cols*C.PLOT.tile/2,y:C.PLOT.y+C.PLOT.rows*C.PLOT.tile/2});
+ const SIEGE_HP=Object.freeze({wall:70,tower:120,home:185,tree:45,lamp:45});
+ const SIEGE_REPAIR=Object.freeze({core:18,piece:8});
+ const siegePoint=p=>({x:C.PLOT.x+p.col*C.PLOT.tile+C.PLOT.tile/2,
+   y:C.PLOT.y+p.row*C.PLOT.tile+C.PLOT.tile/2});
+ function finishSiege(e,p,status){
+  if(!p.defense)return;
+  const d=p.defense;
+  p.defenseResult={status,remaining:Math.max(0,Math.ceil(d.timeLeft)),
+   breaches:d.breaches||0,coreHP:Math.max(0,Math.ceil(d.coreHP)),coreMaxHP:d.coreMaxHP,
+   reward:status==='won'?60:0,xp:status==='won'?40:0};
+  if(status==='won'){p.credits+=60;p.xp+=40;p.defenseCooldown=45;
+   notify(p,'FORTRESS SECURED / +60 play credits / +40 XP. Your saved structures are intact.');}
+  else if(status==='breached'){p.defenseCooldown=30;
+   notify(p,'FORTRESS BREACHED / The command core fell. No completion reward; your built plot and squad remain saved.');}
+  else if(status==='expired')notify(p,'SIEGE EXPIRED / Retreat and reinforce your fortress. Your saved structures are safe.');
+  else if(status==='abandoned')notify(p,'Siege cancelled. All temporary battle damage cleared; no reward.');
+  p.defense=null;cleanupRaid(e,p.id);
+ }
+ function siegeRepair(e,p,a){
+  const d=p.defense;if(!d)throw Error('No siege to repair. Start fortress defense first.');
+  if(d.countdown>0)throw Error('Wait for the raiders to approach before repairing.');
+  if(C.areaAt(p.x,p.y)!=='fortress')throw Error('Repair from your own fortress.');
+  if(a.target==='core'){
+   if(distance(p,FORT_CORE)>270)throw Error('Walk closer to the fortress command core to repair.');
+   if(d.coreHP>=d.coreMaxHP)throw Error('Command core is already at full integrity.');
+   if(p.credits<SIEGE_REPAIR.core)throw Error('Not enough play credits for core repairs.');
+   p.credits-=SIEGE_REPAIR.core;d.coreHP=Math.min(d.coreMaxHP,d.coreHP+48);
+   effect(e,FORT_CORE.x,FORT_CORE.y,'+48 CORE','#89f3bf');
+   return 'Command core repaired by 48 integrity for 18 play credits.';
+  }
+  if(a.target!=='piece'||!Number.isInteger(a.col)||!Number.isInteger(a.row)||
+   a.col<0||a.col>=C.PLOT.cols||a.row<0||a.row>=C.PLOT.rows)
+   throw Error('Select a valid damaged structure to repair.');
+  const part=d.pieces.find(o=>o.col===a.col&&o.row===a.row);
+  if(!part)throw Error('This structure does not belong to the current siege.');
+  const point=siegePoint(part);
+  if(distance(p,point)>170)throw Error('Walk next to that damaged structure to repair.');
+  if(part.hp>=part.maxHp)throw Error('This structure is not damaged.');
+  if(p.credits<SIEGE_REPAIR.piece)throw Error('Not enough play credits to repair this structure.');
+  if(!part.hp){
+   const actors=[...e.players.values(),...e.arcade.guards,...e.arcade.bots].filter(x=>x.hp>0);
+   if(actors.some(x=>Math.abs(x.x-point.x)<43&&Math.abs(x.y-point.y)<43))
+    throw Error('Clear the breached tile before rebuilding its collision wall.');
+  }
+  p.credits-=SIEGE_REPAIR.piece;part.hp=Math.min(part.maxHp,part.hp+34);
+  effect(e,point.x,point.y,'+34 STRUCTURE','#92e5c6');
+  return 'Structure repaired by 34 integrity for 8 play credits.';
+ }
+ function tickSiege(e,p,dt){
+  const d=p.defense;if(!d||d.countdown>0)return;
+  const a=e.arcade;
+  for(const b of a.bots){
+   if(!b.raid||b.owner!==p.id||b.hp<=0)continue;
+   b.siegeCooldown=Math.max(0,(b.siegeCooldown||0)-dt);
+   if(b.siegeCooldown>0||distance(b,FORT_CORE)>660)continue;
+   b.siegeCooldown=10.5+(b.phase%2);
+   const nearby=d.pieces.filter(q=>q.hp>0&&distance(b,siegePoint(q))<420)
+    .sort((x,y)=>distance(b,siegePoint(x))-distance(b,siegePoint(y)));
+   const part=nearby[0],point=part?siegePoint(part):FORT_CORE;
+   if(part){
+    const before=part.hp;part.hp=Math.max(0,part.hp-19);
+    d.coreHP=Math.max(0,d.coreHP-5);
+    if(before>0&&!part.hp){d.breaches++;notify(p,`SIEGE BREACH / ${part.kind.toUpperCase()} at row ${part.row+1}, column ${part.col+1} fell. Repair to restore cover.`);}
+    effect(e,point.x,point.y,part.hp?'WALL HIT':'BREACHED','#ffbd86');
+   }else{
+    d.coreHP=Math.max(0,d.coreHP-10);
+    effect(e,point.x,point.y,'CORE HIT','#ff967b');
+   }
+   d.lastStrike={x:point.x,y:point.y,at:a.time,fromX:b.x,fromY:b.y};
+   if(!d.coreHP){finishSiege(e,p,'breached');return;}
+  }
+ }
  function freeSpawn(e,p,x,y){for(let r=0;r<6;r++)for(const [dx,dy]of [[0,1],[1,0],[-1,0],[0,-1]]){const pos={x:x+dx*r*32,y:y+dy*r*32};if(!C.blocked(pos.x,pos.y,p))return pos;}return {...WORLD.spawn};}
  function syncCrew(e){
   const a=e.arcade,ids=new Set();for(const p of e.players.values())for(let i=0;i<p.crew.length;i++){
    const record=p.crew[i],id=`${p.id}:${record.id}`;ids.add(id);let g=a.guards.find(g=>g.id===id);const role=C.CREW_TYPES.find(t=>t.id===record.role);
    if(!g){const anchor=record.mode==='follow'?p:record.mode==='patrol'?{x:1000+i*80,y:1000}:record.post||{x:1000+i*80,y:1000};const pos=freeSpawn(e,p,anchor.x+35+i*27,anchor.y+45);g={id,owner:p.id,ally:true,role:role.id,name:role.name,...pos,hp:role.hp,maxHp:role.hp,cooldown:0,recover:0,invulnerable:0,heat:0,quiet:0,state:'guarding',facing:{x:1,y:0},path:[],pathAt:0};a.guards.push(g);}
-   g.clan=p.clan;g.outposts=p.outposts;g.mode=record.mode;g.post=record.post||{x:C.PLOT.x+400+i*80,y:C.PLOT.y+600};g.plot=p.plot;g.slot=i;if(C.blocked(g.x,g.y,g))Object.assign(g,freeSpawn(e,p,g.x,g.y));
+   g.clan=p.clan;g.outposts=p.outposts;g.defense=p.defense;g.mode=record.mode;g.post=record.post||{x:C.PLOT.x+400+i*80,y:C.PLOT.y+600};g.plot=p.plot;g.slot=i;if(C.blocked(g.x,g.y,g))Object.assign(g,freeSpawn(e,p,g.x,g.y));
   }a.guards=a.guards.filter(g=>ids.has(g.id));
  }
  function tickCrew(e,dt){
@@ -156,10 +233,28 @@
    const record=p.crew.find(g=>g.id===action.id);if(!record)throw Error('This defender is not in your squad.');if(!['guard','patrol','follow'].includes(action.mode))throw Error('Unknown squad order.');
    record.mode=action.mode;if(action.mode==='guard')record.post={x:p.x,y:p.y};syncCrew(e);return action.mode==='guard'?'Defender ordered to hold your position.':action.mode==='patrol'?'Defender ordered to patrol your fortress.':'Defender ordered to follow you.';
   }
-  if(action.type==='endDefense'){if(!p.defense)throw Error('No active defense drill.');p.defense=null;cleanupRaid(e,p.id);return 'Defense drill cancelled.';}
+  if(action.type==='repairDefense')return siegeRepair(e,p,action);
+  if(action.type==='endDefense'){
+   if(!p.defense)throw Error('No active defense drill.');
+   finishSiege(e,p,'abandoned');return 'Siege cancelled. Temporary structural damage cleared.';
+  }
   if(action.type==='defenseDrill'){
-   if(p.area!=='fortress')throw Error('Walk to your fortress to start a defense drill.');if(p.contract||p.defense)throw Error('Finish your current challenge first.');if((p.defenseCooldown||0)>0)throw Error('Defense drill is recharging.');if(e.arcade.bots.length+4>64)throw Error('Too many active enemies.');
-   p.defense={remaining:4,timeLeft:120,countdown:3};for(let i=0;i<4;i++){const fort=C.DISTRICTS.find(d=>d.id==='fortress'),b=spawn(e,'gang',fort.ox+850+i*160,fort.oy+1215,`raid-${++e.serial}`,p.id);b.raid=true;b.plot=p.plot;}return 'Defense drill started. Four raiders are approaching your fortress.';
+   if(p.area!=='fortress')throw Error('Walk to your fortress to start a defense drill.');
+   if(p.contract||p.defense||p.blockJob||p.rising?.arena||p.quarantineRun)throw Error('Finish your current challenge first.');
+   if((p.defenseCooldown||0)>0)throw Error('Defense drill is recharging.');
+   if(e.arcade.bots.length+4>64)throw Error('Too many active enemies.');
+   const pieces=p.plot.filter(o=>SIEGE_HP[o.kind]).map(o=>({
+    col:o.col,row:o.row,kind:o.kind,hp:SIEGE_HP[o.kind],maxHp:SIEGE_HP[o.kind]
+   }));
+   p.defense={remaining:4,timeLeft:120,countdown:3,coreHP:200,coreMaxHP:200,
+    pieces,breaches:0,lastStrike:null};
+   p.defenseResult=null;
+   for(let i=0;i<4;i++){
+    const fort=C.DISTRICTS.find(d=>d.id==='fortress'),
+     b=spawn(e,'gang',fort.ox+850+i*160,fort.oy+1215,`raid-${++e.serial}`,p.id);
+    b.raid=true;b.plot=p.plot;b.defense=p.defense;b.siegeCooldown=10+i%2;
+   }
+   return 'Fortress siege started! Four raiders will breach walls and attack the command core. Repair during combat to hold the line.';
   }
   return null;
  }
@@ -430,7 +525,7 @@
    if(safe(p)&&p.quiet>5)p.hp=Math.min(100,p.hp+8*dt);
    if(p.dashTime>0){p.dashTime=Math.max(0,p.dashTime-dt);move(p,p.dashVector.x*400*dt,p.dashVector.y*400*dt);}
    else if(gear(p,'feet')==='boots')move(p,p.input.x*25*dt,p.input.y*25*dt);
-   if(p.defense){if(p.defense.countdown>0)p.defense.countdown=Math.max(0,p.defense.countdown-dt);else p.defense.timeLeft-=dt;if(p.defense.timeLeft<=0){p.defense=null;cleanupRaid(this,p.id);notify(p,'Defense drill ended. Your hired squad is safe.');}}
+   if(p.defense){if(p.defense.countdown>0)p.defense.countdown=Math.max(0,p.defense.countdown-dt);else p.defense.timeLeft-=dt;if(p.defense.timeLeft<=0)finishSiege(this,p,'expired');}
    if(p.contract){
     if(p.contract.countdown>0)p.contract.countdown=Math.max(0,p.contract.countdown-dt);
     else p.contract.remaining-=dt;
@@ -455,7 +550,7 @@
    if(!b.owner&&![...this.players.values()].some(p=>!p.room&&distance(b,p)<1300)){b.state='dormant';b.windup=0;b.targetId=null;b.attackTarget=null;b.aim=null;b.path=[];b.cooldown=Math.max(b.cooldown,1.2);continue;}
    if(b.owner&&(this.players.get(b.owner)?.contract?.countdown>0||b.raid&&this.players.get(b.owner)?.defense?.countdown>0)){b.state='ready';continue;}
    b.cooldown=Math.max(0,b.cooldown-dt);
-   const builder=[...this.players.values()].find(p=>p.plot?.length||p.outposts?.length);b.plot=builder?.plot||[];b.outposts=builder?.outposts||[];
+   const builder=[...this.players.values()].find(p=>p.plot?.length||p.outposts?.length);b.plot=builder?.plot||[];b.outposts=builder?.outposts||[];b.defense=b.raid?this.players.get(b.owner)?.defense:builder?.defense;
    const old=this.players.get(b.targetId)||a.guards.find(g=>g.id===b.targetId&&g.hp>0);
    const candidates=[...this.players.values(),...a.guards.filter(g=>g.hp>0)].filter(p=>!safe(p)&&C.npcHostile(b,p)&&p.invulnerable<3&&(!b.owner||b.owner===(p.ally?p.owner:p.id))&&distance(b,p)<(b.kind==='cop'?700:390)&&visible(b,p)).sort((p,q)=>distance(b,p)-distance(b,q));
    // Nearby rivals create street battles independent of player aggression.
@@ -540,7 +635,7 @@
    }
    if(hit||q.ttl<=0)a.bullets.splice(i,1);
   }
-  for(const p of this.players.values())if(p.defense&& !a.bots.some(b=>b.raid&&b.owner===p.id&&b.hp>0)){p.credits+=60;p.xp+=40;p.defense=null;p.defenseCooldown=45;cleanupRaid(this,p.id);notify(p,'Fortress defended! +60 play credits / +40 XP.');}
+  for(const p of this.players.values())if(p.defense){if(!a.bots.some(b=>b.raid&&b.owner===p.id&&b.hp>0))finishSiege(this,p,'won');else tickSiege(this,p,dt);}
   for(const p of this.players.values())p.defenseCooldown=Math.max(0,(p.defenseCooldown||0)-dt);
   for(const b of a.bots)b.hitFlash=Math.max(0,(b.hitFlash||0)-dt);
   for(let i=a.effects.length-1;i>=0;i--){a.effects[i].ttl-=dt;a.effects[i].y-=dt*22;if(a.effects[i].ttl<=0)a.effects.splice(i,1);}
@@ -633,7 +728,7 @@
   if(action.type==='travel')a.bullets=a.bullets.filter(q=>q.owner!==id);
   return message;
  };
- P.leave=function(id){if(this.quarantineEvent?.owner===id)finishQuarantine(this,'left');if(this.arcade){cleanup(this,id);this.arcade.guards=this.arcade.guards.filter(g=>g.owner!==id);}return base.leave.call(this,id);};
+ P.leave=function(id){if(this.quarantineEvent?.owner===id)finishQuarantine(this,'left');const departing=this.players.get(id);if(departing?.defense)finishSiege(this,departing,'abandoned');if(this.arcade){cleanup(this,id);this.arcade.guards=this.arcade.guards.filter(g=>g.owner!==id);}return base.leave.call(this,id);};
  P.snapshot=function(id){
   init(this);const s=base.snapshot.call(this,id);
   s.conflict=conflictSnapshot(this,id);s.quarantine=quarantineSnapshot(this,id);s.arcade={zombieNext:this.arcade.zombieNext,zombieHazards:(this.arcade.zombieHazards||[]).map(h=>({...h})),guards:this.arcade.guards.map(({plot,path,...g})=>({...g})),time:this.arcade.time,bots:this.arcade.bots.map(({path,plot,...b})=>({...b})),bullets:this.arcade.bullets.map(b=>({...b})),effects:this.arcade.effects.map(e=>({...e})),pickups:this.arcade.pickups.map(i=>({...i}))};return s;
