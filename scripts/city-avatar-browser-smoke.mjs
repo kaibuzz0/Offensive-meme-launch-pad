@@ -302,6 +302,33 @@ try{
  await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Return to the arcade room')).click();true");
  assert.equal(await evalPage("document.querySelector('#city-panel').open"),false,'returns to exact same indoor city world');
  assert.equal(await evalPage("document.querySelector('#district').textContent"),'CHAOS ARCADE');
+ // Actual mobile Chromium: same Solo game, existing clan selection and
+ // physical district terminal trigger the new, server-compatible defense.
+ await send('Page.addScriptToEvaluateOnNewDocument',{source:
+  "if(location.search.includes('territory-qa')){try{localStorage.removeItem('offensive-meme-city-v1-center')}catch{};Object.defineProperty(window,'MemeCityCore',{configurable:true,set:function(core){Object.defineProperty(window,'MemeCityCore',{value:core,configurable:true,writable:true});const join=core.Engine.prototype.join;core.Engine.prototype.join=function(){const p=join.apply(this,arguments);if(arguments[0]==='solo'){p.x=core.NEIGHBORHOODS[0].x;p.y=core.NEIGHBORHOODS[0].y;}return p;};}});}"});
+ await send('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
+ await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?solo=1&territory-qa=1'});
+ await waitFor(()=>evalPage("!!window.CityTerritory&&!!document.getElementById('start-button')"),'original world with real district-defense engine');
+ await evalPage("document.getElementById('start-button').click();document.querySelector('[data-panel=menu]').click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Clans & block jobs'))"),'existing clan menu');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Clans & block jobs')).click();true");
+ await waitFor(()=>evalPage("!!document.querySelector('.clan-card')"),'all six existing clan roles');
+ assert.equal(await evalPage("document.querySelectorAll('.clan-card').length"),6,'old clan blocks are not replaced');
+ await evalPage("Array.from(document.querySelector('.clan-card').querySelectorAll('button')).find(b=>b.textContent.includes('Join clan')).click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Start District Defense'))"),'on-site clan defense terminal ready');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Start District Defense')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('#mission-kicker').textContent.includes('DISTRICT DEFENSE')"),'live original-world district-alert HUD');
+ assert.equal(await evalPage("document.querySelector('#city-panel').open"),false,'the event returns to original city street combat');
+ await waitFor(()=>evalPage("document.querySelector('#mission-title').textContent.includes('Wave 1/2')"),'first actual allied NPC response wave');
+ assert.match(await evalPage("document.querySelector('#mission-detail').textContent"),/damage/);
+ assert.ok(await evalPage("document.querySelector('#city-canvas').width>300"),'original city renderer remains alive during faction combat');
+ await evalPage("document.querySelector('[data-panel=map]').click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('ACTIVE / District Defense'))"),'the old map plots the active defense alert');
+ await evalPage("document.querySelector('#close-panel').click();document.querySelector('#quick-job').click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Retreat / end district defense'))"),'the current clan panel owns defense retreat');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Retreat / end district defense')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('#panel-content').textContent.includes('LAST DEFENSE / ABANDONED')"),'faction defense cleanup after retreat');
+ assert.equal(await evalPage("document.querySelector('#district').textContent.includes('RUG')"),false,'original district remains available after event');
  // Regression: the Avatar wallet button must report missing providers INSIDE its modal.
  // Previously the only error notification was behind the modal and appeared inert on phones.
  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?release=wallet-feedback-qa'});
