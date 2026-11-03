@@ -370,7 +370,43 @@
  }
  function districtProps(c,area,player,art,catalog,time){
   const token=catalog.get(player.avatar),image=art.get(player.avatar);const layers=[];
-  if(area==='fortress')for(const o of player.plot||[])layers.push({y:P.y+o.row*64+58,draw:()=>piece(c,o,image,token.ticker)});
+  if(area==='fortress')for(const o of player.plot||[])layers.push({y:P.y+o.row*64+58,draw:()=>{
+   const part=player.defense?.pieces?.find(t=>t.col===o.col&&t.row===o.row);
+   piece(c,o,image,token.ticker,part&&part.hp<=0?.35:1);
+   if(!part||part.hp>=part.maxHp)return;
+   const x=P.x+o.col*64+32,y=P.y+o.row*64+33,ratio=part.hp/part.maxHp;
+   c.save();
+   c.fillStyle=ratio===0?'#ff744866':'#ffb86c23';
+   c.fillRect(x-28,y-64,56,56);
+   c.strokeStyle=ratio===0?'#ff8067':'#ffe5aa';c.lineWidth=3;
+   c.beginPath();c.moveTo(x-21,y-61);c.lineTo(x+6,y-35);c.lineTo(x-13,y-20);
+   c.lineTo(x+18,y-6);c.stroke();
+   c.fillStyle='#15222bc9';c.fillRect(x-27,y-80,54,8);
+   c.fillStyle=ratio===0?'#ff6b74':ratio<.4?'#ffb16b':'#a4ebbd';
+   c.fillRect(x-25,y-78,50*ratio,4);
+   if(ratio===0)text(c,'BREACHED',x,y-85,9,'#ffb8a8');
+   c.restore();
+  }});
+  if(area==='fortress'&&player.defense){
+   // Paint damage and the core status in the same world and same depth queue.
+   const d=player.defense,x=C.PLOT.x-fort.ox+C.PLOT.cols*64/2,
+    y=C.PLOT.y-fort.oy+C.PLOT.rows*64/2;
+   layers.push({y:y+40,draw:()=>{
+    c.save();c.fillStyle='#0d263abf';c.beginPath();c.ellipse(x,y+20,104,49,0,0,Math.PI*2);c.fill();
+    c.strokeStyle=d.coreHP/d.coreMaxHP<.3?'#ff6f79':'#c3e8b4';
+    c.lineWidth=4;c.beginPath();c.ellipse(x,y+20,100,44,0,0,Math.PI*2);c.stroke();
+    box(c,x-79,y-10,158,11,'#132e37',3);
+    box(c,x-77,y-8,154*Math.max(0,d.coreHP)/d.coreMaxHP,7,
+     d.coreHP/d.coreMaxHP<.3?'#ff7a80':'#8ef2b1',2);
+    text(c,'COMMAND CORE / '+Math.ceil(d.coreHP)+' HP',x,y-19,11,'#eef6e9');
+    if(d.lastStrike&&d.coreHP>0){
+     const pt={x:d.lastStrike.x-fort.ox,y:d.lastStrike.y-fort.oy};
+     c.strokeStyle='#ffb578a8';c.lineWidth=2;c.beginPath();
+     c.arc(pt.x,pt.y,11,0,Math.PI*2);c.stroke();
+    }
+    c.restore();
+   }});
+  }
   else{
    for(const b of C.districtBlocks(area))layers.push({y:b.y+b.h,draw:()=>{landmarkBuilding(c,b,image);buildingFX(c,b,time);}});
    if(area==='creator'){let i=0;for(const t of catalog.values()){const xx=400+i*280;layers.push({y:1060,draw:()=>{box(c,xx-47,1000,94,18,'#142b3a',3);box(c,xx-45,907,90,96,'#a4b2ac',3);box(c,xx-39,913,78,78,'#1c3448',2);const img=art.get(t.id);if(img?.complete&&img.naturalWidth)c.drawImage(img,xx-35,917,70,70);text(c,'$'+t.ticker,xx,1036,11,'#d6c8eb');}});i++;}}
