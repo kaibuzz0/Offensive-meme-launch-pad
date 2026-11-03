@@ -1,3 +1,16 @@
+
+## Current production / one-world recovery — November 2–3, 2026
+
+- **Live canonical client:** `city.html` and `MemeCityCore.Engine` at `main` commit `549b628755b5f5717a3d535dcc75a8ab99d5de46`; new world clients, V2 cutovers and save-key replacements are explicitly out of scope.
+- **Reference:** owner's uploaded World V2 history and failed-release archive; all design concepts are a backlog to import incrementally into the single active game, not permission to deploy old World V2 code.
+- **Draft PR #28:** `codex/one-world-quarantine-archetypes`. Four zombie archetypes (walker, runner, tank, spitter) with varied health/speed/telegraphed attacks, shared player rig, bounded toxic impact hazards and world Canvas warnings. No new currencies, saves, wallets or game map.
+- **Proof:** Actions run `41572576502` was fully successful for prior head `83bbebd1`: game and server regression suite, static checks, room benchmark, and real Chromium smoke. Branch handoff docs added subsequently; check latest run before release. Physical Android hardware not tested.
+- **Next scenarios:** one Quarantine survival event; complete fortress damage/repair raid; one touch-playable original Chaos Arcade cabinet; further faction reaction, missions, navigation and weather improvements. All must run on the current player-facing city/solo engine, no separate prototype substitute.
+- **Release:** This change is **draft-only**, not merged or live. An explicit owner visual review is required before production integration. Preserve `offensive-meme-city-v1-center` and all current website entry points.
+- **Working plan:** `docs/ONE_WORLD_INTEGRATION_ROADMAP.md` is the current source of truth. Earlier V2-only development entries below are **historical** and must not override current production instructions.
+
+---
+
 # Meme City development status — 2026-10-30
 
 Baseline: `3ec0c0cd3c68258290d689073525e565ec377ff5` (Alpha 11).
