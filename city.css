@@ -183,3 +183,8 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 .rug-runner-status{font:700 12px/1.7 monospace;color:#d1e6e3;min-height:48px;margin:13px 0!important}
 @media(max-width:700px){.rug-runner{padding:9px;border-radius:8px}.rug-runner-controls{gap:7px}.rug-runner-controls .panel-button{min-height:56px;padding:11px 6px;font-size:10px}.rug-runner-status{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.rug-runner-controls .panel-button{transition:none}}
+/* Accessible manual street route — never drives or teleports the player. */
+.route-guide{position:absolute;z-index:3;top:189px;left:50%;transform:translateX(-50%);width:max-content;max-width:min(92%,540px);padding:9px 13px;border-radius:7px;background:#102b3de9;border:1px solid #6ee5f3b8;box-shadow:0 6px 20px #020b16aa;color:#d9ffff;font:700 10px/1.5 monospace;letter-spacing:.1px;pointer-events:none;text-align:center;text-wrap:balance}
+.route-guide[hidden]{display:none}
+.route-guide[data-status="off-route"],.route-guide[data-status="invalid"]{border-color:#edbf7b;color:#ffdbac;background:#3b2a28e9}
+@media(max-width:700px){.route-guide{top:208px;font-size:9px;line-height:1.45;padding:7px 10px;max-width:calc(100% - 16px)}}
