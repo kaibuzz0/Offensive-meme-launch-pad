@@ -78,10 +78,10 @@ for(const id of ['city-canvas','start-button','city-intro','room-mode','hud-cred
  assert.ok(city.includes('id="'+id+'"'),'Original playable V1 HUD or control missing: '+id);
 assert.ok(city.includes('SOLO / LOCAL SAVE'),'Original V1 solo gameplay must be the default');
 assert.ok(city.includes('city-interiors.js?v=39-chaos-arcade')&&city.includes('city-room-visuals.js?v=39-chaos-arcade')&&city.includes('city.css?v=42-wayfinding'),'The playable in-room Chaos Arcade and mobile cabinet styling must all be present');
-assert.ok(city.includes('city-civilians.js?v=41-civilian-patrols'),'Shared reactively fleeing civilians must load in existing playable city');
+assert.ok(city.includes('city-civilians.js?v=44-friendly-civilians'),'Shared reactively fleeing civilians must load in existing playable city');
 assert.ok(city.includes('city-rise-visuals.js?v=43-street-lighting'),'Current center-world street lighting must ship with the original city');
 assert.ok(city.includes('city-territory.js?v=40-district-defense'),'Territory defense encounters must ship in the one playable city');
-assert.ok(city.includes('city.js?v=43-street-lighting'),'Restored V1 playable engine must be loaded with the refreshed script version');
+assert.ok(city.includes('city.js?v=44-friendly-civilians'),'Restored V1 playable engine must be loaded with the refreshed script version');
 assert.ok(city.includes('city-rise.js?v=37-one-world-quarantine')&&city.includes('city-arcade.js?v=41-civilian-patrols')&&city.includes('city-interiors.js?v=39-chaos-arcade'),'All authoritative Quarantine modules must share the live script version');
 assert.ok(city.includes('city-districts.js?v=41-civilian-patrols')&&city.includes('city-room-visuals.js?v=39-chaos-arcade'),'Modern exterior and interior renderers must be shipped together');
 assert.ok(city.includes('city-visuals.js?v=37-one-world-quarantine')&&city.includes('city-clans.js?v=37-one-world-quarantine')&&city.includes('city-core.js?v=40-district-defense'),'Signed beta-token cosmetics must use the updated shared player rig');
