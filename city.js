@@ -42,9 +42,25 @@
   shell.append(info);render();const image=art.get(me.avatar);if(!image?.complete)image?.addEventListener('load',render,{once:true});return shell;
  }
  function track(s){tracked=s;const route=routePlanner.plan(me,s,online?null:me);routePath=route.status==='ok'?route.points:null;lastRouteCalc=performance.now();closePanel();toast(routePath?`Walking route to ${s.name} marked. Follow the cyan path.`:`No safe street route found to ${s.name}. Try a different entrance.`);}
+ function routeInstruction(g){
+  if(g.status==='arrived')return 'ARRIVED · Enter the nearby location.';
+  if(g.status==='off-route')return 'OFF ROUTE · Recalculating safe streets…';
+  if(g.status!=='follow')return 'NO SAFE STREET ROUTE · Open Map to change destination.';
+  const meters=Math.max(1,Math.round(g.remaining/10)),
+   step=g.turn==='continue'?'Continue':g.turn==='left'?'Then turn LEFT':g.turn==='right'?'Then turn RIGHT':'Continue',
+   turnMeters=Math.max(1,Math.round(g.distanceToTurn/10));
+  return `HEAD ${g.heading} · ${meters}m remaining · ${step} in ${turnMeters}m`;
+ }
+ function updateRouteGuide(){
+  const el=$('#route-guide');if(!tracked||!entered||me.room){el.hidden=true;return;}
+  const guide=routePath?routePlanner.guidance(me,routePath):{status:'invalid'};
+  el.hidden=false;el.textContent=(tracked.name||'Destination')+' / '+routeInstruction(guide);
+  el.dataset.status=guide.status;
+ }
  function markDistrict(area){const d=area==='hub'?{x:HUB.x+1120,y:HUB.y+900,name:'Founder Square'}:C.DISTRICTS.find(d=>d.id===area);if(d)track(d);}
  function buildEditor(content){
   if(online){districtsPanel(content);return;}
+  if(me.defense){content.append(node('p','beta-note','Your fortress is under siege. Construction and demolition are locked until the attackers retreat; existing saved pieces will not be deleted. Repair damaged defenses from the Squad panel.'),button('View siege damage and repair →',()=>panel('crew')));return;}
   if(me.area!=='fortress'){content.append(node('p','beta-note','Your own 16 × 10 plot lives in Fortress Heights. Build with play credits earned in the city. Pieces can be removed for a full refund. No real-world ownership or token purchase is involved.'),button('Mark walking route to my fortress →',()=>markDistrict('fortress')));return;}
   let selected='wall',rotation=0,busy=false;
   content.append(node('p','district-kicker','YOUR FORTRESS / CONSTRUCTION MODE'),node('p','','Choose a piece, then tap a plot tile below. Solid pieces block movement in your district. Your meme collection appears on the HQ, towers and banners.'));
@@ -73,7 +89,7 @@
  }
  function interiorsHUD(){
   const room=me.room,near=room?I.activity(me):I.nearest(me);
-  if(room){$('#district').textContent=room.name.toUpperCase();$('.game-shell').dataset.area='interior';$('#mission-kicker').textContent='INDOORS / EXPLORE';$('#mission-title').textContent=room.name;$('#mission-detail').textContent=me.places.souvenirs.includes(room.id)?'Memento found. Try the activity terminal, or head to the glowing exit.':'Explore the room. Find the golden memento and try the activity terminal.';$('#quick-job').textContent='Building guide →';$('#mission-fill').style.width=me.places.souvenirs.includes(room.id)?'100%':'25%';$('#interact').disabled=!near;$('#interact').textContent=near?.kind==='exit'?'E / EXIT TO STREET':near?'E / ACTIVITY':'E / EXPLORE ROOM';$('#fire').hidden=true;$('#dash').hidden=true;$('#ride-toggle').disabled=true;$('#landmark-count').textContent=`⌂ ${me.places.visited.length}/${I.buildings(me).length} · ◇ ${me.places.souvenirs.length}/${I.buildings(me).length}`;}
+  if(room){$('#district').textContent=room.name.toUpperCase();$('.game-shell').dataset.area='interior';$('#mission-kicker').textContent='INDOORS / EXPLORE';$('#mission-title').textContent=room.name;$('#mission-detail').textContent=me.places.souvenirs.includes(room.id)?'Memento found. Try the activity terminal, or head to the glowing exit.':'Explore the room. Find the golden memento and try the activity terminal.';$('#quick-job').textContent='Building guide →';$('#mission-fill').style.width=me.places.souvenirs.includes(room.id)?'100%':'25%';$('#interact').disabled=!near;$('#interact').textContent=near?.kind==='exit'?'E / EXIT TO STREET':near?.panel==='arcadeCabinet'?'E / PLAY RUG RUNNER':near?'E / ACTIVITY':'E / EXPLORE ROOM';$('#fire').hidden=true;$('#dash').hidden=true;$('#ride-toggle').disabled=true;$('#landmark-count').textContent=`⌂ ${me.places.visited.length}/${I.buildings(me).length} · ◇ ${me.places.souvenirs.length}/${I.buildings(me).length}`;}
   else{$('#dash').hidden=false;$('#ride-toggle').disabled=false;if(near){$('#interact').disabled=false;$('#interact').textContent='E / ENTER '+near.name.toUpperCase();}}
  }
  let roomCamera=null;
@@ -111,6 +127,35 @@
    content.append(button(r.arena?'Abandon arena run':'Start survival →',async()=>{if(await action({type:r.arena?'endSurvival':'startSurvival'}))closePanel();}),button('Mark the arena terminal →',()=>track({...g,name:'Marshal / survival arena'})),button('Squad orders →',()=>panel('crew')),button('Medkits & supplies →',()=>panel('supplies')),node('p','beta-note','Start beside Marshal in Arena District. The run ends if you leave the district, get busted, abandon it or run out of time. Full completion rewards are paid once per completed run. All rewards are in-game only.'));
   }
  }
+ function quarantinePanel(content){
+  const q=state.quarantine||{...C.QUARANTINE,phase:'idle',cooldown:0},bunker=C.QUARANTINE;
+  const distance=Math.hypot(me.x-bunker.x,me.y-bunker.y),near=!me.room&&distance<=125;
+  content.append(node('p','district-kicker','ONE CITY / QUARANTINE BUNKER'),
+   node('h3','district-heading','Three waves in the dead zone'),
+   node('p','','Walk to the marked bunker in the existing city wilderness. Face Walkers, fast Runners, armored Tanks and Spitters with dodgeable toxic warnings. The same weapons, character rig, medkits and map work here.'),
+   node('p','', 'Complete all three waves within 205 seconds. Deal at least 55 damage yourself to earn 120 play credits and 100 XP. Teammates can assist in Together; only the starting player earns the personal completion payout. No tokens, wagers or on-chain transfers.'));
+  if(q.result)content.append(node('p','arena-result',
+   `LAST RUN / ${q.result.status.toUpperCase()} · wave ${q.result.wave}/3 · ${q.result.damage} damage · ${q.result.reward} play credits`));
+  if(q.phase==='active'){
+   content.append(node('p','beta-note',`WAVE ${q.wave}/3 · ${q.enemies} undead active · ${Math.ceil(q.remaining)}s remaining · ${q.ownerName||'A player'} is defending · ${q.mine?Math.floor(q.damage)+'/55 damage contributed':'Assist by fighting the zombies'}`));
+   if(q.mine)content.append(button('Retreat / end quarantine →',async()=>{
+    if(await action({type:'endQuarantine'}))panel('quarantine');
+   }));
+   else content.append(node('p','','This shared room has a running bunker defense. You can fight alongside the owner, but cannot start another run until it ends.'));
+  }else{
+   const start=button(q.cooldown>0?`Bunker resetting · ${Math.ceil(q.cooldown)}s`:
+    near?'Start three-wave quarantine →':'Go to bunker to unlock start →',async()=>{
+    if(!near)return track(bunker);
+    if(await action({type:'startQuarantine'}))closePanel();
+   });
+   start.disabled=q.cooldown>0;
+   content.append(start);
+  }
+  content.append(button('Mark Quarantine Bunker on world map →',()=>track(bunker)),
+   button('Open world map →',()=>panel('map')),
+   button('Medkits & supplies →',()=>panel('supplies')),
+   node('p','beta-note','The event ends on defeat, retreat, leaving the quarantine perimeter, or timeout. Enemy waves disappear when it ends. Earned play credits and XP use the existing Solo save; online guest rooms remain temporary.'));
+ }
  function risingHUD(){
   if(!me.rising)return;const r=me.rising,goal=R.objective(me),a=r.arena,g=R.nearest(me);
   const seconds=state.arcade.time;$('#city-clock').textContent=`${RV.clock(seconds)} / ${Math.floor(seconds/80)%3===1?'LIGHT RAIN':'CLEAR SKIES'}`;$('#landmark-count').textContent=`◇ ${r.found.length}/12 · HQ ${r.fortLevel}`;
@@ -131,7 +176,41 @@
   if(me.crew.length)content.append(node('h3','district-heading','Your squad'));
   for(const record of me.crew){const type=C.CREW_TYPES.find(t=>t.id===record.role),g=state.arcade?.guards.find(g=>g.id===me.id+':'+record.id),card=node('article','crew-card');card.append(node('h3','',type.name),node('p','',g?.hp===0?`Recovering · ${Math.ceil(g.recover)}s`:`${Math.ceil(g?.hp??type.hp)}/${type.hp} HP · ${record.mode.toUpperCase()}`));const orders=node('div','crew-orders');for(const [mode,label]of [['guard','Hold here'],['patrol','Patrol fortress'],['follow','Follow me']]){const b=button(label,async()=>{if(await action({type:'crewOrder',id:record.id,mode}))panel('crew');});b.setAttribute('aria-pressed',String(record.mode===mode));orders.append(b);}card.append(orders);content.append(card);}
   content.append(node('p','beta-note','Defenders engage hostile gang bots, including raiders, and do not damage players. Hold here guards your current position; Patrol fortress covers the plot perimeter; Follow me travels with you. Squad kills outside contracts/drills do not generate play credits.'));
-  const drill=button(me.defense?'End defense drill':'Start fortress defense drill',async()=>{if(await action({type:me.defense?'endDefense':'defenseDrill'}))closePanel();});drill.disabled=me.area!=='fortress';content.append(drill,node('p','builder-help','Defense drill: four raiders, two minutes, +60 play credits / +40 XP for clearing the wave. Manual start; 45-second cooldown after a win. Build cover and use your squad or your blaster.'));
+  const d=me.defense;
+  if(d){
+   content.append(node('p','district-kicker','ACTIVE SIEGE / FORTRESS INTEGRITY'),
+    node('h3','district-heading',`Command Core: ${Math.ceil(d.coreHP)} / ${d.coreMaxHP} HP`),
+    node('p','',`Raiders still fighting: ${state.arcade.bots.filter(b=>b.raid&&b.owner===me.id&&b.hp>0).length} · ${Math.ceil(d.timeLeft)}s · breached structures: ${d.breaches||0}. Stop the raiders before they break the core. Your saved buildings cannot be demolished during combat.`));
+   const core=button('Repair command core · 18 credits / +48 HP',async()=>{
+    if(await action({type:'repairDefense',target:'core'}))panel('crew');
+   });
+   core.disabled=d.countdown>0||d.coreHP>=d.coreMaxHP||me.credits<18||
+    Math.hypot(me.x-(C.PLOT.x+C.PLOT.cols*32),me.y-(C.PLOT.y+C.PLOT.rows*32))>270;
+   content.append(core);
+   const broken=(d.pieces||[]).filter(p=>p.hp<p.maxHp)
+    .sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp);
+   if(broken.length)content.append(node('h3','district-heading','Damaged cover / repair nearby'));
+   for(const part of broken){
+    const point={x:C.PLOT.x+part.col*64+32,y:C.PLOT.y+part.row*64+32},
+     near=Math.hypot(me.x-point.x,me.y-point.y)<=170;
+    const row=node('article','panel-row'),details=node('div');
+    details.append(node('h3','',`${part.kind.toUpperCase()} · row ${part.row+1}, column ${part.col+1}`),
+     node('p','',`${Math.ceil(part.hp)}/${part.maxHp} integrity · ${part.hp?'Damaged':'BREACHED — cover is open'}`));
+    const b=button('Repair · 8 credits / +34 HP',async()=>{
+     if(await action({type:'repairDefense',target:'piece',row:part.row,col:part.col}))panel('crew');
+    });
+    b.disabled=d.countdown>0||!near||me.credits<8;
+    row.append(details,b);content.append(row);
+   }
+   if(!broken.length)content.append(node('p','beta-note','No damaged walls or towers. Keep your squad defending the plot.'));
+   content.append(node('p','beta-note','Repairs require proximity and available play credits. A fully breached tile must be clear of characters before it can be rebuilt. Siege damage resets when the encounter ends.'));
+  }else if(me.defenseResult)content.append(node('p','arena-result',
+   `LAST SIEGE / ${me.defenseResult.status.toUpperCase()} · ${me.defenseResult.breaches} breaches · ${me.defenseResult.reward} credits earned`));
+  const drill=button(d?'Retreat / abandon siege':'Start fortress siege',async()=>{
+   if(await action({type:d?'endDefense':'defenseDrill'}))closePanel();
+  });
+  drill.disabled=me.area!=='fortress'||(!d&&me.defenseCooldown>0);
+  content.append(drill,node('p','builder-help','Four raiders launch a two-minute assault on your walls and command core. Hold your base, repair breaches and defeat the attackers for +60 play credits / +40 XP. Losing or cancelling the run does not erase your saved structures or hired defenders.'));
  }
  function districtsPanel(content){
   content.append(node('p','district-kicker','FOUR CORNERS / ONE CITY'),node('h3','district-heading','Find your corner.'),node('p','','One continuous city. Walk the roads between every district; buttons below only mark directions. There are no district loading screens or teleports.'));
@@ -334,6 +413,27 @@
   const grid=node('div');grid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px';for(let row=0;row<3;row++)for(let col=0;col<3;col++){const placed=me.outposts?.find(o=>o.clan===n.id&&o.col===col&&o.row===row);grid.append(button(placed?'Remove '+placed.kind:`Build ${row+1},${col+1}`,async()=>{if(await action({type:placed?'outpostRemove':'outpostBuild',clan:n.id,col,row,kind:select.value}))panel('outposts');}));}content.append(grid);
  }
  function clanPanel(content){
+  const territory=state.territory;
+  content.append(node('p','district-kicker','DISTRICT DEFENSE / ONE SHARED CITY'),
+   node('h3','district-heading','Protect your clan block'),
+   node('p','','A rival gang raids your clan district in two waves. Local NPC patrols and new responders mobilize to defend it. Fight alongside them: earn 55 play credits, 50 XP and +1 reputation only after 65 direct damage, seven active seconds and both waves defeated. No PvP or wallet requirement.'));
+  if(territory?.phase!=='idle'){
+   const n=C.NEIGHBORHOODS.find(n=>n.id===territory.clan);
+   content.append(node('p','beta-note',`ALERT / ${n?.name||'District'} · ${territory.phase.toUpperCase()} · wave ${territory.wave}/2 · ${territory.invaders} invaders · ${territory.defenders} allied responders · ${Math.ceil(territory.remaining)}s`),
+    node('p','',territory.mine?`Your contribution: ${Math.floor(territory.damage)}/65 direct damage; ${Math.floor(territory.active)}/7 active seconds.`:`Defending player: ${territory.ownerName}. You can assist in the same room, but cannot claim the initiating player's reward.`),
+    button('Mark active district alert on map →',()=>track({...territory,name:'DISTRICT DEFENSE / '+(n?.name||'Clan block')})));
+   if(territory.mine)content.append(button('Retreat / end district defense',async()=>{if(await action({type:'endTerritoryDefense'}))panel('clans');}));
+  }else{
+   const n=C.NEIGHBORHOODS.find(n=>n.id===me.clan),near=!!n&&!me.room&&Math.hypot(me.x-n.x,me.y-n.y)<150;
+   if(territory?.result)content.append(node('p','beta-note',`LAST DEFENSE / ${territory.result.status.toUpperCase()} · ${territory.result.damage} direct damage · ${territory.result.reward} earned credits`));
+   const start=button(!n?'Join a clan before defending':territory?.cooldown>0?`Defense beacon cooling · ${Math.ceil(territory.cooldown)}s`:near?'Start District Defense →':'Walk to your clan terminal to begin →',async()=>{
+    if(n&&!near){track(n);return;}
+    if(await action({type:'startTerritoryDefense'}))closePanel();
+   });
+   start.disabled=!n||(territory?.cooldown||0)>0;
+   content.append(start);
+   if(n)content.append(button('Mark my clan terminal on map →',()=>track(n)));
+  }
   const conflict=state.conflict;if(conflict){content.append(node('h3','','Founders Crossing / '+conflict.phase.toUpperCase()),node('p','',conflict.summary),node('p','',`${Math.ceil(conflict.remaining)}s · Insider ${conflict.insiders} / Rugs ${conflict.rugs} · ${conflict.entry?Math.floor(conflict.entry.damage)+'/60 damage · '+Math.floor(conflict.entry.active)+'/10 active seconds':'Spectator: no idle rewards'}`),button('Mark conflict location →',()=>track(conflict)));if(['announced','gathering','active'].includes(conflict.phase))content.append(button(conflict.entry?'Already enrolled':'Join this conflict',async()=>{if(await action({type:'joinConflict'}))closePanel();}));content.append(node('p','beta-note','Join Insider Cunts or Rugmasters, then enroll at the crossing. No PvP. Earn 60 damage against rival event troops and 10 active seconds inside the ring: 80 credits for victory, 40 for defeat or timeout, plus 50 XP. No token purchase required.'));}
 
   const battles=(state.arcade?.bots||[]).filter(b=>b.hp>0&&b.state==='skirmish').sort((a,b)=>Math.hypot(a.x-me.x,a.y-me.y)-Math.hypot(b.x-me.x,b.y-me.y));
@@ -350,11 +450,114 @@
   content.append(button('Build a district outpost →',()=>panel('outposts')));
   content.append(button('Optional token purchases & holder gear →',()=>panel('tokens')));
  }
+ // A real in-building arcade cabinet, running inside the original City menu.
+ // Gates and awards are decided exclusively by the existing solo/room Engine.
+ function cabinetPanel(content){
+  const inArcade=me.room?.id==='arcade',near=inArcade&&
+   Math.hypot(me.room.x-I.ROOM.activity.x,me.room.y-I.ROOM.activity.y)<=110;
+  const run=state.self?.cabinet,result=state.self?.cabinetResult;
+  content.append(node('p','district-kicker','CHAOS ARCADE / RUG RUNNER'),
+   node('h3','district-heading','Dodge the rugs. Catch the chips.'),
+   node('p','','Twelve gates, three lanes, three hearts. The red lane is dangerous; the glowing green lane pays points. You may move only one lane left or right before each gate. Choose a lane, then press ADVANCE. Time never runs out while you think.'));
+  const best=me.places?.arcadeBest||0,claimed=me.places?.arcadeClaimed===true;
+  content.append(node('p','beta-note',`BEST SCORE ${best} · ${claimed?'FIRST-CLEAR PRIZE CLAIMED':'FIRST CLEAR: 35 PLAY CREDITS + 30 XP'} · Need ${I.CABINET_MIN_SCORE} points and at least one heart after 12 gates. No wagers, purchases, wallet signatures, or crypto.`));
+  if(!inArcade){
+   content.append(node('p','','This game is inside the original Chaos Arcade building. Walk to its street entrance, enter, and approach the back activity terminal. No second world or external page is needed.'));
+   content.append(button('Map route to Chaos Arcade entrance →',()=>track(I.door(I.BUILDINGS.find(b=>b.roomId==='arcade')))));
+   return;
+  }
+  if(!near){
+   content.append(node('p','','Walk closer to the activity terminal near the back of this room, then press E to start playing.'),
+    button('Return to my character →',closePanel));
+   return;
+  }
+  const shell=node('section','rug-runner');
+  shell.tabIndex=0;shell.setAttribute('role','group');
+  shell.setAttribute('aria-label','Rug Runner cabinet. Left and right arrows shift one lane per gate. Space advances. P pauses or resumes.');
+  const board=node('canvas','rug-runner-board');board.width=660;board.height=350;
+  board.setAttribute('role','img');board.setAttribute('aria-label','Three-lane arcade track showing the next danger and bonus lanes');
+  const status=node('p','rug-runner-status');
+  const labels=['LEFT','CENTER','RIGHT'];
+  const gate=run?.gate,playing=run?.phase==='playing',paused=run?.paused;
+  function drawCabinet(){
+   const c=board.getContext('2d'),w=board.width,h=board.height;
+   const bg=c.createLinearGradient(0,0,0,h);bg.addColorStop(0,'#18112b');bg.addColorStop(.6,'#13344e');bg.addColorStop(1,'#11192c');
+   c.fillStyle=bg;c.fillRect(0,0,w,h);
+   c.lineWidth=2;c.strokeStyle='#9e7ac344';
+   for(let y=12;y<h;y+=34){c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke();}
+   const xs=[135,330,525];
+   for(let lane=0;lane<3;lane++){
+    const x=xs[lane],danger=playing&&gate?.danger===lane,bonus=playing&&gate?.bonus===lane;
+    c.fillStyle=danger?'#6c2b43':bonus?'#1e7669':'#23415d';
+    c.fillRect(x-84,53,168,285);
+    c.strokeStyle=danger?'#ff8193':bonus?'#7df5c0':'#80adca';c.lineWidth=3;c.strokeRect(x-84,53,168,285);
+    c.fillStyle='#e6f3ed';c.textAlign='center';c.font='bold 13px monospace';c.fillText(labels[lane],x,80);
+    c.font='bold 33px Arial';c.fillStyle=danger?'#ffb0be':bonus?'#a4ffce':'#99bbd0';
+    c.fillText(danger?'✖':bonus?'◆':'·',x,155);
+    c.font='bold 12px monospace';c.fillText(danger?'RUG':bonus?'+POINTS':'SAFE',x,179);
+    for(let k=0;k<4;k++){c.fillStyle=danger?'#ff708b18':bonus?'#72f5b318':'#a6eaff14';c.fillRect(x-76,200+k*33,152,4);}
+   }
+   const pos=xs[playing?run.lane:1];
+   c.fillStyle='#b8ecff66';c.beginPath();c.ellipse(pos,306,47,13,0,0,Math.PI*2);c.fill();
+   V.person(c,{id:'rug-runner-player',x:pos,y:306,role:'player',scale:.65,
+    aim:{x:0,y:-1},moving:false,style:me.style,armed:false},0);
+   c.fillStyle='#f1ecff';c.textAlign='left';c.font='bold 15px monospace';
+   c.fillText(playing?`GATE ${run.turn+1} / ${I.CABINET_TURNS}`:'RUG RUNNER',16,25);
+   c.fillText(playing?`SCORE ${run.score}  ·  ♥ ${run.hp}`:`BEST ${best}`,365,25);
+   if(paused||!playing){
+    c.fillStyle='#0a0d25b3';c.fillRect(0,52,w,h-52);
+    c.textAlign='center';c.fillStyle='#d7ffda';c.font='bold 32px Arial';
+    c.fillText(paused?'PAUSED':result?.status==='won'?'TRACK CLEARED':result?.status==='lost'?'TRY AGAIN':'PRESS START',w/2,h/2-8);
+    c.font='bold 15px monospace';c.fillStyle='#d2e7ee';
+    c.fillText(paused?'Resume whenever you are ready.':result?`Final score ${result.score} · Prize ${result.reward} credits`:'12 TURNS · 3 HEARTS · ONE PRIZE',w/2,h/2+29);
+   }
+  }
+  drawCabinet();
+  shell.append(board);
+  const controls=node('div','rug-runner-controls');
+  const command=async(a)=>{if(await action(a,true)){panel('arcadeCabinet');}};
+  if(playing){
+   status.textContent=`GATE ${run.turn+1} / 12 · ${run.hp} hearts · ${run.score} points. ${paused?'Paused.':`Red hazard: ${labels[gate.danger]}. Green points: ${labels[gate.bonus]}. Your lane: ${labels[run.lane]}. ${run.shifted?'Move used for this gate.':'One lane move available.'}`}`;
+   if(paused)controls.append(button('Resume cabinet',()=>command({type:'arcadeResume'})));
+   else{
+    const left=button('◀ LEFT / A',()=>command({type:'arcadeShift',delta:-1}));
+    left.disabled=run.shifted||run.lane===0;
+    const right=button('RIGHT / D ▶',()=>command({type:'arcadeShift',delta:1}));
+    right.disabled=run.shifted||run.lane===2;
+    controls.append(left,right,button('ADVANCE GATE / SPACE',()=>command({type:'arcadeStep'})),
+     button('Pause / P',()=>command({type:'arcadePause'})));
+   }
+   controls.append(button('Quit / no prize',()=>command({type:'arcadeQuit'})));
+  }else{
+   status.textContent=result?`LAST RUN: ${result.status.toUpperCase()} · ${result.score} points · ${result.reward} credits / ${result.xp} XP awarded.`:
+    'Ready for the first Rug Runner challenge.';
+   controls.append(button(result?'Play another round →':'Start Rug Runner →',()=>command({type:'arcadeStart'})));
+  }
+  status.setAttribute('role','status');status.setAttribute('aria-live','polite');
+  shell.append(status,controls);
+  shell.addEventListener('keydown',event=>{
+   if(event.target!==shell||!playing)return;
+   const key=event.key.toLowerCase();
+   const input=paused?(key==='p'||key===' ' ? {type:'arcadeResume'}:null):
+    key==='arrowleft'||key==='a'?{type:'arcadeShift',delta:-1}:
+    key==='arrowright'||key==='d'?{type:'arcadeShift',delta:1}:
+    key===' '||key==='enter'?{type:'arcadeStep'}:
+    key==='p'?{type:'arcadePause'}:null;
+   if(!input)return;
+   event.preventDefault();event.stopPropagation();void command(input);
+  });
+  content.append(shell,
+   node('p','builder-help','Touch: select LEFT / RIGHT then ADVANCE. Keyboard: ← / → (or A/D), SPACE to advance, P to pause or resume. Tab reaches every button. Close this panel to return to the same game world; the turn-based cabinet never advances while unattended.'),
+   button('Return to the arcade room →',closePanel));
+  shell.focus({preventScroll:true});
+ }
  function panel(type){activePanel=type;$('#joystick-knob').style.transform='';keys.clear();held.clear();stick={x:0,y:0};firing=false;const content=$('#panel-content');content.replaceChildren();$('#panel-status').textContent='';
-  const titles={outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
+  const titles={outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',quarantine:'Quarantine bunker survival',arcadeCabinet:'Chaos Arcade / Rug Runner',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
   if(online&&C.CAPABILITIES.online.soloPanels.includes(type)){content.append(node('p','beta-note','This activity is available in solo mode. Your online journey uses different objectives that you can complete in this room.'),button('Online journey →',()=>panel('journey')));if(!$('#city-panel').open)$('#city-panel').showModal();return;}if(type==='outposts')outpostPanel(content);if(type==='clans')clanPanel(content);if(type==='places')placePanel(content);
   if(type==='multiplayer')multiplayerPanel(content);
   if(['journey','mobility','supplies','fortress','survival'].includes(type))risingPanel(type,content);
+  if(type==='quarantine')quarantinePanel(content);
+  if(type==='arcadeCabinet')cabinetPanel(content);
   if(type==='crew')crewPanel(content);
   if(type==='districts')districtsPanel(content);
   if(type==='build')buildEditor(content);
@@ -376,7 +579,8 @@
   }
   if(type==='menu'){
    content.append(node('p','','Everything you need, one stop away. Solo play pauses while menus are open.'));
-   for(const [title,type]of [['District outpost workshop','outposts'],['Clans & block jobs','clans'],['Play together','multiplayer'],['Explore building interiors','places'],['Your city journey','journey'],['Hoverboard & travel','mobility'],['Arena survival','survival'],['Medkits & supplies','supplies'],['Upgrade fortress HQ','fortress'],['Explore districts','districts'],['Build my fortress','build'],['Hire / command defenders','crew'],['Beta token purchases','tokens'],['Equipment shop','shop'],['Player marketplace','market'],['Room chat','chat'],['Controls & guide','help'],['Pause / resume','pause']])content.append(button(title,()=>panel(type)));
+   if(me.defense)content.append(button('URGENT / Fortress siege repairs →',()=>panel('crew')));
+   for(const [title,type]of [['District outpost workshop','outposts'],['Clans & block jobs','clans'],['Play together','multiplayer'],['Explore building interiors','places'],['Chaos Arcade / Rug Runner','arcadeCabinet'],['Your city journey','journey'],['Hoverboard & travel','mobility'],['Arena survival','survival'],['Quarantine bunker / undead waves','quarantine'],['Medkits & supplies','supplies'],['Upgrade fortress HQ','fortress'],['Explore districts','districts'],['Build my fortress','build'],['Hire / command defenders','crew'],['Beta token purchases','tokens'],['Equipment shop','shop'],['Player marketplace','market'],['Room chat','chat'],['Controls & guide','help'],['Pause / resume','pause']])content.append(button(title,()=>panel(type)));
   }
   if(type==='summary'){
    const r=me.lastResult;if(r){
@@ -386,7 +590,7 @@
    }
   }
   if(type==='map'){
-   content.append(node('p','','CENTER CITY / 11,200 × 11,200. Your private fortress is in the middle, with six separate clan blocks and shops across the city. White is you; blue is your defenders. Tap an entrance or location marker, or use the accessible destination buttons. Walking routes avoid solid buildings. No automatic movement; rerouting is available when you leave the path.'));
+   content.append(node('p','','CENTER CITY / 11,200 × 11,200. Your private fortress is in the middle, with six separate clan blocks and shops across the city. White is you; blue is your defenders. Tap an entrance or location marker, or use the accessible destination buttons. Walking routes avoid solid buildings. Follow the route instruction bar for the next turn and distance remaining. No automatic movement; rerouting is available when you leave the path.'));
    const map=node('canvas','large-map');map.width=840;map.height=840;map.setAttribute('aria-label','Square Meme City map with six clan neighborhoods, four original districts and your position');const g=map.getContext('2d'),sx=840/WORLD.width,sy=840/WORLD.height;g.fillStyle='#243e40';g.fillRect(0,0,840,840);
    for(const d of [...C.DISTRICTS,...C.NEIGHBORHOODS,{id:'hub',name:'Founder Square',ox:HUB.x,oy:HUB.y,color:'#e0dfca'}]){g.fillStyle=d.color+'22';g.fillRect(d.ox*sx,d.oy*sy,2240*sx,1660*sy);g.strokeStyle=d.color+'55';g.strokeRect(d.ox*sx,d.oy*sy,2240*sx,1660*sy);g.fillStyle=d.color;g.font='600 12px Arial';g.textAlign='center';g.fillText(d.name,(d.ox+1120)*sx,(d.oy+220)*sy);}
    g.strokeStyle='#b8c6b65c';g.lineWidth=8;for(const yy of [870,2530,4190,5850]){g.beginPath();g.moveTo(0,yy*sy);g.lineTo(840,yy*sy);g.stroke();}for(const xx of [1120,3360,5600]){g.beginPath();g.moveTo(xx*sx,0);g.lineTo(xx*sx,840);g.stroke();}
@@ -402,9 +606,9 @@
    // All tappable markers come from stable IDs for actual doors, stations, landmarks and districts.
    for(const place of mapPoints)if(place.kind==='door'){g.fillStyle=['shop','market','supplies'].includes(place.activity)?'#fbd083':'#b7c8d2';g.beginPath();g.arc(place.x*sx,place.y*sy,place.activity==='supplies'?3.8:2.2,0,Math.PI*2);g.fill();}
    if(tracked){g.strokeStyle='#6ee5f3';g.lineWidth=3;g.beginPath();g.arc(tracked.x*sx,tracked.y*sy,7,0,Math.PI*2);g.stroke();}
-   const note=node('p','beta-note',tracked?(routePath?'Safe route to ':'No safe path found to ')+tracked.name+' · tap another marker to change it.':'Tap a location marker to set your waypoint.');content.append(note);
+   const note=node('p','beta-note',tracked?(routePath?'Safe walking route to ':'No safe path found to ')+tracked.name+(routePath?' · '+routeInstruction(routePlanner.guidance(me,routePath)):' · try another door or marker'):'. Tap a location marker to set your waypoint.');content.append(note);
    map.addEventListener('click',event=>{const point=M.fromCanvas(event.clientX,event.clientY,map.getBoundingClientRect(),WORLD),place=M.closest(mapPoints,point,190);if(place)track(place);else note.textContent='No nearby destination marker. Tap a marked location or use the buttons below.';});
-   const links=node('div','map-destinations');if(state.conflict)links.append(button('Founders Crossing conflict →',()=>track(state.conflict)));
+   const links=node('div','map-destinations');links.append(button('Quarantine Bunker / zombie survival →',()=>track(C.QUARANTINE)));if(state.conflict)links.append(button('Founders Crossing conflict →',()=>track(state.conflict)));if(state.territory?.phase!=='idle')links.append(button('ACTIVE / District Defense →',()=>track({...state.territory,name:'District Defense'})));
    for(const place of mapPoints.filter(p=>p.kind==='door'&&['supplies','shop','market'].includes(p.activity)))links.append(button(place.name+' →',()=>track(place)));
    for(const place of mapPoints.filter(p=>p.kind==='district'))links.append(button(place.name+' →',()=>track(place)));
    for(const plot of C.TOKEN_PLOTS)links.append(button((C.plotAccess(me,plot.id)?'OPEN · ':'LOCKED · ')+plot.name+' →',()=>track({x:plot.x+plot.w/2,y:plot.y+plot.h+65,name:plot.name+' entrance'})));
@@ -486,11 +690,12 @@
    else{const log=node('div','chat-log');log.setAttribute('aria-label','Room messages');for(const m of state.chat)log.append(node('p','',`${m.name}: ${m.text}`));if(!state.chat.length)log.append(node('p','','No messages yet. Say hello.'));const form=node('form','chat-form'),input=node('input');input.maxLength=180;input.required=true;input.placeholder='Message the room…';input.setAttribute('aria-label','Chat message');const send=node('button','panel-button','Send');send.type='submit';form.append(input,send);form.addEventListener('submit',async e=>{e.preventDefault();if(await action({type:'chat',text:input.value}))panel('chat');});content.append(log,form,node('p','','Messages are visible to everyone in this room. Do not post private information.'))}
   }
   if(type==='help'){
-   content.append(node('p','beta-note','Welcome to City Rising: an eight-chapter journey, twelve landmarks, hoverboards, medkits, upgradeable HQs and a three-wave boss arena. Open Journey for the next objective; J opens the journal, M the map, V toggles the board and H uses a medkit. This is arcade fiction; there is no player-versus-player damage.'),node('p','','Move: WASD / arrows, or drag the thumbstick on your phone. The world is continuous: open Map to mark walking routes between all districts. Open Squad in Fortress Heights to hire NPC defenders with play credits; order them to hold your position, patrol the plot or follow you. Desktop directional buttons also work. Interact: E or the green action button. Follow the green mission beacon; blue markers lead to shops you track.'),node('p','','Open Missions for repeatable combat, courier, and pursuit jobs. Your original orientation route also remains available: visit Launch House, Creator Alley, then Night Market. Each stop earns 50 XP and 40 play credits, plus a completion bonus. Everyone begins at level 1 with 180 credits.'),node('p','','Your character has a human face and wears the meme artwork on the shirt and jacket. The ticker is printed on the shirt and trousers. Open Avatar for a large wardrobe preview, skin tone, hair, and denim choices. Shop gear changes your visible jacket, visor, boots, and blaster. Hold the Fire button / Space to auto-aim at hostile bots, or aim with the mouse and hold the left mouse button. Both hands grip the rifle; muzzle fire follows the aim direction. Dash with Shift or the Dash button. Blasting near cops raises your wanted meter. Stop firing and break their line of sight to lose heat. Getting busted costs up to 25 play credits and returns you to the safe plaza.'),node('p','',online?'You are in a live shared room. The server owns movement, inventory, mission rewards, chat and trading. Progress is temporary and resets with the room.':'You are playing solo with browser-local saves. Open Together for online rooms. Verified holder cosmetics are available in online rooms; permanent online accounts are not active.'));
+   content.append(node('p','beta-note','Welcome to City Rising: an eight-chapter journey, twelve landmarks, hoverboards, medkits, upgradeable HQs and a three-wave boss arena. Open Journey for the next objective; J opens the journal, M the map, V toggles the board and H uses a medkit. This is arcade fiction; there is no player-versus-player damage.'),node('p','','Inside Chaos Arcade, walk to the activity terminal and play Rug Runner: dodge hazards across three lanes. This free twelve-turn cabinet rewards one first-clear prize and remembers your best score. Move: WASD / arrows, or drag the thumbstick on your phone. The world is continuous: open Map to mark walking routes between all districts. Open Squad in Fortress Heights to hire NPC defenders with play credits; order them to hold your position, patrol the plot or follow you. Desktop directional buttons also work. Interact: E or the green action button. Follow the green mission beacon; blue markers lead to shops you track.'),node('p','','Open Missions for repeatable combat, courier, and pursuit jobs. Your original orientation route also remains available: visit Launch House, Creator Alley, then Night Market. Each stop earns 50 XP and 40 play credits, plus a completion bonus. Everyone begins at level 1 with 180 credits.'),node('p','','Your character has a human face and wears the meme artwork on the shirt and jacket. The ticker is printed on the shirt and trousers. Open Avatar for a large wardrobe preview, skin tone, hair, and denim choices. Shop gear changes your visible jacket, visor, boots, and blaster. Hold the Fire button / Space to auto-aim at hostile bots, or aim with the mouse and hold the left mouse button. Both hands grip the rifle; muzzle fire follows the aim direction. Dash with Shift or the Dash button. Blasting near cops raises your wanted meter. Stop firing and break their line of sight to lose heat. Getting busted costs up to 25 play credits and returns you to the safe plaza.'),node('p','',online?'You are in a live shared room. The server owns movement, inventory, mission rewards, chat and trading. Progress is temporary and resets with the room.':'You are playing solo with browser-local saves. Open Together for online rooms. Verified holder cosmetics are available in online rooms; permanent online accounts are not active.'));
    content.append(button('Track the next mission →',()=>{if(me.completed){toast('Your orientation route is complete. Explore the neighborhood.');closePanel();}else track({...WORLD.route[me.route],id:'route'});}));
    if(!online)content.append(button('Reset solo progress',()=>{if(!confirm('Reset this browser’s solo character, gear, and play credits?'))return;try{localStorage.removeItem(saveKey);}catch{}location.reload();}));
   }
   if(!$('#city-panel').open)$('#city-panel').showModal();
+  if(type==='arcadeCabinet')content.querySelector('.rug-runner')?.focus({preventScroll:true});
  }
  async function interact(){
   if(me.room){const a=I.activity(me);if(a?.kind==='exit')await action({type:'exitBuilding'});else if(a?.kind==='activity')panel(a.panel);else toast('Explore the room. The activity terminal is at the back; the exit is at the bottom.');return;}
@@ -519,11 +724,38 @@
   $('#monk-verse-english').textContent=q.en;
   $('#monk-verse-source').textContent=q.ref+' · '+q.kind;
  }
- function updateUI(){updateMonkVerse();const t=catalog.get(me.avatar);$('#hud-avatar').src=window.MEME_TOKENS.find(x=>x.id===me.clanSkin)?.art||t.art;$('#hud-name').textContent=me.name;$('#hud-level').textContent=`Level ${C.level(me.xp)} · ${me.xp} XP`;$('#hud-credits').textContent=me.credits;const l=C.level(me.xp),start=50*(l-1)**2,end=50*l*l;$('#xp-fill').style.width=`${Math.min(100,100*(me.xp-start)/(end-start))}%`;$('#population').textContent=`${online?state.players.length:1} player${online&&state.players.length!==1?'s':''} · ${(state.arcade?.bots.filter(b=>b.hp>0&&Math.hypot(b.x-me.x,b.y-me.y)<1000).length||0)} bots · ${(state.arcade?.bots.filter(b=>b.kind==='zombie'&&b.hp>0&&Math.hypot(b.x-me.x,b.y-me.y)<1100).length||0)} walkers`;
+ function updateUI(){updateMonkVerse();updateRouteGuide();const t=catalog.get(me.avatar);$('#hud-avatar').src=window.MEME_TOKENS.find(x=>x.id===me.clanSkin)?.art||t.art;$('#hud-name').textContent=me.name;$('#hud-level').textContent=`Level ${C.level(me.xp)} · ${me.xp} XP`;$('#hud-credits').textContent=me.credits;const l=C.level(me.xp),start=50*(l-1)**2,end=50*l*l;$('#xp-fill').style.width=`${Math.min(100,100*(me.xp-start)/(end-start))}%`;$('#population').textContent=`${online?state.players.length:1} player${online&&state.players.length!==1?'s':''} · ${(state.arcade?.bots.filter(b=>b.hp>0&&Math.hypot(b.x-me.x,b.y-me.y)<1000).length||0)} bots · ${(state.arcade?.bots.filter(b=>b.kind==='zombie'&&b.hp>0&&Math.hypot(b.x-me.x,b.y-me.y)<1100).length||0)} undead · ${(state.civilians||[]).filter(c=>Math.hypot(c.x-me.x,c.y-me.y)<1000&&['fleeing','sheltering'].includes(c.state)).length} civilians alarmed`;
   if(me.shots>lastShots){tone(440,.07,'sawtooth');shotFlash=.12;}lastShots=me.shots;const c=me.contract,target=WORLD.route[me.route];$('#mission-title').textContent=c?({bounty:`Street Sweep · ${c.progress}/4 KOs`,courier:'Deliver to Creator Alley',escape:'Lose the Heat · evade patrols'}[c.type]):target?`${me.route+1}/3 · Visit ${target.name}`:'Pick a new contract ⚡';$('#mission-detail').textContent=c?`${c.countdown>0?'GET READY '+Math.ceil(c.countdown):Math.ceil(c.remaining)+'s left'} · ${c.type==='bounty'?'Hold Fire. Auto-aim locks onto hostile bots.':c.type==='courier'?'Follow the purple beacon. Interact to deliver.':'Break line of sight. Stay hidden to cool your heat.'}`:'Open Missions for combat, delivery, and pursuit jobs.';
   const station=C.nearest(me),delivery=c?.type==='courier'&&Math.hypot(me.x-WORLD.route[1].x,me.y-WORLD.route[1].y)<100,checkpoint=target&&Math.hypot(me.x-target.x,me.y-target.y)<110;$('#interact').textContent=delivery?'E / DELIVER PACKAGE':checkpoint?'E / CLAIM CHECKPOINT':station?`E / ${station.hint.toUpperCase()}`:'E / EXPLORE';$('#interact').disabled=me.area!=='fortress'&&!delivery&&!checkpoint&&!station;if(me.area==='fortress'&&!station)$('#interact').textContent='E / BUILD';$('#fire').hidden=['creator','social'].includes(me.area);$('#dash').textContent=me.dashCooldown>0?`DASH ${me.dashCooldown.toFixed(1)}s`:'DASH ↯';$('#dash').disabled=me.dashCooldown>0;$('#district').textContent=me.area!=='hub'?([...C.DISTRICTS,...C.NEIGHBORHOODS].find(d=>d.id===me.area)?.name||'Dead Zone / Undead').toUpperCase():me.y<HUB.y+650?'CREATOR ALLEY':me.y>HUB.y+1000?'NIGHT MARKET':'FOUNDER PLAZA';
-  $('#combat-score').textContent=`${me.kills} ${me.kills===1?'KO':'KOs'} · ${me.jobs} ${me.jobs===1?'job':'jobs'}`;$('#health-value').textContent=Math.ceil(me.hp);$('#health-fill').style.width=`${me.hp}%`;$('#health-fill').style.background=me.hp<35?'#ff5e79':'#6cf0bf';$('#mission-fill').style.width=c?`${100*c.remaining/(c.duration||90)}%`:'0%';$('#mission-kicker').textContent=c?'ACTIVE CONTRACT':'EXPLORE / PICK A JOB';const stars=me.heat<1?0:Math.ceil(me.heat/20);$('#wanted-stars').textContent='★'.repeat(stars)+'☆'.repeat(5-stars);$('#wanted-label').textContent=stars?`${me.policeSeen?'SPOTTED':me.quiet>5?'COOLING':'SEARCHING'} · ${Math.ceil(me.heat)}%`:'OFF THE RADAR';$('.game-shell').classList.toggle('wanted',me.heat>=22);if(me.hp<lastHP){tone(90,.13,'triangle',.05);if(!reduced)$('.game-shell').classList.add('hit');setTimeout(()=>$('.game-shell').classList.remove('hit'),160);}lastHP=me.hp;$('#combo-label').textContent=me.combo>1?`${me.combo} KO STREAK`:'';const ready=c?.countdown||me.defense?.countdown||0;$('#ready-countdown').hidden=!(entered&&ready>0&&!activePanel);$('#ready-countdown').textContent=ready>0?Math.ceil(ready):'';$('#dash').style.setProperty('--charge',`${100*(1-me.dashCooldown/2.8)}%`);$('.game-shell').dataset.area=me.area;if(me.area!=='hub'&&!c){const d=[...C.DISTRICTS,...C.NEIGHBORHOODS].find(d=>d.id===me.area)||{name:'Garden Roads'};$('#mission-kicker').textContent='DISTRICT / '+(me.area==='fortress'?'YOUR PRIVATE PLOT':'SOLO ALPHA');if(!c)$('#mission-title').textContent=d.name;$('#mission-detail').textContent=me.area==='fortress'?`${me.plot.length} pieces built · open Build to edit your fortress.`:me.area==='creator'?'Explore collections and change your streetwear.':me.area==='arena'?'Walk to the terminal to start Street Sweep here.':me.area==='social'?'Explore the waterfront. Use an emote to say hello.':'Follow the streets to any district. Open Map for directions.';$('#quick-job').textContent=me.area==='fortress'?'Build my fortress →':me.area==='creator'?'Explore collections →':me.area==='arena'?'Challenge terminal →':me.area==='social'?'Emotes →':'Open world map →';}else $('#quick-job').textContent='Choose contract →';if(me.blockJob){$('#mission-kicker').textContent='CLAN JOB / '+me.blockJob.type.toUpperCase();$('#mission-title').textContent=me.blockJob.type==='salvage'?'Salvage scramble':me.blockJob.type==='hold'?'Hold the block':'Follow the checkpoints';$('#mission-detail').textContent=`${Math.ceil(me.blockJob.remaining)}s left · ${me.blockJob.index}/${me.blockJob.points.length} stops · +1 reputation`;$('#quick-job').textContent='Clans & jobs →';}if(me.defense){$('#mission-kicker').textContent='FORTRESS DEFENSE';$('#mission-title').textContent=`${state.arcade.bots.filter(b=>b.raid&&b.owner===me.id&&b.hp>0).length} raiders remaining`;$('#mission-detail').textContent=`${me.defense.countdown>0?'GET READY '+Math.ceil(me.defense.countdown):Math.ceil(me.defense.timeLeft)+'s'} · defend your plot with your squad.`;$('#quick-job').textContent='Squad orders →';}if(me.lastResult&&me.lastResult.id!==lastResult){lastResult=me.lastResult.id;if(me.lastResult.status!=='abandoned')panel('summary');}if(me.noticeSeq&&me.noticeSeq!==lastNotice){lastNotice=me.noticeSeq;toast(me.notice);tone(me.notice.startsWith('Busted')?80:780,.18,'triangle');}
-  risingHUD();interiorsHUD();const ev=state.conflict;if(ev?.entry&&!me.room&&!me.contract&&!me.blockJob&&ev.phase!=='cooldown'){$('#mission-kicker').textContent='CROSSING / '+ev.phase.toUpperCase();$('#mission-title').textContent=ev.phase==='resolution'?ev.summary:`INSIDER ${ev.insiders} vs RUGS ${ev.rugs}`;$('#mission-detail').textContent=`${Math.ceil(ev.remaining)}s · ${Math.floor(ev.entry.damage)}/60 damage · ${Math.floor(ev.entry.active)}/10 active seconds`;$('#mission-fill').style.width=`${100*Math.min(1,ev.entry.damage/60,ev.entry.active/10)}%`;$('#quick-job').textContent='Conflict & clans →';}
+  $('#combat-score').textContent=`${me.kills} ${me.kills===1?'KO':'KOs'} · ${me.jobs} ${me.jobs===1?'job':'jobs'}`;$('#health-value').textContent=Math.ceil(me.hp);$('#health-fill').style.width=`${me.hp}%`;$('#health-fill').style.background=me.hp<35?'#ff5e79':'#6cf0bf';$('#mission-fill').style.width=c?`${100*c.remaining/(c.duration||90)}%`:'0%';$('#mission-kicker').textContent=c?'ACTIVE CONTRACT':'EXPLORE / PICK A JOB';const stars=me.heat<1?0:Math.ceil(me.heat/20);$('#wanted-stars').textContent='★'.repeat(stars)+'☆'.repeat(5-stars);$('#wanted-label').textContent=stars?`${me.policeSeen?'SPOTTED':me.quiet>5?'COOLING':'SEARCHING'} · ${Math.ceil(me.heat)}%`:'OFF THE RADAR';$('.game-shell').classList.toggle('wanted',me.heat>=22);if(me.hp<lastHP){tone(90,.13,'triangle',.05);if(!reduced)$('.game-shell').classList.add('hit');setTimeout(()=>$('.game-shell').classList.remove('hit'),160);}lastHP=me.hp;$('#combo-label').textContent=me.combo>1?`${me.combo} KO STREAK`:'';const ready=c?.countdown||me.defense?.countdown||0;$('#ready-countdown').hidden=!(entered&&ready>0&&!activePanel);$('#ready-countdown').textContent=ready>0?Math.ceil(ready):'';$('#dash').style.setProperty('--charge',`${100*(1-me.dashCooldown/2.8)}%`);$('.game-shell').dataset.area=me.area;if(me.area!=='hub'&&!c){const d=[...C.DISTRICTS,...C.NEIGHBORHOODS].find(d=>d.id===me.area)||{name:'Garden Roads'};$('#mission-kicker').textContent='DISTRICT / '+(me.area==='fortress'?'YOUR PRIVATE PLOT':'SOLO ALPHA');if(!c)$('#mission-title').textContent=d.name;$('#mission-detail').textContent=me.area==='fortress'?`${me.plot.length} pieces built · open Build to edit your fortress.`:me.area==='creator'?'Explore collections and change your streetwear.':me.area==='arena'?'Walk to the terminal to start Street Sweep here.':me.area==='social'?'Explore the waterfront. Use an emote to say hello.':'Follow the streets to any district. Open Map for directions.';$('#quick-job').textContent=me.area==='fortress'?'Build my fortress →':me.area==='creator'?'Explore collections →':me.area==='arena'?'Challenge terminal →':me.area==='social'?'Emotes →':'Open world map →';}else $('#quick-job').textContent='Choose contract →';if(me.blockJob){$('#mission-kicker').textContent='CLAN JOB / '+me.blockJob.type.toUpperCase();$('#mission-title').textContent=me.blockJob.type==='salvage'?'Salvage scramble':me.blockJob.type==='hold'?'Hold the block':'Follow the checkpoints';$('#mission-detail').textContent=`${Math.ceil(me.blockJob.remaining)}s left · ${me.blockJob.index}/${me.blockJob.points.length} stops · +1 reputation`;$('#quick-job').textContent='Clans & jobs →';}if(me.defense){$('#mission-kicker').textContent='FORTRESS DEFENSE';$('#mission-title').textContent=`${state.arcade.bots.filter(b=>b.raid&&b.owner===me.id&&b.hp>0).length} raiders remaining`;$('#mission-detail').textContent=`${me.defense.countdown>0?'GET READY '+Math.ceil(me.defense.countdown):Math.ceil(me.defense.timeLeft)+'s'} · CORE ${Math.ceil(me.defense.coreHP)}/${me.defense.coreMaxHP} HP · ${(me.defense.pieces||[]).filter(t=>t.hp===0).length} breaches. Repair from Squad.`;$('#quick-job').textContent='Squad orders →';}if(me.lastResult&&me.lastResult.id!==lastResult){lastResult=me.lastResult.id;if(me.lastResult.status!=='abandoned')panel('summary');}if(me.noticeSeq&&me.noticeSeq!==lastNotice){lastNotice=me.noticeSeq;toast(me.notice);tone(me.notice.startsWith('Busted')?80:780,.18,'triangle');}
+  risingHUD();interiorsHUD();const quarantine=state.quarantine;
+  if(quarantine?.phase==='active'&&!me.room&&(quarantine.mine||Math.hypot(me.x-quarantine.x,me.y-quarantine.y)<quarantine.radius)){
+   $('#mission-kicker').textContent='QUARANTINE / THREE WAVES';
+   $('#mission-title').textContent=quarantine.next>0?
+    `Wave ${quarantine.wave+1} incoming in ${Math.ceil(quarantine.next)}s`:
+    `Wave ${quarantine.wave}/3 · ${quarantine.enemies} undead remaining`;
+   $('#mission-detail').textContent=`${Math.ceil(quarantine.remaining)}s · ${quarantine.mine?
+    Math.floor(quarantine.damage)+'/55 personal damage':'Assist '+quarantine.ownerName} · dodge toxic impact zones`;
+   $('#mission-fill').style.width=`${100*quarantine.remaining/205}%`;
+   $('#quick-job').textContent='Quarantine / retreat →';
+   if(quarantine.mine&&quarantine.next>0){
+    $('#ready-countdown').hidden=!(entered&&!activePanel);
+    $('#ready-countdown').textContent=Math.ceil(quarantine.next);
+   }
+  }
+  const districtDefense=state.territory;
+  if(districtDefense?.phase!=='idle'&&!me.room&&
+    (districtDefense.mine||Math.hypot(me.x-districtDefense.x,me.y-districtDefense.y)<districtDefense.radius)){
+   $('#mission-kicker').textContent='DISTRICT DEFENSE / '+districtDefense.phase.toUpperCase();
+   $('#mission-title').textContent=districtDefense.phase==='warning'?
+    `Wave ${districtDefense.wave+1} arriving in ${Math.ceil(districtDefense.next)}s`:
+    `Wave ${districtDefense.wave}/2 · ${districtDefense.invaders} raiders left`;
+   $('#mission-detail').textContent=`${Math.ceil(districtDefense.remaining)}s · ${districtDefense.mine?
+    Math.floor(districtDefense.damage)+'/65 damage · '+Math.floor(districtDefense.active)+'/7 active seconds':'Help '+districtDefense.ownerName} · allied NPCs responding`;
+   $('#mission-fill').style.width=`${100*districtDefense.remaining/115}%`;
+   $('#quick-job').textContent='Territory / retreat →';
+  }
+  const ev=state.conflict;if(ev?.entry&&!me.room&&!me.contract&&!me.blockJob&&ev.phase!=='cooldown'){$('#mission-kicker').textContent='CROSSING / '+ev.phase.toUpperCase();$('#mission-title').textContent=ev.phase==='resolution'?ev.summary:`INSIDER ${ev.insiders} vs RUGS ${ev.rugs}`;$('#mission-detail').textContent=`${Math.ceil(ev.remaining)}s · ${Math.floor(ev.entry.damage)}/60 damage · ${Math.floor(ev.entry.active)}/10 active seconds`;$('#mission-fill').style.width=`${100*Math.min(1,ev.entry.damage/60,ev.entry.active/10)}%`;$('#quick-job').textContent='Conflict & clans →';}
  }
  function roundRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
  function label(text,x,y,size=12,color='#d7e9c6'){ctx.font=`700 ${size}px Arial`;ctx.textAlign='center';ctx.fillStyle=color;ctx.fillText(text,x,y);}
@@ -543,6 +775,7 @@
  function draw(time,dt){if(me.room){drawInterior(time,dt);return;}const rect=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height,zoom=(w<600?.72:.88)*cameraZoom;ctx.fillStyle='#13232d';ctx.fillRect(0,0,w,h);paintX+=(me.x-paintX)*Math.min(1,dt*18);paintY+=(me.y-paintY)*Math.min(1,dt*18);const camX=paintX-w/(2*zoom),camY=paintY-h*.61/zoom;ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camX,-camY);worldView={x:camX,y:camY,zoom};D.land(ctx);if(routePath?.length>1){ctx.save();ctx.beginPath();routePath.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.strokeStyle="#6ee5f3bc";ctx.lineWidth=5;ctx.setLineDash([16,14]);ctx.stroke();ctx.restore();}
  const visible=(x,y,bw=200,bh=200)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150;
  const layers=[];
+ if(visible(C.QUARANTINE.x-245,C.QUARANTINE.y-180,490,360))drawQuarantineSite(time);
  for(const plot of C.TOKEN_PLOTS)if(visible(plot.x,plot.y,plot.w,plot.h)){
   const unlocked=C.plotAccess(me,plot.id);ctx.save();ctx.fillStyle=unlocked?plot.color+'22':'#09121e77';ctx.fillRect(plot.x,plot.y,plot.w,plot.h);ctx.strokeStyle=unlocked?plot.color:'#81909a';ctx.lineWidth=unlocked?8:4;ctx.setLineDash(unlocked?[]:[36,20]);ctx.strokeRect(plot.x,plot.y,plot.w,plot.h);ctx.setLineDash([]);
   label(plot.name.toUpperCase(),plot.x+plot.w/2,plot.y+230,30,plot.color);label(unlocked?'HOLDER VERIFIED / EXPANSION OPEN':'RESERVED / VERIFY MATCHING TOKEN',plot.x+plot.w/2,plot.y+295,18,unlocked?'#e3fad4':'#d2dadc');label('EMPTY CREATIVE LOT · NO COMBAT OR PAYOUT BONUS',plot.x+plot.w/2,plot.y+340,15,'#c5ced1');ctx.restore();
@@ -551,10 +784,30 @@
  for(const o of me.outposts||[]){const lot=C.outpostLot(o.clan),t=catalog.get(o.clan);if(visible(lot.x,lot.y,220,220))layers.push({y:lot.y+o.row*64+58,draw:()=>{ctx.save();ctx.translate(lot.x-(C.PLOT.x-C.DISTRICTS[0].ox),lot.y-(C.PLOT.y-C.DISTRICTS[0].oy));D.piece(ctx,o,art.get(o.clan),t?.ticker||'MEME');const style=window.CityClans.outpostStyle(me,o.clan);if(style!=='classic'){ctx.strokeStyle=style==='holo'?'#c8a7ff':'#85fff0';ctx.lineWidth=2;ctx.strokeRect(C.PLOT.x-C.DISTRICTS[0].ox+o.col*64+2,C.PLOT.y-C.DISTRICTS[0].oy+o.row*64+2,58,58);if(style==='holo'){ctx.globalAlpha=.2;ctx.fillStyle='#c8a7ff';ctx.fillRect(C.PLOT.x-C.DISTRICTS[0].ox+o.col*64+2,C.PLOT.y-C.DISTRICTS[0].oy+o.row*64-45,58,102);ctx.globalAlpha=1;}}ctx.restore();}});}
  if(visible(HUB.x,HUB.y,2240,1660)){drawGround();layers.push(...streetLayers(time,visible));}for(const b of WORLD.buildings)if(visible(b.x,b.y,b.w,b.h))layers.push({y:b.y+b.h,draw:()=>drawCachedBuilding(b,time)});
  for(const d of C.DISTRICTS)if(visible(d.ox,d.oy,2240,1660)){ctx.save();ctx.translate(d.ox,d.oy);D.floor(ctx,d.id);ctx.restore();for(const l of D.districtProps(ctx,d.id,me,art,catalog,time))layers.push({y:l.y+d.oy,draw:()=>{ctx.save();ctx.translate(d.ox,d.oy);l.draw();ctx.restore();}});}
- if(state.monk&&visible(state.monk.x-550,state.monk.y-550,1100,1100))layers.push({y:Math.max(state.monk.y,state.monk.tornado.y),draw:()=>window.CityMonk.draw(ctx,state.monk,reduced)});layers.push(...D.scenery(ctx,me,visible));IV.doors(ctx,me,time);RV.diamonds(ctx,me,state.arcade.time*1000);layers.push(...RV.layers(ctx,me,state.arcade.time*1000));
+ if(state.monk&&visible(state.monk.x-550,state.monk.y-550,1100,1100))layers.push({y:Math.max(state.monk.y,state.monk.tornado.y),draw:()=>window.CityMonk.draw(ctx,state.monk,reduced)});layers.push(...D.scenery(ctx,me,visible));IV.doors(ctx,me,time);RV.diamonds(ctx,me,state.arcade.time*1000,reduced);layers.push(...RV.layers(ctx,me,state.arcade.time*1000));
  for(const station of WORLD.stations)if(visible(station.x,station.y,80,80)){beacon(station,time,station.kind==='directions'?'#9daebf':'#8eb9b5');}
- const chapter=R.objective(me),journeyTarget=chapter&&!chapter.ready?chapter.target:null;const target=me.contract?(me.contract.type==='courier'?{...WORLD.route[1],name:'DELIVERY DROP'}:null):me.rising?.arena?null:tracked?null:journeyTarget||WORLD.route[me.route];if(target&&visible(target.x,target.y))beacon(target,time,'#bdff56');if(tracked&&visible(tracked.x,tracked.y))beacon(tracked,time,'#6ee5f3');if(me.blockJob){const q=me.blockJob.points[me.blockJob.index];if(q)beacon({...q,name:me.blockJob.type==='hold'?`HOLD ${Math.floor(me.blockJob.held)}/25s`:me.blockJob.type==='salvage'?`${me.blockJob.index<4?'SALVAGE '+(me.blockJob.index+1)+'/4':'RETURN TO CLAN'} · ${Math.min(2,Math.floor(me.blockJob.held))}/2s`:'BLOCK CHECKPOINT'},time,'#6ee5f3');}if(state.conflict&&state.conflict.phase!=='cooldown'){const ev=state.conflict;ctx.strokeStyle=ev.winner==='congress'?'#83b8ed':ev.winner==='exit'?'#f184a2':'#ffbd69';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(ev.x,ev.y,130,50,0,0,7);ctx.stroke();beacon({...ev,name:`CROSSING / ${ev.phase.toUpperCase()} ${Math.ceil(ev.remaining)}s · ${ev.insiders} vs ${ev.rugs}`},time,ctx.strokeStyle);}drawCombat(time,dt);
+ const chapter=R.objective(me),journeyTarget=chapter&&!chapter.ready?chapter.target:null;const target=me.contract?(me.contract.type==='courier'?{...WORLD.route[1],name:'DELIVERY DROP'}:null):me.rising?.arena?null:tracked?null:journeyTarget||WORLD.route[me.route];if(target&&visible(target.x,target.y))beacon(target,time,'#bdff56');if(tracked&&visible(tracked.x,tracked.y))beacon(tracked,time,'#6ee5f3');if(me.blockJob){const q=me.blockJob.points[me.blockJob.index];if(q)beacon({...q,name:me.blockJob.type==='hold'?`HOLD ${Math.floor(me.blockJob.held)}/25s`:me.blockJob.type==='salvage'?`${me.blockJob.index<4?'SALVAGE '+(me.blockJob.index+1)+'/4':'RETURN TO CLAN'} · ${Math.min(2,Math.floor(me.blockJob.held))}/2s`:'BLOCK CHECKPOINT'},time,'#6ee5f3');}if(state.territory?.phase!=='idle'){const t=state.territory;if(visible(t.x-160,t.y-160,320,320)){ctx.save();ctx.strokeStyle=t.phase==='warning'?'#ffcd78':'#8ef1c9';ctx.lineWidth=4;ctx.setLineDash([15,11]);ctx.beginPath();ctx.ellipse(t.x,t.y,165,65,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);beacon({x:t.x,y:t.y,name:`DISTRICT ALERT · WAVE ${t.wave}/2 · ${t.invaders} RAIDERS`},time,'#a1f3d6');ctx.restore();}}if(state.conflict&&state.conflict.phase!=='cooldown'){const ev=state.conflict;ctx.strokeStyle=ev.winner==='congress'?'#83b8ed':ev.winner==='exit'?'#f184a2':'#ffbd69';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(ev.x,ev.y,130,50,0,0,7);ctx.stroke();beacon({...ev,name:`CROSSING / ${ev.phase.toUpperCase()} ${Math.ceil(ev.remaining)}s · ${ev.insiders} vs ${ev.rugs}`},time,ctx.strokeStyle);}drawZombieHazards(time);drawCombat(time,dt);
  for(const p of state.players)if(!p.room&&visible(p.x,p.y))layers.push({y:p.y,draw:()=>character(p.id===me.id?{...p,x:me.x,y:me.y,...(!online?{holder:me.holder}:{})}:p,p.id===me.id)});
+ for(const c of state.civilians||[])if(visible(c.x-40,c.y-125,80,145))layers.push({y:c.y,draw:()=>{
+  const panic=c.state==='fleeing'||c.state==='sheltering',p=online?smoothBot(c,dt):c;
+  V.person(ctx,{id:c.id,x:p.x,y:p.y,role:'civilian',
+   color:['#9da68d','#8fa3aa','#bb9d8f','#a19bbc'][Math.floor(c.phase)%4],
+   style:c.style,moving:c.moving,aim:c.facing,armed:false,phase:c.phase,
+   gesture:!panic&&c.gesture===true,
+   scale:.78},time);
+  if(panic){
+   ctx.save();
+   if(c.state==='fleeing'&&!reduced){
+    ctx.strokeStyle='#ffd38c88';ctx.lineWidth=2;ctx.beginPath();
+    ctx.ellipse(p.x,p.y,25,9,0,0,7);ctx.stroke();
+   }
+   label(c.state==='fleeing'?'! RUN !':'TAKING COVER',p.x,p.y-115,9,'#ffcf9e');
+   ctx.restore();
+  }else if(c.gesture){
+   // A friendly nearby player receives a short world-space greeting; no interaction/reward.
+   label('HELLO!',p.x,p.y-117,9,'#d0f4d9');
+  }
+ }});
  for(const b of state.arcade?.bots||[])if(b.hp>0&&visible(b.x,b.y))layers.push({y:b.y,draw:()=>drawBot(b,time,dt)});
  for(const g of state.arcade?.guards||[])if(visible(g.x,g.y))layers.push({y:g.y,draw:()=>drawGuard(g,time)});
  for(const l of layers.sort((a,b)=>a.y-b.y))l.draw();drawAim(time);drawParticles(dt);
@@ -598,10 +851,51 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
  function streetLayers(time,visibleActor=()=>true){
   const t=state.arcade.time,layers=[];
   for(let i=0;i<8;i++){const reverse=i%2===0,x=HUB.x+((t*(reverse?-75:75)+i*305)%2400+2400)%2400-80,y=HUB.y+(i<4?482+(i%2)*28:985+(i%2)*28);layers.push({y,draw:()=>D.car(ctx,x,y,['#b77d63','#7c8f9f','#658d8b','#827b93'][i%4],reverse)});}
-  for(let i=0;i<14;i++){const reverse=i%2===0,x=HUB.x+150+((i*147+t*(reverse?-32:32))%1900+1900)%1900,y=HUB.y+(i%2?590:900);if(visibleActor(x-40,y-120,80,140))layers.push({y,draw:()=>V.person(ctx,{id:'pedestrian-'+i,x,y,role:'civilian',style:{skin:i%6,hair:i%4,pants:i%4},color:['#7d798e','#9b8066','#65818a'][i%3],moving:true,aim:{x:reverse?-1:1,y:0},phase:i,scale:.76},time)});}return layers;
+  // Pedestrians now come from the shared bounded civilian simulation instead
+  // of passing straight through gunfire as disconnected decorative sprites.
+  return layers;
  }
  function smoothBot(b,dt){
   if(!online)return b;let pos=positions.get(b.id);if(!pos||Math.hypot(pos.x-b.x,pos.y-b.y)>160){pos={x:b.x,y:b.y};positions.set(b.id,pos);}const k=Math.min(1,dt*14);pos.x+=(b.x-pos.x)*k;pos.y+=(b.y-pos.y)*k;return{...b,...pos};
+ }
+ function drawQuarantineSite(time){
+  // A playable landmark on the SAME world canvas. Artwork never changes
+  // `C.blocked()`, public roads, saved coordinates or building door IDs.
+  const q=C.QUARANTINE,x=q.x,y=q.y,active=state.quarantine?.phase==='active';
+  ctx.save();
+  ctx.fillStyle='#162b2b99';ctx.strokeStyle=active?'#c1f88c':'#91c79b';
+  ctx.lineWidth=5;ctx.setLineDash([18,12]);ctx.beginPath();
+  ctx.ellipse(x,y,180,90,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+  ctx.strokeStyle='#91ae90a0';ctx.lineWidth=9;
+  ctx.strokeRect(x-99,y-69,198,132);
+  ctx.fillStyle='#283b3c';ctx.fillRect(x-98,y-66,196,129);
+  ctx.strokeStyle='#a3c7b6';ctx.lineWidth=4;ctx.strokeRect(x-88,y-56,176,110);
+  for(let i=0;i<8;i++){
+   ctx.fillStyle=i%2?'#d7bf73':'#253e37';
+   ctx.fillRect(x-94+i*24,y-67,24,8);
+   ctx.fillRect(x-94+i*24,y+56,24,8);
+  }
+  // Distinct signal shelter, hazard signage and an interact pad. All visual.
+  ctx.fillStyle='#162e32';ctx.fillRect(x-43,y-39,86,68);
+  ctx.strokeStyle='#b0e4bc';ctx.lineWidth=3;ctx.strokeRect(x-43,y-39,86,68);
+  ctx.fillStyle='#e5dc9e';ctx.font='bold 17px Arial';ctx.textAlign='center';
+  ctx.fillText('BIOHAZARD',x,y-16);ctx.fillText('BUNKER',x,y+9);
+  ctx.fillStyle=active?'#ffba87':'#a9efc0';ctx.fillRect(x-22,y+37,44,6);
+  if(active&&!reduced){ctx.strokeStyle=Math.floor(time/220)%2?'#c4f89f':'#e5bc78';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,132,0,Math.PI*2);ctx.stroke();}
+  ctx.restore();
+ }
+ function drawZombieHazards(time){
+  // Warnings belong to the existing world canvas, not a separate HUD/game.
+  for(const h of state.arcade?.zombieHazards||[]){
+   if(!visible(h.x-h.radius,h.y-h.radius,h.radius*2,h.radius*2))continue;
+   const ratio=Math.max(0,Math.min(1,h.warning/.85)),pulse=reduced?1:.9+Math.sin(time/110)*.1;
+   ctx.save();ctx.fillStyle='#b6ee7a26';ctx.strokeStyle='#dcff9f';ctx.lineWidth=3;
+   ctx.beginPath();ctx.ellipse(h.x,h.y,h.radius*pulse,h.radius*.42*pulse,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+   ctx.strokeStyle='#ffb17d';ctx.lineWidth=4;
+   ctx.beginPath();ctx.ellipse(h.x,h.y,h.radius+5,(h.radius+5)*.42,0,-Math.PI/2,
+    -Math.PI/2+Math.PI*2*(1-ratio));ctx.stroke();
+   label('TOXIC IMPACT · MOVE!',h.x,h.y-24,10,'#f6ecb3');ctx.restore();
+  }
  }
  function drawBot(raw,time,dt){
   const b=smoothBot(raw,dt);
@@ -610,17 +904,27 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
    // Only combat AI and the bite indicator differ; no custom zombie sprite.
    const ax=Number.isFinite(b.faceX)?b.faceX:1,ay=Number.isFinite(b.faceY)?b.faceY:0;
    ctx.save();if(b.hitFlash>0){ctx.shadowColor='#e1ff9b';ctx.shadowBlur=17;}
-   V.person(ctx,{id:'npc-'+b.id,x:b.x,y:b.y,role:'zombie',color:'#acdb80',
+   const variant=b.zombieType||'walker',size=variant==='tank'?1.22:variant==='runner'?.91:1;
+   V.person(ctx,{id:'npc-'+b.id,x:b.x,y:b.y,role:'zombie',zombieType:variant,
+    color:variant==='spitter'?'#9cfaac':variant==='tank'?'#a6b4bd':'#acdb80',
     style:{skin:2,hair:1,pants:1},phase:b.phase,armed:false,
     moving:b.state==='chase'||b.state==='roam',aim:{x:ax,y:ay},
-    scale:V.npcScale()},time);
+    scale:V.npcScale()*size},time);
    ctx.restore();
-   if(b.state==='attack'){ctx.strokeStyle='#bbed7488';ctx.lineWidth=3;
-    ctx.beginPath();ctx.ellipse(b.x,b.y,36,15,0,0,Math.PI*2);ctx.stroke();}
-   roundRect(b.x-21,b.y-124,42,5,2,'#182018');
-   roundRect(b.x-21,b.y-124,42*Math.max(0,b.hp)/b.maxHp,5,2,'#acd779');
-   label(b.state==='attack'?'! UNDEAD BITE':'DEAD ZONE / WALKER',
-    b.x,b.y-135,9,b.state==='attack'?'#ffb38d':'#c9ee97');
+   if(['attack','windup','spit'].includes(b.state)){
+    ctx.strokeStyle=b.state==='spit'?'#d2ff74b0':b.state==='windup'?'#ffbc70d0':'#bbed7488';
+    ctx.lineWidth=b.state==='windup'||b.state==='spit'?4:2;
+    ctx.beginPath();ctx.ellipse(b.x,b.y,variant==='tank'?44:36,variant==='tank'?20:15,0,0,Math.PI*2);ctx.stroke();
+    if(b.spitAim&&b.state==='spit'){
+     ctx.setLineDash([4,9]);ctx.strokeStyle='#c4ff9daa';ctx.beginPath();
+     ctx.moveTo(b.x,b.y-52);ctx.lineTo(b.spitAim.x,b.spitAim.y);ctx.stroke();ctx.setLineDash([]);
+    }
+   }
+   const barWidth=variant==='tank'?54:42,barY=variant==='tank'?144:124;
+   roundRect(b.x-barWidth/2,b.y-barY,barWidth,5,2,'#182018');
+   roundRect(b.x-barWidth/2,b.y-barY,barWidth*Math.max(0,b.hp)/b.maxHp,5,2,variant==='spitter'?'#8deac8':'#acd779');
+   label(b.state==='spit'?'! TOXIC SPIT':b.state==='windup'?'! INCOMING BITE':'QUARANTINE / '+variant.toUpperCase(),
+    b.x,b.y-barY-11,9,['spit','windup'].includes(b.state)?'#ffc58d':'#c9ee97');
    return;
   }
   const cop=b.kind==='cop',ranged=cop||b.ranged;
@@ -634,10 +938,10 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
   V.person(ctx,{image:resident?art.get(b.faction):null,ticker:resident?.ticker,color:resident?.color,id:b.id,x:b.x,y:b.y,role:resident?'player':cop?'cop':'gang',style:{skin:Math.floor(b.phase*3)%6,hair:0,pants:cop?0:1},phase:b.phase,armed:ranged,...V.npcPose(b)},time);
 
   ctx.restore();
-  if(b.state==='skirmish')label(C.FACTIONS[C.factionOf(b)]?.role.toUpperCase()||'PATROL',b.x,b.y-124,8,cop?'#91c8ff':'#ff91b2');
+  if(b.state==='skirmish'||b.state==='defending')label(b.state==='defending'?'DISTRICT RESPONDING':C.FACTIONS[C.factionOf(b)]?.role.toUpperCase()||'PATROL',b.x,b.y-143,8,b.state==='defending'?'#9af6c3':cop?'#91c8ff':'#ff91b2');
   if(cop&&me.heat>=22){ctx.fillStyle=reduced?'#91c8ff':Math.floor(time/180)%2?'#ff5277':'#67bcff';ctx.fillRect(b.x-6,b.y-116,12,4);}
   roundRect(b.x-20,b.y-118,40,4,2,'#101c2a');roundRect(b.x-20,b.y-118,40*Math.max(0,b.hp)/b.maxHp,4,2,cop?'#75baff':'#ff7398');
-  label(b.boss?'RUG BARON':b.faction==='congress'?'INSIDER SECURITY':b.faction==='exit'?'RUGMASTERS':b.ranged?'RAIDER / RANGED':b.state==='attack'?'! ATTACK':b.state==='search'?'? SEARCH':cop?'COP':'RUG GANG',b.x,b.y-128,8,b.state==='attack'?'#ffd289':cop?'#a7ceff':'#ff9bb5');
+  label(b.territoryRole==='defender'?'ALLIED RESPONSE':b.territoryRole==='invader'?'BLOCK INVADER':b.boss?'RUG BARON':b.faction==='congress'?'INSIDER SECURITY':b.faction==='exit'?'RUGMASTERS':b.ranged?'RAIDER / RANGED':b.state==='attack'?'! ATTACK':b.state==='search'?'? SEARCH':cop?'COP':'RUG GANG',b.x,b.y-128,8,b.territoryRole==='defender'?'#98f5c2':b.territoryRole==='invader'?'#ffb17f':b.state==='attack'?'#ffd289':cop?'#a7ceff':'#ff9bb5');
  }
  function drawGuard(g,time){
   const type=C.CREW_TYPES.find(t=>t.id===g.role),f=g.facing||{x:1,y:0};
@@ -690,12 +994,24 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
  for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>{firing=false;mouseFiring=false;});
  $('#start-button').addEventListener('click',()=>{entered=true;$('#city-intro').hidden=true;canvas.focus({preventScroll:true});toast('Move with WASD or the thumbstick. Hold Fire for auto-aim. Open Journey for your first chapter. V / Ride mounts your hoverboard.');if(new URLSearchParams(location.search).has('room'))panel('multiplayer');});
  $('#ride-toggle').addEventListener('click',()=>action({type:'ride'}));$('#medkit-use').addEventListener('click',()=>action({type:'medkit'}));
- $('#interact').addEventListener('click',interact);$('#fire').addEventListener('click',()=>fire());$('#dash').addEventListener('click',()=>action({type:'dash'},true));$('#zoom-toggle').addEventListener('click',()=>{cameraZoom=cameraZoom===1?1.35:1;$('#zoom-toggle').textContent=cameraZoom===1?'+ Detail':'− Wide';});$('#fullscreen-exit').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();}catch{toast('Use your browser’s back or Escape control to exit fullscreen.');}});$('#pause-toggle').addEventListener('click',()=>panel('pause'));$('#fullscreen-toggle').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if($('.game-shell').requestFullscreen)await $('.game-shell').requestFullscreen();else toast('Fullscreen is unavailable in this browser.');}catch{toast('Fullscreen could not open. The game still works in this view.');}});$('#quick-job').addEventListener('click',()=>panel(me.blockJob||state.conflict?.entry&&state.conflict.phase!=='cooldown'?'clans':me.room?'places':me.rising?.arena?'survival':!me.contract&&!me.defense?'journey':me.defense?'crew':me.area==='greenbelt'?'map':me.area==='hub'?'missions':me.area==='fortress'?'build':me.area==='creator'?'collections':me.area==='arena'?'arena':'social'));$('#sound-toggle').addEventListener('click',()=>{soundOn=!soundOn;$('#sound-toggle').textContent=soundOn?'Sound on ♫':'Sound off ♫';if(soundOn)tone(660,.12,'triangle');});$('#close-panel').addEventListener('click',closePanel);$('#city-panel').addEventListener('close',()=>{activePanel='';keys.clear();held.clear();});
+ $('#interact').addEventListener('click',interact);$('#fire').addEventListener('click',()=>fire());$('#dash').addEventListener('click',()=>action({type:'dash'},true));$('#zoom-toggle').addEventListener('click',()=>{cameraZoom=cameraZoom===1?1.35:1;$('#zoom-toggle').textContent=cameraZoom===1?'+ Detail':'− Wide';});$('#fullscreen-exit').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();}catch{toast('Use your browser’s back or Escape control to exit fullscreen.');}});$('#pause-toggle').addEventListener('click',()=>panel('pause'));$('#fullscreen-toggle').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if($('.game-shell').requestFullscreen)await $('.game-shell').requestFullscreen();else toast('Fullscreen is unavailable in this browser.');}catch{toast('Fullscreen could not open. The game still works in this view.');}});$('#quick-job').addEventListener('click',()=>panel(me.quarantineRun||state.quarantine?.phase==='active'&&Math.hypot(me.x-C.QUARANTINE.x,me.y-C.QUARANTINE.y)<C.QUARANTINE.radius?'quarantine':me.blockJob||state.conflict?.entry&&state.conflict.phase!=='cooldown'?'clans':me.room?(me.room.id==='arcade'?'arcadeCabinet':'places'):me.territoryRun?'clans':me.rising?.arena?'survival':!me.contract&&!me.defense?'journey':me.defense?'crew':me.area==='greenbelt'?'map':me.area==='hub'?'missions':me.area==='fortress'?'build':me.area==='creator'?'collections':me.area==='arena'?'arena':'social'));$('#sound-toggle').addEventListener('click',()=>{soundOn=!soundOn;$('#sound-toggle').textContent=soundOn?'Sound on ♫':'Sound off ♫';if(soundOn)tone(660,.12,'triangle');});$('#close-panel').addEventListener('click',closePanel);
+ $('#city-panel').addEventListener('cancel',e=>{
+  if(activePanel!=='arcadeCabinet'||state.self?.cabinet?.phase!=='playing')return;
+  e.preventDefault();
+  if(!state.self.cabinet.paused)void action({type:'arcadePause'},true).then(ok=>{if(ok)panel('arcadeCabinet');});
+  else closePanel();
+ });$('#city-panel').addEventListener('close',()=>{activePanel='';keys.clear();held.clear();});
  document.querySelectorAll('[data-panel]').forEach(b=>b.addEventListener('click',()=>panel(b.dataset.panel)));
  document.querySelectorAll('[data-move]').forEach(b=>{const release=()=>{held.delete(b.dataset.move);b.classList.remove('pressed');};b.addEventListener('pointerdown',e=>{e.preventDefault();if(!entered)return;b.setPointerCapture(e.pointerId);held.add(b.dataset.move);b.classList.add('pressed');});b.addEventListener('pointerup',release);b.addEventListener('pointercancel',release);b.addEventListener('lostpointercapture',release);});
  const fireButton=$('#fire');fireButton.addEventListener('pointerdown',e=>{e.preventDefault();if(!entered||activePanel)return;fireButton.setPointerCapture(e.pointerId);firing=true;fire();});for(const name of ['pointerup','pointercancel','lostpointercapture'])fireButton.addEventListener(name,()=>firing=false);
  const joystick=$('#joystick'),knob=$('#joystick-knob');let stickPointer=null;
  function setStick(e){manualAim=false;mouseFiring=false;const r=joystick.getBoundingClientRect(),dx=e.clientX-r.left-r.width/2,dy=e.clientY-r.top-r.height/2,n=Math.max(34,Math.hypot(dx,dy));stick=Math.hypot(dx,dy)<4?{x:0,y:0}:{x:dx/n,y:dy/n};knob.style.transform=`translate(${stick.x*30}px,${stick.y*30}px)`;}
  joystick.addEventListener('pointerdown',e=>{e.preventDefault();if(!entered||activePanel||stickPointer!==null)return;stickPointer=e.pointerId;joystick.setPointerCapture(e.pointerId);setStick(e);});joystick.addEventListener('pointermove',e=>{if(e.pointerId===stickPointer)setStick(e);});for(const name of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(name,e=>{if(e.pointerId!==stickPointer)return;stickPointer=null;stick={x:0,y:0};knob.style.transform='';});
- window.addEventListener('keydown',e=>{if(activePanel||['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;const k=e.key.toLowerCase();if(k==='escape'&&!activePanel&&entered){e.preventDefault();panel('pause');return;}if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','e',' ','shift','v','h','j','m'].includes(k)){e.preventDefault();if(!entered)return;keys.add(k);if(k==='e'&&!e.repeat)interact();if(k===' '&&!e.repeat)fire();if(k==='shift'&&!e.repeat)action({type:'dash'},true);if(k==='v'&&!e.repeat)action({type:'ride'});if(k==='h'&&!e.repeat)action({type:'medkit'});if(k==='j'&&!e.repeat)panel('journey');if(k==='m'&&!e.repeat)panel('map');}});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();held.clear();stick={x:0,y:0};firing=false;mouseFiring=false;stickPointer=null;knob.style.transform="";});document.addEventListener('visibilitychange',()=>{keys.clear();held.clear();stick={x:0,y:0};firing=false;mouseFiring=false;stickPointer=null;knob.style.transform="";save();});window.addEventListener('pagehide',save);updateUI();requestAnimationFrame(frame);
+ window.addEventListener('keydown',e=>{if(activePanel||['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;const k=e.key.toLowerCase();if(k==='escape'&&!activePanel&&entered){e.preventDefault();panel('pause');return;}if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','e',' ','shift','v','h','j','m'].includes(k)){e.preventDefault();if(!entered)return;keys.add(k);if(k==='e'&&!e.repeat)interact();if(k===' '&&!e.repeat)fire();if(k==='shift'&&!e.repeat)action({type:'dash'},true);if(k==='v'&&!e.repeat)action({type:'ride'});if(k==='h'&&!e.repeat)action({type:'medkit'});if(k==='j'&&!e.repeat)panel('journey');if(k==='m'&&!e.repeat)panel('map');}});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();held.clear();stick={x:0,y:0};firing=false;mouseFiring=false;stickPointer=null;knob.style.transform="";});document.addEventListener('visibilitychange',()=>{keys.clear();held.clear();stick={x:0,y:0};firing=false;mouseFiring=false;stickPointer=null;knob.style.transform="";save();});window.addEventListener('pagehide',save);
+ document.addEventListener('visibilitychange',()=>{
+  if(document.hidden&&state.self?.cabinet?.phase==='playing'&&!state.self.cabinet.paused){
+   void action({type:'arcadePause'},true);
+  }else if(!document.hidden&&activePanel==='arcadeCabinet')panel('arcadeCabinet');
+ });
+ updateUI();requestAnimationFrame(frame);
 })();

@@ -56,9 +56,9 @@ test('zombies bite hostile and friendly NPCs and hired guards instead of sharing
  const g=e.arcade.guards.find(g=>g.owner===p.id);
  assert.ok(g,'hired defender was created');
  Object.assign(g,{x:z.x+20,y:z.y,hp:80,cooldown:1000});
- z.bite=0;
+ z.bite=100;z.attackWait=.01;
  e.tick(.05);
- assert.ok(g.hp<80,'zombies damage player-owned guards');
+ assert.ok(g.hp<80,'the telegraphed bite damages player-owned guards');
 });
 
 test('player fire and armed NPCs can kill walkers without generating credits or wanted heat',()=>{
@@ -99,7 +99,7 @@ test('zombie in Solo City uses the same NPC player model, never a separate custo
  assert.ok(city.includes("if(b.kind==='zombie'){"));
  assert.ok(city.includes("role:'zombie'"),'shared actor renderer uses zombie outfit');
  assert.ok(city.includes('V.person(ctx,{id:'),'the existing player rig draws zombies');
- assert.ok(html.includes('city-arcade.js?v=35-unified-npc-rig'));
- assert.ok(html.includes('city-visuals.js?v=35-unified-npc-rig'));
- assert.ok(html.includes('city.js?v=36-modern-buildings'));
+ assert.ok(html.includes('city-arcade.js?v=41-civilian-patrols'));
+ assert.ok(html.includes('city-visuals.js?v=37-one-world-quarantine'));
+ assert.ok(html.includes('city.js?v=44-friendly-civilians'));
 });

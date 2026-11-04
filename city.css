@@ -171,3 +171,20 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
  .monk-verse .monk-verse-hebrew{font-size:16px}
  .monk-verse strong{font-size:10px}
 }
+/* One-world Chaos Arcade: native mobile and keyboard-friendly playable cabinet. */
+.rug-runner{max-width:694px;margin:16px auto 20px;padding:16px;background:linear-gradient(160deg,#15253c,#18122c);border:2px solid #5b9fa5;border-radius:12px;box-shadow:inset 0 0 28px #65f0c313,0 18px 35px #03091266}
+.rug-runner:focus-visible{outline:3px solid #abf1d4;outline-offset:4px}
+.rug-runner-board{display:block;width:100%;height:auto;aspect-ratio:66/35;border:2px solid #77a8bb;border-radius:8px;background:#121d31}
+.rug-runner-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:15px}
+.rug-runner-controls .panel-button{min-height:52px;padding:13px 8px;border:1px solid #91bfba;background:#296b68;color:#effff6;border-radius:7px;font:700 12px/1.4 monospace;touch-action:manipulation}
+.rug-runner-controls .panel-button:nth-child(3){background:#b8e28c;border-color:#d0f6ae;color:#172e2b}
+.rug-runner-controls .panel-button:disabled{opacity:.45;cursor:not-allowed}
+.rug-runner-controls .panel-button:focus-visible{outline:3px solid #d9f7ab;outline-offset:2px}
+.rug-runner-status{font:700 12px/1.7 monospace;color:#d1e6e3;min-height:48px;margin:13px 0!important}
+@media(max-width:700px){.rug-runner{padding:9px;border-radius:8px}.rug-runner-controls{gap:7px}.rug-runner-controls .panel-button{min-height:56px;padding:11px 6px;font-size:10px}.rug-runner-status{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.rug-runner-controls .panel-button{transition:none}}
+/* Accessible manual street route — never drives or teleports the player. */
+.route-guide{position:absolute;z-index:3;top:189px;left:50%;transform:translateX(-50%);width:max-content;max-width:min(92%,540px);padding:9px 13px;border-radius:7px;background:#102b3de9;border:1px solid #6ee5f3b8;box-shadow:0 6px 20px #020b16aa;color:#d9ffff;font:700 10px/1.5 monospace;letter-spacing:.1px;pointer-events:none;text-align:center;text-wrap:balance}
+.route-guide[hidden]{display:none}
+.route-guide[data-status="off-route"],.route-guide[data-status="invalid"]{border-color:#edbf7b;color:#ffdbac;background:#3b2a28e9}
+@media(max-width:700px){.route-guide{top:208px;font-size:9px;line-height:1.45;padding:7px 10px;max-width:calc(100% - 16px)}}

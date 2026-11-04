@@ -65,7 +65,49 @@
    if(!finite(point)||!Array.isArray(points)||points.length<2)return Infinity;
    let nearest=Infinity;for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i],dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((point.x-a.x)*dx+(point.y-a.y)*dy)/(dx*dx+dy*dy||1)));nearest=Math.min(nearest,Math.hypot(point.x-a.x-t*dx,point.y-a.y-t*dy));}return nearest;
   }
-  return Object.freeze({plan,clear,distanceToRoute,cell,budget});
+  function guidance(point,points,opts={}){
+   if(!finite(point)||!Array.isArray(points)||points.length<2||
+    points.some(p=>!finite(p)))return {status:'invalid',remaining:0};
+   const offLimit=Number.isFinite(opts.offRoute)&&opts.offRoute>0?opts.offRoute:150;
+   const arrival=Number.isFinite(opts.arrival)&&opts.arrival>0?opts.arrival:60;
+   const length=[0];let total=0;
+   for(let i=1;i<points.length;i++){
+    total+=Math.hypot(points[i].x-points[i-1].x,points[i].y-points[i-1].y);
+    length.push(total);
+   }
+   let nearest=Infinity,segment=1,along=0,projection=null;
+   for(let i=1;i<points.length;i++){
+    const a=points[i-1],b=points[i],dx=b.x-a.x,dy=b.y-a.y,
+     len2=dx*dx+dy*dy,t=len2?Math.max(0,Math.min(1,((point.x-a.x)*dx+(point.y-a.y)*dy)/len2)):0;
+    const x=a.x+dx*t,y=a.y+dy*t,d=Math.hypot(point.x-x,point.y-y);
+    if(d<nearest){nearest=d;segment=i;projection={x,y};along=length[i-1]+t*Math.sqrt(len2);}
+   }
+   const remaining=Math.max(0,total-along)+nearest;
+   const destination=points.at(-1),direct=Math.hypot(destination.x-point.x,destination.y-point.y);
+   if(direct<=arrival)return {status:'arrived',remaining:Math.round(direct),
+    offRoute:Math.round(nearest),segment,point:{...destination},turn:'arrived',heading:'ARRIVED'};
+   if(nearest>offLimit)return {status:'off-route',remaining:Math.round(remaining),
+    offRoute:Math.round(nearest),segment,point:projection,turn:'reroute',heading:'RECALCULATE'};
+   let waypoint=points[segment],nextIndex=segment;
+   if(Math.hypot(point.x-waypoint.x,point.y-waypoint.y)<36&&segment<points.length-1){
+    nextIndex++;waypoint=points[nextIndex];
+   }
+   const dx=waypoint.x-point.x,dy=waypoint.y-point.y;
+   const angle=Math.atan2(dy,dx),oct=Math.round(angle/(Math.PI/4)),
+    headings=['EAST','SOUTHEAST','SOUTH','SOUTHWEST','WEST','NORTHWEST','NORTH','NORTHEAST'];
+   const heading=headings[((oct%8)+8)%8];
+   let turn='continue';
+   if(nextIndex<points.length-1){
+    const next=points[nextIndex+1],ax=waypoint.x-point.x,ay=waypoint.y-point.y,
+     bx=next.x-waypoint.x,by=next.y-waypoint.y,deg=Math.atan2(ax*by-ay*bx,ax*bx+ay*by)*180/Math.PI;
+    if(deg>30)turn='right';
+    if(deg< -30)turn='left';
+   }
+   return {status:'follow',remaining:Math.round(remaining),offRoute:Math.round(nearest),
+    segment:nextIndex,point:{x:waypoint.x,y:waypoint.y},
+    turn,heading,distanceToTurn:Math.round(Math.hypot(dx,dy))};
+  }
+  return Object.freeze({plan,clear,distanceToRoute,guidance,cell,budget});
  }
  root.CityNav=Object.freeze({createRouter});
 })(typeof window==='undefined'?globalThis:window);

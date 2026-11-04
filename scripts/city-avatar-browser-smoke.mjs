@@ -59,7 +59,7 @@ try{
  const port=await waitFor(async()=>{
   try{return Number((await readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0])||null;}
   catch{return null;}
- },'Chrome DevTools port');
+ },'Chrome DevTools port',25000);
  const tabResponse=await fetch('http://127.0.0.1:'+port+'/json/new?about:blank',{method:'PUT'});
  assert.equal(tabResponse.status,200);
  const tab=await tabResponse.json();
@@ -181,7 +181,7 @@ try{
  assert.equal(await evalPage("document.documentElement.scrollWidth <= document.documentElement.clientWidth+3"),true,'emulated phone game has no horizontal overflow');
  await delay(450);
  const gameCanvas=await evalPage("({width:document.getElementById('city-canvas').width,height:document.getElementById('city-canvas').height})");
- assert.ok(gameCanvas.width>300&&gameCanvas.height>300,'original playable world canvas active');
+ assert.ok(gameCanvas.width>300&&gameCanvas.height>300,'original playable world canvas active; '+JSON.stringify({gameCanvas,exceptions,territory:await evalPage('!!window.CityTerritory'),scripts:await evalPage("Array.from(document.scripts).map(s=>s.src).filter(s=>s.includes('territory'))")}));
  const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
  assert.ok(shot.data.length>2000,'real mobile-viewport screenshot captured');
  // Center City must also render the playable map with a home plot, independent
@@ -203,12 +203,176 @@ try{
  assert.ok(mapData.plot[0]>mapData.fort[0]&&mapData.plot[0]<mapData.fort[0]+2240);
  assert.ok(mapData.shopRegions>=4);assert.ok(mapData.painted);
  assert.ok(mapData.mapWidth>=800&&mapData.mapHeight>=800);
+ // The existing 47-door map must yield readable manual guidance on phones:
+ // no teleport, second renderer, wallet action, or changed game entrypoint.
+ const shopChoice=await evalPage("(()=>{const I=window.CityInteriors,b=I.BUILDINGS.find(x=>x.activity==='shop'),c=Array.from(document.querySelectorAll('.map-destinations button')).find(el=>el.textContent.includes(b.name));if(!c)return null;c.click();return b.name;})()");
+ assert.ok(shopChoice,'same world map offers a real physical supply/shop door');
+ await waitFor(()=>evalPage("document.querySelector('#route-guide')?.textContent.includes('HEAD')&&document.querySelector('#route-guide')?.dataset.status==='follow'"),'manual turn-by-turn guide visible from actual 47-door map route');
+ const navUI=await evalPage("({guide:document.querySelector('#route-guide').textContent,hidden:document.querySelector('#route-guide').hidden,mapClosed:!document.querySelector('#city-panel').open,width:document.querySelector('#route-guide').getBoundingClientRect().width,screen:innerWidth})");
+ assert.equal(navUI.hidden,false,'navigation status appears only when a destination is selected');
+ assert.equal(navUI.mapClosed,true,'destination selection returns to the original city game');
+ assert.match(navUI.guide,/m remaining/);
+ assert.ok(navUI.guide.includes(shopChoice),'original destination name survives routing');
+ assert.ok(navUI.width<navUI.screen,'guidance does not overflow the phone');
+ await evalPage("document.querySelector('[data-panel=map]').click();true");
+ await waitFor(()=>evalPage("document.querySelector('canvas.large-map')!==null&&document.querySelector('#panel-content').textContent.includes('Safe walking route')"),'large map explains the active safe walking route');
+
+ // New quarantine scenario must be a physical destination inside the old
+ // map and an ordinary mobile-friendly game panel, not a separate World V2 UI.
+ assert.equal(await evalPage("window.MemeCityCore.WORLD.stations.filter(s=>s.id==='quarantine-bunker').length"),1);
+ assert.equal(await evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Quarantine Bunker / zombie survival'))"),true,
+  'quarantine location is navigable from the same mobile world map');
+ await evalPage("document.querySelector('#close-panel').click();document.querySelector('[data-panel=menu]').click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Quarantine bunker / undead waves'))"),'one-world quarantine menu entry');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Quarantine bunker / undead waves')).click();true");
+ const qPanel=await evalPage("({title:document.querySelector('#panel-title').textContent,copy:document.querySelector('#panel-content').textContent,hasRoute:Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Mark Quarantine Bunker'))})");
+ assert.match(qPanel.title,/Quarantine bunker/i);
+ assert.match(qPanel.copy,/Walk to the marked bunker/,'remote player cannot bypass physical entry');
+ assert.match(qPanel.copy,/Go to bunker to unlock start/,'start is proximity gated on phone');
+ assert.equal(qPanel.hasRoute,true,'existing map routing is available');
+ assert.equal(await evalPage("document.querySelector('#city-intro').hidden"),true,'quarantine does not replace the one-tap solo game');
+ await evalPage("document.querySelector('#close-panel').click();document.querySelector('[data-panel=map]').click();true");
  const mobileMapShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
  assert.ok(mobileMapShot.data.length>2000,'mobile expanded-city map rendered in Chrome');
  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
  await delay(250);
  const desktopMapShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
  assert.ok(desktopMapShot.data.length>2000,'desktop expanded-city map rendered in Chrome');
+ // Same original game page: a real playable fortress siege can be started and
+ // abandoned through the one mobile/desktop Squad panel, without new clients.
+ await send('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
+ await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?siege-visual-qa=1'});
+ await waitFor(()=>evalPage("!!window.MemeCityCore?.PLOT&&!!document.getElementById('start-button')"),'original fortress game');
+ await evalPage("document.getElementById('start-button').click();document.querySelector('[data-panel=menu]').click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Hire / command defenders'))"),'one-world fortress menu');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Hire / command defenders')).click();true");
+ const siegeReady=await evalPage("({title:document.querySelector('#panel-title').textContent,start:Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Start fortress siege'))?.disabled})");
+ assert.match(siegeReady.title,/Your defenders/);
+ assert.equal(siegeReady.start,false,'same spawn and Squad panel can begin a real siege');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Start fortress siege')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('#mission-kicker').textContent==='FORTRESS DEFENSE'"),'live siege HUD');
+ assert.match(await evalPage("document.querySelector('#mission-detail').textContent"),/CORE 200\/200 HP/);
+ await evalPage("document.querySelector('[data-panel=menu]').click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('URGENT / Fortress siege repairs'))"),'accessible siege repair menu');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('URGENT / Fortress siege repairs')).click();true");
+ const siegeUi=await evalPage("({text:document.querySelector('#panel-content').textContent,button:Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Retreat / abandon siege'))})");
+ assert.match(siegeUi.text,/Command Core: 200 \/ 200 HP/);
+ assert.equal(siegeUi.button,true,'repair and retreat live in the original Squad panel');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Retreat / abandon siege')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('#mission-kicker').textContent!=='FORTRESS DEFENSE'"),'live siege retreat ends without a replacement world');
+ // Play the real Chaos Arcade cabinet at a phone viewport, in the existing
+ // city.html engine. Inject only a starting *street coordinate* for QA; still
+ // require the original building door, indoor walk and activity terminal.
+ await send('Page.addScriptToEvaluateOnNewDocument',{source:
+  "if(location.search.includes('cabinet-qa')){try{localStorage.removeItem('offensive-meme-city-v1-center')}catch{};Object.defineProperty(window,'MemeCityCore',{configurable:true,set:function(core){Object.defineProperty(window,'MemeCityCore',{value:core,configurable:true,writable:true});const old=core.Engine.prototype.join;core.Engine.prototype.join=function(){const p=old.apply(this,arguments);if(arguments[0]==='solo'){const b=core.WORLD.buildings.find(x=>x.id==='arcade');p.x=b.x+b.w/2;p.y=b.y+b.h+37;}return p;};}});}"});
+ await send('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
+ await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?solo=1&cabinet-qa=1'});
+ await waitFor(()=>evalPage("!!document.querySelector('#start-button') && !!window.CityInteriors?.ROOM"),'original city with arcade entrance');
+ await evalPage("document.querySelector('#start-button').click();true");
+ await waitFor(()=>evalPage("document.querySelector('#interact')?.textContent.includes('ENTER CHAOS ARCADE')"),'physical Chaos Arcade entrance');
+ await evalPage("document.querySelector('#interact').click();true");
+ await waitFor(()=>evalPage("document.querySelector('#district')?.textContent==='CHAOS ARCADE'"),'original interior successfully entered');
+ await send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowUp',code:'ArrowUp',windowsVirtualKeyCode:38});
+ await delay(2100);await send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowUp',code:'ArrowUp',windowsVirtualKeyCode:38});
+ await waitFor(()=>evalPage("document.querySelector('#interact')?.textContent.includes('PLAY')"),'walked through the real indoor room to arcade cabinet');
+ await evalPage("document.querySelector('#interact').click();true");
+ await waitFor(()=>evalPage("!!document.querySelector('.rug-runner-board')&&document.querySelector('#city-panel').open"),'in-building playable arcade UI');
+ const pixel=await evalPage("(()=>{const c=document.querySelector('.rug-runner-board').getContext('2d');const d=c.getImageData(0,0,660,350).data;let painted=0;for(let i=3;i<d.length;i+=4*11)painted+=d[i]>0?1:0;return painted;})()");
+ assert.ok(pixel>12000,'neon cabinet renders detailed real Canvas pixels');
+ assert.match(await evalPage("document.querySelector('#panel-content').textContent"),/FIRST CLEAR: 35 PLAY CREDITS/);
+ await evalPage("Array.from(document.querySelectorAll('.rug-runner-controls button')).find(b=>b.textContent.includes('Start Rug Runner')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('GATE 1 / 12')"),'first actual arcade gate');
+ await evalPage("Array.from(document.querySelectorAll('.rug-runner-controls button')).find(b=>b.textContent.includes('Pause / P')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('Paused')"),'arcade pause works');
+ await evalPage("Array.from(document.querySelectorAll('.rug-runner-controls button')).find(b=>b.textContent.includes('Resume cabinet')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('Red hazard')"),'arcade resumes');
+ let gatesPlayed=0;
+ for(;gatesPlayed<12;gatesPlayed++){
+  const before=await evalPage("document.querySelector('.rug-runner-status').textContent");
+  if(!before.includes('GATE '))break;
+  const lane=(before.match(/Your lane: (LEFT|CENTER|RIGHT)/)||[])[1];
+  const danger=(before.match(/Red hazard: (LEFT|CENTER|RIGHT)/)||[])[1];
+  const bonus=(before.match(/Green points: (LEFT|CENTER|RIGHT)/)||[])[1];
+  const names=['LEFT','CENTER','RIGHT'],here=names.indexOf(lane),d=names.indexOf(danger),prize=names.indexOf(bonus);
+  assert.ok(here>=0&&d>=0&&prize>=0,'the user can read actual gate hazards and prizes');
+  const candidates=[here,here-1,here+1].filter(n=>n>=0&&n<=2&&n!==d);
+  const target=candidates.includes(prize)?prize:candidates[0]??here;
+  if(target!==here){
+   const direction=target<here?'LEFT / A':'RIGHT / D';
+   await evalPage("Array.from(document.querySelectorAll('.rug-runner-controls button')).find(b=>b.textContent.includes("+JSON.stringify(direction)+")).click();true");
+   await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('Move used for this gate')"),'one legal lane move');
+  }
+  await evalPage("Array.from(document.querySelectorAll('.rug-runner-controls button')).find(b=>b.textContent.includes('ADVANCE GATE')).click();true");
+  if(gatesPlayed<11)await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('GATE "+(gatesPlayed+2)+" / 12')"),'the next authoritative arcade gate');
+  else await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('LAST RUN:')"),'complete twelve-gate arcade round');
+ }
+ assert.equal(gatesPlayed,12,'twelve user-controlled turns play on a phone-sized screen');
+ assert.match(await evalPage("document.querySelector('.rug-runner-status').textContent"),/LAST RUN: WON/);
+ assert.match(await evalPage("document.querySelector('#panel-content').textContent"),/FIRST-CLEAR PRIZE CLAIMED/);
+ await evalPage("Array.from(document.querySelectorAll('.rug-runner-controls button')).find(b=>b.textContent.includes('Play another round')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('GATE 1 / 12')"),'high-score retry is playable');
+ await evalPage("Array.from(document.querySelectorAll('.rug-runner-controls button')).find(b=>b.textContent.includes('Quit / no prize')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('.rug-runner-status')?.textContent.includes('LAST RUN: ABANDONED')"),'arcade quit safely stops reward');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Return to the arcade room')).click();true");
+ assert.equal(await evalPage("document.querySelector('#city-panel').open"),false,'returns to exact same indoor city world');
+ assert.equal(await evalPage("document.querySelector('#district').textContent"),'CHAOS ARCADE');
+ // Actual mobile Chromium: same Solo game, existing clan selection and
+ // physical district terminal trigger the new, server-compatible defense.
+ await send('Page.addScriptToEvaluateOnNewDocument',{source:
+  "if(location.search.includes('territory-qa')){try{localStorage.removeItem('offensive-meme-city-v1-center')}catch{};Object.defineProperty(window,'MemeCityCore',{configurable:true,set:function(core){Object.defineProperty(window,'MemeCityCore',{value:core,configurable:true,writable:true});const join=core.Engine.prototype.join;core.Engine.prototype.join=function(){const p=join.apply(this,arguments);if(arguments[0]==='solo'){p.x=core.NEIGHBORHOODS[0].x;p.y=core.NEIGHBORHOODS[0].y;}return p;};}});}"});
+ await send('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
+ await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?solo=1&territory-qa=1'});
+ await waitFor(()=>evalPage("!!window.CityTerritory&&!!document.getElementById('start-button')"),'original world with real district-defense engine');
+ await evalPage("document.getElementById('start-button').click();document.querySelector('[data-panel=menu]').click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Clans & block jobs'))"),'existing clan menu');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Clans & block jobs')).click();true");
+ await waitFor(()=>evalPage("!!document.querySelector('.clan-card')"),'all six existing clan roles');
+ assert.equal(await evalPage("document.querySelectorAll('.clan-card').length"),6,'old clan blocks are not replaced');
+ await evalPage("Array.from(document.querySelector('.clan-card').querySelectorAll('button')).find(b=>b.textContent.includes('Join clan')).click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Start District Defense'))"),'on-site clan defense terminal ready');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Start District Defense')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('#mission-kicker').textContent.includes('DISTRICT DEFENSE')"),'live original-world district-alert HUD');
+ assert.equal(await evalPage("document.querySelector('#city-panel').open"),false,'the event returns to original city street combat');
+ await waitFor(()=>evalPage("document.querySelector('#mission-title').textContent.includes('Wave 1/2')"),'first actual allied NPC response wave');
+ assert.match(await evalPage("document.querySelector('#mission-detail').textContent"),/damage/);
+ assert.ok(await evalPage("document.querySelector('#city-canvas').width>300"),'original city renderer remains alive during faction combat');
+ await evalPage("document.querySelector('[data-panel=map]').click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('ACTIVE / District Defense'))"),'the old map plots the active defense alert');
+ await evalPage("document.querySelector('#close-panel').click();document.querySelector('#quick-job').click();true");
+ await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Retreat / end district defense'))"),'the current clan panel owns defense retreat');
+ await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Retreat / end district defense')).click();true");
+ await waitFor(()=>evalPage("document.querySelector('#panel-content').textContent.includes('LAST DEFENSE / ABANDONED')"),'faction defense cleanup after retreat');
+ assert.equal(await evalPage("document.querySelector('#district').textContent.includes('RUG')"),false,'original district remains available after event');
+ // Live mobile-renderer QA for civilians: the *original* Solo engine and
+ // current Canvas must respond to an in-world hostile NPC and then settle.
+ await send('Page.addScriptToEvaluateOnNewDocument',{source:
+  "if(location.search.includes('civilians-qa')){try{localStorage.removeItem('offensive-meme-city-v1-center')}catch{};Object.defineProperty(window,'MemeCityCore',{configurable:true,set:function(core){Object.defineProperty(window,'MemeCityCore',{value:core,configurable:true,writable:true});const join=core.Engine.prototype.join;core.Engine.prototype.join=function(){const p=join.apply(this,arguments);if(arguments[0]==='solo'){window.__civilianQaEngine=this;window.__civilianQaPlayer=p;}return p;};}});}"});
+ await send('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
+ await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?solo=1&civilians-qa=1'});
+ await waitFor(()=>evalPage("!!window.CityCivilians&&!!window.__civilianQaEngine?.civilians?.length"),'shared civilian engine in original playable city');
+ await evalPage("document.getElementById('start-button').click();true");
+ // A real phone-sized Chromium canvas now shows a social gesture before a raid.
+ // This verifies the existing character/game, not a disconnected test renderer.
+ const waveStart=await evalPage("(()=>{const e=window.__civilianQaEngine,p=window.__civilianQaPlayer,c=e.civilians.find(x=>x.zone==='hub'),C=window.MemeCityCore;if(!c)return false;for(const b of e.arcade.bots){b.hp=0;b.respawn=10000;}p.x=C.blocked(c.x+65,c.y+25)?c.x:c.x+65;p.y=C.blocked(p.x,c.y+25)?c.y:c.y+25;p.invulnerable=1000;p.fireHeld=false;c.nextWave=0;return true;})()");
+ assert.equal(waveStart,true,'original city has a real local friendly pedestrian');
+ await waitFor(()=>evalPage("window.__civilianQaEngine.civilians.some(c=>c.zone==='hub'&&c.gesture)"),
+  'phone-sized in-world civilian waves to player');
+ const waveSnapshot=await evalPage("(()=>{const e=window.__civilianQaEngine,p=window.__civilianQaPlayer;return e.snapshot(p.id).civilians.find(c=>c.zone==='hub')?.gesture===true;})()");
+ assert.equal(waveSnapshot,true,'real Solo HUD receives authoritative 360-rig gesture state');
+ const friendlyShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+ assert.ok(friendlyShot.data.length>2000,'existing city Canvas paints while citizen greets player');
+ const civilianStart=await evalPage("(()=>{const e=window.__civilianQaEngine,p=window.__civilianQaPlayer,c=e.civilians.find(x=>x.zone==='hub'),C=window.MemeCityCore;if(!c)return null;p.x=C.blocked(c.x+65,c.y+25)?c.x:c.x+65;p.y=C.blocked(p.x,c.y+25)?c.y:c.y+25;p.invulnerable=1000;const hostile=e.arcade.bots.find(b=>b.kind==='gang'&&!b.territoryRole),cop=e.arcade.bots.find(b=>b.kind==='cop');Object.assign(hostile,{x:c.x+65,y:c.y+45,homeX:c.x+65,homeY:c.y+45,faction:'exit',hp:95,maxHp:95,territoryRole:'invader',cooldown:100});Object.assign(cop,{x:c.x+95,y:c.y+95,homeX:c.x+95,homeY:c.y+95,hp:100,maxHp:100,cooldown:100});return {id:c.id,x:c.x,y:c.y};})()");
+ assert.ok(civilianStart&&civilianStart.id,'civilian QA activated a visible hub pedestrian');
+ await waitFor(()=>evalPage("window.__civilianQaEngine.civilians.some(c=>c.id==="+JSON.stringify(civilianStart.id)+"&&['fleeing','sheltering'].includes(c.state))"),'mobile civilian flees visible hostile');
+ await waitFor(()=>evalPage("window.__civilianQaEngine.arcade.bots.some(b=>b.civilianAlert?.expires>window.__civilianQaEngine.arcade.time)"),'in-game civilian signals real police NPC');
+ const fleeing=await evalPage("(()=>{const e=window.__civilianQaEngine,c=e.civilians.find(c=>c.id==="+JSON.stringify(civilianStart.id)+");return {x:c.x,y:c.y,state:c.state,alarm:document.querySelector('#population').textContent,canvas:document.querySelector('#city-canvas').width};})()");
+ assert.ok(Math.hypot(fleeing.x-civilianStart.x,fleeing.y-civilianStart.y)>1,'visible civilian must actually move away from danger');
+ assert.ok(fleeing.canvas>300,'reactive civilian uses the original active world Canvas');
+ assert.match(fleeing.alarm,/civilians alarmed/,'original HUD reports reactive bystanders');
+ const civilianShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+ assert.ok(civilianShot.data.length>2000,'phone-sized Canvas with reactive pedestrians paints');
+ await evalPage("(()=>{for(const b of window.__civilianQaEngine.arcade.bots)if(b.territoryRole==='invader')b.hp=0;return true;})()");
+ await waitFor(()=>evalPage("window.__civilianQaEngine.civilians.find(c=>c.id==="+JSON.stringify(civilianStart.id)+")?.panic===0"),'civilian calms after enemy leaves');
  // Regression: the Avatar wallet button must report missing providers INSIDE its modal.
  // Previously the only error notification was behind the modal and appeared inert on phones.
  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?release=wallet-feedback-qa'});

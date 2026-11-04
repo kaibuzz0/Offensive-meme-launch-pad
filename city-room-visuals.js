@@ -113,7 +113,21 @@
   const r=p.room;if(!r)return;floor(c,r,art);
   const layers=I.furniture(r.theme).map(o=>({y:o.y+o.h,draw:()=>furniture(c,o,r,art)}));
   // The terminal provides the building's actual city activity, rather than an empty backdrop.
-  const a=I.ROOM.activity;layers.push({y:a.y+8,draw:()=>{box(c,a.x-36,a.y-76,72,80,'#1c3346',5);box(c,a.x-30,a.y-70,60,39,r.accent+'66',3);text(c,'ACTIVITY',a.x,a.y-46,9,'#e5f6dc');box(c,a.x-31,a.y-22,62,7,r.accent,2);text(c,'E / INTERACT',a.x,a.y+30,9,r.accent);}});
+  const a=I.ROOM.activity;layers.push({y:a.y+8,draw:()=>{box(c,a.x-36,a.y-76,72,80,'#1c3346',5);box(c,a.x-30,a.y-70,60,39,r.accent+'66',3);text(c,r.id==='arcade'?'RUG RUNNER':'ACTIVITY',a.x,a.y-46,r.id==='arcade'?8:9,'#e5f6dc');box(c,a.x-31,a.y-22,62,7,r.accent,2);text(c,r.id==='arcade'?'E / PLAY':'E / INTERACT',a.x,a.y+30,9,r.accent);}});
+  if(r.id==='arcade'){
+   // Original in-world arcade cabinet screens; actual gameplay is accessed
+   // through this room's authenticated activity terminal, not another world.
+   const run=p.cabinet,session=run?.phase==='playing';
+   for(const o of I.furniture(r.theme).filter(o=>o.kind==='cabinet'))layers.push({
+    y:o.y+o.h,draw:()=>{
+     const x=o.x+o.w/2,y=o.y+2;
+     c.save();c.fillStyle='#121c32';c.fillRect(x-30,y-12,60,22);
+     c.fillStyle=session?'#8ef2c7':'#a3c4e4';c.fillRect(x-25,y-8,50,13);
+     text(c,session?`GATE ${run.turn+1}`:'RUG RUNNER',x,y+2,7,'#143d45');
+     c.restore();
+    }
+   });
+  }
   const npc={x:430,y:345};layers.push({y:npc.y,draw:()=>root.CityVisuals.person(c,{id:'room-host-'+r.id,x:npc.x,y:npc.y,role:'civilian',color:r.accent,style:{skin:2,hair:1,pants:2},aim:{x:.6,y:1}},time)});
   layers.push({y:r.y,draw:()=>renderPlayer(r.x,r.y)});
   for(const peer of peerPlayers)layers.push({y:peer.room.y,draw:()=>renderPeer(peer)});

@@ -1,3 +1,107 @@
+## One-world civilian greetings and safe social behavior — November 4, 2026
+
+- **Same active world:** extended the existing `city-civilians.js` engine plugin, the original `city.js` 360-degree Canvas renderer and the canonical `city.html`. No new map, browser route, NPC body rig, save key, or economy.
+- **Friendly encounters:** calm pedestrians within 165 world units can stop, turn toward the player and perform a brief unarmed wave/HELLO label using the existing character skeleton. Each person has deterministic staggered availability, a roughly 22-second cooldown and at most a 1.8-second greeting. Outside the active player area, these effects sleep.
+- **Safety and authority:** active combat and panicked fleeing always preempt greetings; a new 12-second post-threat cooldown prevents jarring immediate waves. The shared Engine owns greeting timing for Solo and authenticated Together rooms; clients see only a read-only `gesture` boolean in their existing civilian snapshot. No wallet requests, credits, XP, combat rewards, NPC targeting or new player-save fields; ordinary patrol/faction rules remain intact.
+- **Validation:** expanded `scripts/city-civilians.test.mjs` for finite greetings, correct facing, deep-free snapshot boundaries, no save/economy mutations and combat cancellation; expanded live mobile-sized Chromium QA to exercise greeting before a genuine hostile NPC makes the same character flee. Browser asset cache versions and static guards updated together. Verify the final PR head on GitHub Actions before any release claim.
+- **Release:** still a draft, not merged/deployed. Owner reports that the existing game runs well; physical Android input/FPS/battery/memory acceptance of this new draft remains separate from browser simulation.
+
+---
+
+## One-world dusk lighting and street atmosphere — November 4, 2026
+
+- **Development branch:** `codex/one-world-quarantine-archetypes` / [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28). This work extends only the existing `city.html` and `CityRisingVisuals` canvas; public `main` and live game remain unchanged.
+- **Center-world fix:** The previous world-space lamp glows referenced retired pre-center coordinates. Lighting now follows the real `C.HUB` streets and plaza, original four `C.DISTRICTS`, six `C.NEIGHBORHOODS`, and valid user-built lamps on `C.PLOT`. Nothing moves, blocks, creates collisions or writes saves.
+- **Visual update:** A deterministic shared world clock gradually blends dusk, night and dawn instead of switching to abruptly hard-coded tints. Nearby streetlight pools and subdued rain reflections sit under current characters in the original depth order. No new screen, game engine, inventory, token/crypto functionality, or per-frame shader service.
+- **Reduced-motion/mobile limits:** Existing `prefers-reduced-motion` now flows into world lights; landmark bobbing is disabled for reduced motion, and animated rain streaks remain suppressed. Lighting stays static with a hard cap of **eight** in-range glow gradients per frame and no gradients for daylight or distant lamps. Existing V1 Canvas mobile handling and rain streak cap remain unchanged.
+- **Regression coverage:** `scripts/city-atmosphere.test.mjs` checks clock transitions, correct physical Center City fixtures, retired-lamp elimination, culling and render budget, user-built lamps, nonmutation of game state and reduced-motion rain. Existing static checks assert the new browser cache version; the ordinary browser/room workflow must be green for the final PR head before any release claim.
+- **Next gates:** Full CI including phone-sized Chromium on final commit, physical Android joystick/aim/touch/FPS/memory acceptance, owner's visual approval. This draft is **not merged or deployed**; no silent public cutover.
+
+---
+
+## One-world manual street wayfinding / all 47 doors — November 4, 2026
+
+- **Branch:** `codex/one-world-quarantine-archetypes`, [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28); unreleased, original main and public game remain unchanged.
+- **Original 47 interiors remain at their existing coordinates.** `city-nav.js` now exposes collision-aware `guidance()` in addition to existing bounded A* path planning, route smoothing and nearest-route checks. The guidance calculates remaining distance from the player along the selected route, compass heading, next left/right turn and meters until that bend. It reports off-route, missing route and arrival states without ever altering `Engine.input()`, player positions, door/landmark IDs or world collision.
+- **Gameplay/UI:** `city.js` refreshes an accessible manual navigation bar over the **existing world Canvas**, displays the selected actual destination plus heading/turn/distance, and includes the same instruction in the original clickable world-map screen. It retains the cyan in-world route line, periodic off-route recalculation, touch selection and keyboard/joystick movement. The bar is non-interactive, compact on Android-sized viewports and hidden when no outdoor route is active. Original `city.html` and `city.css` assets are versioned to ensure browsers don't show an old cached route.
+- **Verification:** `scripts/city-wayfinding.test.mjs` exercises every one of the real 47 door IDs and the unchanged physical entrance coordinates, obtains a route from actual Solo spawn, checks every segment against `C.blocked()`, and verifies correct heading, turn direction, distance and no automatic movement even with player-built obstructions. Real mobile-sized Chromium chooses an existing physical shop from the world map and verifies that turn guidance appears, fits within the phone screen, and leaves the game running. [Verified implementation CI 41932985642](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41932985642) passed all regression tests/static, deterministic benchmark and Chromium. Documentation-only commits follow; recheck the exact final head.
+- **Next:** lighting/environmental polish in the *same* main world, checking reduced-motion settings and Android FPS on hardware. Physical Android gameplay acceptance remains unverified. Do not merge or deploy without explicit approval.
+
+---
+
+## One-world civilian reactions and neighborhood foot patrols — November 4, 2026
+
+- **Development branch:** `codex/one-world-quarantine-archetypes`, [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28). Public `main` remains on the previous playable world. Nothing in this round is merged or publicly deployed.
+- **NPCs:** Added `city-civilians.js` to the existing `MemeCityCore.Engine`, loaded by `city.html` and `server/city-server.mjs`. Up to **16 non-attackable civilian NPCs** now inhabit the original Center City hub, all six clan neighborhoods, and Social Boardwalk. Deterministic spawning checks original `C.blocked()` geometry. They walk nearby beats, flee nearby active gunfire/raids/zombies, shelter behind obstacles when needed and return to ordinary movement after danger expires. Distant civilian movement sleeps when no player is nearby.
+- **Faction response:** Civilian alerts notify only nearby local police or matching-faction resident patrols. These patrols approach witness reports but retain established `C.npcHostile()`/faction combat checks. Original central police and gangs are tagged for real four-point routes without changing the ambient rival pairing/mission reward order. District Defense, zombie, and monk AI retain their existing constraints.
+- **Art:** Render civilians in `city.js` using the same depth-sorted, 360° `CityVisuals.person()` NPC rig. Real pose, moving facing, conditional RUN / TAKING COVER cues and a concise HUD alarm count replace scripted civilian figures in the old hub/Social canvas. The 47 interiors, street graphics, full-body player model and wallet UI remain untouched.
+- **Economy / security:** Civilians are not in the damageable `arcade.bots` combat list. They grant no credits, XP or wanted heat. Their locations, fear and alerts are **session-only** and not saved; original `offensive-meme-city-v1-center` key, clan standings, gear, plot, purchases and authentic wallet ownership gates are unchanged. Solo and Together get the same bounded simulation.
+- **Verification:** `scripts/city-civilians.test.mjs` covers district occupancy, blocked geometry, safe wandering, distance dormancy, real danger/fleeing, witness alerts, finite patrol navigation, return to ordinary life, no reward exploit, private multiplayer snapshots, and save isolation. [CI 41931215315](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41931215315) passed full tests/static and **actual mobile-sized Chromium** with a controlled hostile NPC at a playable hub pedestrian. Real Canvas painting, flight, police report, HUD and cooldown behavior passed. The subsequent benchmark module update measures actual live civilian simulation; latest full CI must be checked before merging.
+- **Next engineering priorities:** verify on a physical Android device, then improve obstacle-aware wayfinding between existing 47 building entrances and road intersections, night illumination, and emergent street scenes. Do **not** revive abandoned World V2 prototypes or merge without owner review.
+
+---
+
+## One-world District Defense / faction NPC response — November 3, 2026
+
+- **Development branch:** `codex/one-world-quarantine-archetypes`, [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28); public `main` remains unchanged. This adds gameplay to the **same world**.
+- **Encounter location:** Every established clan terminal is valid. A signed holder token is not necessary. Join a clan and walk to its existing beacon; start one shared encounter per room (4-second warmup, up to 115 seconds, two waves of three/four invaders plus one friendly responder per wave). Defenders and nearby resident NPCs autonomously prioritize rivals in the original combat engine, map and shared 360° rig.
+- **Real outcomes:** Player wins by clearing both waves while remaining alive/inside their district. The initiating player must deal at least 65 points of actual direct blaster damage and stay actively engaged for seven seconds to earn exactly +55 *play credits*, +50 XP and +1 clan reputation. Allied NPCs or other players can help but cannot passively farm or claim another player's reward. No PvP, currency transfer, or actual crypto payout.
+- **Safety:** Server validates location, clan, cooldown, combat state and no existing room defense. Event NPCs have a bounded count and are fully removed along with stray projectiles on win/retreat/disconnect/bust/timeout/leave-district. Temporary event state is not saved; earned reputation uses the existing `clans` save field. All saved structures, item ownership, wallets, and door IDs remain untouched.
+- **Code:** `city-territory.js` wraps the same `MemeCityCore.Engine`; `city-arcade.js` adapts resident NPC rally behavior and suppresses generic ambient bounties/heat; `city.js` exposes clan-panel controls, alerts, map routes and a mission HUD. Both `city.html` and `server/city-server.mjs` load the module; `pages.yml` packages it with the existing game.
+- **Verification:** `scripts/city-territory-defense.test.mjs` covers all six districts, actual weapon participation, autonomous responder wave count, no passive rewards, personal/online eligibility, concurrency, exact-once economy/reputation and cleanup. Full mobile Chromium UI workflow now covers joining a clan, physically starting, seeing wave one, locating alert in old map, and retreat. Check the latest PR CI result before release.
+- **Future:** civilian evasive/courier behavior, persistent territorial control and map/lighting polish. Do not revive the old V2 alternate client or replace the public world.
+
+---
+
+## One-world playable Chaos Arcade cabinet — November 3, 2026
+
+- **Branch:** `codex/one-world-quarantine-archetypes`, [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28). **Unmerged / undeployed.**
+- **Actual location:** The existing Chaos Arcade business keeps its current physical street door, room ID `arcade`, original room geometry and world map. Its back activity terminal now opens the free **Rug Runner** mini-game in the current `city.html` modal; no new world, game client, URL, gambling or separate wallet.
+- **Controls and presentation:** Twelve timed-by-player (not real-time) three-lane gates, one lane move per gate, bonus chips versus red hazard, three hearts, score and clear condition (score >=108 with at least one heart). Mobile touch buttons, keyboard left/right/A/D/Space, explicit pause/resume, tab/focus interruption safety, retry, quit/return to the original room, and stylized 2D Canvas with the existing rotating character model.
+- **Engine authority:** `city-interiors.js` holds the cabinet simulation on the existing `MemeCityCore.Engine` in Solo and on the authoritative Render room engine in Together. Server receives only finite allowed controls, not selected hazards, calculated scores, HP or rewards; off-site, forged, nonadjacent, double shifts and actions during pause fail closed.
+- **Economy and saves:** A genuine first clear awards exactly **35 play credits / 30 XP once per character**. Future clears improve the best score only. Additive optional `places.arcadeBest` and `places.arcadeClaimed` fields extend the existing nested `places` object without a save key/version migration; historic saves default to best=0/claimed=false. Online guest progress is temporary per existing room behavior. No crypto/token transactions.
+- **Testing:** New `scripts/city-chaos-arcade.test.mjs` covers location, turn loop, collisions, pause, scoring, a one-time/reload-safe reward, forged inputs, session-only online authority, and private snapshots. Mobile Chromium end-to-end test enters the **original** room, plays the actual cabinet via its controls, verifies first-clear prize and safe exit. Check the latest full CI result before merge; physical Android remains untested.
+- **Next:** deepen territory/faction scenarios and keep modernizing the streets/lighting in the same map; optional second cabinet only after physical Android acceptance. Maintain owner visual acceptance as a production release blocker.
+
+---
+
+## One-world repairable fortress siege — November 3, 2026
+
+- **Branch:** `codex/one-world-quarantine-archetypes` / [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28). **Not merged or live.**
+- Extended the original `defenseDrill`, `city-arcade.js`, shared `C.blocked()` map collision, `city-districts.js` plotted building renderer, and current `city.js` Squad panel. **No alternate client, map, tokens, wallet or save format.**
+- **Single-assault siege:** four initial attackers, three-second warning, 120-second limit, a 200-HP command core, and per-structure HP (walls 70 / towers 120 / HQ 185 / trees/lamps 45). Raider strikes have capped cooldowns and register real collision breaches. A breached wall becomes temporarily walkable for players and attackers, is painted damaged in the original world, and becomes solid after repair.
+- **Repairs:** from inside the fortress and within proximity of the part. Eight game credits repair +34 structural HP, 18 repair +48 core HP. Full-health parts cannot be repaired or charged, and an occupied breached tile cannot be reclosed until cleared. Building/demolition is locked during battle. Spending and HP are enforced by the existing engine; no client-supplied balances.
+- **Outcomes:** victory still rewards +60 play credits/+40 XP **exactly once**. Core breach, player bust, timeout or manual retreat award zero; existing bust fee still applies. Temporary raid bots and projectiles are removed. Saved `plot`, `crew`, building IDs, `offensive-meme-city-v1-center` schema and collision footprint outside active sieges remain intact.
+- **Proof:** [CI run 41575766266](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41575766266) passed full tests, static checks, deterministic benchmark and mobile Chromium checks for gameplay head `63aa797`. Browser QA exercised the **actual current game's** fortress menu → start siege → core HUD → repair panel → retreat. Physical Android hardware still untested. No real public rollout authorized.
+- **Next slice:** playable touch and keyboard minigame inside the **existing Chaos Arcade interior** with legitimate game-only progress, focus/pause/return, and no betting. Additional multi-wave siege patterns and territory effects remain separate future work.
+
+---
+
+## One-world quarantine survival vertical slice — November 3, 2026
+
+- **Branch:** `codex/one-world-quarantine-archetypes` / [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28), based on production main `549b628`. **Not merged/deployed.**
+- Four zombie roles (Walker, Runner, Tank and Spitter) inhabit the current greenbelt and use the existing solid 360° NPC rig, with bounded telegraphed attacks.
+- **Full encounter now implemented:** `C.QUARANTINE` bunker station (3500, 4250) is discoverable through the same map and UI. Start within 125 units; three finite waves, warning countdowns, 205-second clock, direct on-screen threats, fight/retreat/expiry/death handling, one running event per room, persistent session authority for Solo or temporary Together rooms. No new game, portal or world client.
+- **Economy:** reward once only on real combat completion when owner contributes at least 55 damage (120 play credits, 100 XP). Only the server/Engine awards credit. No financial tokens or on-chain transfers. Short cooldown and exact cleanup prevent repeated instant payouts.
+- **Save integrity:** no new persistent keys or save fields. Existing play credits/XP are saved using current Solo logic; temporary in-progress wave state is intentionally not saved. On restart a wave is lost, not the character.
+- **Verification:** All Node game/server tests, static files, benchmark and mobile-sized Chromium smoke passed at [run 41574127627](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41574127627) (head `3cddbcb` before this documentation commit). The browser test confirms the one-world map marker, modal start restrictions and unchanged Solo entry, not an end-to-end real Android run. Physical Android FPS/touch and owner acceptance remain outstanding.
+- **Next slice:** fortress structural HP + repair + meaningful siege, reusing existing `defenseDrill` and `plot` mechanics. Then one fully playable in-building Chaos Arcade cabinet. All remain on the **single current world**.
+
+---
+
+
+## Current production / one-world recovery — November 2–3, 2026
+
+- **Live canonical client:** `city.html` and `MemeCityCore.Engine` at `main` commit `549b628755b5f5717a3d535dcc75a8ab99d5de46`; new world clients, V2 cutovers and save-key replacements are explicitly out of scope.
+- **Reference:** owner's uploaded World V2 history and failed-release archive; all design concepts are a backlog to import incrementally into the single active game, not permission to deploy old World V2 code.
+- **Draft PR #28:** `codex/one-world-quarantine-archetypes`. Four zombie archetypes (walker, runner, tank, spitter) with varied health/speed/telegraphed attacks, shared player rig, bounded toxic impact hazards and world Canvas warnings. No new currencies, saves, wallets or game map.
+- **Proof:** Actions run `41572576502` was fully successful for prior head `83bbebd1`: game and server regression suite, static checks, room benchmark, and real Chromium smoke. Branch handoff docs added subsequently; check latest run before release. Physical Android hardware not tested.
+- **Next scenarios:** one Quarantine survival event; complete fortress damage/repair raid; one touch-playable original Chaos Arcade cabinet; further faction reaction, missions, navigation and weather improvements. All must run on the current player-facing city/solo engine, no separate prototype substitute.
+- **Release:** This change is **draft-only**, not merged or live. An explicit owner visual review is required before production integration. Preserve `offensive-meme-city-v1-center` and all current website entry points.
+- **Working plan:** `docs/ONE_WORLD_INTEGRATION_ROADMAP.md` is the current source of truth. Earlier V2-only development entries below are **historical** and must not override current production instructions.
+
+---
+
 # Meme City development status — 2026-10-30
 
 Baseline: `3ec0c0cd3c68258290d689073525e565ec377ff5` (Alpha 11).

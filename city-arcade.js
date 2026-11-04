@@ -12,8 +12,8 @@
  function init(e){
   if(e.arcade)return;
   e.arcade={time:0,bots:[],guards:[],bullets:[],effects:[],pickups:[]};
-  for(let i=0;i<8;i++)spawn(e,'gang',spots[i][0]+HUB.x,spots[i][1]+HUB.y,`gang-${i}`);
-  for(let i=0;i<4;i++)spawn(e,'cop',patrol[i][0]+HUB.x,patrol[i][1]+HUB.y,`cop-${i}`);
+  for(let i=0;i<8;i++){const b=spawn(e,'gang',spots[i][0]+HUB.x,spots[i][1]+HUB.y,`gang-${i}`);b.patrolBeat=true;}
+  for(let i=0;i<4;i++){const b=spawn(e,'cop',patrol[i][0]+HUB.x,patrol[i][1]+HUB.y,`cop-${i}`);b.patrolBeat=true;}
   for(const n of C.NEIGHBORHOODS)for(let i=0;i<4;i++){
    const rug=i%2===1;const b=spawn(e,rug?'gang':'cop',n.x+(rug?170:-170),n.y+200+Math.floor(i/2)*100,'block-'+n.id+'-'+i);b.faction=rug?'exit':'congress';b.ranged=true;b.ambient=true;
   }
@@ -90,7 +90,7 @@
   effect(e,p.x,p.y,`−${amount} HP`,'#ff6b87');
   if(p.hp===0){
    const fine=Math.min(25,p.credits);p.credits-=fine;
-   result(e,p,'busted');p.defense=null;cleanup(e,p.id);
+   result(e,p,'busted');if(p.defense)finishSiege(e,p,'busted');cleanup(e,p.id);
    Object.assign(p,{x:WORLD.spawn.x,y:WORLD.spawn.y,hp:100,heat:0,invulnerable:5,dashTime:0,policeSeen:false});p.deaths++;
    notify(p,`Busted! Back at the plaza. ${fine} play-credit recovery fee. Your equipment is safe.`);
   }
@@ -126,13 +126,90 @@
   }else b.path=[];
   const d=Math.max(1,distance(b,goal));move(b,(goal.x-b.x)/d*speed*dt,(goal.y-b.y)/d*speed*dt);
  }
- function cleanupRaid(e,id){e.arcade.bots=e.arcade.bots.filter(b=>!(b.raid&&b.owner===id));}
+ function cleanupRaid(e,id){
+  const ids=new Set(e.arcade.bots.filter(b=>b.raid&&b.owner===id).map(b=>b.id));
+  e.arcade.bots=e.arcade.bots.filter(b=>!ids.has(b.id));
+  e.arcade.bullets=e.arcade.bullets.filter(q=>!ids.has(q.sourceId));
+ }
+ const FORT_CORE=Object.freeze({x:C.PLOT.x+C.PLOT.cols*C.PLOT.tile/2,y:C.PLOT.y+C.PLOT.rows*C.PLOT.tile/2});
+ const SIEGE_HP=Object.freeze({wall:70,tower:120,home:185,tree:45,lamp:45});
+ const SIEGE_REPAIR=Object.freeze({core:18,piece:8});
+ const siegePoint=p=>({x:C.PLOT.x+p.col*C.PLOT.tile+C.PLOT.tile/2,
+   y:C.PLOT.y+p.row*C.PLOT.tile+C.PLOT.tile/2});
+ function finishSiege(e,p,status){
+  if(!p.defense)return;
+  const d=p.defense;
+  p.defenseResult={status,remaining:Math.max(0,Math.ceil(d.timeLeft)),
+   breaches:d.breaches||0,coreHP:Math.max(0,Math.ceil(d.coreHP)),coreMaxHP:d.coreMaxHP,
+   reward:status==='won'?60:0,xp:status==='won'?40:0};
+  if(status==='won'){p.credits+=60;p.xp+=40;p.defenseCooldown=45;
+   notify(p,'FORTRESS SECURED / +60 play credits / +40 XP. Your saved structures are intact.');}
+  else if(status==='breached'){p.defenseCooldown=30;
+   notify(p,'FORTRESS BREACHED / The command core fell. No completion reward; your built plot and squad remain saved.');}
+  else if(status==='expired')notify(p,'SIEGE EXPIRED / Retreat and reinforce your fortress. Your saved structures are safe.');
+  else if(status==='abandoned')notify(p,'Siege cancelled. All temporary battle damage cleared; no reward.');
+  p.defense=null;cleanupRaid(e,p.id);
+ }
+ function siegeRepair(e,p,a){
+  const d=p.defense;if(!d)throw Error('No siege to repair. Start fortress defense first.');
+  if(d.countdown>0)throw Error('Wait for the raiders to approach before repairing.');
+  if(C.areaAt(p.x,p.y)!=='fortress')throw Error('Repair from your own fortress.');
+  if(a.target==='core'){
+   if(distance(p,FORT_CORE)>270)throw Error('Walk closer to the fortress command core to repair.');
+   if(d.coreHP>=d.coreMaxHP)throw Error('Command core is already at full integrity.');
+   if(p.credits<SIEGE_REPAIR.core)throw Error('Not enough play credits for core repairs.');
+   p.credits-=SIEGE_REPAIR.core;d.coreHP=Math.min(d.coreMaxHP,d.coreHP+48);
+   effect(e,FORT_CORE.x,FORT_CORE.y,'+48 CORE','#89f3bf');
+   return 'Command core repaired by 48 integrity for 18 play credits.';
+  }
+  if(a.target!=='piece'||!Number.isInteger(a.col)||!Number.isInteger(a.row)||
+   a.col<0||a.col>=C.PLOT.cols||a.row<0||a.row>=C.PLOT.rows)
+   throw Error('Select a valid damaged structure to repair.');
+  const part=d.pieces.find(o=>o.col===a.col&&o.row===a.row);
+  if(!part)throw Error('This structure does not belong to the current siege.');
+  const point=siegePoint(part);
+  if(distance(p,point)>170)throw Error('Walk next to that damaged structure to repair.');
+  if(part.hp>=part.maxHp)throw Error('This structure is not damaged.');
+  if(p.credits<SIEGE_REPAIR.piece)throw Error('Not enough play credits to repair this structure.');
+  if(!part.hp){
+   const actors=[...e.players.values(),...e.arcade.guards,...e.arcade.bots].filter(x=>x.hp>0);
+   if(actors.some(x=>Math.abs(x.x-point.x)<43&&Math.abs(x.y-point.y)<43))
+    throw Error('Clear the breached tile before rebuilding its collision wall.');
+  }
+  p.credits-=SIEGE_REPAIR.piece;part.hp=Math.min(part.maxHp,part.hp+34);
+  effect(e,point.x,point.y,'+34 STRUCTURE','#92e5c6');
+  return 'Structure repaired by 34 integrity for 8 play credits.';
+ }
+ function tickSiege(e,p,dt){
+  const d=p.defense;if(!d||d.countdown>0)return;
+  const a=e.arcade;
+  for(const b of a.bots){
+   if(!b.raid||b.owner!==p.id||b.hp<=0)continue;
+   b.siegeCooldown=Math.max(0,(b.siegeCooldown||0)-dt);
+   if(b.siegeCooldown>0||distance(b,FORT_CORE)>660)continue;
+   b.siegeCooldown=10.5+(b.phase%2);
+   const nearby=d.pieces.filter(q=>q.hp>0&&distance(b,siegePoint(q))<420)
+    .sort((x,y)=>distance(b,siegePoint(x))-distance(b,siegePoint(y)));
+   const part=nearby[0],point=part?siegePoint(part):FORT_CORE;
+   if(part){
+    const before=part.hp;part.hp=Math.max(0,part.hp-19);
+    d.coreHP=Math.max(0,d.coreHP-5);
+    if(before>0&&!part.hp){d.breaches++;notify(p,`SIEGE BREACH / ${part.kind.toUpperCase()} at row ${part.row+1}, column ${part.col+1} fell. Repair to restore cover.`);}
+    effect(e,point.x,point.y,part.hp?'WALL HIT':'BREACHED','#ffbd86');
+   }else{
+    d.coreHP=Math.max(0,d.coreHP-10);
+    effect(e,point.x,point.y,'CORE HIT','#ff967b');
+   }
+   d.lastStrike={x:point.x,y:point.y,at:a.time,fromX:b.x,fromY:b.y};
+   if(!d.coreHP){finishSiege(e,p,'breached');return;}
+  }
+ }
  function freeSpawn(e,p,x,y){for(let r=0;r<6;r++)for(const [dx,dy]of [[0,1],[1,0],[-1,0],[0,-1]]){const pos={x:x+dx*r*32,y:y+dy*r*32};if(!C.blocked(pos.x,pos.y,p))return pos;}return {...WORLD.spawn};}
  function syncCrew(e){
   const a=e.arcade,ids=new Set();for(const p of e.players.values())for(let i=0;i<p.crew.length;i++){
    const record=p.crew[i],id=`${p.id}:${record.id}`;ids.add(id);let g=a.guards.find(g=>g.id===id);const role=C.CREW_TYPES.find(t=>t.id===record.role);
    if(!g){const anchor=record.mode==='follow'?p:record.mode==='patrol'?{x:1000+i*80,y:1000}:record.post||{x:1000+i*80,y:1000};const pos=freeSpawn(e,p,anchor.x+35+i*27,anchor.y+45);g={id,owner:p.id,ally:true,role:role.id,name:role.name,...pos,hp:role.hp,maxHp:role.hp,cooldown:0,recover:0,invulnerable:0,heat:0,quiet:0,state:'guarding',facing:{x:1,y:0},path:[],pathAt:0};a.guards.push(g);}
-   g.clan=p.clan;g.outposts=p.outposts;g.mode=record.mode;g.post=record.post||{x:C.PLOT.x+400+i*80,y:C.PLOT.y+600};g.plot=p.plot;g.slot=i;if(C.blocked(g.x,g.y,g))Object.assign(g,freeSpawn(e,p,g.x,g.y));
+   g.clan=p.clan;g.outposts=p.outposts;g.defense=p.defense;g.mode=record.mode;g.post=record.post||{x:C.PLOT.x+400+i*80,y:C.PLOT.y+600};g.plot=p.plot;g.slot=i;if(C.blocked(g.x,g.y,g))Object.assign(g,freeSpawn(e,p,g.x,g.y));
   }a.guards=a.guards.filter(g=>ids.has(g.id));
  }
  function tickCrew(e,dt){
@@ -156,17 +233,51 @@
    const record=p.crew.find(g=>g.id===action.id);if(!record)throw Error('This defender is not in your squad.');if(!['guard','patrol','follow'].includes(action.mode))throw Error('Unknown squad order.');
    record.mode=action.mode;if(action.mode==='guard')record.post={x:p.x,y:p.y};syncCrew(e);return action.mode==='guard'?'Defender ordered to hold your position.':action.mode==='patrol'?'Defender ordered to patrol your fortress.':'Defender ordered to follow you.';
   }
-  if(action.type==='endDefense'){if(!p.defense)throw Error('No active defense drill.');p.defense=null;cleanupRaid(e,p.id);return 'Defense drill cancelled.';}
+  if(action.type==='repairDefense')return siegeRepair(e,p,action);
+  if(action.type==='endDefense'){
+   if(!p.defense)throw Error('No active defense drill.');
+   finishSiege(e,p,'abandoned');return 'Siege cancelled. Temporary structural damage cleared.';
+  }
   if(action.type==='defenseDrill'){
-   if(p.area!=='fortress')throw Error('Walk to your fortress to start a defense drill.');if(p.contract||p.defense)throw Error('Finish your current challenge first.');if((p.defenseCooldown||0)>0)throw Error('Defense drill is recharging.');if(e.arcade.bots.length+4>64)throw Error('Too many active enemies.');
-   p.defense={remaining:4,timeLeft:120,countdown:3};for(let i=0;i<4;i++){const fort=C.DISTRICTS.find(d=>d.id==='fortress'),b=spawn(e,'gang',fort.ox+850+i*160,fort.oy+1215,`raid-${++e.serial}`,p.id);b.raid=true;b.plot=p.plot;}return 'Defense drill started. Four raiders are approaching your fortress.';
+   if(p.area!=='fortress')throw Error('Walk to your fortress to start a defense drill.');
+   if(p.contract||p.defense||p.blockJob||p.rising?.arena||p.quarantineRun)throw Error('Finish your current challenge first.');
+   if((p.defenseCooldown||0)>0)throw Error('Defense drill is recharging.');
+   if(e.arcade.bots.length+4>64)throw Error('Too many active enemies.');
+   const pieces=p.plot.filter(o=>SIEGE_HP[o.kind]).map(o=>({
+    col:o.col,row:o.row,kind:o.kind,hp:SIEGE_HP[o.kind],maxHp:SIEGE_HP[o.kind]
+   }));
+   p.defense={remaining:4,timeLeft:120,countdown:3,coreHP:200,coreMaxHP:200,
+    pieces,breaches:0,lastStrike:null};
+   p.defenseResult=null;
+   for(let i=0;i<4;i++){
+    const fort=C.DISTRICTS.find(d=>d.id==='fortress'),
+     b=spawn(e,'gang',fort.ox+850+i*160,fort.oy+1215,`raid-${++e.serial}`,p.id);
+    b.raid=true;b.plot=p.plot;b.defense=p.defense;b.siegeCooldown=10+i%2;
+   }
+   return 'Fortress siege started! Four raiders will breach walls and attack the command core. Repair during combat to hold the line.';
   }
   return null;
  }
 
  // Undead hordes spawn only in the unbuilt greenbelt, beyond city and clan bases.
  // No wallet gating, persistent saves, new currencies, or client-only hitboxes.
- const ZOMBIE_MAX=12,settlements=[{ox:HUB.x,oy:HUB.y},...C.DISTRICTS,...C.NEIGHBORHOODS];
+ const ZOMBIE_MAX=12,ZOMBIE_HAZARD_MAX=8,settlements=[{ox:HUB.x,oy:HUB.y},...C.DISTRICTS,...C.NEIGHBORHOODS];
+ // Archived V2 encounter concepts are implemented in the *existing* live
+ // Engine and current city coordinates. All actors still use the same NPC rig.
+ const ZOMBIE_TYPES=Object.freeze({
+  walker:Object.freeze({hp:85,speed:79,damage:10,windup:.4,cooldown:1.25,label:'WALKER'}),
+  runner:Object.freeze({hp:46,speed:148,damage:7,windup:.24,cooldown:1.45,label:'RUNNER'}),
+  tank:Object.freeze({hp:230,speed:43,damage:18,windup:.95,cooldown:1.9,label:'TANK'}),
+  spitter:Object.freeze({hp:66,speed:67,damage:8,windup:.55,cooldown:1.8,label:'SPITTER'})
+ });
+ function zombieVariant(roll){return roll<.49?'walker':roll<.74?'runner':roll<.90?'spitter':'tank';}
+ function zombieDamage(e,kind,obj,damage){
+  if(kind==='npc'){
+   obj.hp=Math.max(0,obj.hp-damage);obj.hitFlash=.15;
+   if(!obj.hp){obj.respawn=18;obj.windup=0;obj.targetId=null;}
+  }else if(kind==='monk')obj.hp=Math.max(0,(obj.hp??80)-damage);
+  else hurt(e,obj,damage,true);
+ }
  const zombieRandom=e=>Math.max(0,Math.min(.999999,(e.zombieRandom||Math.random)()));
  const undead=b=>b?.kind==='zombie';
  function deadZone(x,y){
@@ -174,6 +285,7 @@
   return settlements.every(r=>Math.hypot(Math.max(r.ox-x,0,x-r.ox-2240),Math.max(r.oy-y,0,y-r.oy-1660))>=100);
  }
  function summonZombies(e){
+  if(e.quarantineEvent)return 0; // Bunker waves own the undead budget.
   const a=e.arcade,alive=a.bots.filter(b=>undead(b)&&b.hp>0).length;
   if(alive>=ZOMBIE_MAX)return 0;
   // Both the solo Engine and Together rooms spawn walkers in the same dead zones.
@@ -193,24 +305,28 @@
   for(let i=0;i<quantity;i++){
    const angle=i*2.39996,r=i*40,x=start.x+Math.cos(angle)*r,y=start.y+Math.sin(angle)*r;
    if(!deadZone(x,y)||players.some(p=>distance(p,{x,y})<250))continue;
+   const variant=zombieVariant(zombieRandom(e)),type=ZOMBIE_TYPES[variant];
    const b=spawn(e,'zombie',x,y,'zombie-'+(++e.serial));
-   Object.assign(b,{hp:85,maxHp:85,state:'rising',age:0,bite:0,speed:75+zombieRandom(e)*22,
-    originalX:x,originalY:y,faceX:1,faceY:0,phase:zombieRandom(e)*Math.PI*2});
+   Object.assign(b,{zombieType:variant,hp:type.hp,maxHp:type.hp,state:'rising',
+    age:0,bite:0,attackWait:0,spitWait:0,spitCooldown:1.2,
+    speed:type.speed,originalX:x,originalY:y,
+    faceX:1,faceY:0,phase:zombieRandom(e)*Math.PI*2});
    added++;
   }
   if(added)for(const p of players)if(distance(p,start)<1100)
-   notify(p,'DEAD ZONE / Walkers are rising beyond the city. Undead attack every clan and faction.');
+   notify(p,'QUARANTINE / Walkers, runners, tanks and spitters roam beyond the city. All factions are at risk.');
   return added;
  }
  function tickZombies(e,dt){
   const a=e.arcade;if(!e.players.size)return;
+  a.zombieHazards??=[];
   a.zombieNext??=8;a.zombieNext-=dt;
   if(a.zombieNext<=0)a.zombieNext=summonZombies(e)?45+zombieRandom(e)*30:14;
   for(const z of a.bots.filter(undead)){
    z.age+=dt;
    if(z.hp<=0){z.respawn=Math.min(5,z.respawn)-dt;continue;}
    if(z.age>160){z.hp=0;z.respawn=0;continue;}
-   z.bite=Math.max(0,z.bite-dt);
+   z.bite=Math.max(0,z.bite-dt);z.spitCooldown=Math.max(0,(z.spitCooldown||0)-dt);
    const monk=e.monkEvent?.active;
    const targets=[
     ...[...e.players.values()].filter(p=>!p.room&&p.hp>0).map(obj=>({kind:'player',obj})),
@@ -231,17 +347,35 @@
    }
    const v=target.obj,dx=v.x-z.x,dy=v.y-z.y,d=Math.max(1,Math.hypot(dx,dy));
    z.faceX=dx/d;z.faceY=dy/d;z.attackTarget=v.id||'wandering-monk';
+   const type=ZOMBIE_TYPES[z.zombieType]||ZOMBIE_TYPES.walker;
+   // Windups give players/guards an actual reaction window. Damage is issued
+   // once by the shared authoritative simulation, never by the renderer.
    if(d<56){
-    z.state='attack';
-    if(!z.bite){
-     z.bite=1.15+zombieRandom(e)*.3;
-     if(target.kind==='npc'){
-      v.hp=Math.max(0,v.hp-10);v.hitFlash=.15;
-      if(!v.hp){v.respawn=18;v.windup=0;v.targetId=null;}
-     }else if(target.kind==='monk')v.hp=Math.max(0,(v.hp??80)-10);
-     else hurt(e,v,10,true);
-     effect(e,v.x,v.y,'BITE','#b4dc7a');
-    }
+    if(!z.attackWait&&!z.bite){z.attackWait=type.windup;z.bite=type.cooldown;z.state='windup';}
+    else if(z.attackWait>0){
+     z.attackWait=Math.max(0,z.attackWait-dt);z.state='windup';
+     if(!z.attackWait&&distance(z,v)<65){
+      zombieDamage(e,target.kind,v,type.damage);effect(e,v.x,v.y,
+       z.zombieType==='tank'?'HEAVY BITE':'BITE','#b4dc7a');
+     }
+    }else z.state='attack';
+    continue;
+   }
+   z.attackWait=0;
+   // Spitters mark a specific impact point, pause, then create one bounded
+   // delayed hazard. It affects every living faction, never other undead.
+   if(z.zombieType==='spitter'&&d>=80&&d<390){
+    if(z.spitWait>0){
+     z.spitWait=Math.max(0,z.spitWait-dt);z.state='spit';
+     if(!z.spitWait&&a.zombieHazards.length<ZOMBIE_HAZARD_MAX){
+      a.zombieHazards.push({id:++e.serial,x:z.spitAim.x,y:z.spitAim.y,
+       warning:.85,radius:55,damage:9,source:z.id});
+      effect(e,z.x,z.y,'SPIT!','#b8f38c');
+     }
+    }else if(!z.spitCooldown){
+     z.spitWait=.65;z.spitCooldown=4.2;z.spitAim={x:v.x,y:v.y};
+     z.state='spit';
+    }else z.state='stalk';
     continue;
    }
    z.state='chase';
@@ -253,7 +387,122 @@
     move(z,-z.faceY*step*sign,z.faceX*step*sign);
    }
   }
+  // Resolve delayed toxic impacts only once, with capped active warnings.
+  a.zombieHazards??=[];
+  for(const h of a.zombieHazards){
+   h.warning-=dt;
+   if(h.warning>0)continue;
+   const victims=[
+    ...[...e.players.values()].filter(p=>!p.room&&p.hp>0).map(obj=>({kind:'player',obj})),
+    ...a.guards.filter(g=>g.hp>0).map(obj=>({kind:'guard',obj})),
+    ...a.bots.filter(b=>b.hp>0&&!undead(b)).map(obj=>({kind:'npc',obj})),
+    ...(e.monkEvent?.active&&e.monkEvent.active.hp>0?[{kind:'monk',obj:e.monkEvent.active}]:[])
+   ];
+   for(const target of victims)if(distance(h,target.obj)<=h.radius&&visible(h,target.obj))
+    zombieDamage(e,target.kind,target.obj,h.damage);
+   effect(e,h.x,h.y,'TOXIC SPLASH','#b2f383');
+  }
+  a.zombieHazards=a.zombieHazards.filter(h=>h.warning>0).slice(-ZOMBIE_HAZARD_MAX);
   a.bots=a.bots.filter(b=>!undead(b)||b.hp>0&&b.age<=160||b.respawn>0);
+ }
+
+ // ONE WORLD / QUARANTINE BUNKER. This is an event on the existing greenbelt,
+ // not a new map, UI runtime, building door, currency or save format.
+ // One encounter per room; Solo uses the same authoritative Engine methods.
+ const QUARANTINE=C.QUARANTINE;
+ const QUARANTINE_WAVES=Object.freeze([
+  ['walker','walker','runner'],
+  ['walker','runner','runner','spitter'],
+  ['walker','runner','tank','spitter','tank']
+ ]);
+ const QUARANTINE_REWARD=120,QUARANTINE_XP=100,QUARANTINE_MIN_DAMAGE=55;
+ function finishQuarantine(e,status){
+  const q=e.quarantineEvent;if(!q)return;
+  const a=e.arcade,p=e.players.get(q.owner);
+  const ids=new Set(a.bots.filter(b=>b.quarantineOwner===q.owner).map(b=>b.id));
+  a.zombieHazards=(a.zombieHazards||[]).filter(h=>!ids.has(h.source));
+  a.bullets=a.bullets.filter(b=>!ids.has(b.sourceId));
+  a.bots=a.bots.filter(b=>b.quarantineOwner!==q.owner);
+  e.quarantineEvent=null;
+  if(!p)return;
+  p.quarantineRun=null;
+  p.quarantineCooldown=status==='won'?55:status==='abandoned'?15:30;
+  const qualified=status==='won'&&q.damage>=QUARANTINE_MIN_DAMAGE;
+  const reward=qualified?QUARANTINE_REWARD:0,xp=qualified?QUARANTINE_XP:0;
+  if(qualified){p.credits+=reward;p.xp+=xp;p.jobs++;}
+  p.quarantineResult={status:status==='won'&&!qualified?'assisted':status,
+   wave:q.wave,damage:Math.round(q.damage),reward,xp,
+   elapsed:Math.round(205-Math.max(0,q.remaining))};
+  const line=qualified?`QUARANTINE CLEARED / +${reward} play credits / +${xp} XP. All three waves defeated.`:
+   status==='won'?`Quarantine cleared by allies. Deal at least ${QUARANTINE_MIN_DAMAGE} damage yourself to earn a personal reward.`:
+   status==='abandoned'?'Quarantine run abandoned. No rewards.':
+   status==='busted'?'Quarantine run lost. You recovered at the city spawn.':
+   status==='left'?'You left the quarantine perimeter. Run ended.':
+   status==='expired'?'Quarantine containment failed. The wave timer expired.':'Quarantine event closed.';
+  notify(p,line);effect(e,p.x,p.y,qualified?'BUNKER SECURED':'RUN ENDED',qualified?'#a6f7bc':'#f5c59d');
+ }
+ function quarantineWave(e){
+  const q=e.quarantineEvent;if(!q)return;
+  const owner=e.players.get(q.owner);if(!owner){finishQuarantine(e,'left');return;}
+  const a=e.arcade,types=QUARANTINE_WAVES[q.wave];if(!types)return;
+  const alive=a.bots.filter(b=>b.kind==='zombie'&&b.hp>0).length;
+  // Trim only dead challenge corpses, never another player's actors.
+  a.bots=a.bots.filter(b=>b.quarantineOwner!==q.owner||b.hp>0);
+  const budget=Math.min(types.length,ZOMBIE_MAX-alive,64-a.bots.length);
+  if(budget<2){finishQuarantine(e,'expired');return;}
+  let spawned=0;
+  for(let i=0;i<budget;i++){
+   const variant=types[i],type=ZOMBIE_TYPES[variant];let at=null;
+   for(let j=0;j<60;j++){
+    const angle=(i*1.256637+j*.618033+q.wave*.7),
+     radius=270+(i%3)*72+(j%4)*28,
+     x=QUARANTINE.x+Math.cos(angle)*radius,y=QUARANTINE.y+Math.sin(angle)*radius;
+    if(deadZone(x,y)&&distance(owner,{x,y})>=180){at={x,y};break;}
+   }
+   if(!at)continue;
+   const z=spawn(e,'zombie',at.x,at.y,'quarantine-'+(++e.serial));
+   Object.assign(z,{zombieType:variant,quarantineOwner:q.owner,quarantineWave:q.wave+1,
+    hp:type.hp,maxHp:type.hp,age:0,bite:0,attackWait:0,spitWait:0,spitCooldown:1.2,
+    state:'rising',speed:type.speed,originalX:at.x,originalY:at.y,
+    faceX:1,faceY:0,phase:i*.8});
+   spawned++;
+  }
+  if(spawned<2){finishQuarantine(e,'expired');return;}
+  q.wave++;q.spawned=true;q.next=0;
+  notify(owner,`QUARANTINE / WAVE ${q.wave} OF 3 · ${spawned} undead approaching. Defend the bunker!`);
+  effect(e,QUARANTINE.x,QUARANTINE.y,`WAVE ${q.wave}`,'#c6f18c');
+ }
+ function tickQuarantine(e,dt){
+  for(const p of e.players.values())p.quarantineCooldown=Math.max(0,(p.quarantineCooldown||0)-dt);
+  const q=e.quarantineEvent;if(!q)return;
+  const p=e.players.get(q.owner);
+  if(!p||p.room||p.deaths>q.startDeaths||p.hp<=0){
+   finishQuarantine(e,p?'busted':'left');return;
+  }
+  if(distance(p,QUARANTINE)>QUARANTINE.radius||C.areaAt(p.x,p.y)!=='greenbelt'){
+   finishQuarantine(e,'left');return;
+  }
+  q.remaining-=dt;
+  if(q.remaining<=0){finishQuarantine(e,'expired');return;}
+  if(q.spawned){
+   const living=e.arcade.bots.some(b=>b.quarantineOwner===q.owner&&b.hp>0);
+   if(living)return;
+   q.spawned=false;
+   if(q.wave===3){finishQuarantine(e,'won');return;}
+   q.next=4;
+   notify(p,`WAVE ${q.wave} CLEARED / Next wave in 4 seconds. Heal and regroup.`);
+  }
+  q.next=Math.max(0,q.next-dt);
+  if(!q.next)quarantineWave(e);
+ }
+ function quarantineSnapshot(e,id){
+  const q=e.quarantineEvent,p=e.players.get(id);
+  return {...QUARANTINE,phase:q?'active':'idle',owner:q?.owner||null,
+   ownerName:q?e.players.get(q.owner)?.name||'Guest':null,
+   mine:q?.owner===id,wave:q?.wave||0,next:q?.next||0,remaining:q?.remaining||0,
+   enemies:q?e.arcade.bots.filter(b=>b.quarantineOwner===q.owner&&b.hp>0).length:0,
+   damage:q?.owner===id?q.damage:0,minDamage:QUARANTINE_MIN_DAMAGE,
+   cooldown:p?.quarantineCooldown||0,result:p?.quarantineResult||null};
  }
  P.join=function(...args){
   init(this);const p=base.join.apply(this,args);
@@ -266,6 +515,7 @@
  };
  P.tick=function(dt){
   init(this);syncCrew(this);dt=Math.max(0,Math.min(.1,dt));base.tick.call(this,dt);const a=this.arcade;a.time+=dt;tickConflict(this,dt);tickZombies(this,dt);
+  tickQuarantine(this,dt);
   for(const p of this.players.values()){
    for(const k of ['fireCooldown','dashCooldown','invulnerable','missionCooldown'])p[k]=Math.max(0,p[k]-dt);
    p.quiet+=dt;
@@ -275,7 +525,7 @@
    if(safe(p)&&p.quiet>5)p.hp=Math.min(100,p.hp+8*dt);
    if(p.dashTime>0){p.dashTime=Math.max(0,p.dashTime-dt);move(p,p.dashVector.x*400*dt,p.dashVector.y*400*dt);}
    else if(gear(p,'feet')==='boots')move(p,p.input.x*25*dt,p.input.y*25*dt);
-   if(p.defense){if(p.defense.countdown>0)p.defense.countdown=Math.max(0,p.defense.countdown-dt);else p.defense.timeLeft-=dt;if(p.defense.timeLeft<=0){p.defense=null;cleanupRaid(this,p.id);notify(p,'Defense drill ended. Your hired squad is safe.');}}
+   if(p.defense){if(p.defense.countdown>0)p.defense.countdown=Math.max(0,p.defense.countdown-dt);else p.defense.timeLeft-=dt;if(p.defense.timeLeft<=0)finishSiege(this,p,'expired');}
    if(p.contract){
     if(p.contract.countdown>0)p.contract.countdown=Math.max(0,p.contract.countdown-dt);
     else p.contract.remaining-=dt;
@@ -296,17 +546,23 @@
   for(const b of [...a.bots]){
     if(b.kind==='zombie')continue;
    if(b.eventId&&this.conflict?.phase!=='active'){b.state=this.conflict?.phase==='resolution'?'withdraw':'ready';continue;}
-   if(b.hp<=0){if(!b.owner&&!b.eventId){b.respawn-=dt;if(b.respawn<=0)Object.assign(b,{x:b.homeX,y:b.homeY,hp:b.maxHp,cooldown:1.2,state:'patrol',windup:0,targetId:null});}continue;}
+   if(b.hp<=0){if(!b.owner&&!b.eventId&&!b.territoryRole){b.respawn-=dt;if(b.respawn<=0)Object.assign(b,{x:b.homeX,y:b.homeY,hp:b.maxHp,cooldown:1.2,state:'patrol',windup:0,targetId:null});}continue;}
    if(!b.owner&&![...this.players.values()].some(p=>!p.room&&distance(b,p)<1300)){b.state='dormant';b.windup=0;b.targetId=null;b.attackTarget=null;b.aim=null;b.path=[];b.cooldown=Math.max(b.cooldown,1.2);continue;}
    if(b.owner&&(this.players.get(b.owner)?.contract?.countdown>0||b.raid&&this.players.get(b.owner)?.defense?.countdown>0)){b.state='ready';continue;}
    b.cooldown=Math.max(0,b.cooldown-dt);
-   const builder=[...this.players.values()].find(p=>p.plot?.length||p.outposts?.length);b.plot=builder?.plot||[];b.outposts=builder?.outposts||[];
+   const builder=[...this.players.values()].find(p=>p.plot?.length||p.outposts?.length);b.plot=builder?.plot||[];b.outposts=builder?.outposts||[];b.defense=b.raid?this.players.get(b.owner)?.defense:builder?.defense;
    const old=this.players.get(b.targetId)||a.guards.find(g=>g.id===b.targetId&&g.hp>0);
    const candidates=[...this.players.values(),...a.guards.filter(g=>g.hp>0)].filter(p=>!safe(p)&&C.npcHostile(b,p)&&p.invulnerable<3&&(!b.owner||b.owner===(p.ally?p.owner:p.id))&&distance(b,p)<(b.kind==='cop'?700:390)&&visible(b,p)).sort((p,q)=>distance(b,p)-distance(b,q));
    // Nearby rivals create street battles independent of player aggression.
-   const rival=!b.owner&&a.bots.filter(q=>q!==b&&q.hp>0&&!q.owner&&(q.kind==='zombie'||C.rivals(C.factionOf(b),C.factionOf(q)))&&distance(b,q)<440&&visible(b,q)).sort((x,y)=>distance(b,x)-distance(b,y))[0];
+   const defend=!!(this.territoryEvent&&b.resident&&b.faction===this.territoryEvent.clan&&distance(b,this.territoryEvent)<900);
+   const rival=!b.owner&&a.bots.filter(q=>q!==b&&q.hp>0&&!q.owner&&
+    (q.kind==='zombie'||C.rivals(C.factionOf(b),C.factionOf(q)))&&
+    distance(b,q)<(defend&&q.territoryRole==='invader'?680:440)&&visible(b,q))
+    .sort((x,y)=>distance(b,x)-distance(b,y)+
+     (defend&&x.territoryRole==='invader'?-120:0)-
+     (defend&&y.territoryRole==='invader'?-120:0))[0];
    if(rival&&(!candidates[0]||distance(b,rival)<distance(b,candidates[0]))){
-    b.state='skirmish';b.aim={x:rival.x,y:rival.y};b.windup=0;
+    b.state=defend&&rival.territoryRole==='invader'?'defending':'skirmish';b.aim={x:rival.x,y:rival.y};b.windup=0;
     if(distance(b,rival)>180)steer(this,b,rival,105,dt);
     if(!b.cooldown){bullet(this,b,rival,'faction',rival.id,12);b.cooldown=1.1;}
     continue;
@@ -329,10 +585,37 @@
    }else if(old&&C.npcHostile(b,old)&&!peaceful(old)&&b.lastSeen&&a.time-b.seenAt<5&&!safe(old)&&(!b.owner||old.contract)){
     b.state='search';steer(this,b,b.lastSeen,115,dt);
    }else{
-    b.state='patrol';b.targetId=null;b.windup=0;
-    const home=b.raid?{x:C.PLOT.x+C.PLOT.cols*C.PLOT.tile/2,y:C.PLOT.y+C.PLOT.rows*C.PLOT.tile/2}:{x:b.homeX,y:b.homeY};
-    const target={x:home.x+Math.sin(a.time*.45+b.phase)*65,y:home.y+Math.cos(a.time*.4+b.phase)*35};
-    if(distance(b,target)>8)steer(this,b,target,42,dt);
+    b.targetId=null;b.windup=0;
+    // Civilian witnesses report immediate danger to nearby friendly patrols.
+    // No hostility is changed: responders may fire only at existing rivals.
+    const alert=b.civilianAlert&&a.time<b.civilianAlert.expires&&
+     !b.owner&&(b.kind==='cop'||b.resident)&&distance(b,b.civilianAlert)<900?
+     b.civilianAlert:null;
+    if(alert){
+     b.state='responding';b.aim={x:alert.x,y:alert.y};
+     if(distance(b,alert)>85)steer(this,b,alert,118,dt);
+     else b.civilianAlert=null;
+    }else if((b.ambient||b.patrolBeat)&&!b.raid&&!b.eventId&&!b.territoryRole){
+     // Four-way walking patrol instead of spinning around a fixed spot.
+     b.patrolIndex??=Math.floor(b.phase)%4;
+     b.patrolUntil??=a.time+4+(b.phase%3);
+     const offsets=[[95,-65],[115,75],[-105,90],[-115,-70]];
+     let [dx,dy]=offsets[b.patrolIndex%4];
+     let target={x:b.homeX+dx,y:b.homeY+dy};
+     if(distance(b,target)<35||a.time>b.patrolUntil){
+      b.patrolIndex=(b.patrolIndex+1)%4;
+      b.patrolUntil=a.time+4.5+(b.phase%3);
+      [dx,dy]=offsets[b.patrolIndex];
+      target={x:b.homeX+dx,y:b.homeY+dy};
+     }
+     b.state='patrolling';
+     if(distance(b,target)>8)steer(this,b,target,70,dt);
+    }else{
+     b.state='patrol';
+     const home=b.raid?{x:C.PLOT.x+C.PLOT.cols*C.PLOT.tile/2,y:C.PLOT.y+C.PLOT.rows*C.PLOT.tile/2}:{x:b.homeX,y:b.homeY};
+     const target={x:home.x+Math.sin(a.time*.45+b.phase)*65,y:home.y+Math.cos(a.time*.4+b.phase)*35};
+     if(distance(b,target)>8)steer(this,b,target,42,dt);
+    }
    }
   }
   tickCrew(this,dt);
@@ -357,17 +640,22 @@
      const b=a.bots.find(b=>b.hp>0&&(!b.eventId||this.conflict?.phase==='active')&&C.npcHostile(b,this.players.get(q.creditOwner||q.owner))&&Math.hypot(q.x-b.x,q.y-b.y)<22);
      if(b){
       const actual=Math.min(b.hp,q.damage);b.hp-=q.damage;hit=true;b.hitFlash=.12;
+      if(b.quarantineOwner&&q.side==='player'&&(q.creditOwner||q.owner)===b.quarantineOwner&&this.quarantineEvent?.owner===b.quarantineOwner)this.quarantineEvent.damage+=actual;
+      const defense=this.territoryEvent,contributor=this.players.get(q.creditOwner||q.owner);
+      if(defense?.phase==='active'&&b.territoryRole==='invader'&&b.territoryOwner===defense.owner&&
+       q.side==='player'&&contributor?.id===defense.owner&&!contributor.room&&
+       distance(contributor,defense)<=610)defense.damage+=actual;
       const event=this.conflict,entry=event?.participants.get(q.owner);if(q.side==='player'&&b.eventId===event?.id&&event.phase==='active'&&entry&&entry.side!==b.faction){const contributor=this.players.get(q.owner);if(contributor&&!contributor.room&&distance(contributor,CONFLICT)<=CONFLICT.radius)entry.damage+=actual;}
       const p=this.players.get(q.creditOwner||q.owner);effect(this,b.x,b.y,String(q.damage),'#ffcc71');
-      if(p&&b.kind==='cop'){p.heat=Math.max(p.heat,75);p.quiet=0;}
+      if(p&&b.kind==='cop'&&!b.territoryRole){p.heat=Math.max(p.heat,75);p.quiet=0;}
       if(b.hp<=0){
        b.respawn=18;b.windup=0;
        if(p){
         if(q.side==='ally')p.crewKills++;
-        if(q.side!=='ally'&&!b.eventId){p.kills++;if(b.kind!=='zombie'){p.credits+=b.kind==='gang'?18:10;p.xp+=20;}
+        if(q.side!=='ally'&&!b.eventId&&!b.territoryRole){p.kills++;if(b.kind!=='zombie'){p.credits+=b.kind==='gang'?18:10;p.xp+=20;}
         p.combo=p.comboUntil>a.time?p.combo+1:1;p.comboUntil=a.time+4;
         }
-        if(q.side!=='ally'&&b.kind!=='zombie')p.heat=Math.min(100,p.heat+(b.kind==='cop'?20:9));p.quiet=0;
+        if(q.side!=='ally'&&b.kind!=='zombie'&&!b.territoryRole)p.heat=Math.min(100,p.heat+(b.kind==='cop'?20:9));p.quiet=0;
         if(b.kind==='gang'){
          const owner=b.owner?this.players.get(b.owner):p;
          if(b.owner&&owner?.contract?.type==='bounty'){owner.contract.progress++;if(owner.contract.progress>=4)win(this,owner);}
@@ -384,7 +672,7 @@
    }
    if(hit||q.ttl<=0)a.bullets.splice(i,1);
   }
-  for(const p of this.players.values())if(p.defense&& !a.bots.some(b=>b.raid&&b.owner===p.id&&b.hp>0)){p.credits+=60;p.xp+=40;p.defense=null;p.defenseCooldown=45;cleanupRaid(this,p.id);notify(p,'Fortress defended! +60 play credits / +40 XP.');}
+  for(const p of this.players.values())if(p.defense){if(!a.bots.some(b=>b.raid&&b.owner===p.id&&b.hp>0))finishSiege(this,p,'won');else tickSiege(this,p,dt);}
   for(const p of this.players.values())p.defenseCooldown=Math.max(0,(p.defenseCooldown||0)-dt);
   for(const b of a.bots)b.hitFlash=Math.max(0,(b.hitFlash||0)-dt);
   for(let i=a.effects.length-1;i>=0;i--){a.effects[i].ttl-=dt;a.effects[i].y-=dt*22;if(a.effects[i].ttl<=0)a.effects.splice(i,1);}
@@ -395,11 +683,37 @@
   if(peaceful(p)&&['fire','contract'].includes(action.type))throw Error('This district is a peaceful zone.');
   if(action.type==='contract'&&!['hub','arena','fortress'].includes(C.areaAt(p.x,p.y)))throw Error('Start contracts from your fortress, Founder Square or Arena District.');
   const crewResult=crewAction(this,p,action);if(crewResult!==null)return crewResult;
+  if(action.type==='startQuarantine'){
+   if(p.room||C.areaAt(p.x,p.y)!=='greenbelt'||distance(p,QUARANTINE)>125)
+    throw Error('Walk to the Quarantine Bunker marker in the dead zone.');
+   if(p.contract||p.defense||p.blockJob||p.rising?.arena||p.quarantineRun)
+    throw Error('Finish or abandon your existing challenge first.');
+   if(this.quarantineEvent)throw Error('A quarantine run is already active in this room.');
+   if(p.quarantineCooldown>0)throw Error('Quarantine bunker is resetting. Try again shortly.');
+   if(p.heat>=22)throw Error('Lose the wanted patrol before starting quarantine.');
+   if(a.bots.length>59)throw Error('Too many active NPCs. Try quarantine after street conflicts end.');
+   // Relocate only non-engaged ambient zombies near this one bunker to avoid
+   // combining roaming hordes with the finite three-wave scenario.
+   a.bots=a.bots.filter(b=>b.kind!=='zombie'||b.quarantineOwner||
+    distance(b,QUARANTINE)>QUARANTINE.radius+300||b.state==='attack');
+   if(a.bots.filter(b=>b.kind==='zombie'&&b.hp>0).length>7)
+    throw Error('An active horde is blocking the bunker. Clear it first.');
+   if(p.rising){p.rising.riding=false;p.rising.speed=0;}
+   p.quarantineResult=null;p.quarantineRun=true;
+   this.quarantineEvent={owner:id,wave:0,next:4,remaining:205,spawned:false,
+    startDeaths:p.deaths,damage:0};
+   notify(p,'QUARANTINE BUNKER / Four seconds to prepare. Three waves, 205 seconds. Get clear of the marked impacts.');
+   return 'Quarantine started! Survive three waves. Deal at least 55 damage to earn 120 play credits and 100 XP.';
+  }
+  if(action.type==='endQuarantine'){
+   if(this.quarantineEvent?.owner!==id)throw Error('You have no active quarantine run.');
+   finishQuarantine(this,'abandoned');return 'You retreated from quarantine. No rewards awarded.';
+  }
   if(action.type==='joinConflict'){
    const c=conflictState(this);if(!['announced','gathering','active'].includes(c.phase)||c.phase==='active'&&c.remaining<60)throw Error('Enrollment is closed. Watch this round or return for the next one.');
    if(p.room||distance(p,CONFLICT)>CONFLICT.radius)throw Error('Walk to Founders Crossing to join.');
    if(!['congress','exit'].includes(p.clan))throw Error('Join Insider Cunts or Rugmasters first.');
-   if(p.contract||p.blockJob||p.defense||p.rising?.arena)throw Error('Finish your current challenge first.');
+   if(p.contract||p.blockJob||p.defense||p.rising?.arena||p.quarantineRun)throw Error('Finish your current challenge first.');
    if(c.participants.has(id))throw Error('Already enrolled in this conflict.');
    c.participants.set(id,{side:p.clan,damage:0,active:0,paid:false});return 'Enrolled. Deal 60 damage to rival event troops and actively play in the ring for 10 seconds. Rewards arrive once at resolution.';
   }
@@ -420,6 +734,7 @@
    p.dashVector={...p.facing};p.dashCooldown=2.8;p.dashTime=.22;p.invulnerable=Math.max(p.invulnerable,.3);return 'DASH';
   }
   if(action.type==='contract'){
+   if(p.quarantineRun)throw Error('Finish or retreat from quarantine first.');
    if(p.defense)throw Error('Finish your fortress defense drill first.');
    if(p.area==='arena'&&action.job!=='bounty')throw Error('Street Sweep runs here. Other jobs start in Founder Square.');
    if(p.contract)throw Error('Finish or abandon your current contract first.');
@@ -450,9 +765,9 @@
   if(action.type==='travel')a.bullets=a.bullets.filter(q=>q.owner!==id);
   return message;
  };
- P.leave=function(id){if(this.arcade){cleanup(this,id);this.arcade.guards=this.arcade.guards.filter(g=>g.owner!==id);}return base.leave.call(this,id);};
+ P.leave=function(id){if(this.quarantineEvent?.owner===id)finishQuarantine(this,'left');const departing=this.players.get(id);if(departing?.defense)finishSiege(this,departing,'abandoned');if(this.arcade){cleanup(this,id);this.arcade.guards=this.arcade.guards.filter(g=>g.owner!==id);}return base.leave.call(this,id);};
  P.snapshot=function(id){
   init(this);const s=base.snapshot.call(this,id);
-  s.conflict=conflictSnapshot(this,id);s.arcade={zombieNext:this.arcade.zombieNext,guards:this.arcade.guards.map(({plot,path,...g})=>({...g})),time:this.arcade.time,bots:this.arcade.bots.map(({path,plot,...b})=>({...b})),bullets:this.arcade.bullets.map(b=>({...b})),effects:this.arcade.effects.map(e=>({...e})),pickups:this.arcade.pickups.map(i=>({...i}))};return s;
+  s.conflict=conflictSnapshot(this,id);s.quarantine=quarantineSnapshot(this,id);s.arcade={zombieNext:this.arcade.zombieNext,zombieHazards:(this.arcade.zombieHazards||[]).map(h=>({...h})),guards:this.arcade.guards.map(({plot,path,...g})=>({...g})),time:this.arcade.time,bots:this.arcade.bots.map(({path,plot,...b})=>({...b})),bullets:this.arcade.bullets.map(b=>({...b})),effects:this.arcade.effects.map(e=>({...e})),pickups:this.arcade.pickups.map(i=>({...i}))};return s;
  };
 })(typeof window==='undefined'?globalThis:window);
