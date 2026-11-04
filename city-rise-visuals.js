@@ -45,7 +45,9 @@
   return painted;
  }
  function diamonds(c,p,time,reduced=false){
-  // Light sources remain behind the existing actors and doors.\n  streetLights(c,p,time,reduced);\n  for(const n of R.LANDMARKS){if(p.rising.found.includes(n.id)||Math.hypot(n.x-p.x,n.y-p.y)>1300)continue;const bob=reduced?0:Math.sin(time/420+n.x)*5;
+  // Light sources remain behind the existing actors and doors.
+  streetLights(c,p,time,reduced);
+  for(const n of R.LANDMARKS){if(p.rising.found.includes(n.id)||Math.hypot(n.x-p.x,n.y-p.y)>1300)continue;const bob=reduced?0:Math.sin(time/420+n.x)*5;
    c.save();c.translate(n.x,n.y);const g=c.createRadialGradient(0,0,0,0,0,55);g.addColorStop(0,'#70f3e034');g.addColorStop(1,'#70f3e000');c.fillStyle=g;c.fillRect(-55,-55,110,110);
    c.strokeStyle='#8df4e2';c.lineWidth=1.5;c.beginPath();c.ellipse(0,3,20,9,0,0,7);c.stroke();c.translate(0,-47+bob);c.fillStyle='#a9f6de';c.beginPath();c.moveTo(0,-16);c.lineTo(11,0);c.lineTo(0,16);c.lineTo(-11,0);c.closePath();c.fill();c.strokeStyle='#e3fff4';c.stroke();text(c,n.name,0,-29,9,'#caf6eb');c.restore();
   }
