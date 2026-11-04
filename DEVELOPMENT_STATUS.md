@@ -1,3 +1,14 @@
+## One-world dusk lighting and street atmosphere — November 4, 2026
+
+- **Development branch:** `codex/one-world-quarantine-archetypes` / [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28). This work extends only the existing `city.html` and `CityRisingVisuals` canvas; public `main` and live game remain unchanged.
+- **Center-world fix:** The previous world-space lamp glows referenced retired pre-center coordinates. Lighting now follows the real `C.HUB` streets and plaza, original four `C.DISTRICTS`, six `C.NEIGHBORHOODS`, and valid user-built lamps on `C.PLOT`. Nothing moves, blocks, creates collisions or writes saves.
+- **Visual update:** A deterministic shared world clock gradually blends dusk, night and dawn instead of switching to abruptly hard-coded tints. Nearby streetlight pools and subdued rain reflections sit under current characters in the original depth order. No new screen, game engine, inventory, token/crypto functionality, or per-frame shader service.
+- **Reduced-motion/mobile limits:** Existing `prefers-reduced-motion` now flows into world lights; landmark bobbing is disabled for reduced motion, and animated rain streaks remain suppressed. Lighting stays static with a hard cap of **eight** in-range glow gradients per frame and no gradients for daylight or distant lamps. Existing V1 Canvas mobile handling and rain streak cap remain unchanged.
+- **Regression coverage:** `scripts/city-atmosphere.test.mjs` checks clock transitions, correct physical Center City fixtures, retired-lamp elimination, culling and render budget, user-built lamps, nonmutation of game state and reduced-motion rain. Existing static checks assert the new browser cache version; the ordinary browser/room workflow must be green for the final PR head before any release claim.
+- **Next gates:** Full CI including phone-sized Chromium on final commit, physical Android joystick/aim/touch/FPS/memory acceptance, owner's visual approval. This draft is **not merged or deployed**; no silent public cutover.
+
+---
+
 ## One-world manual street wayfinding / all 47 doors — November 4, 2026
 
 - **Branch:** `codex/one-world-quarantine-archetypes`, [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28); unreleased, original main and public game remain unchanged.
