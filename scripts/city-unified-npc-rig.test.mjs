@@ -37,7 +37,7 @@ test('zombie and monk are skins on the exact same depth-sorted 360-degree player
 });
 test('solo dead-zone zombie actor and monk no longer use separate Canvas character illustrations',()=>{
  const city=src('city.js'),monk=src('city-monk.js'),arcade=src('city-arcade.js');
- const npcFiles=[city,monk,src('city-rise-visuals.js'),src('city-room-visuals.js'),src('city-districts.js')];
+ const npcFiles=[city,monk,src('city-rise-visuals.js'),src('city-room-visuals.js')];
  assert.ok(city.includes("if(b.kind==='zombie'){"),'zombies are rendered as live world actors');
  assert.ok(city.includes("role:'zombie'"),'zombie skin belongs to NPC model');
  assert.equal(city.includes('function drawZombie('),false,'legacy zombie-only figure removed');
@@ -46,6 +46,8 @@ test('solo dead-zone zombie actor and monk no longer use separate Canvas charact
  assert.equal(monk.includes('const robe=c.createLinearGradient'),false,'legacy standalone monk body removed');
  assert.ok(monk.includes('tornadoes')&&monk.includes('quote.he')&&monk.includes('quote.en'),
   'monk powers, Bible verses and healing visuals remain');
+ assert.ok(city.includes("role:'civilian'")&&city.includes('state.civilians||[]'),'Shared city renderer draws actual civilian NPCs instead of scripted boardwalk figures');
+ assert.ok(!src('city-districts.js').includes("id:'boardwalk-'+i"),'district facades no longer own decorative nonresponsive walkers');
  for(const file of npcFiles)assert.ok(/(?:CityVisuals|\bV)\.person\(/.test(file),
   'humanoid NPCs call one shared person renderer: '+file.slice(0,60));
  assert.ok(arcade.includes("C.areaAt(p.x,p.y)==='greenbelt'"),'zombies still spawn only outside the city and bases');
