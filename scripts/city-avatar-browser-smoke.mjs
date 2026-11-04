@@ -351,6 +351,16 @@ try{
  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?solo=1&civilians-qa=1'});
  await waitFor(()=>evalPage("!!window.CityCivilians&&!!window.__civilianQaEngine?.civilians?.length"),'shared civilian engine in original playable city');
  await evalPage("document.getElementById('start-button').click();true");
+ // A real phone-sized Chromium canvas now shows a social gesture before a raid.
+ // This verifies the existing character/game, not a disconnected test renderer.
+ const waveStart=await evalPage("(()=>{const e=window.__civilianQaEngine,p=window.__civilianQaPlayer,c=e.civilians.find(x=>x.zone==='hub'),C=window.MemeCityCore;if(!c)return false;for(const b of e.arcade.bots){b.hp=0;b.respawn=10000;}p.x=C.blocked(c.x+65,c.y+25)?c.x:c.x+65;p.y=C.blocked(p.x,c.y+25)?c.y:c.y+25;p.invulnerable=1000;p.fireHeld=false;c.nextWave=0;return true;})()");
+ assert.equal(waveStart,true,'original city has a real local friendly pedestrian');
+ await waitFor(()=>evalPage("window.__civilianQaEngine.civilians.some(c=>c.zone==='hub'&&c.gesture)"),
+  'phone-sized in-world civilian waves to player');
+ const waveSnapshot=await evalPage("(()=>{const e=window.__civilianQaEngine,p=window.__civilianQaPlayer;return e.snapshot(p.id).civilians.find(c=>c.zone==='hub')?.gesture===true;})()");
+ assert.equal(waveSnapshot,true,'real Solo HUD receives authoritative 360-rig gesture state');
+ const friendlyShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+ assert.ok(friendlyShot.data.length>2000,'existing city Canvas paints while citizen greets player');
  const civilianStart=await evalPage("(()=>{const e=window.__civilianQaEngine,p=window.__civilianQaPlayer,c=e.civilians.find(x=>x.zone==='hub'),C=window.MemeCityCore;if(!c)return null;p.x=C.blocked(c.x+65,c.y+25)?c.x:c.x+65;p.y=C.blocked(p.x,c.y+25)?c.y:c.y+25;p.invulnerable=1000;const hostile=e.arcade.bots.find(b=>b.kind==='gang'&&!b.territoryRole),cop=e.arcade.bots.find(b=>b.kind==='cop');Object.assign(hostile,{x:c.x+65,y:c.y+45,homeX:c.x+65,homeY:c.y+45,faction:'exit',hp:95,maxHp:95,territoryRole:'invader',cooldown:100});Object.assign(cop,{x:c.x+95,y:c.y+95,homeX:c.x+95,homeY:c.y+95,hp:100,maxHp:100,cooldown:100});return {id:c.id,x:c.x,y:c.y};})()");
  assert.ok(civilianStart&&civilianStart.id,'civilian QA activated a visible hub pedestrian');
  await waitFor(()=>evalPage("window.__civilianQaEngine.civilians.some(c=>c.id==="+JSON.stringify(civilianStart.id)+"&&['fleeing','sheltering'].includes(c.state))"),'mobile civilian flees visible hostile');
