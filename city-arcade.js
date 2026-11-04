@@ -585,10 +585,37 @@
    }else if(old&&C.npcHostile(b,old)&&!peaceful(old)&&b.lastSeen&&a.time-b.seenAt<5&&!safe(old)&&(!b.owner||old.contract)){
     b.state='search';steer(this,b,b.lastSeen,115,dt);
    }else{
-    b.state='patrol';b.targetId=null;b.windup=0;
-    const home=b.raid?{x:C.PLOT.x+C.PLOT.cols*C.PLOT.tile/2,y:C.PLOT.y+C.PLOT.rows*C.PLOT.tile/2}:{x:b.homeX,y:b.homeY};
-    const target={x:home.x+Math.sin(a.time*.45+b.phase)*65,y:home.y+Math.cos(a.time*.4+b.phase)*35};
-    if(distance(b,target)>8)steer(this,b,target,42,dt);
+    b.targetId=null;b.windup=0;
+    // Civilian witnesses report immediate danger to nearby friendly patrols.
+    // No hostility is changed: responders may fire only at existing rivals.
+    const alert=b.civilianAlert&&a.time<b.civilianAlert.expires&&
+     !b.owner&&(b.kind==='cop'||b.resident)&&distance(b,b.civilianAlert)<900?
+     b.civilianAlert:null;
+    if(alert){
+     b.state='responding';b.aim={x:alert.x,y:alert.y};
+     if(distance(b,alert)>85)steer(this,b,alert,118,dt);
+     else b.civilianAlert=null;
+    }else if(b.ambient&&!b.raid&&!b.eventId&&!b.territoryRole){
+     // Four-way walking patrol instead of spinning around a fixed spot.
+     b.patrolIndex??=Math.floor(b.phase)%4;
+     b.patrolUntil??=a.time+4+(b.phase%3);
+     const offsets=[[95,-65],[115,75],[-105,90],[-115,-70]];
+     let [dx,dy]=offsets[b.patrolIndex%4];
+     let target={x:b.homeX+dx,y:b.homeY+dy};
+     if(distance(b,target)<35||a.time>b.patrolUntil){
+      b.patrolIndex=(b.patrolIndex+1)%4;
+      b.patrolUntil=a.time+4.5+(b.phase%3);
+      [dx,dy]=offsets[b.patrolIndex];
+      target={x:b.homeX+dx,y:b.homeY+dy};
+     }
+     b.state='patrolling';
+     if(distance(b,target)>8)steer(this,b,target,70,dt);
+    }else{
+     b.state='patrol';
+     const home=b.raid?{x:C.PLOT.x+C.PLOT.cols*C.PLOT.tile/2,y:C.PLOT.y+C.PLOT.rows*C.PLOT.tile/2}:{x:b.homeX,y:b.homeY};
+     const target={x:home.x+Math.sin(a.time*.45+b.phase)*65,y:home.y+Math.cos(a.time*.4+b.phase)*35};
+     if(distance(b,target)>8)steer(this,b,target,42,dt);
+    }
    }
   }
   tickCrew(this,dt);
