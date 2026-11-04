@@ -25,7 +25,7 @@ console.log(`PASS: ${tokens.length} unique listings, all artwork, mint format ch
 for(const page of ['index.html','beta.html','creators.html','city.html','city-roadmap.html',...tokens.map(t=>'tokens/'+t.id+'/index.html'),'tokens/offensive/index.html']){
  const content=read(page);
  assert.ok(content.includes(page==='city.html'?'pwa.js?v=31-solo-holder':'pwa.js?v=30-android-wallet'),page+' must load shared wallet runtime');
- assert.ok(content.includes('styles.css?v=28-reliable-theme')||content.includes('city.css?v=28-reliable-theme')||content.includes('city.css?v=39-chaos-arcade'),page+' must load wallet controls CSS');
+ assert.ok(content.includes('styles.css?v=28-reliable-theme')||content.includes('city.css?v=28-reliable-theme')||content.includes('city.css?v=42-wayfinding'),page+' must load wallet controls CSS');
 }
 // Android PWA adapter is a locally published ES module; it must not rely on
 // a second wallet page/button or ever persist signing material.
@@ -63,7 +63,7 @@ console.log('PASS: streetwear renderer and deployment references.');
 assert.ok(read('city.html').includes('city-save.js'),'Save version guard must load');
 assert.ok(read('.github/workflows/pages.yml').includes('city-save.js'),'Save version guard must deploy');
 assert.ok(read('city.html').includes('city-map.js'),'World map destinations must load');
-assert.ok(read('city.html').includes('city-nav.js'),'Street navigator must load');
+assert.ok(read('city.html').includes('city-nav.js?v=42-wayfinding'),'Collision-safe next-turn street navigator must load');
 assert.ok(read('.github/workflows/pages.yml').includes('city-nav.js'),'Street navigator must deploy');
 assert.ok(read('.github/workflows/pages.yml').includes('city-map.js'),'World map destinations must deploy');
 assert.ok(read('city.html').includes('city-districts.js'),'District renderer must load');
@@ -77,10 +77,10 @@ const city=read('city.html'),landing=read('index.html'),pages=read('.github/work
 for(const id of ['city-canvas','start-button','city-intro','room-mode','hud-credits','hud-level','mission-title','health-value','joystick','fire'])
  assert.ok(city.includes('id="'+id+'"'),'Original playable V1 HUD or control missing: '+id);
 assert.ok(city.includes('SOLO / LOCAL SAVE'),'Original V1 solo gameplay must be the default');
-assert.ok(city.includes('city-interiors.js?v=39-chaos-arcade')&&city.includes('city-room-visuals.js?v=39-chaos-arcade')&&city.includes('city.css?v=39-chaos-arcade'),'The playable in-room Chaos Arcade and mobile cabinet styling must all be present');
+assert.ok(city.includes('city-interiors.js?v=39-chaos-arcade')&&city.includes('city-room-visuals.js?v=39-chaos-arcade')&&city.includes('city.css?v=42-wayfinding'),'The playable in-room Chaos Arcade and mobile cabinet styling must all be present');
 assert.ok(city.includes('city-civilians.js?v=41-civilian-patrols'),'Shared reactively fleeing civilians must load in existing playable city');
 assert.ok(city.includes('city-territory.js?v=40-district-defense'),'Territory defense encounters must ship in the one playable city');
-assert.ok(city.includes('city.js?v=41-civilian-patrols'),'Restored V1 playable engine must be loaded with the refreshed script version');
+assert.ok(city.includes('city.js?v=42-wayfinding'),'Restored V1 playable engine must be loaded with the refreshed script version');
 assert.ok(city.includes('city-rise.js?v=37-one-world-quarantine')&&city.includes('city-arcade.js?v=41-civilian-patrols')&&city.includes('city-interiors.js?v=39-chaos-arcade'),'All authoritative Quarantine modules must share the live script version');
 assert.ok(city.includes('city-districts.js?v=41-civilian-patrols')&&city.includes('city-room-visuals.js?v=39-chaos-arcade'),'Modern exterior and interior renderers must be shipped together');
 assert.ok(city.includes('city-visuals.js?v=37-one-world-quarantine')&&city.includes('city-clans.js?v=37-one-world-quarantine')&&city.includes('city-core.js?v=40-district-defense'),'Signed beta-token cosmetics must use the updated shared player rig');
