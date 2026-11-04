@@ -69,6 +69,6 @@ test('real game route overlay is informational and cannot change player position
  assert.ok(!city.includes('engine.teleport('));
  assert.ok(html.includes('id="route-guide"'));
  assert.ok(html.includes('role="status"'));
- assert.ok(html.includes('city-nav.js?v=20-center')||html.includes('city-nav.js?v=42-wayfinding'));
+ assert.ok(html.includes('city-nav.js?v=42-wayfinding')||html.includes('city-nav.js?v=42-wayfinding'));
  assert.ok(city.includes('offensive-meme-city-v1-center'),'navigation does not change the existing solo save key');
 });
