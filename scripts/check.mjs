@@ -47,7 +47,7 @@ for(const file of ['index.html','creators.html']){
 new vm.Script(read('launchpad.js'));
 console.log('PASS: community pages, lightweight script boundaries, and application JS syntax.');
 
-for(const file of ['city-world2-preview.js','city-world2-simulation.js','city-topology.js','city-migration.js','city-world2.js','city-world2-registry.js','city.js','city-map.js','city-nav.js','city-save.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-territory.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js'])new vm.Script(read(file));
+for(const file of ['city-world2-preview.js','city-world2-simulation.js','city-topology.js','city-migration.js','city-world2.js','city-world2-registry.js','city.js','city-map.js','city-nav.js','city-save.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-territory.js','city-civilians.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js'])new vm.Script(read(file));
 for(const file of ['city.html','city-roadmap.html','city.css','server/city-server.mjs'])assert.ok(fs.existsSync(path.join(root,file)),`Missing city release file: ${file}`);
 assert.ok(read('index.html').includes('href="city.html"'),'Homepage must link to the playable city');
 const networkContext={window:{}};vm.runInNewContext(read('city-network.js'),networkContext);const network=networkContext.window.MEME_CITY_NETWORK;assert.equal(typeof network.enabled,'boolean');if(network.enabled)assert.ok(/^https:\/\//.test(network.apiBase),'Public room service must use HTTPS');
@@ -69,7 +69,7 @@ assert.ok(read('.github/workflows/pages.yml').includes('city-map.js'),'World map
 assert.ok(read('city.html').includes('city-districts.js'),'District renderer must load');
 assert.ok(read('.github/workflows/pages.yml').includes('city-districts.js'),'District renderer must deploy');
 
-for(const file of ['city-rise.js','city-interiors.js','city-clans.js','city-territory.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js']){assert.ok(read('city.html').includes(file));assert.ok(read('.github/workflows/pages.yml').includes(file));}
+for(const file of ['city-rise.js','city-interiors.js','city-clans.js','city-territory.js','city-civilians.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js']){assert.ok(read('city.html').includes(file));assert.ok(read('.github/workflows/pages.yml').includes(file));}
 console.log('PASS: City Rising simulation and activity renderer ship with the game.');
 
 // The public game is the original polished V1 solo release, not a V2 prototype.
@@ -78,10 +78,11 @@ for(const id of ['city-canvas','start-button','city-intro','room-mode','hud-cred
  assert.ok(city.includes('id="'+id+'"'),'Original playable V1 HUD or control missing: '+id);
 assert.ok(city.includes('SOLO / LOCAL SAVE'),'Original V1 solo gameplay must be the default');
 assert.ok(city.includes('city-interiors.js?v=39-chaos-arcade')&&city.includes('city-room-visuals.js?v=39-chaos-arcade')&&city.includes('city.css?v=39-chaos-arcade'),'The playable in-room Chaos Arcade and mobile cabinet styling must all be present');
+assert.ok(city.includes('city-civilians.js?v=41-civilian-patrols'),'Shared reactively fleeing civilians must load in existing playable city');
 assert.ok(city.includes('city-territory.js?v=40-district-defense'),'Territory defense encounters must ship in the one playable city');
-assert.ok(city.includes('city.js?v=40-district-defense'),'Restored V1 playable engine must be loaded with the refreshed script version');
-assert.ok(city.includes('city-rise.js?v=37-one-world-quarantine')&&city.includes('city-arcade.js?v=40-district-defense')&&city.includes('city-interiors.js?v=39-chaos-arcade'),'All authoritative Quarantine modules must share the live script version');
-assert.ok(city.includes('city-districts.js?v=38-siege-repair')&&city.includes('city-room-visuals.js?v=39-chaos-arcade'),'Modern exterior and interior renderers must be shipped together');
+assert.ok(city.includes('city.js?v=41-civilian-patrols'),'Restored V1 playable engine must be loaded with the refreshed script version');
+assert.ok(city.includes('city-rise.js?v=37-one-world-quarantine')&&city.includes('city-arcade.js?v=41-civilian-patrols')&&city.includes('city-interiors.js?v=39-chaos-arcade'),'All authoritative Quarantine modules must share the live script version');
+assert.ok(city.includes('city-districts.js?v=41-civilian-patrols')&&city.includes('city-room-visuals.js?v=39-chaos-arcade'),'Modern exterior and interior renderers must be shipped together');
 assert.ok(city.includes('city-visuals.js?v=37-one-world-quarantine')&&city.includes('city-clans.js?v=37-one-world-quarantine')&&city.includes('city-core.js?v=40-district-defense'),'Signed beta-token cosmetics must use the updated shared player rig');
 assert.ok(city.includes('id="monk-verse"')&&city.includes('city-monk.js?v=35-unified-npc-rig'),'Bilingual monk dialogue must ship in the playable city');
 assert.ok(!city.includes('city-v2-release-gate.js'),'V1 entry must never force world2');
