@@ -36,7 +36,9 @@
     id:'street-civilian-'+i,x:p.x,y:p.y,homeX:p.x,homeY:p.y,
     zone:o.zone,phase:i*1.7,style:{skin:i%6,hair:i%4,pants:(i+2)%4},
     state:'stroll',panic:0,facing:{x:i%2?1:-1,y:0},
-    moving:false,waypoint:i%4,speed:45+(i%3)*8,threatAt:null
+    moving:false,waypoint:i%4,speed:45+(i%3)*8,threatAt:null,
+    // Entirely ephemeral social emote; never part of saved player state.
+    gesture:false,waveUntil:0,nextWave:2+(i%4)*.7
    }]:[];
   }).slice(0,MAX);
   e.civilianClock=0;
@@ -88,15 +90,21 @@
   const players=[...e.players.values()].filter(p=>!p.room);
   if(!players.length)return;
   for(const c of e.civilians){
-   if(!players.some(p=>dist(p,c)<ACTIVATE)){c.moving=false;continue;}
+   if(!players.some(p=>dist(p,c)<ACTIVATE)){
+    c.moving=false;c.gesture=false;c.waveUntil=0;continue;
+   }
    const threat=danger(e,c);
    if(threat){
+    // Danger always supersedes social animations, and bars instant greetings after a raid.
+    c.gesture=false;c.waveUntil=0;
+    c.nextWave=Math.max(c.nextWave,e.arcade.time+12);
     c.panic=Math.max(c.panic,3.5);
     c.threatAt={x:threat.x,y:threat.y};
     c.state='fleeing';
     signal(e,c,threat);
    }else c.panic=Math.max(0,c.panic-dt);
    if(c.panic>0&&c.threatAt){
+    c.gesture=false;
     const vx=c.x-c.threatAt.x,vy=c.y-c.threatAt.y,
      d=Math.max(1,Math.hypot(vx,vy));
     const target={x:c.x+vx/d*190,y:c.y+vy/d*190};
@@ -105,6 +113,20 @@
     if(dist(c,c.threatAt)>360)c.panic=Math.min(c.panic,1);
     continue;
    }
+   // When a player calmly approaches, a nearby noncombat pedestrian gives a
+   // brief genuine hand wave using the same 360-degree person rig. Each civilian
+   // has a staggered, server-owned cooldown; no rewards, actions or save writes.
+   const guest=players.find(p=>p.hp>0&&!p.fireHeld&&dist(p,c)<165);
+   if(guest&&!c.waveUntil&&e.arcade.time>=c.nextWave){
+    c.waveUntil=e.arcade.time+1.8;
+    c.nextWave=e.arcade.time+21+c.phase%5;
+   }
+   if(guest&&c.waveUntil>e.arcade.time){
+    const dx=guest.x-c.x,dy=guest.y-c.y,d=Math.hypot(dx,dy);
+    if(d>1)c.facing={x:dx/d,y:dy/d};
+    c.gesture=true;c.state='waiting';c.moving=false;continue;
+   }
+   c.gesture=false;c.waveUntil=0;
    const orbit=[
     {x:c.homeX-95,y:c.homeY-42},
     {x:c.homeX+105,y:c.homeY-38},
@@ -132,7 +154,8 @@
   const s=base.snapshot.call(this,id);initialize(this);
   s.civilians=this.civilians.map(c=>({
    id:c.id,x:c.x,y:c.y,state:c.state,zone:c.zone,
-   phase:c.phase,style:{...c.style},facing:{...c.facing},moving:c.moving
+   phase:c.phase,style:{...c.style},facing:{...c.facing},moving:c.moving,
+   gesture:c.gesture===true
   }));
   return s;
  };
