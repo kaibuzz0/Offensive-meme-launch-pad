@@ -203,6 +203,20 @@ try{
  assert.ok(mapData.plot[0]>mapData.fort[0]&&mapData.plot[0]<mapData.fort[0]+2240);
  assert.ok(mapData.shopRegions>=4);assert.ok(mapData.painted);
  assert.ok(mapData.mapWidth>=800&&mapData.mapHeight>=800);
+ // The existing 47-door map must yield readable manual guidance on phones:
+ // no teleport, second renderer, wallet action, or changed game entrypoint.
+ const shopChoice=await evalPage("(()=>{const I=window.CityInteriors,b=I.BUILDINGS.find(x=>x.activity==='shop'),c=Array.from(document.querySelectorAll('.map-destinations button')).find(el=>el.textContent.includes(b.name));if(!c)return null;c.click();return b.name;})()");
+ assert.ok(shopChoice,'same world map offers a real physical supply/shop door');
+ await waitFor(()=>evalPage("document.querySelector('#route-guide')?.textContent.includes('HEAD')&&document.querySelector('#route-guide')?.dataset.status==='follow'"),'manual turn-by-turn guide visible from actual 47-door map route');
+ const navUI=await evalPage("({guide:document.querySelector('#route-guide').textContent,hidden:document.querySelector('#route-guide').hidden,mapClosed:!document.querySelector('#city-panel').open,width:document.querySelector('#route-guide').getBoundingClientRect().width,screen:innerWidth})");
+ assert.equal(navUI.hidden,false,'navigation status appears only when a destination is selected');
+ assert.equal(navUI.mapClosed,true,'destination selection returns to the original city game');
+ assert.match(navUI.guide,/m remaining/);
+ assert.ok(navUI.guide.includes(shopChoice),'original destination name survives routing');
+ assert.ok(navUI.width<navUI.screen,'guidance does not overflow the phone');
+ await evalPage("document.querySelector('[data-panel=map]').click();true");
+ await waitFor(()=>evalPage("document.querySelector('canvas.large-map')!==null&&document.querySelector('#panel-content').textContent.includes('Safe walking route')"),'large map explains the active safe walking route');
+
  // New quarantine scenario must be a physical destination inside the old
  // map and an ordinary mobile-friendly game panel, not a separate World V2 UI.
  assert.equal(await evalPage("window.MemeCityCore.WORLD.stations.filter(s=>s.id==='quarantine-bunker').length"),1);
