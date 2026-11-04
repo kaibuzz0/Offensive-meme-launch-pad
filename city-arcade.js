@@ -12,8 +12,8 @@
  function init(e){
   if(e.arcade)return;
   e.arcade={time:0,bots:[],guards:[],bullets:[],effects:[],pickups:[]};
-  for(let i=0;i<8;i++)spawn(e,'gang',spots[i][0]+HUB.x,spots[i][1]+HUB.y,`gang-${i}`);
-  for(let i=0;i<4;i++)spawn(e,'cop',patrol[i][0]+HUB.x,patrol[i][1]+HUB.y,`cop-${i}`);
+  for(let i=0;i<8;i++){const b=spawn(e,'gang',spots[i][0]+HUB.x,spots[i][1]+HUB.y,`gang-${i}`);b.ambient=true;}
+  for(let i=0;i<4;i++){const b=spawn(e,'cop',patrol[i][0]+HUB.x,patrol[i][1]+HUB.y,`cop-${i}`);b.ambient=true;}
   for(const n of C.NEIGHBORHOODS)for(let i=0;i<4;i++){
    const rug=i%2===1;const b=spawn(e,rug?'gang':'cop',n.x+(rug?170:-170),n.y+200+Math.floor(i/2)*100,'block-'+n.id+'-'+i);b.faction=rug?'exit':'congress';b.ranged=true;b.ambient=true;
   }
