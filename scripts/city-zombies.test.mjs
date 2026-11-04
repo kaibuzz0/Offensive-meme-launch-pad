@@ -99,7 +99,7 @@ test('zombie in Solo City uses the same NPC player model, never a separate custo
  assert.ok(city.includes("if(b.kind==='zombie'){"));
  assert.ok(city.includes("role:'zombie'"),'shared actor renderer uses zombie outfit');
  assert.ok(city.includes('V.person(ctx,{id:'),'the existing player rig draws zombies');
- assert.ok(html.includes('city-arcade.js?v=40-district-defense'));
+ assert.ok(html.includes('city-arcade.js?v=41-civilian-patrols'));
  assert.ok(html.includes('city-visuals.js?v=37-one-world-quarantine'));
- assert.ok(html.includes('city.js?v=40-district-defense'));
+ assert.ok(html.includes('city.js?v=41-civilian-patrols'));
 });
