@@ -1,3 +1,13 @@
+## One-world civilian greetings and safe social behavior — November 4, 2026
+
+- **Same active world:** extended the existing `city-civilians.js` engine plugin, the original `city.js` 360-degree Canvas renderer and the canonical `city.html`. No new map, browser route, NPC body rig, save key, or economy.
+- **Friendly encounters:** calm pedestrians within 165 world units can stop, turn toward the player and perform a brief unarmed wave/HELLO label using the existing character skeleton. Each person has deterministic staggered availability, a roughly 22-second cooldown and at most a 1.8-second greeting. Outside the active player area, these effects sleep.
+- **Safety and authority:** active combat and panicked fleeing always preempt greetings; a new 12-second post-threat cooldown prevents jarring immediate waves. The shared Engine owns greeting timing for Solo and authenticated Together rooms; clients see only a read-only `gesture` boolean in their existing civilian snapshot. No wallet requests, credits, XP, combat rewards, NPC targeting or new player-save fields; ordinary patrol/faction rules remain intact.
+- **Validation:** expanded `scripts/city-civilians.test.mjs` for finite greetings, correct facing, deep-free snapshot boundaries, no save/economy mutations and combat cancellation; expanded live mobile-sized Chromium QA to exercise greeting before a genuine hostile NPC makes the same character flee. Browser asset cache versions and static guards updated together. Verify the final PR head on GitHub Actions before any release claim.
+- **Release:** still a draft, not merged/deployed. Owner reports that the existing game runs well; physical Android input/FPS/battery/memory acceptance of this new draft remains separate from browser simulation.
+
+---
+
 ## One-world dusk lighting and street atmosphere — November 4, 2026
 
 - **Development branch:** `codex/one-world-quarantine-archetypes` / [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28). This work extends only the existing `city.html` and `CityRisingVisuals` canvas; public `main` and live game remain unchanged.
