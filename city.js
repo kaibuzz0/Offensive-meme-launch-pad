@@ -793,6 +793,7 @@
   V.person(ctx,{id:c.id,x:p.x,y:p.y,role:'civilian',
    color:['#9da68d','#8fa3aa','#bb9d8f','#a19bbc'][Math.floor(c.phase)%4],
    style:c.style,moving:c.moving,aim:c.facing,armed:false,phase:c.phase,
+   gesture:!panic&&c.gesture===true,
    scale:.78},time);
   if(panic){
    ctx.save();
@@ -802,6 +803,9 @@
    }
    label(c.state==='fleeing'?'! RUN !':'TAKING COVER',p.x,p.y-115,9,'#ffcf9e');
    ctx.restore();
+  }else if(c.gesture){
+   // A friendly nearby player receives a short world-space greeting; no interaction/reward.
+   label('HELLO!',p.x,p.y-117,9,'#d0f4d9');
   }
  }});
  for(const b of state.arcade?.bots||[])if(b.hp>0&&visible(b.x,b.y))layers.push({y:b.y,draw:()=>drawBot(b,time,dt)});
