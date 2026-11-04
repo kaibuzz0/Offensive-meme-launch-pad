@@ -49,6 +49,51 @@ test('nearby street pedestrians stroll safely while distant NPCs sleep for perfo
  assert.equal(distant.y,original.dy);
  assert.equal(C.blocked(civ.x,civ.y),false);
 });
+test('nearby calm players receive bounded civilian waves without economy or save changes',()=>{
+ const {e,p,C}=setup();quiet(e);
+ const c=e.civilians.find(c=>c.zone==='hub');
+ Object.assign(p,{x:c.x+75,y:c.y+70,hp:100,invulnerable:1000,fireHeld:false});
+ const before={credits:p.credits,xp:p.xp,plot:JSON.stringify(p.plot),area:C.areaAt(c.x,c.y)};
+ c.nextWave=0;
+ tick(e,.4);
+ assert.equal(c.gesture,true,'pedestrian raises a hand when a calm player approaches');
+ assert.equal(c.moving,false,'greeting pauses wandering instead of sliding');
+ assert.equal(c.state,'waiting','uses existing noncombat waiting state');
+ const near=e.snapshot(p.id).civilians.find(o=>o.id===c.id);
+ assert.equal(near.gesture,true,'solo snapshot exposes only a visible boolean gesture');
+ assert.equal('waveUntil' in near,false,'cooldown is private server/session state');
+ assert.equal('nextWave' in near,false,'no client-supplied emote authority');
+ assert.ok(c.facing.x>0&&c.facing.y>0,'civilian faces approaching player');
+ tick(e,2.6);
+ assert.equal(c.gesture,false,'friendly wave finishes after a bounded moment');
+ assert.ok(c.nextWave>e.arcade.time,'wave has a cooldown, not per-frame spam');
+ tick(e,3);
+ assert.equal(c.gesture,false,'cooldown prevents repeated waves while player idles');
+ assert.equal(p.credits,before.credits);assert.equal(p.xp,before.xp);
+ assert.equal(JSON.stringify(p.plot),before.plot);
+ assert.equal(C.areaAt(c.x,c.y),before.area,'social activity does not teleport citizens');
+});
+
+test('real nearby danger cancels civilian waves and blocks immediate re-greeting',()=>{
+ const {e,p}=setup();quiet(e);
+ const c=e.civilians.find(c=>c.zone==='hub');
+ Object.assign(p,{x:c.x+80,y:c.y+50,hp:100,invulnerable:1000,fireHeld:false});
+ c.nextWave=0;
+ tick(e,.4);
+ assert.equal(c.gesture,true);
+ const enemy=e.arcade.bots.find(b=>b.kind==='gang');
+ Object.assign(enemy,{x:c.x+30,y:c.y+25,homeX:c.x+30,homeY:c.y+25,
+  faction:'exit',hp:100,maxHp:100,territoryRole:'invader',cooldown:100});
+ tick(e,.4);
+ assert.ok(['fleeing','sheltering'].includes(c.state));
+ assert.equal(c.gesture,false,'combat dominates greetings');
+ const cooldown=c.nextWave;
+ enemy.hp=0;
+ tick(e,4.5);
+ assert.ok(e.arcade.time<cooldown,'post-raid cooldown survives panic recovery');
+ assert.equal(c.gesture,false,'civilian never greets while fleeing or immediately after');
+});
+
 test('real faction threat makes civilians flee/shelter, generates alerts and then restores normal activity',()=>{
  const {C,e,p}=setup();quiet(e);
  const c=e.civilians.find(c=>c.zone==='hub');
@@ -124,8 +169,8 @@ test('the original renderer shows animated panic using the SAME rotating NPC ava
   client=fs.readFileSync(new URL('../city.js',import.meta.url),'utf8'),
   districts=fs.readFileSync(new URL('../city-districts.js',import.meta.url),'utf8'),
   server=fs.readFileSync(new URL('../server/city-server.mjs',import.meta.url),'utf8');
- assert.match(html,/city-civilians\.js\?v=41-civilian-patrols/);
- assert.match(html,/city\.js\?v=43-street-lighting/);
+ assert.match(html,/city-civilians\.js\?v=44-friendly-civilians/);
+ assert.match(html,/city\.js\?v=44-friendly-civilians/);
  assert.ok(server.includes("'city-civilians.js'"));
  assert.ok(client.includes('for(const c of state.civilians||[])'));
  assert.ok(client.includes("role:'civilian'"));
