@@ -1,3 +1,13 @@
+## One-world manual street wayfinding / all 47 doors — November 4, 2026
+
+- **Branch:** `codex/one-world-quarantine-archetypes`, [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28); unreleased, original main and public game remain unchanged.
+- **Original 47 interiors remain at their existing coordinates.** `city-nav.js` now exposes collision-aware `guidance()` in addition to existing bounded A* path planning, route smoothing and nearest-route checks. The guidance calculates remaining distance from the player along the selected route, compass heading, next left/right turn and meters until that bend. It reports off-route, missing route and arrival states without ever altering `Engine.input()`, player positions, door/landmark IDs or world collision.
+- **Gameplay/UI:** `city.js` refreshes an accessible manual navigation bar over the **existing world Canvas**, displays the selected actual destination plus heading/turn/distance, and includes the same instruction in the original clickable world-map screen. It retains the cyan in-world route line, periodic off-route recalculation, touch selection and keyboard/joystick movement. The bar is non-interactive, compact on Android-sized viewports and hidden when no outdoor route is active. Original `city.html` and `city.css` assets are versioned to ensure browsers don't show an old cached route.
+- **Verification:** `scripts/city-wayfinding.test.mjs` exercises every one of the real 47 door IDs and the unchanged physical entrance coordinates, obtains a route from actual Solo spawn, checks every segment against `C.blocked()`, and verifies correct heading, turn direction, distance and no automatic movement even with player-built obstructions. Real mobile-sized Chromium chooses an existing physical shop from the world map and verifies that turn guidance appears, fits within the phone screen, and leaves the game running. [Verified implementation CI 41932985642](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41932985642) passed all regression tests/static, deterministic benchmark and Chromium. Documentation-only commits follow; recheck the exact final head.
+- **Next:** lighting/environmental polish in the *same* main world, checking reduced-motion settings and Android FPS on hardware. Physical Android gameplay acceptance remains unverified. Do not merge or deploy without explicit approval.
+
+---
+
 ## One-world civilian reactions and neighborhood foot patrols — November 4, 2026
 
 - **Development branch:** `codex/one-world-quarantine-archetypes`, [draft PR #28](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/28). Public `main` remains on the previous playable world. Nothing in this round is merged or publicly deployed.
