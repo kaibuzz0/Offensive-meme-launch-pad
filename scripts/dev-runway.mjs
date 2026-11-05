@@ -13,7 +13,7 @@ const testFiles=readdirSync(resolve(root,'scripts'))
  .filter(name=>name.endsWith('.test.mjs')).sort()
  .map(name=>'scripts/'+name);
 const scopes=Object.freeze({
- graphics:/graphics|avatar|visual|camera|render/i,
+ graphics:/graphics|avatar|visual|camera|render|live-3d/i,
  world:/world|biome|frontier|mining|mine|terrain|map|nav|district/i,
  systems:/core|server|room|multiplayer|combat|civilians|zombies|npc|survival|save|wallet|holdings|economy|quarantine|territory|clans/i
 });
