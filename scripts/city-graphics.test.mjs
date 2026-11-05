@@ -173,10 +173,10 @@ test('jointed avatar pose is bounded, stable and uses opposing limbs',()=>{
  assert.ok(Object.values(walk).every(Number.isFinite));
  assert.equal(Object.isFrozen(walk),true);
  const render=fs.readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8');
- assert.match(render,/function limbSegment\(/);
- assert.match(render,/limbSegment\(elbow/);
- assert.match(render,/limbSegment\(knee/);
- assert.match(render,/model\(pos,sz,angle,pitch\)/);
+ assert.match(render,/const limbSegment=\(/);
+ assert.match(render,/limbSegment\('forearm-'/);
+ assert.match(render,/limbSegment\('shin-'/);
+ assert.match(render,/model\(world,part\.size,yaw,-part\.pitch\)/);
 });
 
 test('third-person camera retracts before solid buildings, with stable scene-independent fallback',()=>{
@@ -229,7 +229,7 @@ test('3D movement controls remain exclusive to the optional graphics preview',()
  assert.match(js,/graphicsPreview\.turn\(amount\)/);
  assert.match(js,/graphicsPreview\.step\(amount\)/);
  assert.match(mod,/const stage=createStage\(sample\)/,'preview stage receives the authored scene for local collision');
- assert.match(mod,/actorBox\(/,'shared procedural avatar body and skull rig must rotate in perspective');
+ assert.match(mod,/createAvatarMesh\(stage\.snapshot\(\),mode,nextColor\)/,'both camera views must use the same world-relative reusable avatar rig');
  assert.doesNotMatch(mod,/localStorage|sessionStorage|roomClient\.action|engine\.action/,'preview walking never modifies real state');
 });
 
@@ -265,6 +265,48 @@ test('batch renderer uses one static draw per redraw and frees its GPU buffer',(
  assert.doesNotMatch(source,/fetch\(|import\(|requestAnimationFrame|roomClient\.action/);
  const unsupported=G.createPreview({getContext:()=>null});
  assert.equal(unsupported.stats(),null,'no GPU statistics promised when WebGL is missing');
+});
+
+test('first-person and third-person avatars use reusable immutable joint hierarchies',()=>{
+ const idle=G.createAvatarRig(0,'third','#bdff56');
+ const walk=G.createAvatarRig(2,'third','#bdff56');
+ const first=G.createAvatarRig(2,'first','#bdff56');
+ assert.ok(idle.length>=24&&idle.length<=56,'rig contains bounded body and joint parts');
+ assert.ok(first.length>=3&&first.length<idle.length,'first person uses hands and tool only');
+ assert.deepEqual(idle.map(p=>p.name),walk.map(p=>p.name),'part IDs remain stable across poses');
+ assert.ok(idle.some(p=>p.name==='skull')&&idle.some(p=>p.name==='eye-1')&&idle.some(p=>p.name==='boot--1'));
+ const names=new Set(idle.map(p=>p.name));
+ assert.equal(names.size,idle.length,'joint names must be unique for future animation/skin reuse');
+ for(const part of idle){
+  assert.ok(Object.isFrozen(part)&&Object.isFrozen(part.pos)&&Object.isFrozen(part.size));
+  assert.ok([...part.pos,...part.size,...part.color,part.pitch].every(Number.isFinite));
+ }
+ const oldLeg=idle.find(p=>p.name==='thigh--1'),newLeg=walk.find(p=>p.name==='thigh--1');
+ assert.notDeepEqual(asNative(oldLeg.pos),asNative(newLeg.pos),'phase advances joint geometry');
+ assert.equal(G.createAvatarRig(0,'unknown').length,0,'unrecognized view produces no mesh');
+ const snapshot={x:0,z:0,yaw:0,steps:0},third=G.createAvatarMesh(snapshot,'third','#bdff56');
+ const rotated=G.createAvatarMesh({...snapshot,x:3,z:5,yaw:1.2,steps:2},'third','#bdff56');
+ assert.ok(third&&third.parts===idle.length);
+ assert.equal(third.vertices,third.parts*36);
+ assert.equal(third.bytes,third.vertices*24);
+ assert.equal(third.data.length,third.vertices*6);
+ assert.ok(third.data.every(Number.isFinite));
+ assert.ok(rotated.data.every(Number.isFinite));
+ assert.notDeepEqual(Array.from(third.data.slice(0,3)),Array.from(rotated.data.slice(0,3)),
+  'world-space avatar batch obeys yaw, position and walk phase');
+ assert.deepEqual(Array.from(G.createAvatarMesh(snapshot,'third','#bdff56').data),Array.from(third.data),
+  'same pose yields byte-identical mesh');
+ assert.equal(G.createAvatarMesh({x:Infinity,z:0,yaw:0,steps:0}),null,'non-finite player samples fail closed');
+ assert.equal(G.createAvatarMesh(null),null);
+});
+
+test('animated rig is uploaded once and drawn once per 3D preview repaint',()=>{
+ const source=fs.readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8');
+ assert.match(source,/gl\.bufferSubData\(gl\.ARRAY_BUFFER,0,avatarMesh\.data\);avatarUploads\+\+/);
+ assert.match(source,/gl\.drawArrays\(gl\.TRIANGLES,0,avatarMesh\.vertices\);dynamicDrawCalls\+\+/);
+ assert.match(source,/createAvatarMesh\(stage\.snapshot\(\),mode,nextColor\)/);
+ assert.match(source,/gl\.bufferData\(gl\.ARRAY_BUFFER,56\*36\*6\*4,gl\.DYNAMIC_DRAW\)/);
+ assert.doesNotMatch(source,/requestAnimationFrame\(|roomClient\.action/);
 });
 
 test('graphics module remains isolated from original save and authoritative game state',()=>{
