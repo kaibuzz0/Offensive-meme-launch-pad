@@ -6,7 +6,7 @@
 'use strict';
 (function(root){
  const VOXEL_METERS=.25,PLAYER_HEIGHT=7.2,EYE_HEIGHT=6.4;
- const MIN_HEIGHT=-64,MAX_HEIGHT=256,SEA_LEVEL=48,CHUNK_SIZE=16;
+ const MIN_HEIGHT=-256,MAX_HEIGHT=2048,SEA_LEVEL=112,CHUNK_SIZE=16;
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),fade=t=>t*t*(3-2*t);
  const lerp=(a,b,t)=>a+(b-a)*t;
  function hash(seed,x,y,z=0){
@@ -40,7 +40,7 @@
         detailSeed=hash(seed,11,79),caveSeed=hash(seed,12,80),
         plantSeed=hash(seed,13,81),sinkSeed=hash(seed,14,82);
   // Store sampled columns only. A bounded cache keeps traversal safe on low-RAM phones.
-  const cache=new Map(),CACHE_LIMIT=12288;
+  const cache=new Map(),CACHE_LIMIT=22528;
   const quant=n=>Math.floor(n);
   function rawColumn(x,z){
    const biome=atlas.biomeAt(x,z);
@@ -49,17 +49,17 @@
    const hills=fbm(detailSeed,x/86,z/86,4);
    const pebbles=fbm(detailSeed^0x3ac1,x/19,z/19,3);
    const ridge=Math.pow(1-Math.abs(noise2(elevationSeed^0x5d11,x/118,z/118)),2);
-   let height=58+continent*73+hills*22+pebbles*6;
-   if(group==='alpine')height+=ridge*108+30+Math.abs(pebbles)*22;
-   else if(group==='volcanic')height+=ridge*74+14;
-   else if(group==='crystal')height+=ridge*52+6;
-   else if(group==='tundra')height+=ridge*38;
-   else if(group==='wetland')height=46+continent*18+hills*5+pebbles*2;
-   else if(group==='salt')height=51+continent*25+hills*7;
-   else if(group==='grassland')height=59+continent*39+hills*12+pebbles*3;
+   let height=122+continent*180+hills*54+pebbles*12;
+   if(group==='alpine')height+=ridge*550+110+Math.abs(pebbles)*80;
+   else if(group==='volcanic')height+=ridge*290+48;
+   else if(group==='crystal')height+=ridge*195+28;
+   else if(group==='tundra')height+=ridge*90;
+   else if(group==='wetland')height=112+continent*38+hills*9+pebbles*4;
+   else if(group==='salt')height=119+continent*47+hills*14;
+   else if(group==='grassland')height=140+continent*70+hills*28+pebbles*5;
    const riverField=Math.abs(noise2(riverSeed,x/164,z/164)+.35*noise2(riverSeed^0x5418,x/48,z/48));
    const river=riverField<.10;
-   if(river)height-=(.10-riverField)*270;
+   if(river)height-=(.10-riverField)*800;
    // Independent seed-positioned sinkholes expose ravines; the underground
    // cave test is 3D, but tunnel exploration awaits voxel collision/mining.
    const gx=Math.floor(x/88),gz=Math.floor(z/88);
@@ -68,7 +68,7 @@
    const sinkAllowed=random(sinkSeed,gx,gz,3)>.79;
    const dist=Math.hypot(x-sx,z-sz);
    const sinkhole=sinkAllowed&&dist<6;
-   if(sinkhole)height-=Math.max(0,6-dist)*3.5;
+   if(sinkhole)height-=Math.max(0,6-dist)*6.5;
    const h=clamp(Math.round(height),6,MAX_HEIGHT-8);
    const water=h<SEA_LEVEL;
    return Object.freeze({x,z,height:h,water,river,waterLevel:water?SEA_LEVEL:null,
