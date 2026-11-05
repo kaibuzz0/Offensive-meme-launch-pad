@@ -129,6 +129,45 @@ test('World V1 authored building footprints become bounded, immutable 3D meshes'
  assert.ok(capped.buildings.length<=16,'massive input cannot create unbounded per-frame draw calls');
 });
 
+test('third-person camera retracts before solid buildings, with stable scene-independent fallback',()=>{
+ const scene={buildings:[{id:'wall',x:0,z:-2,w:3,d:1,height:3}]};
+ const target=[0,1.15,0],desired=[0,2.6,-6];
+ const avoided=G.cameraAvoid(scene,desired,target);
+ assert.equal(avoided.obstructed,true,'camera segment intersects real 3D obstruction');
+ assert.ok(avoided.eye[2]>-1.5&&avoided.eye[2]<0,'camera is retracted before wall and stays behind player');
+ assert.ok(avoided.eye[1]>target[1]&&avoided.eye[1]<desired[1],'elevation follows retracted line of sight');
+ assert.deepEqual(desired,[0,2.6,-6],'no mutation of desired eye coordinates');
+ const noObstacle=G.cameraAvoid({buildings:[]},desired,target);
+ assert.equal(noObstacle.obstructed,false);assert.deepEqual(asNative(noObstacle.eye),desired);
+ const sideways=G.cameraAvoid(scene,[5,2.6,-6],[5,1.15,0]);
+ assert.equal(sideways.obstructed,false,'a parallel line outside the footprint stays clear');
+ const lowRoof=G.cameraAvoid({buildings:[{x:0,z:-2,w:2,d:1,height:.6}]},desired,target);
+ assert.equal(lowRoof.obstructed,false,'low geometry below eye ray does not obstruct camera');
+ assert.equal(G.cameraAvoid(scene,[NaN,2,-4],target),null,'invalid camera positions fail safely');
+ assert.equal(G.cameraAvoid(scene,desired,[Infinity,0,0]),null);
+ assert.equal(Object.isFrozen(avoided),true);
+});
+
+test('substep walking rejects narrow structures rather than tunneling through them',()=>{
+ const thinWall={buildings:[{x:0,z:.4,w:1,d:.06,height:2}]};
+ const stage=G.createStage(thinWall);
+ assert.equal(stage.step(.8),false,'a thin structure must block even when the endpoint is clear');
+ assert.deepEqual(asNative(stage.snapshot()),{x:0,z:0,yaw:0,steps:0},'rejected steps are atomic');
+ assert.equal(stage.turn(Math.PI),true);
+ assert.equal(stage.step(.8),true,'walking the opposite direction stays possible');
+ const fallback=G.createPreview({getContext:()=>null});
+ assert.equal(fallback.step(.8),false,'unsupported GPU never accidentally writes state');
+ assert.equal(fallback.turn(.4),false);
+});
+
+test('perspective architecture keeps authored facade detail and uses no downloaded models',()=>{
+ const mod=fs.readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8');
+ assert.match(mod,/const facade=b\.z-b\.d\/2-\.035/);
+ assert.match(mod,/cameraAvoid\(sample,desiredEye,target\)/);
+ assert.match(mod,/const count=Math\.max\(1,Math\.ceil\(Math\.abs\(distance\)\/\.1\)\)/);
+ assert.doesNotMatch(mod,/fetch\(|import\(|<img|localStorage|roomClient\.action/);
+});
+
 test('3D movement controls remain exclusive to the optional graphics preview',()=>{
  const js=fs.readFileSync(new URL('../city.js',import.meta.url),'utf8');
  const mod=fs.readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8');
