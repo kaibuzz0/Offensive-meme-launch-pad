@@ -106,13 +106,18 @@ try{
  assert.equal(frontierSample.count,64);
  assert.ok(frontierSample.materials>=1,'sample has real authored materials');
  const gpuMetrics=await evalPage("document.querySelector('.graphics-preview-metrics')?.textContent||''");
- if(graphicsInitial.gl)assert.match(gpuMetrics,/3D preview GPU draw calls: 1 static \/ [0-9]+ animated · [0-9]+ scenery cubes batched · [0-9]+ KiB static mesh · 1 GPU upload\./,
+ if(graphicsInitial.gl)assert.match(gpuMetrics,/3D preview GPU draw calls: 1 static \/ 1 animated · [0-9]+ scenery cubes batched · [0-9]+ KiB static mesh · 1 GPU upload · [0-9]+ avatar vertices · 1 pose uploads\./,
   'phone-sized WebGL scene must batch terrain, roofs and building fronts into one static draw');
  else assert.match(gpuMetrics,/GPU preview unavailable/,'Canvas fallback remains visible');
  const staticMeshSample=await evalPage("(()=>{const G=window.CityGraphics,scene=G.createWorldScene(window.CityInteriors.BUILDINGS,{x:5600,y:5940},window.CityBiomes,window.CityFrontier);const mesh=G.createStaticMesh(scene);return {boxes:mesh.boxes,bytes:mesh.bytes,vertices:mesh.vertices,finite:mesh.data.every(Number.isFinite)};})()");
  assert.ok(staticMeshSample.boxes>=60&&staticMeshSample.boxes<=240);
  assert.equal(staticMeshSample.bytes,staticMeshSample.vertices*24);
  assert.equal(staticMeshSample.finite,true,'actual authored city geometry contains no NaN GPU vertices');
+ const avatarBatch=await evalPage("(()=>{const G=window.CityGraphics;const st={x:0,z:0,yaw:0,steps:0};const a=G.createAvatarMesh(st,'third','#bdff56');const b=G.createAvatarMesh({...st,yaw:Math.PI/2,steps:1},'third','#bdff56');return {first:a?.parts,vertices:a?.vertices,bytes:a?.bytes,changed:a?.data[0]!==b?.data[0]||a?.data[1]!==b?.data[1],finite:a?.data.every(Number.isFinite)};})()");
+ assert.ok(avatarBatch.first>=24&&avatarBatch.first<=56,'real-browser avatar is a capped reusable rig');
+ assert.equal(avatarBatch.bytes,avatarBatch.vertices*24);
+ assert.equal(avatarBatch.finite,true,'batched 3D character has finite world-space vertices');
+ assert.equal(avatarBatch.changed,true,'turning and walking actually transforms the 3D body mesh');
  assert.match(graphicsInitial.text,/Third-person preview active|WebGL preview is unavailable/);
  if(graphicsInitial.gl)assert.equal(graphicsInitial.visible,true,'software/hardware WebGL paints an opaque camera preview');
  await evalPage("(()=>{const fields=document.querySelectorAll('.graphics-choice select');fields[0].value='detail';fields[0].dispatchEvent(new Event('change',{bubbles:true}));fields[1].value='performance';fields[1].dispatchEvent(new Event('change',{bubbles:true}));return true;})()");
