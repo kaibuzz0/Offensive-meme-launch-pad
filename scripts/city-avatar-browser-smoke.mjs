@@ -612,6 +612,67 @@ try{
   await evalPage("document.querySelector('#close-panel').click();true");
   assert.equal(await evalPage("document.getElementById('city-panel').open"),false,'survey exits back to the very same playable world');
 
+  // Frontier QA: load a preserved center-city save at a new map waypoint.
+  // No teleport feature is added to the game; test positions are staged only
+  // on a neutral same-origin page with no running game/pagehide writer.
+  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/offline.html?frontier-setup=1'});
+  await waitFor(()=>evalPage("document.readyState==='complete'&&location.pathname.endsWith('/offline.html')"),'frontier neutral setup');
+  await evalPage(`(()=>{
+   const key='offensive-meme-city-v1-center',
+    prior=JSON.parse(localStorage.getItem(key)||'{}');
+   // First added 1,200-unit tile in the east: its survey is at (11800,600).
+   localStorage.setItem(key,JSON.stringify({...prior,
+    version:6,saveVersion:6,worldVersion:1,layoutVersion:2,
+    x:11800,y:600,area:'greenbelt'}));
+   return true;
+  })()`);
+  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?solo=1&frontier-qa=1'});
+  await waitFor(()=>evalPage("window.CityFrontier?.regions.length===132&&!!document.querySelector('#start-button')"),'all frontier assets available on original city entry');
+  await evalPage("document.querySelector('#start-button').click();true");
+  await waitFor(()=>evalPage("document.querySelector('#interact')?.textContent==='E / SURVEY SITE'"),'real new frontier E/Interact near actual saved position');
+  const frontierPixels=await evalPage(`(()=>{
+   const F=window.CityFrontier,r=F.regions[0],el=document.createElement('canvas');
+   el.width=el.height=240;const g=el.getContext('2d');
+   g.setTransform(.2,0,0,.2,-r.x*.2,-r.y*.2);
+   const painted=F.drawGround(g,(x,y)=>x===r.x&&y===r.y),
+    pixel=g.getImageData(120,120,1,1).data;
+   return {painted,opaque:pixel[3]>0,biomes:F.regions.length,
+    groups:F.families.length,cache:F.cacheStats().textures,
+    near:F.nearbySite({x:11800,y:600})?.id};
+  })()`);
+  assert.equal(frontierPixels.painted,1,'real mobile Canvas paints an actual expanded region');
+  assert.equal(frontierPixels.opaque,true,'visible frontier terrain is not blank');
+  assert.equal(frontierPixels.biomes,132,'all 132 distinct regions available');
+  assert.equal(frontierPixels.groups,12);
+  assert.ok(frontierPixels.cache<=12,'frontier texture LRU remains bounded');
+  assert.ok(frontierPixels.near?.startsWith('frontier-survey:'),'new survey post exists');
+  assert.match(await evalPage("document.querySelector('#district').textContent"),/TWILIGHT CEDAR/,'the original HUD shows the new frontier biome');
+  await evalPage("document.querySelector('[data-panel=map]').click();true");
+  await waitFor(()=>evalPage("!!document.querySelector('select[aria-label=\"Choose one of 132 frontier biomes\"]')"),'accessible 132-location mobile map selector');
+  const frontierMap=await evalPage(`(()=>{
+   const s=document.querySelector('select[aria-label="Choose one of 132 frontier biomes"]');
+   return {locations:s.options.length,groups:s.querySelectorAll('optgroup').length,
+    mapWidth:document.querySelector('canvas.large-map')?.width};
+  })()`);
+  assert.deepEqual(frontierMap,{locations:132,groups:12,mapWidth:840},'every new biome is reachable through the original map interface');
+  await evalPage("document.querySelector('#close-panel').click();true");
+  const beforeFrontier=await evalPage("document.querySelector('#hud-credits').textContent");
+  await evalPage("document.querySelector('#interact').click();true");
+  await waitFor(()=>evalPage("document.querySelector('#panel-title')?.textContent==='Frontier biome survey'"),'actual new biome survey panel');
+  const frontierNote=await evalPage("document.querySelector('#panel-content').textContent");
+  assert.match(frontierNote,/Twilight Cedar/);
+  assert.match(frontierNote,/forest soil/);
+  assert.equal(await evalPage("document.querySelector('#hud-credits').textContent"),beforeFrontier,'no frontier survey economy changes');
+  const savedFrontier=await evalPage(`(()=>{
+   const j=JSON.parse(localStorage.getItem('offensive-meme-city-v1-frontier-journal')||'{}');
+   return {version:j.version,visited:j.visited?.length||0,id:j.visited?.[0],
+    playerSave:!!localStorage.getItem('offensive-meme-city-v1-center')};
+  })()`);
+  assert.equal(savedFrontier.version,1);
+  assert.equal(savedFrontier.id,'frontier-evergreen-1');
+  assert.ok(savedFrontier.visited>=1&&savedFrontier.playerSave);
+  await evalPage("document.querySelector('#close-panel').click();true");
+
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
  console.log('PASS: 112 real Canvas armed/unarmed V1 character renders, modern 2.5D building archetypes and themed interiors, Center City map, six verified-only skin cards, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
 }finally{
