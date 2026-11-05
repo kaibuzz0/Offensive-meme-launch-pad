@@ -229,3 +229,6 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 .graphics-preview-controls button{flex:1;min-width:170px}
 .graphics-preview-status{font:12px/1.5 Arial,sans-serif;color:#b4d6d7;margin:8px 0 16px}
 @media(max-width:600px){.graphics-choice{align-items:stretch;flex-direction:column}.graphics-select{width:100%;min-width:0}.graphics-preview-controls button{min-width:125px}}
+
+/* Real-world geometry sample remains read-only and scrollable on small screens. */
+.graphics-preview-scene{font:11px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;color:#b7d8c4;padding:9px 12px;border:1px solid #476571;background:#112736;border-radius:6px;overflow-wrap:anywhere}
