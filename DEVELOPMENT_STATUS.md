@@ -1,3 +1,12 @@
+## One-world biome foundation — November 4, 2026 (draft, not deployed)
+
+- **Branch:** `codex/one-world-biomes-foundation`, started from the owner-merged PR #28 (main at `2c9824fc273c`). Original `city.html`, `MemeCityCore.Engine`, world dimensions, saved state, wallet and server remain canonical.
+- **Implemented on feature branch:** Pinewood Forest, Ashfall Dead Zone and Stonebreak Highlands in undeveloped greenbelt; cached terrain textures, capped non-solid native Canvas scenery, map/minimap labels and walkable destinations accessible in Solo and Together. No collision or save migrations.
+- **Terrain query:** `CityBiomes.terrainAt()` exposes material, footing, deterministic roughness and explicit `buildable:false` for future authorized construction and destruction. No terrain building/damage gameplay yet.
+- **Research:** `docs/OPEN_SOURCE_RESEARCH.md` and `docs/BIOME_SYSTEM.md`. New regression tests and existing static CI/mobile-sized Chromium smoke must pass on this PR head. Physical Android acceptance and owner-approved merge/deployment remain outstanding.
+
+---
+
 ## One-world civilian greetings and safe social behavior — November 4, 2026
 
 - **Same active world:** extended the existing `city-civilians.js` engine plugin, the original `city.js` 360-degree Canvas renderer and the canonical `city.html`. No new map, browser route, NPC body rig, save key, or economy.
