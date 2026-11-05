@@ -1,3 +1,11 @@
+## November 5 — Solo miner now uses the canonical World V1 avatar rig (draft follow-up)
+
+- Based on the current post-merge `main` (starting SHA `f4fb0ffe39aa71785592b69fc6d8ad478279ce0f`). The original 132-biome/7-layer mining PR #29 is **already merged**; its viewport-shaft cache bug was already fixed and the existing regression tests retained.
+- Replaced the duplicate hard-coded miner drawing in `city-mine-visuals.js` with a renderer callback, delegated from `city.js` to the **exact existing `CityVisuals.person` 360° avatar rig**. Mine poses now use the current user style and equipped gear, real saved/default avatar art, existing wallet-verified skin gate and movement facing. The mine does not grant any wallet benefits or change save state.
+- The isometric cave still uses the same deterministic 5 × 5 geology, journal and Solo-only local depth. Online mining, actual shared 3D collision, persistent underground actor z and server resources remain future work. The earlier player save key and camera graphics mode remain unchanged.
+- Added focused Node regression checks for callback invocation, avatar state, orientation updates, and invalid-layer handling, and refreshed minified/HTML script version pins. Pending CI and actual hardware QA.
+- Development remains on a new draft PR; no direct merge/deploy.
+
 ## November 5 — one-world mining QA and viewport-cache correction (draft PR #29)
 
 Review of the existing 132-biome / underground mining work found a production-facing display bug: the first viewport's filtered mine openings were wrongly cached as if they represented the whole world. Corrected `city-mining.js` to cache the full validated shaft geometry and filter only the returned view. Added a new multi-biome, empty-viewport, depth-change and reload regression to `scripts/city-mining.test.mjs`. Bumped only the mining script cache key in `city.html`, and fixed the welcome copy so the +256 ceiling is not confused with playable vertical construction. No original player save, geometry, wallet integration, online authority or bonus economy changes.
