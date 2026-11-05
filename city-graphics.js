@@ -44,8 +44,30 @@
   const z=norm(eye.map((v,i)=>v-target[i])),x=norm(cross([0,1,0],z)),y=cross(z,x);
   return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,eye),-dot(y,eye),-dot(z,eye),1]);
  }
- function model(position,size){
-  return new Float32Array([size[0],0,0,0,0,size[1],0,0,0,0,size[2],0,position[0],position[1],position[2],1]);
+ function model(position,size,yaw=0){
+  const c=Math.cos(yaw),s=Math.sin(yaw);
+  return new Float32Array([c*size[0],0,-s*size[0],0,0,size[1],0,0,s*size[2],0,c*size[2],0,position[0],position[1],position[2],1]);
+ }
+ // A bounded, preview-only camera/character stage. No real game state is mutated.
+ function createStage(){
+  let x=0,z=0,yaw=0,steps=0;
+  const snapshot=()=>Object.freeze({x,z,yaw,steps});
+  return Object.freeze({
+   snapshot,
+   turn(radians){
+    if(!Number.isFinite(radians)||Math.abs(radians)>Math.PI)return false;
+    yaw=Math.atan2(Math.sin(yaw+radians),Math.cos(yaw+radians));
+    return true;
+   },
+   step(distance){
+    if(!Number.isFinite(distance)||Math.abs(distance)>1)return false;
+    const nx=x+Math.sin(yaw)*distance,nz=z+Math.cos(yaw)*distance;
+    // The test corridor is narrower than the nearby buildings.
+    if(Math.abs(nx)>1.2||nz< -3||nz>9)return false;
+    x=nx;z=nz;steps++;return true;
+   },
+   reset(){x=0;z=0;yaw=0;steps=0;}
+  });
  }
  const faces=[
   [[-.5,-.5,.5],[.5,-.5,.5],[.5,.5,.5],[-.5,.5,.5]],
@@ -61,6 +83,7 @@
   return [1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);
  }
  function createPreview(canvas,color='#b6e87a'){
+  const stage=createStage();
   let gl,program,buffer,vs,fs;
   try{gl=canvas?.getContext?.('webgl',{antialias:false,preserveDrawingBuffer:true,alpha:false});}catch{return Object.freeze({supported:false,draw:()=>false,destroy:()=>{}});}
   if(!gl)return Object.freeze({supported:false,draw:()=>false,destroy:()=>{}});
@@ -87,36 +110,50 @@
    canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h);
    gl.enable(gl.DEPTH_TEST);gl.clearColor(.055,.09,.14,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
    gl.useProgram(program);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.enableVertexAttribArray(attr);gl.vertexAttribPointer(attr,3,gl.FLOAT,false,0,0);
-   const eye=mode==='first'?[0,1.68,0]:[2.2,2.75,-5.4],target=mode==='first'?[0,1.6,5]:[0,1.1,.4];
+   const {x,z,yaw,steps}=stage.snapshot(),sin=Math.sin(yaw),cos=Math.cos(yaw);
+   const eye=mode==='first'?[x,1.68,z]:[x-sin*5.4+cos*1.4,2.75,z-cos*5.4-sin*1.4];
+   const target=mode==='first'?[x+sin*5,1.60,z+cos*5]:[x+sin*.35,1.12,z+cos*.35];
    const vp=multiply(perspective(w/h),lookAt(eye,target));
-   function box(pos,sz,c){
-    gl.uniformMatrix4fv(matrix,false,multiply(vp,model(pos,sz)));
+   function box(pos,sz,c,angle=0){
+    gl.uniformMatrix4fv(matrix,false,multiply(vp,model(pos,sz,angle)));
     gl.uniform3fv(tint,c);gl.drawArrays(gl.TRIANGLES,0,36);
    }
+   function actorBox(local,sz,c){
+    const [lx,ly,lz]=local;
+    box([x+lx*cos+lz*sin,ly,z-lx*sin+lz*cos],sz,c,yaw);
+   }
    const shirt=rgb(nextColor),dark=[.12,.17,.23],stone=[.28,.37,.42],road=[.22,.29,.32];
+   const skull=[.9,.87,.78],teeth=[.70,.70,.63];
    box([0,-.17,2],[24,.3,24],[.16,.26,.24]);
    box([0,-.005,2],[3,.04,19],road);
-   for(const s of [-1,1]){
-    box([s*3.4,.8,3.8],[2.3,1.6,2.2],stone);
-    box([s*3.4,.9,8],[2.8,1.8,2.9],[.35,.36,.39]);
-    box([s*1.9,.7,6],[.25,1.4,.25],[.29,.25,.20]);
-    box([s*1.9,1.6,6],[.85,.75,.85],[.15,.38,.27]);
+   for(const side of [-1,1]){
+    box([side*3.4,.8,3.8],[2.3,1.6,2.2],stone);
+    box([side*3.4,.9,8],[2.8,1.8,2.9],[.35,.36,.39]);
+    box([side*1.9,.7,6],[.25,1.4,.25],[.29,.25,.20]);
+    box([side*1.9,1.6,6],[.85,.75,.85],[.15,.38,.27]);
    }
+   // The same simple box-rig rotates as a unit for third-person views.
+   const gait=steps?Math.sin(steps*1.7)*.11:0;
    if(mode==='third'){
-    box([0,1.14,0],[.62,.72,.32],shirt);
-    box([0,1.80,0],[.52,.49,.50],[.90,.87,.78]);
-    for(const s of [-1,1]){
-     box([s*.16,1.86,.259],[.115,.14,.024],dark);
-     box([s*.39,1.12,0],[.2,.69,.25],shirt);
-     box([s*.19,.43,0],[.24,.72,.29],[.2,.26,.34]);
-     box([s*.19,.09,.08],[.27,.16,.44],dark);
+    actorBox([0,1.14+Math.abs(gait)*.2,0],[.62,.72,.32],shirt);
+    actorBox([0,1.80+Math.abs(gait)*.2,0],[.52,.49,.50],skull);
+    actorBox([0,1.57,.06],[.32,.16,.40],skull);
+    // Eye sockets and jaw turn with the head; unlike the previous static cube,
+    // token outfit and recognizable skull features rotate together.
+    for(const side of [-1,1]){
+     actorBox([side*.16,1.86,.259],[.115,.14,.024],dark);
+     actorBox([side*.39,1.12+gait*side,0],[.2,.69,.25],shirt);
+     actorBox([side*.19,.43-gait*side,0],[.24,.72,.29],[.2,.26,.34]);
+     actorBox([side*.19,.09-gait*side,.08],[.27,.16,.44],dark);
+     actorBox([side*.07,1.56,.27],[.055,.10,.025],teeth);
     }
-    box([0,1.67,.26],[.24,.08,.025],dark);
-    box([0,1.2,-.169],[.34,.34,.01],[.15,.23,.31]);
-    box([.58,1.14,.48],[.13,.16,.9],[.37,.42,.49]);
+    actorBox([0,1.67,.26],[.24,.08,.025],dark);
+    actorBox([0,1.2,-.169],[.34,.34,.01],[.15,.23,.31]);
+    actorBox([.58,1.14,.48],[.13,.16,.9],[.37,.42,.49]);
    }else{
-    for(const s of [-1,1])box([s*.37,1.04,.95],[.21,.32,.48],shirt);
-    box([.39,1.1,1.3],[.18,.22,.8],stone);
+    // Local arm/tool proxy near camera. This is still a 3D preview, not combat.
+    for(const side of [-1,1])actorBox([side*.37,1.04,.95],[.21,.32,.48],shirt);
+    actorBox([.39,1.1,1.3],[.18,.22,.8],stone);
    }
    gl.flush();return true;
   }
@@ -124,7 +161,13 @@
    if(disposed)return;disposed=true;
    gl.deleteBuffer(buffer);gl.deleteProgram(program);gl.deleteShader(vs);gl.deleteShader(fs);
   }
-  return Object.freeze({supported:true,draw,destroy});
+  return Object.freeze({
+   supported:true,draw,destroy,
+   snapshot:stage.snapshot,
+   turn:radians=>!disposed&&stage.turn(radians),
+   step:distance=>!disposed&&stage.step(distance),
+   reset:()=>{if(disposed)return false;stage.reset();return true;}
+  });
  }
- root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createPreview,perspective,lookAt,multiply});
+ root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createStage,createPreview,perspective,lookAt,multiply});
 })(typeof window==='undefined'?globalThis:window);
