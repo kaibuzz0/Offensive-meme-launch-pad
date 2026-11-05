@@ -93,6 +93,10 @@ try{
  const graphicsInitial=await evalPage("(()=>{const canvas=document.querySelector('canvas.graphics-preview'),txt=document.querySelector('.graphics-preview-status')?.textContent;const gl=canvas?.getContext('webgl');let visible=false;if(gl){const p=new Uint8Array(4);gl.readPixels(Math.floor(canvas.width/2),Math.floor(canvas.height/2),1,1,gl.RGBA,gl.UNSIGNED_BYTE,p);visible=p[3]>0;}return {count:document.querySelectorAll('.graphics-choice select').length,canvas:!!canvas,gl:!!gl,visible,text:txt,width:canvas?.width};})()");
  assert.equal(graphicsInitial.count,2,'zoom and performance choices are available on the existing game');
  assert.equal(graphicsInitial.canvas,true,'perspective preview is embedded inside the same game panel');
+ const sceneInfo=await evalPage("(()=>({label:document.querySelector('.graphics-preview-scene')?.textContent||'',count:window.CityInteriors.BUILDINGS.length,playerX:window.MemeCityCore.WORLD.width}))()");
+ assert.ok(sceneInfo.count>=10,'the real city registry is available to the graphics preview');
+ assert.match(sceneInfo.label,/World V1 buildings: .+ · [1-9][0-9]* authored structures · world X [0-9]+, Y [0-9]+/,
+  '3D scene contains true landmark name, validated building count and world coordinates');
  assert.match(graphicsInitial.text,/Third-person preview active|WebGL preview is unavailable/);
  if(graphicsInitial.gl)assert.equal(graphicsInitial.visible,true,'software/hardware WebGL paints an opaque camera preview');
  await evalPage("(()=>{const fields=document.querySelectorAll('.graphics-choice select');fields[0].value='detail';fields[0].dispatchEvent(new Event('change',{bubbles:true}));fields[1].value='performance';fields[1].dispatchEvent(new Event('change',{bubbles:true}));return true;})()");
