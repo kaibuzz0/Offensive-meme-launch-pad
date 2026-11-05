@@ -528,6 +528,81 @@ try{
  await waitFor(()=>evalPage("document.querySelector('#panel-content .panel-button')!==null"),'room join action');
  await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Quick play')).click();true");
  await waitFor(()=>evalPage("document.querySelector('#room-mode').textContent.startsWith('ONLINE /') && !document.querySelector('#city-panel').open"),'online room connected');
+ const windowCityLayout=await evalPage('window.MemeCityCore.LAYOUT_VERSION');
+
+ // Actual second Chromium tab joins the same locally hosted room. This is
+ // cross-client browser QA, unlike injecting a fabricated NPC into one page.
+ const peerResponse=await fetch('http://127.0.0.1:'+port+'/json/new?about:blank',{method:'PUT'});
+ assert.equal(peerResponse.status,200,'Chromium creates a second real browser target');
+ const peerTarget=await peerResponse.json(),peerWs=new WebSocket(peerTarget.webSocketDebuggerUrl);
+ await new Promise((resolve,reject)=>{
+  peerWs.addEventListener('open',resolve,{once:true});peerWs.addEventListener('error',reject,{once:true});
+ });
+ const peerPending=new Map();let peerSerial=0;
+ peerWs.addEventListener('message',event=>{
+  const msg=JSON.parse(event.data);
+  if(msg.id&&peerPending.has(msg.id)){const task=peerPending.get(msg.id);peerPending.delete(msg.id);
+   msg.error?task.reject(Error(msg.error.message)):task.resolve(msg.result);}
+  if(msg.method==='Runtime.exceptionThrown')
+   exceptions.push('Second browser: '+(msg.params.exceptionDetails.text||'Uncaught exception'));
+ });
+ const peerSend=(method,params={})=>new Promise((resolve,reject)=>{
+  const id=++peerSerial;peerPending.set(id,{resolve,reject});
+  peerWs.send(JSON.stringify({id,method,params}));
+ });
+ const peerEval=async expression=>{
+  const r=await peerSend('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});
+  if(r.exceptionDetails)throw Error('Second-browser exception: '+(r.exceptionDetails.exception?.description||r.exceptionDetails.text));
+  return r.result?.value;
+ };
+ await peerSend('Page.enable');await peerSend('Runtime.enable');
+ await peerSend('Emulation.setDeviceMetricsOverride',{width:393,height:852,deviceScaleFactor:2,mobile:true});
+ // Observe the real accepted room snapshot in QA only. No changed game action,
+ // account, player state or persisted token is exposed in production.
+ await peerSend('Page.addScriptToEvaluateOnNewDocument',{source:
+  "Object.defineProperty(window,'CityRoomClient',{configurable:true,set:function(Client){"+
+  "Object.defineProperty(window,'CityRoomClient',{value:Client,writable:true,configurable:true});"+
+  "const join=Client.prototype.join;Client.prototype.join=function(){window.__qaPeerClient=this;return join.apply(this,arguments);};"+
+  "const accept=Client.prototype.accept;Client.prototype.accept=function(s){window.__qaPeerSnapshot=s;return accept.call(this,s);};}});"});
+ await peerSend('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?second-real-browser=1'});
+ await waitFor(()=>peerEval("!!window.CityRoomClient&&!!document.getElementById('start-button')"),'second real browser loads original World V1');
+ await peerEval("document.getElementById('start-button').click();true");
+ await waitFor(()=>peerEval("document.getElementById('city-intro').hidden===true"),'second browser starts Solo before joining Together');
+ await peerEval("document.querySelector('[data-panel=multiplayer]').click();true");
+ await waitFor(()=>peerEval("!!document.querySelector('input[aria-label=\"Multiplayer nickname\"]')"),'second browser multiplayer dialog');
+ await peerEval("(()=>{document.querySelector('input[aria-label=\"Multiplayer nickname\"]').value='SecondQA';Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Quick play')).click();return true;})()");
+ await waitFor(()=>peerEval("document.querySelector('#room-mode').textContent.startsWith('ONLINE /')&&!document.querySelector('#city-panel').open"),'second guest joins actual hosted room');
+ await waitFor(()=>evalPage("document.querySelector('#population').textContent.includes('2 players')"),'first real browser receives second player through room stream');
+ await waitFor(()=>peerEval("window.__qaPeerSnapshot?.players?.length===2"),'second real browser receives both authenticated players');
+ const peerView=await peerEval("(()=>{const s=window.__qaPeerSnapshot,p=s.self,near=window.CityLive3D.selectNearbyActors({world:{x:p.x,y:p.y}},p,s);return {players:s.players.length,remote:near.some(x=>x.id.startsWith('player:')),near:near.length,layout:s.roomInfo.layoutVersion};})()");
+ assert.equal(peerView.players,2);
+ assert.equal(peerView.remote,true,'read-only 3D camera sees a REAL second browser guest, not a synthetic actor');
+ assert.ok(peerView.near>=1&&peerView.near<=6);
+ assert.equal(peerView.layout,windowCityLayout,'both browser clients use the same canonical layout version');
+ const peerGL=await peerEval("!!document.getElementById('city-live-3d-canvas')?.getContext('webgl')");
+ if(peerGL){
+  await peerEval("document.getElementById('city-live-3d-toggle').click();true");
+  await waitFor(()=>peerEval("Number(document.getElementById('city-live-3d')?.dataset.frames||0)>=2"),'second browser renders the live optional 3D camera');
+  const actorCount=await peerEval("Number(document.getElementById('city-live-3d')?.dataset.actors||0)");
+  assert.ok(actorCount>=1&&actorCount<=6,'live WebGL includes the remote real guest in bounded actors');
+  await peerEval("document.getElementById('city-live-3d-mode').click();true");
+  await waitFor(()=>peerEval("document.getElementById('city-live-3d')?.dataset.mode==='first'"),'second browser switches its real camera view');
+  await peerEval("document.getElementById('city-live-3d-close').click();true");
+  assert.equal(await peerEval("document.getElementById('city-live-3d').hidden"),true);
+ }
+ // Force the actual SSE connection to recover, without creating a new player
+ // or changing any wallet / trusted room identity.
+ await peerEval("(()=>{window.__qaOldStream=window.__qaPeerClient.controller;window.__qaOldStream.abort();return true;})()");
+ await waitFor(()=>peerEval("window.__qaPeerClient.ready&&window.__qaPeerClient.controller!==window.__qaOldStream&&window.__qaPeerSnapshot?.players?.length===2"),'second real guest reconnects its server stream',18000);
+ assert.equal(await peerEval("window.__qaPeerClient.active"),true,'stream reconnection preserves the same authenticated guest');
+ await peerEval("document.querySelector('[data-panel=multiplayer]').click();true");
+ await peerEval("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Return to my solo city')).click();true");
+ await waitFor(()=>peerEval("document.querySelector('#room-mode').textContent.startsWith('SOLO')"),'second browser exits the hosted room cleanly');
+ await waitFor(()=>evalPage("document.querySelector('#population').textContent.includes('1 player')"),'first browser sees the real peer departure');
+ peerWs.close();
+ // The original first browser remains connected to Together for the existing
+ // signed-holder, wallet and cosmetic regression checks below.
+
  await evalPage("document.querySelector('[data-panel=avatar]').click();true");
  await waitFor(()=>evalPage("!!document.querySelector('#offender-wallet-verify')"),'OFFENDED holder wallet button');
  const initial=await evalPage("({open:document.querySelector('#city-panel').open,missing:document.querySelector('.wallet-browser-help')?.textContent,solflare:document.querySelector('.wallet-open-options a')?.href})");
