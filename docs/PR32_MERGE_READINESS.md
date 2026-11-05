@@ -1,3 +1,5 @@
+> **Historical document.** PR #32 was merged as the optional camera feature and its functionality was integrated with the mining avatar in owner-approved PR #34, deployed to `main` on November 5, 2026. The draft/approval language below describes an earlier development stage. For live release state, see [canonical World V1 release record](CANONICAL_WORLD_V1_RELEASE.md). Separate hosted-service QA and instrumented Android GPU/thermal performance remain valuable future acceptance work.
+
 # PR #32 — Merge readiness and release gates
 
 **Target:** Safely merge an **optional, opt-in 3D camera** into the existing playable World V1, while retaining the 2D view as the default. This release target is **not** the full completion of a standalone 3D world or replacement for Canvas gameplay.
