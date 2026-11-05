@@ -60,7 +60,7 @@ assert.ok(read('city.html').includes('city-visuals.js'),'Clothing renderer must 
 assert.ok(read('.github/workflows/pages.yml').includes('city-visuals.js'),'Clothing renderer must ship in Pages builds');
 console.log('PASS: streetwear renderer and deployment references.');
 
-assert.ok(read('city.html').includes('city-graphics.js?v=58-player-mirror'),'WebGL graphics preview must load before original playable city');
+assert.ok(read('city.html').includes('city-graphics.js?v=59-locality-mirror'),'WebGL graphics preview must load before original playable city');
 assert.ok(read('city.js').includes('graphics-preview-metrics')&&read('city.css').includes('.graphics-preview-metrics'),'Mobile graphics performance diagnostics must remain visible');
 assert.ok(read('city.html').includes('data-panel="graphics"'),'Graphics menu must be reachable from the existing game');
 assert.ok(read('.github/workflows/pages.yml').includes('city-graphics.js'),'WebGL preview must ship in Pages');
