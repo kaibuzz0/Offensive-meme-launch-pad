@@ -20,7 +20,7 @@ test('world height cap is +256, ground at zero and bedrock floor at -64',()=>{
  assert.equal(Mining.minHeight,-64);
  assert.equal(Mining.STRATA.length,8);
  assert.equal(Mining.STRATA.filter(x=>x.mineable).length,7);
- assert.deepEqual(Mining.STRATA.map(x=>x.z),[-8,-16,-24,-32,-40,-48,-56,-64]);
+ assert.deepEqual(plain(Mining.STRATA.map(x=>x.z)),[-8,-16,-24,-32,-40,-48,-56,-64]);
  for(const z of [-64,-56,-8,0,128,256])assert.equal(Mining.validZ(z),true);
  for(const z of [-65,257,Infinity,NaN,2.5])assert.equal(Mining.validZ(z),false);
  assert.equal(C.WORLD.width,24400);
