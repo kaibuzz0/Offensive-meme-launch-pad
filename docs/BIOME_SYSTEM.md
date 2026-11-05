@@ -31,3 +31,14 @@ Use the original **Map** menu to mark each biome and navigate along the existing
 ### QA and remaining limits
 
 Automated tests check render bounds, original fortress-to-biome route access, polygon/query consistency, survey proximity and gameplay unchanged. Mobile-sized Chromium paints actual survey signs and displays the original map buttons. Physical Android hardware acceptance and release approval are still necessary. Organic contours are hand-fixed within the same three greenbelt quadrants; this is **not** a world generator. Biome props remain intentionally walk-through art until authoritative collision and recovery rules are designed.
+
+
+## 132-region continuous world frontier
+
+The original three Center City biomes remain unchanged. A separate original JavaScript module, **city-frontier.js**, adds **132 distinct new regions** on the east side of the same world. See [FRONTIER_BAREIRON_ARCHITECTURE.md](FRONTIER_BAREIRON_ARCHITECTURE.md) for the full 12-family catalog architecture, exact world boundaries, legacy-save protection, memory budgets and source-code provenance.
+
+The live world is now 24,400 × 14,400, with the old 11,200 × 11,200 city still occupying its original coordinates. Twelve families × eleven named, seeded locations = 132 new biomes, plus the existing three = 135 total. All 132 have climate, moisture, material and palette data with native scenery and survey posts. The family selector in the original Map menu exposes all destinations without replacing the map or adding teleportation.
+
+Frontier textures are generated lazily into 192×192 Canvas tiles. The maximum LRU is 12 textures, plus 16 region prop caches (each up to 24 non-solid props). Terrain, navigation, and survey journal are deterministic; no full-map payload or textures are written to Solo save. Original player save version and key are unchanged; frontier observations use a separate validated localStorage journal. No active combat resources or construction claims are added.
+
+**Production gate:** Test physical Android devices and audit large-world FPS/memory before merge. Never import GPL source copied from bareiron/irongingot without explicit licensing assessment.
