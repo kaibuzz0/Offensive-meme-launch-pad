@@ -9,6 +9,7 @@
  const canvas=$('#city-canvas'),ctx=canvas?.getContext('2d');
  const intro=$('#city-intro'),start=$('#start-button');
  const engine=window.CityTerrainWorld,definitions=window.CityFrontier?.regions;
+ const voxelApi=window.CityVoxelWorld,rendererApi=window.CityVoxelRenderer;
  if(!canvas||!ctx||!engine||!Array.isArray(definitions)){
   if(start){start.disabled=true;start.textContent='World generator unavailable';}
   return;
@@ -26,18 +27,24 @@
   .terrain-only-mode #city-canvas {touch-action:none; background:#142321}
   .terrain-only-mode .world-hud {pointer-events:none}
   .terrain-only-mode .city-welcome[hidden] {display:none!important}
+  .terrain-only-mode #city-voxel-canvas {position:absolute;inset:0;width:100%;height:100%;touch-action:none;background:radial-gradient(ellipse at 74% 18%,#ffecc0 0%,#b0cfed 23%,#8cb9da 62%,#5c83a7 100%)}
+  .terrain-only-mode #city-voxel-crosshair {position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font:26px monospace;color:#f2f6eccc;text-shadow:0 1px 4px #142f3b;pointer-events:none;z-index:2}
+  .terrain-only-mode #city-voxel-status {position:absolute;top:64px;left:20px;z-index:2;background:#0f2535c9;padding:6px 10px;font:11px monospace;pointer-events:none}
+  .terrain-only-mode .game-bottom {z-index:3}
+  .terrain-only-mode .world-hud {z-index:2}
+  .terrain-only-mode .city-welcome {z-index:5}
  `;
  document.head.append(style);
- $('.alpha-tag').textContent='TERRAIN GENERATION / MILESTONE 1';
+ $('.alpha-tag').textContent='VOXEL TERRAIN / FIRST-PERSON';
  $('.solo-restore-label').textContent='SEPARATE TERRAIN SAVE';
  $('#population').textContent='No NPCs, streets or buildings';
  $('#room-mode').textContent='SEEDED SOLO WORLD';
  $('#welcome-title').textContent='YOUR WORLD. YOUR SEED.';
- $('.welcome-lead').textContent='Terrain-only generator with 132 distinct seeded biomes, seamless 16×16 chunks and persistent player position. Buildings, streets, NPCs, quests and multiplayer are disabled in this build. The original Meme City save is protected.';
+ $('.welcome-lead').textContent='Explore a seeded 3D voxel wilderness with 132 named biomes, mountains, rivers, lakes, trees, grass, flowers, underwater valleys and underground cave data. Each small block is one-quarter of a meter, with a first-person camera. Buildings, streets, NPCs and quests remain disabled; legacy saves stay protected.';
  $('.welcome-steps').hidden=true;
- $('.welcome-goal').textContent='The world loads in nearby chunks only. This is an early, top-down terrain renderer, not the finished 3D voxel game.';
- start.textContent='Enter generated world →';
- $('.welcome-controls').textContent='WASD / arrow keys or mobile thumbstick · Use camera zoom to change the map scale.';
+ $('.welcome-goal').textContent='First-person, low-poly procedural terrain milestone. Water is not yet physically simulated and caves are currently generated as data, not fully explorable 3D tunnels. Photoreal materials, shadows, physics and mining require further development.';
+ start.textContent='Enter first-person wilderness →';
+ $('.welcome-controls').textContent='WASD / arrow keys to move · Drag the scene to look · Mobile left thumbstick to move / swipe view to turn · Toggle Atlas or 2D map.';
  const legacy=document.createElement('a');
  legacy.href='city.html?legacy=1';legacy.textContent='Open preserved legacy city →';
  legacy.style.cssText='display:inline-block;margin:1rem;color:#c4e7bb';
@@ -54,6 +61,7 @@
  let seed=get(KEY);
  if(!seed||seed.length>128){seed=randomSeed();put(KEY,seed);}
  let world=engine.createTerrain(seed,definitions);
+ let voxel=voxelApi?.createVoxelWorld(world)||null;
  function restore(){
   const initial=world.spawnAt();
   try{
@@ -61,19 +69,41 @@
    if(saved?.version===world.version&&saved.seed===seed&&
       Number.isFinite(saved.x)&&Number.isFinite(saved.y)&&
       Math.abs(saved.x)<1000000&&Math.abs(saved.y)<1000000)
-    return {x:saved.x,y:saved.y};
+    return {x:saved.x,y:saved.y,yaw:Number.isFinite(saved.yaw)?saved.yaw:0,pitch:Number.isFinite(saved.pitch)?Math.max(-1.3,Math.min(1.3,saved.pitch)):0};
   }catch{}
-  return {x:initial.x,y:initial.y};
+  return {x:initial.x,y:initial.y,yaw:0,pitch:0};
  }
  let player=restore(),running=false,paused=false,atlas=false,zoom=20,last=0,lastSave=0;
+ const voxelCanvas=document.createElement('canvas');voxelCanvas.id='city-voxel-canvas';
+ voxelCanvas.setAttribute('aria-label','First-person procedurally generated voxel wilderness. Drag to look around.');
+ canvas.insertAdjacentElement('afterend',voxelCanvas);
+ const crosshair=document.createElement('div');crosshair.id='city-voxel-crosshair';crosshair.textContent='+';
+ voxelCanvas.insertAdjacentElement('afterend',crosshair);
+ const status=document.createElement('div');status.id='city-voxel-status';
+ crosshair.insertAdjacentElement('afterend',status);
+ let perspective=null;
+ try{if(voxel&&rendererApi)perspective=rendererApi.createRenderer(voxelCanvas,voxel);}catch(err){status.textContent='3D unavailable: '+String(err.message).slice(0,80);}
+ let firstPerson=!!perspective;
+ function syncView(){
+  const threeD=!!perspective&&firstPerson&&!atlas;
+  voxelCanvas.hidden=!threeD;crosshair.hidden=!threeD;status.hidden=!threeD;
+  canvas.style.visibility=threeD?'hidden':'visible';
+  viewButton.textContent=threeD?'Switch to 2D map':'Switch to first person';
+ }
+ function resetVoxel(){
+  if(perspective)perspective.dispose();
+  voxel=voxelApi?.createVoxelWorld(world)||null;
+  try{perspective=voxel&&rendererApi?rendererApi.createRenderer(voxelCanvas,voxel):null;}catch{perspective=null;}
+  firstPerson=!!perspective;syncView();
+ }
  const keys=new Set(),held=new Set();
  const stick={x:0,y:0};
  function savePosition(){
-  put(POS+seed,JSON.stringify({version:world.version,seed,x:player.x,y:player.y}));
+  put(POS+seed,JSON.stringify({version:world.version,seed,x:player.x,y:player.y,yaw:player.yaw,pitch:player.pitch}));
  }
  function spawnNewWorld(){
   savePosition();seed=randomSeed();put(KEY,seed);
-  world=engine.createTerrain(seed,definitions);player=restore();
+  world=engine.createTerrain(seed,definitions);player=restore();resetVoxel();
   lastSave=0;atlas=false;updateHud();
  }
  const button=document.createElement('button');
@@ -86,8 +116,12 @@
  const atlasButton=document.createElement('button');
  atlasButton.type='button';atlasButton.textContent='Biome atlas';
  atlasButton.setAttribute('aria-pressed','false');
- atlasButton.addEventListener('click',()=>{atlas=!atlas;atlasButton.setAttribute('aria-pressed',String(atlas));});
+ atlasButton.addEventListener('click',()=>{atlas=!atlas;atlasButton.setAttribute('aria-pressed',String(atlas));syncView();});
  $('#zoom-toggle').insertAdjacentElement('afterend',atlasButton);
+ const viewButton=document.createElement('button');viewButton.type='button';
+ $('#zoom-toggle').insertAdjacentElement('afterend',viewButton);
+ viewButton.addEventListener('click',()=>{firstPerson=!firstPerson;atlas=false;atlasButton.setAttribute('aria-pressed','false');syncView();});
+ syncView();
  function updateHud(){
   const current=world.biomeAt(Math.round(player.x),Math.round(player.y));
   $('#district').textContent=current?.name?.toUpperCase()||'GENERATING';
@@ -154,8 +188,25 @@
  function frame(t){
   const dt=Math.min(.05,(t-last)/1000||0);last=t;
   if(running&&!paused){
-   const move=movement();player.x+=move.x*dt*5;player.y+=move.y*dt*5;
-   const size=resize();if(atlas)drawAtlas(size.w,size.h);else drawWorld(size.w,size.h);
+   const move=movement();
+   if(firstPerson&&perspective&&!atlas){
+    const rightX=Math.cos(player.yaw),rightY=-Math.sin(player.yaw);
+    const forwardX=Math.sin(player.yaw),forwardY=Math.cos(player.yaw);
+    const dx=(move.x*rightX-move.y*forwardX)*dt*15;
+    const dz=(move.x*rightY-move.y*forwardY)*dt*15;
+    const nx=player.x+dx,nz=player.y+dz;
+    if(Math.abs(nx)<999900&&Math.abs(nz)<999900){player.x=nx;player.y=nz;}
+   }else{player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
+   const size=resize();
+   if(atlas)drawAtlas(size.w,size.h);
+   else if(firstPerson&&perspective){
+    const ground=voxel.surfaceAt(Math.floor(player.x),Math.floor(player.y));
+    if(ground){
+     try{const metrics=perspective.render({x:player.x,z:player.y,y:ground.height+1,yaw:player.yaw,pitch:player.pitch});
+      status.textContent='3D · '+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks';
+     }catch(err){status.textContent='3D rendering failed';perspective.dispose();perspective=null;firstPerson=false;syncView();}
+    }
+   }else drawWorld(size.w,size.h);
    if(t-lastSave>1100){lastSave=t;savePosition();updateHud();}
   }
   requestAnimationFrame(frame);
@@ -163,6 +214,19 @@
  $('#pause-toggle').addEventListener('click',()=>{paused=!paused;$('#pause-toggle').textContent=paused?'▶ Resume':'Ⅱ Pause';});
  $('#camera-view').addEventListener('change',e=>{zoom=e.target.value==='wide'?14:e.target.value==='detail'?28:20;});
  $('#zoom-toggle').addEventListener('click',()=>{zoom=zoom===20?28:zoom===28?14:20;});
+ // Pointer drag or desktop pointer-lock changes first-person camera aim.
+ let lookPointer=null,lastLookX=0,lastLookY=0;
+ voxelCanvas.addEventListener('pointerdown',e=>{lookPointer=e.pointerId;lastLookX=e.clientX;lastLookY=e.clientY;voxelCanvas.setPointerCapture?.(e.pointerId);});
+ window.addEventListener('pointermove',e=>{
+  if(!firstPerson||!running||paused)return;
+  if(e.pointerId!==lookPointer&&document.pointerLockElement!==voxelCanvas)return;
+  const dx=document.pointerLockElement===voxelCanvas?e.movementX:e.clientX-lastLookX;
+  const dy=document.pointerLockElement===voxelCanvas?e.movementY:e.clientY-lastLookY;
+  lastLookX=e.clientX;lastLookY=e.clientY;
+  player.yaw+=dx*.0042;player.pitch=Math.max(-1.32,Math.min(1.32,player.pitch-dy*.0035));
+ });
+ for(const type of ['pointerup','pointercancel','lostpointercapture'])voxelCanvas.addEventListener(type,e=>{if(e.pointerId===lookPointer)lookPointer=null;});
+ voxelCanvas.addEventListener('dblclick',()=>voxelCanvas.requestPointerLock?.());
  $('#fullscreen-toggle').addEventListener('click',()=>{$('.game-shell').requestFullscreen?.();});
  $('#fullscreen-exit').addEventListener('click',()=>{document.exitFullscreen?.();});
  window.addEventListener('keydown',e=>{
