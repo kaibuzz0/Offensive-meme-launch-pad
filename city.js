@@ -20,12 +20,37 @@
   cameraMode=mode;cameraZoom=cameraModes[mode];
   const picker=$('#camera-view');if(picker)picker.value=mode;
   $('#zoom-toggle').textContent=mode==='detail'?'− Wide':'+ Detail';
+  graphics.setZoom(mode==='classic'?'normal':mode);
   try{window.localStorage.setItem(cameraKey,mode);}catch{}
   return true;
  }
  let routePath=null,lastRouteCalc=0;
  const frontierJournal=F.createJournal((()=>{try{return window.localStorage;}catch{return null;}})());
  const miningStore=Mine.createStore((()=>{try{return window.localStorage;}catch{return null;}})());
+ const graphics=window.CityGraphics.createSettings((()=>{try{return window.localStorage;}catch{return null;}})());
+ let graphicsPreview=null;
+ const live3D=window.CityLive3D.create({
+  graphics:window.CityGraphics,canvas:$('#city-live-3d-canvas'),container:$('#city-live-3d'),
+  status:$('#city-live-3d-status'),buildings:I.BUILDINGS,biomes:T,frontier:F,
+  getPlayer:()=>me,getAim:()=>aim,getWorldState:()=>state,
+  getColor:p=>{const skin=verifiedBetaSkin(p),token=catalog.get(skin)||catalog.get(p?.avatar)||catalog.get('offensive');return token?.color||'#b6e87a';},
+  isVisible:()=>entered&&!activePanel&&!document.hidden
+ });
+ function syncLive3DControls(){
+  const data=live3D.stats(),toggle=$('#city-live-3d-toggle'),mode=$('#city-live-3d-mode');
+  toggle.setAttribute('aria-pressed',String(data.enabled));
+  toggle.textContent=data.enabled?'◫ Hide 3D':'◫ Live 3D';
+  mode.textContent=data.mode==='third'?'First person':'Third person';
+ }
+ function updateLive3D(time){
+  // Never let optional WebGL exceptions interrupt the authoritative game loop.
+  try{live3D.tick(time);}catch{
+   try{live3D.stop();}catch{}
+   $('#city-live-3d').hidden=true;
+   $('#city-live-3d-status').textContent='3D renderer failed. The original 2D game continues.';
+   syncLive3DControls();
+  }
+ }
  let groundCache=null;const buildingCache=new Map(),particles=[],seenEffects=new Set(),positions=new Map();
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  const legacySaveKey='offensive-meme-city-v1',saveKey='offensive-meme-city-v1-center',backupKey='offensive-meme-city-v1-center-source-backup',Save=window.CityCenterSave;let saveBlocked=false;
@@ -108,7 +133,7 @@
  }
  let roomCamera=null;
  function drawInterior(time,dt){
-  const rect=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);
+  const rect=canvas.getBoundingClientRect(),dpr=Math.min(graphics.pixelRatioCap(),window.devicePixelRatio||1);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);
   const r=me.room,w=rect.width,h=rect.height,zoom=(w<600?.74:.95)*cameraZoom;if(!roomCamera||roomCamera.id!==r.id)roomCamera={id:r.id,x:r.x,y:r.y};const k=1-Math.exp(-dt*12);roomCamera.x+=(r.x-roomCamera.x)*k;roomCamera.y+=(r.y-roomCamera.y)*k;
   ctx.fillStyle='#0b1522';ctx.fillRect(0,0,w,h);ctx.save();ctx.scale(zoom,zoom);ctx.translate(-roomCamera.x+w/(2*zoom),-roomCamera.y+h*.6/zoom);
   IV.draw(ctx,me,time,art,(x,y)=>character({...state.players.find(p=>p.id===me.id),x,y},true,{x,y}),state.players.filter(p=>p.id!==me.id&&p.room?.id===me.room.id),(p)=>character(p,false,{x:p.room.x,y:p.room.y}));if(emoteUntil>time){roundRect(r.x-70,r.y-155,140,29,8,'#e7edda');label(emoteText,r.x,r.y-135,12,'#1e3541');}ctx.restore();
@@ -238,7 +263,7 @@
   if(me.area==='social')content.append(button('Emotes & meeting space →',()=>panel('social')));
   content.append(node('p','beta-note',online?'All neighborhoods are walkable together. Fortress construction and squads remain solo.':'All districts share one walkable map. Solo progress saves in this browser. Together opens temporary online rooms.'));
  }
- function closePanel(){$('#city-panel').close();$('#joystick-knob').style.transform='';activePanel='';keys.clear();held.clear();stick={x:0,y:0};firing=false;canvas.focus({preventScroll:true});}
+ function closePanel(){if(graphicsPreview){graphicsPreview.destroy();graphicsPreview=null;}$('#city-panel').close();$('#joystick-knob').style.transform='';activePanel='';keys.clear();held.clear();stick={x:0,y:0};firing=false;canvas.focus({preventScroll:true});}
  let holderTimer=null,holderClan=null,walletCheckBusy=false,offenderWalletStatus='';
  let androidChallenge=null,androidChallengePending=false;
  let soloChallenge=null,soloChallengePending=false,soloProof=null,soloWalletEpoch=0,soloTimer=null;
@@ -578,6 +603,18 @@
   }
   let notice='Use your free starter pickaxe to remove a surface tile. Dig the central shaft to descend.';
   const entry={x:me.x,y:me.y},explorer=Mine.createExplorer(miningStore,entry);
+  let mineFacing=me.facing||{x:1,y:0};
+  function drawMiner(c,x,y){
+   // Same real player, outfits and verified cosmetics as World V1 and Live 3D.
+   // Never create a second avatar account or trust a client mining entitlement.
+   const skinId=verifiedBetaSkin(me),token=catalog.get(skinId)||catalog.get(me.avatar)||tokens[0],gear=clothingGear(me,true);
+   V.person(c,{id:'solo-miner-'+me.id,x,y,scale:.47,role:'player',armed:false,
+    offenderSkin:hasOffenderSkin(me),clanSkin:skinId,
+    ticker:token.ticker,coinName:token.name,color:token.color||'#b7ee88',
+    image:art.get(skinId||me.avatar),style:me.style,gear,
+    holderTier:me.holder?.expires>Date.now()?me.holder.tier:me.holderTier||0,
+    aim:mineFacing,moving:false,upgraded:!!gear.hand},performance.now());
+  }
   function draw(){
    content.replaceChildren();
    const position=explorer.position(),depth=position.layer,layer=Mine.STRATA[depth],items=miningStore.inventory();
@@ -592,9 +629,9 @@
     strata.append(item);
    }content.append(strata);
    const cave=node('canvas','mining-scene');cave.width=640;cave.height=350;
-   cave.setAttribute('aria-label','Isometric mine view showing the same player and excavated geological layers');
+   cave.setAttribute('aria-label','Isometric mine view showing your existing World V1 avatar and excavated geological layers');
    cave.setAttribute('role','img');content.append(cave);
-   MV.slice(cave.getContext('2d'),miningStore,entry,position);
+   MV.slice(cave.getContext('2d'),miningStore,entry,position,drawMiner);
    const grid=node('div','mining-grid');grid.setAttribute('role','group');grid.setAttribute('aria-label','Five by five excavatable mine tiles');
    for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
     const sample=miningStore.inspect(entry,dx,dy,depth),labelText=sample?
@@ -617,7 +654,7 @@
    controls.append(up,down);content.append(controls);
    const walk=node('div','mining-walk');walk.setAttribute('role','group');walk.setAttribute('aria-label','Underground miner movement');
    for(const [label,dx,dy] of [['← West',-1,0],['↑ North',0,-1],['↓ South',0,1],['East →',1,0]]){
-    const b=button(label,()=>{if(explorer.move(dx,dy)){notice='Moved through excavated tunnel at player z='+explorer.position().z;draw();}},'panel-button');
+    const b=button(label,()=>{if(explorer.move(dx,dy)){mineFacing={x:dx,y:dy};notice='Moved through excavated tunnel at player z='+explorer.position().z;draw();}},'panel-button');
     b.disabled=!explorer.canMove(dx,dy);walk.append(b);
    }content.append(walk);
    const report=node('p','mining-feedback',notice);report.setAttribute('role','status');
@@ -625,13 +662,123 @@
     button('Return to same world →',closePanel));
   }draw();
  }
- function panel(type){activePanel=type;$('#joystick-knob').style.transform='';keys.clear();held.clear();stick={x:0,y:0};firing=false;const content=$('#panel-content');content.replaceChildren();$('#panel-status').textContent='';
-  const titles={mining:'Mining / vertical strata',frontierSurvey:'Frontier biome survey',biomeSurvey:'Biome field survey',outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',quarantine:'Quarantine bunker survival',arcadeCabinet:'Chaos Arcade / Rug Runner',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
+
+ function graphicsPanel(content){
+  content.append(node('p','district-kicker','CAMERA & PERFORMANCE / LOCAL DEVICE'),
+   node('p','beta-note','Your actual game stays in the original top-down world. These settings change the live game camera and render resolution, not your character save or wallet.'));
+  const status=node('p','beta-note','Settings are stored on this device only.');
+  function choice(title,items,value,change){
+   const label=node('label','graphics-choice'),select=node('select','graphics-select');
+   label.append(node('span','',title));
+   for(const [key,name] of items){const option=node('option','',name);option.value=key;select.append(option);}
+   select.value=value;select.setAttribute('aria-label',title);
+   select.addEventListener('change',()=>change(select.value));
+   label.append(select);return label;
+  }
+  content.append(
+   choice('Live top-down camera', [['wide','Wide / more terrain'],['normal','Classic / default'],['detail','Detail / close']],(cameraMode==='classic'?'normal':cameraMode),v=>{
+    setCameraMode(v==='normal'?'classic':v);status.textContent='Live camera framing updated; the city and controls are unchanged.';
+   }),
+   choice('Render resolution', [['auto','Automatic / device default'],['performance','Performance / 1× max'],['balanced','Balanced / 1.5× max'],['high','High detail / 2× max']],graphics.snapshot().quality,v=>{
+    graphics.setQuality(v);status.textContent='Rendering resolution updated. On low-end phones Performance uses fewer pixels.';
+   }),status
+  );
+  content.append(node('h3','district-heading','Perspective camera research preview'),
+   node('p','beta-note','Experimental 3D camera with a jointed skull-style avatar, procedural walking arms and legs, and token-colored clothing. Buildings in this scene are derived from your existing Meme City world data. The camera can mirror your current in-game position and aim as a read-only snapshot. Demo walking never moves the real player, changes saves, or affects shooting and combat. Full first-person and third-person gameplay still requires 3D world geometry, collision, interiors and avatar rig conversion.'));
+  const surface=node('canvas','graphics-preview');surface.width=640;surface.height=360;
+  surface.setAttribute('aria-label','Optional WebGL 3D avatar and city street with third-person or first-person perspective');
+  const feedback=node('p','graphics-preview-status');
+  if(graphicsPreview)graphicsPreview.destroy();
+  const skin=verifiedBetaSkin(me),token=catalog.get(skin)||catalog.get(me.avatar)||catalog.get('offensive');
+  // The camera lab displays genuine World V1 building footprints near the
+  // player's location, without moving or altering the actual game character.
+  const previewScene=window.CityGraphics.createWorldScene(I.BUILDINGS,{x:me.x,y:me.y},T,F);
+  const sceneSummary=node('p','graphics-preview-scene',
+   previewScene?'World V1 buildings: '+previewScene.name+' · '+previewScene.buildings.length+
+    ' authored structures · world X '+Math.round(previewScene.world.x)+
+    ', Y '+Math.round(previewScene.world.y)+'. This is a read-only 3D sample, not your active location.':
+    'No valid local building geometry; generic preview corridor shown.');
+  const terrainSummary=node('p','graphics-preview-scene',
+   previewScene?.terrain?'Terrain preview: '+previewScene.terrain.name+' · '+
+    previewScene.terrain.cells.length+' source-derived surface tiles. Heights here are cosmetic, not actual mining or walkable 3D elevations.':
+    'Terrain preview unavailable; classic 2D world remains unchanged.');
+  content.append(sceneSummary,terrainSummary);
+  graphicsPreview=window.CityGraphics.createPreview(surface,token?.color||'#b6e87a',previewScene);
+  const renderMetrics=node('p','graphics-preview-metrics');
+  const reportMetrics=()=>{
+   const stats=graphicsPreview?.stats?.();
+   renderMetrics.textContent=stats?
+    '3D preview GPU draw calls: '+stats.staticDrawCalls+' static / '+stats.dynamicDrawCalls+
+    ' animated · '+stats.staticBoxes+' scenery cubes batched · '+Math.ceil(stats.staticBytes/1024)+
+    ' KiB static mesh · '+stats.staticUploads+' GPU upload · '+stats.avatarVertices+
+    ' avatar vertices · '+stats.avatarUploads+' pose uploads.':
+    'GPU preview unavailable; original Canvas city remains playable.';
+  };
+  if(graphicsPreview.supported){
+   feedback.textContent='Third-person preview active. 3D sample only; main game remains fully playable in Classic view.';
+   graphicsPreview.draw('third');
+  }else{
+   feedback.textContent='WebGL preview is unavailable on this device. The original 2D city and graphics settings still work.';
+  }
+  reportMetrics();
+  let previewMode='third';
+  const repaint=message=>{
+   if(graphicsPreview?.draw(previewMode))feedback.textContent=message+' Preview only: the original character position, combat and saves are unchanged.';
+   reportMetrics();
+  };
+  const controls=node('div','graphics-preview-controls');
+  controls.setAttribute('role','group');controls.setAttribute('aria-label','Choose a 3D camera preview');
+  controls.append(button('View third-person sample',()=>{
+   previewMode='third';repaint('Third-person sample: camera follows the test skull avatar.');
+  }),button('View first-person sample',()=>{
+   previewMode='first';repaint('First-person sample: eye-level view with visible arms and tool.');
+  }));
+  const mirrorTools=node('div','graphics-preview-controls graphics-preview-sync');
+  mirrorTools.setAttribute('role','group');
+  mirrorTools.setAttribute('aria-label','Read-only sync of 3D preview camera to current game player');
+  const mirrorInfo=node('p','graphics-preview-scene','Preview character is independent of your actual game player.');
+  mirrorTools.append(
+   button('Mirror current player position & aim',()=>{
+    if(!graphicsPreview?.observePlayer(me,aim)){
+     mirrorInfo.textContent='Player pose cannot be sampled here (indoors, outside preview area or WebGL unavailable). Original game is unchanged.';
+     return;
+    }
+    const sample=graphicsPreview.observed();
+    mirrorInfo.textContent='Read-only game sample X '+Math.round(sample.world.x)+
+     ', Y '+Math.round(sample.world.y)+' · heading '+Math.round(sample.yaw*180/Math.PI)+
+     '°. Walking and firing remain controlled by the 2D game.';
+    repaint('Camera aligned to current game player and aim (read-only snapshot).');
+   }),
+   button('Return to demo avatar',()=>{
+    if(!graphicsPreview?.clearObserved())return;
+    mirrorInfo.textContent='Independent demo avatar restored; no game position was changed.';
+    repaint('Independent demo avatar restored.');
+   })
+  );
+  const walking=node('div','graphics-preview-controls graphics-preview-walk');
+  walking.setAttribute('role','group');walking.setAttribute('aria-label','Move and rotate the preview-only 3D avatar');
+  const attempt=(kind,amount,label)=>{
+   if(!graphicsPreview)return;
+   const ok=kind==='turn'?graphicsPreview.turn(amount):graphicsPreview.step(amount);
+   repaint(ok?label:'Preview corridor boundary reached.');
+  };
+  walking.append(
+   button('Turn left',()=>attempt('turn',-Math.PI/6,'Avatar turned left.')),
+   button('Walk forward',()=>attempt('step',.8,'Avatar walked forward.')),
+   button('Walk backward',()=>attempt('step',-.8,'Avatar stepped backward.')),
+   button('Turn right',()=>attempt('turn',Math.PI/6,'Avatar turned right.')),
+   button('Reset preview',()=>{if(graphicsPreview?.reset())repaint('Preview avatar returned to its starting position.');})
+  );
+  content.append(surface,renderMetrics,controls,mirrorTools,mirrorInfo,walking,feedback,button('Return to game →',closePanel));
+ }
+ function panel(type){if(graphicsPreview){graphicsPreview.destroy();graphicsPreview=null;}activePanel=type;$('#joystick-knob').style.transform='';keys.clear();held.clear();stick={x:0,y:0};firing=false;const content=$('#panel-content');content.replaceChildren();$('#panel-status').textContent='';
+  const titles={graphics:'Graphics & camera',mining:'Mining / vertical strata',frontierSurvey:'Frontier biome survey',biomeSurvey:'Biome field survey',outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',quarantine:'Quarantine bunker survival',arcadeCabinet:'Chaos Arcade / Rug Runner',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
   if(online&&C.CAPABILITIES.online.soloPanels.includes(type)){content.append(node('p','beta-note','This activity is available in solo mode. Your online journey uses different objectives that you can complete in this room.'),button('Online journey →',()=>panel('journey')));if(!$('#city-panel').open)$('#city-panel').showModal();return;}if(type==='outposts')outpostPanel(content);if(type==='clans')clanPanel(content);if(type==='places')placePanel(content);
   if(type==='multiplayer')multiplayerPanel(content);
   if(['journey','mobility','supplies','fortress','survival'].includes(type))risingPanel(type,content);
   if(type==='quarantine')quarantinePanel(content);
   if(type==='mining')miningPanel(content);
+  if(type==='graphics')graphicsPanel(content);
   if(type==='frontierSurvey'){
    const site=F.nearbySite(me),terrain=F.terrainAt(me.x,me.y);
    if(!site||!terrain)content.append(node('p','beta-note','Walk to a frontier survey marker to inspect the local terrain.'),button('Find a biome →',()=>panel('map')));
@@ -674,12 +821,12 @@
   }
   if(type==='pause'){
    content.append(node('p','beta-note',online?'You are in an online room. The shared city keeps running while this menu is open.':'Solo game paused. Take your time — enemies and timers are paused too.'));
-   content.append(button('Resume game →',closePanel),button('Choose a mission',()=>panel('missions')),button('Controls & guide',()=>panel('help')));
+   content.append(button('Resume game →',closePanel),button('Choose a mission',()=>panel('missions')),button('Controls & guide',()=>panel('help')),button('Graphics / camera',()=>panel('graphics')));
   }
   if(type==='menu'){
    content.append(node('p','','Everything you need, one stop away. Solo play pauses while menus are open.'));
    if(me.defense)content.append(button('URGENT / Fortress siege repairs →',()=>panel('crew')));
-   for(const [title,type]of [['Mine underground / strata','mining'],['District outpost workshop','outposts'],['Clans & block jobs','clans'],['Play together','multiplayer'],['Explore building interiors','places'],['Chaos Arcade / Rug Runner','arcadeCabinet'],['Your city journey','journey'],['Hoverboard & travel','mobility'],['Arena survival','survival'],['Quarantine bunker / undead waves','quarantine'],['Medkits & supplies','supplies'],['Upgrade fortress HQ','fortress'],['Explore districts','districts'],['Build my fortress','build'],['Hire / command defenders','crew'],['Beta token purchases','tokens'],['Equipment shop','shop'],['Player marketplace','market'],['Room chat','chat'],['Controls & guide','help'],['Pause / resume','pause']])content.append(button(title,()=>panel(type)));
+   for(const [title,type]of [['Mine underground / strata','mining'],['District outpost workshop','outposts'],['Clans & block jobs','clans'],['Play together','multiplayer'],['Explore building interiors','places'],['Chaos Arcade / Rug Runner','arcadeCabinet'],['Your city journey','journey'],['Hoverboard & travel','mobility'],['Arena survival','survival'],['Quarantine bunker / undead waves','quarantine'],['Medkits & supplies','supplies'],['Upgrade fortress HQ','fortress'],['Explore districts','districts'],['Build my fortress','build'],['Hire / command defenders','crew'],['Beta token purchases','tokens'],['Equipment shop','shop'],['Player marketplace','market'],['Room chat','chat'],['Graphics & camera','graphics'],['Controls & guide','help'],['Pause / resume','pause']])content.append(button(title,()=>panel(type)));
   }
   if(type==='summary'){
    const r=me.lastResult;if(r){
@@ -902,7 +1049,7 @@
   if(p.clan){const clan=C.NEIGHBORHOODS.find(n=>n.id===p.clan);label(`${clan?.clan||''} ${'◆'.repeat(p.clanRank||0)}${p.holderTier?' / HOLDER '+p.holderTier:''}`,x,y-134,9,clan?.color||'#cce4ca');}if(isMe){ctx.strokeStyle='#d1e3c688';ctx.lineWidth=1.3;ctx.beginPath();ctx.ellipse(x,y+3,21,8,0,0,Math.PI*2);ctx.stroke();}
  }
  function beacon(t,time,color){const pulse=1+Math.sin(time/240)*.1;ctx.strokeStyle=color;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(t.x,t.y,32*pulse,17*pulse,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle=color+'22';ctx.beginPath();ctx.moveTo(t.x-23,t.y);ctx.lineTo(t.x-10,t.y-95);ctx.lineTo(t.x+10,t.y-95);ctx.lineTo(t.x+23,t.y);ctx.fill();label('↓',t.x,t.y-58+Math.sin(time/300)*7,30,color);label(t.name,t.x,t.y+37,12,color);}
- function draw(time,dt){if(me.room){drawInterior(time,dt);return;}const rect=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height,zoom=(w<600?.72:.88)*cameraZoom;ctx.fillStyle='#13232d';ctx.fillRect(0,0,w,h);paintX+=(me.x-paintX)*Math.min(1,dt*18);paintY+=(me.y-paintY)*Math.min(1,dt*18);const camX=paintX-w/(2*zoom),camY=paintY-h*.61/zoom;ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camX,-camY);worldView={x:camX,y:camY,zoom};D.land(ctx);T.drawGround(ctx,(x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150);F.drawGround(ctx,(x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150);
+ function draw(time,dt){if(me.room){drawInterior(time,dt);return;}const rect=canvas.getBoundingClientRect(),dpr=Math.min(graphics.pixelRatioCap(),window.devicePixelRatio||1);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height,zoom=(w<600?.72:.88)*cameraZoom;ctx.fillStyle='#13232d';ctx.fillRect(0,0,w,h);paintX+=(me.x-paintX)*Math.min(1,dt*18);paintY+=(me.y-paintY)*Math.min(1,dt*18);const camX=paintX-w/(2*zoom),camY=paintY-h*.61/zoom;ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camX,-camY);worldView={x:camX,y:camY,zoom};D.land(ctx);T.drawGround(ctx,(x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150);F.drawGround(ctx,(x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150);
  if(!online)MV.surface(ctx,miningStore.surfaceOpenings((x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150));if(routePath?.length>1){ctx.save();ctx.beginPath();routePath.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.strokeStyle="#6ee5f3bc";ctx.lineWidth=5;ctx.setLineDash([16,14]);ctx.stroke();ctx.restore();}
  const visible=(x,y,bw=200,bh=200)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150;
  const layers=[];
@@ -1098,7 +1245,7 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
   ctx.strokeStyle='#ffd698';ctx.lineWidth=2;const r=26;for(let i=0;i<4;i++){ctx.beginPath();ctx.arc(b.x,b.y-58,r,i*Math.PI/2+.15,i*Math.PI/2+.75);ctx.stroke();}
  }
  function movement(){let x=stick.x,y=stick.y;if(keys.has('a')||keys.has('arrowleft')||held.has('left'))x--;if(keys.has('d')||keys.has('arrowright')||held.has('right'))x++;if(keys.has('w')||keys.has('arrowup')||held.has('up'))y--;if(keys.has('s')||keys.has('arrowdown')||held.has('down'))y++;if(!entered||activePanel||document.hidden)x=y=0;if((x||y)&&!manualAim){const n=Math.hypot(x,y);aim={x:x/n,y:y/n};}return{x,y};}
- function frame(time){if(tracked&&entered&&!activePanel&&Math.hypot(tracked.x-me.x,tracked.y-me.y)<60){const arrived=tracked;tracked=null;routePath=null;toast(arrived.id?.startsWith('biome:')?arrived.name+' reached. Press E to survey.':'Destination reached. Press E for nearby activities.');}if(tracked&&routePath&&time-lastRouteCalc>6000&&routePlanner.distanceToRoute(me,routePath)>150){const path=routePlanner.plan(me,tracked,online?null:me);routePath=path.status==='ok'?path.points:null;lastRouteCalc=time;}const dt=Math.min(1,(time-lastFrame)/1000||.016);lastFrame=time;if(!online){const m=movement();engine.input('solo',m.x,m.y);engine.trigger('solo',entered&&!activePanel&&!document.hidden&&(firing||keys.has(' ')),aim.x,aim.y,mouseFiring);if(entered&&!activePanel&&!document.hidden)for(let remaining=dt;remaining>0;remaining-=.05)engine.tick(Math.min(.05,remaining));refreshState();}draw(time,dt);if(time-lastDrawUI>150){updateUI();lastDrawUI=time;}if(time-saveAt>2500){save();saveAt=time;}requestAnimationFrame(frame);}
+ function frame(time){if(tracked&&entered&&!activePanel&&Math.hypot(tracked.x-me.x,tracked.y-me.y)<60){const arrived=tracked;tracked=null;routePath=null;toast(arrived.id?.startsWith('biome:')?arrived.name+' reached. Press E to survey.':'Destination reached. Press E for nearby activities.');}if(tracked&&routePath&&time-lastRouteCalc>6000&&routePlanner.distanceToRoute(me,routePath)>150){const path=routePlanner.plan(me,tracked,online?null:me);routePath=path.status==='ok'?path.points:null;lastRouteCalc=time;}const dt=Math.min(1,(time-lastFrame)/1000||.016);lastFrame=time;if(!online){const m=movement();engine.input('solo',m.x,m.y);engine.trigger('solo',entered&&!activePanel&&!document.hidden&&(firing||keys.has(' ')),aim.x,aim.y,mouseFiring);if(entered&&!activePanel&&!document.hidden)for(let remaining=dt;remaining>0;remaining-=.05)engine.tick(Math.min(.05,remaining));refreshState();}draw(time,dt);updateLive3D(time);if(time-lastDrawUI>150){updateUI();syncLive3DControls();lastDrawUI=time;}if(time-saveAt>2500){save();saveAt=time;}requestAnimationFrame(frame);}
  function multiplayerPanel(content){
   content.append(node('p','district-kicker','PLAY TOGETHER / SERVER-CONTROLLED ROOMS'),node('h3','district-heading',online?'Your crew is here.':'A shared city for your crew.'),node('p','', 'Up to eight players share streets, interiors, enemy bots, room chat and play-credit trading. Solo fortresses and squads remain in your separate solo save. Online guests reset when the room service restarts.'));
   if(online){const info=state.roomInfo;content.append(node('p','room-code',`${info.private?'FRIEND ROOM':'PUBLIC ROOM'} / ${info.code} · ${info.players}/${info.capacity}`),node('p','',roomStatus==='reconnecting'?'Reconnecting to your existing character…':'Connected. The server validates movement, equipment and rewards.'),button('Copy friend invite',async()=>{const u=new URL(location.href);u.search='';u.hash='';u.searchParams.set('room',info.code);try{await navigator.clipboard.writeText(u.href);toast('Invite copied. It contains the room code, never a session key.');}catch{toast('Room code: '+info.code);}}),button('Room chat →',()=>panel('chat')),button('Return to my solo city',async()=>{await roomClient.leave();disconnect('Left the room. Back in your solo city.');closePanel();}));
@@ -1124,6 +1271,16 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
  canvas.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse'||e.button!==0||!entered||activePanel)return;e.preventDefault();canvas.setPointerCapture(e.pointerId);firing=true;mouseFiring=true;fire(true);});
  for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>{firing=false;mouseFiring=false;});
  $('#start-button').addEventListener('click',()=>{entered=true;$('#city-intro').hidden=true;canvas.focus({preventScroll:true});toast('Move with WASD or the thumbstick. Hold Fire for auto-aim. Open Journey for your first chapter. V / Ride mounts your hoverboard.');if(new URLSearchParams(location.search).has('room'))panel('multiplayer');});
+ $('#city-live-3d-toggle').addEventListener('click',()=>{
+  if(live3D.stats().enabled)live3D.stop();
+  else if(!live3D.start())toast(live3D.stats().reason||'Live 3D is currently unavailable. Continue in the original 2D world.');
+  syncLive3DControls();
+ });
+ $('#city-live-3d-close').addEventListener('click',()=>{live3D.stop();syncLive3DControls();});
+ $('#city-live-3d-mode').addEventListener('click',()=>{
+  live3D.setMode(live3D.stats().mode==='third'?'first':'third');syncLive3DControls();
+ });
+ syncLive3DControls();
  $('#ride-toggle').addEventListener('click',()=>action({type:'ride'}));$('#medkit-use').addEventListener('click',()=>action({type:'medkit'}));
  $('#interact').addEventListener('click',interact);$('#fire').addEventListener('click',()=>fire());$('#dash').addEventListener('click',()=>action({type:'dash'},true));setCameraMode(cameraMode);$('#camera-view').addEventListener('change',e=>setCameraMode(e.target.value));$('#zoom-toggle').addEventListener('click',()=>setCameraMode(cameraMode==='detail'?'classic':'detail'));$('#fullscreen-exit').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();}catch{toast('Use your browser’s back or Escape control to exit fullscreen.');}});$('#pause-toggle').addEventListener('click',()=>panel('pause'));$('#fullscreen-toggle').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if($('.game-shell').requestFullscreen)await $('.game-shell').requestFullscreen();else toast('Fullscreen is unavailable in this browser.');}catch{toast('Fullscreen could not open. The game still works in this view.');}});$('#quick-job').addEventListener('click',()=>panel(me.quarantineRun||state.quarantine?.phase==='active'&&Math.hypot(me.x-C.QUARANTINE.x,me.y-C.QUARANTINE.y)<C.QUARANTINE.radius?'quarantine':me.blockJob||state.conflict?.entry&&state.conflict.phase!=='cooldown'?'clans':me.room?(me.room.id==='arcade'?'arcadeCabinet':'places'):me.territoryRun?'clans':me.rising?.arena?'survival':!me.contract&&!me.defense?'journey':me.defense?'crew':me.area==='greenbelt'?'map':me.area==='hub'?'missions':me.area==='fortress'?'build':me.area==='creator'?'collections':me.area==='arena'?'arena':'social'));$('#sound-toggle').addEventListener('click',()=>{soundOn=!soundOn;$('#sound-toggle').textContent=soundOn?'Sound on ♫':'Sound off ♫';if(soundOn)tone(660,.12,'triangle');});$('#close-panel').addEventListener('click',closePanel);
  $('#city-panel').addEventListener('cancel',e=>{
@@ -1131,14 +1288,14 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
   e.preventDefault();
   if(!state.self.cabinet.paused)void action({type:'arcadePause'},true).then(ok=>{if(ok)panel('arcadeCabinet');});
   else closePanel();
- });$('#city-panel').addEventListener('close',()=>{activePanel='';keys.clear();held.clear();});
+ });$('#city-panel').addEventListener('close',()=>{if(graphicsPreview){graphicsPreview.destroy();graphicsPreview=null;}activePanel='';keys.clear();held.clear();});
  document.querySelectorAll('[data-panel]').forEach(b=>b.addEventListener('click',()=>panel(b.dataset.panel)));
  document.querySelectorAll('[data-move]').forEach(b=>{const release=()=>{held.delete(b.dataset.move);b.classList.remove('pressed');};b.addEventListener('pointerdown',e=>{e.preventDefault();if(!entered)return;b.setPointerCapture(e.pointerId);held.add(b.dataset.move);b.classList.add('pressed');});b.addEventListener('pointerup',release);b.addEventListener('pointercancel',release);b.addEventListener('lostpointercapture',release);});
  const fireButton=$('#fire');fireButton.addEventListener('pointerdown',e=>{e.preventDefault();if(!entered||activePanel)return;fireButton.setPointerCapture(e.pointerId);firing=true;fire();});for(const name of ['pointerup','pointercancel','lostpointercapture'])fireButton.addEventListener(name,()=>firing=false);
  const joystick=$('#joystick'),knob=$('#joystick-knob');let stickPointer=null;
  function setStick(e){manualAim=false;mouseFiring=false;const r=joystick.getBoundingClientRect(),dx=e.clientX-r.left-r.width/2,dy=e.clientY-r.top-r.height/2,n=Math.max(34,Math.hypot(dx,dy));stick=Math.hypot(dx,dy)<4?{x:0,y:0}:{x:dx/n,y:dy/n};knob.style.transform=`translate(${stick.x*30}px,${stick.y*30}px)`;}
  joystick.addEventListener('pointerdown',e=>{e.preventDefault();if(!entered||activePanel||stickPointer!==null)return;stickPointer=e.pointerId;joystick.setPointerCapture(e.pointerId);setStick(e);});joystick.addEventListener('pointermove',e=>{if(e.pointerId===stickPointer)setStick(e);});for(const name of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(name,e=>{if(e.pointerId!==stickPointer)return;stickPointer=null;stick={x:0,y:0};knob.style.transform='';});
- window.addEventListener('keydown',e=>{if(activePanel||['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;const k=e.key.toLowerCase();if(k==='escape'&&!activePanel&&entered){e.preventDefault();panel('pause');return;}if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','e',' ','shift','v','h','j','m'].includes(k)){e.preventDefault();if(!entered)return;keys.add(k);if(k==='e'&&!e.repeat)interact();if(k===' '&&!e.repeat)fire();if(k==='shift'&&!e.repeat)action({type:'dash'},true);if(k==='v'&&!e.repeat)action({type:'ride'});if(k==='h'&&!e.repeat)action({type:'medkit'});if(k==='j'&&!e.repeat)panel('journey');if(k==='m'&&!e.repeat)panel('map');}});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();held.clear();stick={x:0,y:0};firing=false;mouseFiring=false;stickPointer=null;knob.style.transform="";});document.addEventListener('visibilitychange',()=>{keys.clear();held.clear();stick={x:0,y:0};firing=false;mouseFiring=false;stickPointer=null;knob.style.transform="";save();});window.addEventListener('pagehide',save);
+ window.addEventListener('keydown',e=>{if(activePanel||['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;const k=e.key.toLowerCase();if(k==='escape'&&!activePanel&&entered){e.preventDefault();panel('pause');return;}if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','e',' ','shift','v','h','j','m'].includes(k)){e.preventDefault();if(!entered)return;keys.add(k);if(k==='e'&&!e.repeat)interact();if(k===' '&&!e.repeat)fire();if(k==='shift'&&!e.repeat)action({type:'dash'},true);if(k==='v'&&!e.repeat)action({type:'ride'});if(k==='h'&&!e.repeat)action({type:'medkit'});if(k==='j'&&!e.repeat)panel('journey');if(k==='m'&&!e.repeat)panel('map');}});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();held.clear();stick={x:0,y:0};firing=false;mouseFiring=false;stickPointer=null;knob.style.transform="";});document.addEventListener('visibilitychange',()=>{keys.clear();held.clear();stick={x:0,y:0};firing=false;mouseFiring=false;stickPointer=null;knob.style.transform="";save();});window.addEventListener('pagehide',()=>{save();live3D.stop();});
  document.addEventListener('visibilitychange',()=>{
   if(document.hidden&&state.self?.cabinet?.phase==='playing'&&!state.self.cabinet.paused){
    void action({type:'arcadePause'},true);

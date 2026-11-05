@@ -25,7 +25,7 @@ console.log(`PASS: ${tokens.length} unique listings, all artwork, mint format ch
 for(const page of ['index.html','beta.html','creators.html','city.html','city-roadmap.html',...tokens.map(t=>'tokens/'+t.id+'/index.html'),'tokens/offensive/index.html']){
  const content=read(page);
  assert.ok(content.includes(page==='city.html'?'pwa.js?v=31-solo-holder':'pwa.js?v=30-android-wallet'),page+' must load shared wallet runtime');
- assert.ok(content.includes('styles.css?v=28-reliable-theme')||content.includes('city.css?v=28-reliable-theme')||content.includes('city.css?v=51-camera-preferences'),page+' must load wallet controls CSS');
+ assert.ok(content.includes('styles.css?v=28-reliable-theme')||content.includes('city.css?v=28-reliable-theme')||content.includes('city.css?v=56-static-batch')||content.includes('city.css?v=60-live-game-camera'),page+' must load wallet controls CSS');
 }
 // Android PWA adapter is a locally published ES module; it must not rely on
 // a second wallet page/button or ever persist signing material.
@@ -47,7 +47,7 @@ for(const file of ['index.html','creators.html']){
 new vm.Script(read('launchpad.js'));
 console.log('PASS: community pages, lightweight script boundaries, and application JS syntax.');
 
-for(const file of ['city-biomes.js','city-frontier.js','city-mining.js','city-mine-visuals.js','city-world2-preview.js','city-world2-simulation.js','city-topology.js','city-migration.js','city-world2.js','city-world2-registry.js','city.js','city-map.js','city-nav.js','city-save.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-territory.js','city-civilians.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js'])new vm.Script(read(file));
+for(const file of ['city-graphics.js','city-live-3d.js','city-biomes.js','city-frontier.js','city-mining.js','city-mine-visuals.js','city-world2-preview.js','city-world2-simulation.js','city-topology.js','city-migration.js','city-world2.js','city-world2-registry.js','city.js','city-map.js','city-nav.js','city-save.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-territory.js','city-civilians.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js'])new vm.Script(read(file));
 for(const file of ['city.html','city-roadmap.html','city.css','server/city-server.mjs'])assert.ok(fs.existsSync(path.join(root,file)),`Missing city release file: ${file}`);
 assert.ok(read('index.html').includes('href="city.html"'),'Homepage must link to the playable city');
 const networkContext={window:{}};vm.runInNewContext(read('city-network.js'),networkContext);const network=networkContext.window.MEME_CITY_NETWORK;assert.equal(typeof network.enabled,'boolean');if(network.enabled)assert.ok(/^https:\/\//.test(network.apiBase),'Public room service must use HTTPS');
@@ -60,6 +60,16 @@ assert.ok(read('city.html').includes('city-visuals.js'),'Clothing renderer must 
 assert.ok(read('.github/workflows/pages.yml').includes('city-visuals.js'),'Clothing renderer must ship in Pages builds');
 console.log('PASS: streetwear renderer and deployment references.');
 
+assert.ok(read('city.html').includes('city-graphics.js?v=61-live-crowd'),'WebGL graphics preview must load before original playable city');
+assert.ok(read('city.js').includes('graphics-preview-metrics')&&read('city.css').includes('.graphics-preview-metrics'),'Mobile graphics performance diagnostics must remain visible');
+assert.ok(read('city.html').includes('city-live-3d.js?v=61-live-crowd'),'Live 3D camera helper must load before original playable city');
+assert.ok(read('city.html').includes('id="city-live-3d-toggle"')&&read('city.html').includes('id="city-live-3d-canvas"'),'The playable game must expose its optional live camera control and viewport');
+assert.ok(read('city.js').includes('live3D.tick(time)'),'Live 3D must sample the existing game render loop');
+assert.ok(read('.github/workflows/pages.yml').includes('city-live-3d.js'),'Optional live 3D must ship with the Pages game');
+assert.ok(read('server/city-server.mjs').includes("'city-live-3d.js'"),'Optional live 3D must be served in local Chromium QA');
+assert.ok(read('city.html').includes('data-panel="graphics"'),'Graphics menu must be reachable from the existing game');
+assert.ok(read('.github/workflows/pages.yml').includes('city-graphics.js'),'WebGL preview must ship in Pages');
+assert.ok(read('server/city-server.mjs').includes("'city-graphics.js'"),'WebGL preview must be served by the local QA server');
 assert.ok(read('city.html').includes('city-save.js'),'Save version guard must load');
 assert.ok(read('.github/workflows/pages.yml').includes('city-save.js'),'Save version guard must deploy');
 assert.ok(read('city.html').includes('city-map.js?v=47-frontier'),'World map destination catalog version must refresh');
@@ -68,7 +78,7 @@ assert.ok(read('city.html').includes('city-map.js?v=47-frontier'),'World map des
  assert.ok(read('.github/workflows/pages.yml').includes('city-mining.js')&&read('.github/workflows/pages.yml').includes('city-mine-visuals.js'),'Mining logic and visuals must be included in Pages builds');
  assert.ok(read('server/city-server.mjs').includes("'city-mining.js','city-mine-visuals.js'"),'Local server must serve mining module and renderer static assets');
  assert.ok(read('server/city-server.mjs').includes("'city-core.js','city-biomes.js'"),'Existing local multiplayer and Chromium server must serve biome assets');
-assert.ok(read('city.html').includes('city-frontier.js?v=47-frontier')&&read('city.html').includes('city-mining.js?v=50-shaft-cache')&&read('city.html').includes('city-mine-visuals.js?v=49-surface-depth')&&read('city.html').includes('city-nav.js?v=42-wayfinding'),'Collision-safe next-turn street navigator must load');
+assert.ok(read('city.html').includes('city-frontier.js?v=47-frontier')&&read('city.html').includes('city-mining.js?v=50-shaft-cache')&&read('city.html').includes('city-mine-visuals.js?v=62-unified-miner')&&read('city.html').includes('city-nav.js?v=42-wayfinding'),'Collision-safe next-turn street navigator must load');
 assert.ok(read('.github/workflows/pages.yml').includes('city-nav.js'),'Street navigator must deploy');
 assert.ok(read('.github/workflows/pages.yml').includes('city-map.js'),'World map destinations must deploy');
 assert.ok(read('city.html').includes('city-districts.js'),'District renderer must load');
@@ -84,11 +94,11 @@ for(const id of ['city-canvas','start-button','city-intro','room-mode','hud-cred
 assert.ok(city.includes('SOLO / LOCAL SAVE'),'Original V1 solo gameplay must be the default');
 assert.ok(city.includes('id="camera-view"')&&city.includes('value="wide"')&&city.includes('value="classic"')&&city.includes('value="detail"'),'Graphics settings must offer real 2D zoom presets, not unimplemented 3D camera modes');
 assert.ok(read('city.js').includes('meme-city-camera-view-v1')&&read('city.js').includes('setCameraMode(cameraMode)'),'Camera settings must persist independently of player save');
-assert.ok(city.includes('city-interiors.js?v=39-chaos-arcade')&&city.includes('city-room-visuals.js?v=39-chaos-arcade')&&city.includes('city.css?v=51-camera-preferences'),'The playable in-room Chaos Arcade and mobile cabinet styling must all be present');
+assert.ok(city.includes('city-interiors.js?v=39-chaos-arcade')&&city.includes('city-room-visuals.js?v=39-chaos-arcade')&&city.includes('city.css?v=60-live-game-camera'),'The playable in-room Chaos Arcade and mobile cabinet styling must all be present');
 assert.ok(city.includes('city-civilians.js?v=44-friendly-civilians'),'Shared reactively fleeing civilians must load in existing playable city');
 assert.ok(city.includes('city-rise-visuals.js?v=43-street-lighting'),'Current center-world street lighting must ship with the original city');
 assert.ok(city.includes('city-territory.js?v=40-district-defense'),'Territory defense encounters must ship in the one playable city');
-assert.ok(city.includes('city.js?v=51-camera-preferences'),'Restored V1 playable engine must be loaded with the refreshed script version');
+assert.ok(city.includes('city.js?v=62-unified-miner'),'Restored V1 playable engine must be loaded with the refreshed script version');
 assert.ok(city.includes('city-rise.js?v=37-one-world-quarantine')&&city.includes('city-arcade.js?v=41-civilian-patrols')&&city.includes('city-interiors.js?v=39-chaos-arcade'),'All authoritative Quarantine modules must share the live script version');
 assert.ok(city.includes('city-districts.js?v=47-frontier')&&city.includes('city-room-visuals.js?v=39-chaos-arcade'),'Modern exterior and interior renderers must be shipped together');
 assert.ok(city.includes('city-visuals.js?v=37-one-world-quarantine')&&city.includes('city-clans.js?v=37-one-world-quarantine')&&city.includes('city-core.js?v=48-mining'),'Signed beta-token cosmetics must use the updated shared player rig');

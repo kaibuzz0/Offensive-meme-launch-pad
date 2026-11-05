@@ -5,7 +5,6 @@
 (function(root){
  const M=root.CityMining;
  if(!M?.createExplorer)throw Error('CityMining must load before CityMineVisuals');
- const soften=(c,opacity)=>c+opacity;
  function diamond(ctx,x,y,hw,hh){
   ctx.beginPath();ctx.moveTo(x,y-hh);ctx.lineTo(x+hw,y);ctx.lineTo(x,y+hh);ctx.lineTo(x-hw,y);ctx.closePath();
  }
@@ -37,7 +36,7 @@
   }
   return openings.length;
  }
- function slice(ctx,store,entry,player){
+ function slice(ctx,store,entry,player,drawAvatar){
   const at=M.location(entry);
   if(!ctx||!at||!store||!player||!Number.isInteger(player.layer)||
    player.layer<0||player.layer>=M.STRATA.length)return false;
@@ -93,16 +92,18 @@
   const px=player.dx+2,py=player.dy+2;
   if(px>=0&&px<5&&py>=0&&py<5){
    const {x,y}=cell(px,py);
-   // The same player is represented as a miner in the excavated slice;
-   // this is a local solo subscene, not an authoritative multiplayer avatar.
-   ctx.save();ctx.translate(x,y-24);
-   ctx.fillStyle='#000b';ctx.beginPath();ctx.ellipse(3,27,14,5,0,0,Math.PI*2);ctx.fill();
-   ctx.strokeStyle='#8adfdd';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(-4,16);ctx.lineTo(-9,27);ctx.moveTo(4,16);ctx.lineTo(9,27);ctx.stroke();
-   ctx.fillStyle='#93a8d3';ctx.fillRect(-9,-4,18,21);
-   ctx.fillStyle='#efceb2';ctx.beginPath();ctx.arc(0,-12,10,0,Math.PI*2);ctx.fill();
-   ctx.fillStyle='#e7bf68';ctx.beginPath();ctx.arc(0,-16,11,Math.PI,Math.PI*2);ctx.lineTo(11,-12);ctx.lineTo(-11,-12);ctx.closePath();ctx.fill();
-   ctx.fillStyle='#e8f9dc';ctx.fillRect(-6,-17,12,5);
-   ctx.strokeStyle='#d3e5ed';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(9,7);ctx.lineTo(22,-13);ctx.moveTo(15,-16);ctx.lineTo(30,-8);ctx.stroke();
+   // Caller supplies the *existing* unified World V1 avatar renderer with
+   // verified cosmetics. Keep the cave renderer independent of the wardrobe
+   // and wallet services; never fork a second human/skeleton/gear drawing.
+   ctx.save();
+   ctx.fillStyle='#030c16a8';ctx.beginPath();ctx.ellipse(x,y+7,15,5,0,0,Math.PI*2);ctx.fill();
+   if(typeof drawAvatar==='function')drawAvatar(ctx,x,y+7,player);
+   else{
+    // Noninteractive/documentation consumers without an avatar renderer still
+    // see the local player marker. No separate fake "miner avatar" is made.
+    ctx.strokeStyle='#e5f2c2';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(x,y+7,12,0,Math.PI*2);ctx.stroke();
+   }
    ctx.restore();
   }
   ctx.textAlign='left';ctx.font='10px monospace';ctx.fillStyle='#a9c0c4';

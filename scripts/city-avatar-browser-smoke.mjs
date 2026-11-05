@@ -83,6 +83,118 @@ try{
  assert.equal(await evalPage("document.getElementById('city-intro').hidden"),false,'one-tap original game splash');
  await evalPage("document.getElementById('start-button').click();true");
  await waitFor(()=>evalPage("document.getElementById('city-intro').hidden===true"),'original solo game entrance');
+ // Establish the real saved baseline before opening Graphics: the original game
+ // legitimately creates its first periodic save shortly after gameplay starts.
+ await waitFor(()=>evalPage("localStorage.getItem('offensive-meme-city-v1-center')!==null"),'initial protected Solo autosave');
+ // Verify new graphics tools from the real phone-sized playable game entry.
+ const priorSoloSave=await evalPage("localStorage.getItem('offensive-meme-city-v1-center')");
+ await evalPage("document.querySelector('[data-panel=graphics]').click();true");
+ await waitFor(()=>evalPage("document.querySelector('#panel-title')?.textContent==='Graphics & camera'"),'accessible graphics settings panel');
+ const graphicsInitial=await evalPage("(()=>{const canvas=document.querySelector('canvas.graphics-preview'),txt=document.querySelector('.graphics-preview-status')?.textContent;const gl=canvas?.getContext('webgl');let visible=false;if(gl){const p=new Uint8Array(4);gl.readPixels(Math.floor(canvas.width/2),Math.floor(canvas.height/2),1,1,gl.RGBA,gl.UNSIGNED_BYTE,p);visible=p[3]>0;}return {count:document.querySelectorAll('.graphics-choice select').length,canvas:!!canvas,gl:!!gl,visible,text:txt,width:canvas?.width};})()");
+ assert.equal(graphicsInitial.count,2,'zoom and performance choices are available on the existing game');
+ assert.equal(graphicsInitial.canvas,true,'perspective preview is embedded inside the same game panel');
+ const sceneInfo=await evalPage("(()=>({label:document.querySelector('.graphics-preview-scene')?.textContent||'',count:window.CityInteriors.BUILDINGS.length,playerX:window.MemeCityCore.WORLD.width}))()");
+ assert.ok(sceneInfo.count>=10,'the real city registry is available to the graphics preview');
+ assert.match(sceneInfo.label,/World V1 buildings: .+ · [1-9][0-9]* authored structures · world X [0-9]+, Y [0-9]+/,
+  '3D scene contains true landmark name, validated building count and world coordinates');
+ const terrainSummary=await evalPage("Array.from(document.querySelectorAll('.graphics-preview-scene')).find(e=>e.textContent.startsWith('Terrain preview:'))?.textContent||''");
+ assert.match(terrainSummary,/Terrain preview: .+ · 64 source-derived surface tiles/,
+  'real game Graphics panel shows capped, biome-derived surface data');
+ const frontierSample=await evalPage("(()=>{const B=window.CityBiomes,F=window.CityFrontier,G=window.CityGraphics,I=window.CityInteriors;const r=F.regions[0];const scene=G.createWorldScene(I.BUILDINGS,r.entry,B,F);return {name:scene?.terrain?.name,count:scene?.terrain?.cells.length,biomes:F.regions.length,materials:new Set(scene?.terrain?.cells.map(c=>c.material)).size};})()");
+ assert.equal(frontierSample.biomes,132);
+ assert.equal(frontierSample.name,'Twilight Cedar','actual first frontier biome is visible in 3D preview sampler');
+ assert.equal(frontierSample.count,64);
+ assert.ok(frontierSample.materials>=1,'sample has real authored materials');
+ const gpuMetrics=await evalPage("document.querySelector('.graphics-preview-metrics')?.textContent||''");
+ if(graphicsInitial.gl)assert.match(gpuMetrics,/3D preview GPU draw calls: 1 static \/ 1 animated · [0-9]+ scenery cubes batched · [0-9]+ KiB static mesh · 1 GPU upload · [0-9]+ avatar vertices · 1 pose uploads\./,
+  'phone-sized WebGL scene must batch terrain, roofs and building fronts into one static draw');
+ else assert.match(gpuMetrics,/GPU preview unavailable/,'Canvas fallback remains visible');
+ const staticMeshSample=await evalPage("(()=>{const G=window.CityGraphics,scene=G.createWorldScene(window.CityInteriors.BUILDINGS,{x:5600,y:5940},window.CityBiomes,window.CityFrontier);const mesh=G.createStaticMesh(scene);return {boxes:mesh.boxes,bytes:mesh.bytes,vertices:mesh.vertices,finite:mesh.data.every(Number.isFinite)};})()");
+ assert.ok(staticMeshSample.boxes>=60&&staticMeshSample.boxes<=240);
+ assert.equal(staticMeshSample.bytes,staticMeshSample.vertices*24);
+ assert.equal(staticMeshSample.finite,true,'actual authored city geometry contains no NaN GPU vertices');
+ const avatarBatch=await evalPage("(()=>{const G=window.CityGraphics;const st={x:0,z:0,yaw:0,steps:0};const a=G.createAvatarMesh(st,'third','#bdff56');const b=G.createAvatarMesh({...st,yaw:Math.PI/2,steps:1},'third','#bdff56');return {first:a?.parts,vertices:a?.vertices,bytes:a?.bytes,changed:a?.data[0]!==b?.data[0]||a?.data[1]!==b?.data[1],finite:a?.data.every(Number.isFinite)};})()");
+ assert.ok(avatarBatch.first>=24&&avatarBatch.first<=56,'real-browser avatar is a capped reusable rig');
+ assert.equal(avatarBatch.bytes,avatarBatch.vertices*24);
+ assert.equal(avatarBatch.finite,true,'batched 3D character has finite world-space vertices');
+ assert.equal(avatarBatch.changed,true,'turning and walking actually transforms the 3D body mesh');
+ assert.match(graphicsInitial.text,/Third-person preview active|WebGL preview is unavailable/);
+ if(graphicsInitial.gl)assert.equal(graphicsInitial.visible,true,'software/hardware WebGL paints an opaque camera preview');
+ await evalPage("(()=>{const fields=document.querySelectorAll('.graphics-choice select');fields[0].value='detail';fields[0].dispatchEvent(new Event('change',{bubbles:true}));fields[1].value='performance';fields[1].dispatchEvent(new Event('change',{bubbles:true}));return true;})()");
+ const graphicsSaved=await evalPage("(()=>({data:JSON.parse(localStorage.getItem('offensive-meme-city-graphics-v1')),solo:localStorage.getItem('offensive-meme-city-v1-center')}))()");
+ assert.equal(graphicsSaved.data.zoom,'detail');
+ assert.equal(graphicsSaved.data.quality,'performance');
+ assert.equal(graphicsSaved.solo,priorSoloSave,'graphics preferences cannot overwrite the original character save');
+ const mirrorButtons=await evalPage("Array.from(document.querySelectorAll('.graphics-preview-sync button')).map(b=>b.textContent)");
+ assert.deepEqual(mirrorButtons,['Mirror current player position & aim','Return to demo avatar'],
+  'Graphics menu offers explicit read-only camera mirror without replacing original movement');
+ const protectedSave=await evalPage("localStorage.getItem('offensive-meme-city-v1-center')");
+ await evalPage("document.querySelector('.graphics-preview-sync button').click();true");
+ const mirrorStatus=await evalPage("document.querySelector('.graphics-preview-sync + .graphics-preview-scene')?.textContent||''");
+ const mirrorDiagnostic=await evalPage("(()=>{const G=window.CityGraphics;const saved=JSON.parse(localStorage.getItem('offensive-meme-city-v1-center'));const scene=G.createWorldScene(window.CityInteriors.BUILDINGS,{x:saved.x,y:saved.y},window.CityBiomes,window.CityFrontier);const sample=G.samplePlayerCamera(scene,{x:saved.x,y:saved.y,room:null},{x:1,y:0});return {saveX:saved.x,saveY:saved.y,sceneWorld:scene?.world,pose:sample&&{x:sample.x,z:sample.z},previewStatus:document.querySelector('.graphics-preview-status')?.textContent};})()");
+ if(graphicsInitial.gl)assert.match(mirrorStatus,/Read-only game sample X [0-9]+, Y [0-9]+ · heading -?[0-9]+°/,
+  'preview camera follows current game player coordinates and aiming heading only. Diagnostics: '+JSON.stringify(mirrorDiagnostic));
+ else assert.match(mirrorStatus,/WebGL unavailable/);
+ assert.equal(await evalPage("localStorage.getItem('offensive-meme-city-v1-center')"),protectedSave,
+  'sampling the active player camera must not alter its save');
+ await evalPage("document.querySelectorAll('.graphics-preview-sync button')[1].click();true");
+ if(graphicsInitial.gl)assert.match(
+  await evalPage("document.querySelector('.graphics-preview-sync + .graphics-preview-scene')?.textContent||''"),
+  /Independent demo avatar restored/);
+ const sampledPose=await evalPage("(()=>{const G=window.CityGraphics;const scene={world:{x:4000,y:6000},buildings:[]};const p=G.samplePlayerCamera(scene,{x:4120,y:5880,room:null},{x:1,y:0});return {x:p?.x,z:p?.z,yaw:p?.yaw,interior:G.samplePlayerCamera(scene,{x:4120,y:5880,room:{id:'x'}},{x:1,y:0})};})()");
+ assert.equal(sampledPose.x,1);assert.equal(sampledPose.z,1);
+ assert.ok(Math.abs(sampledPose.yaw-Math.PI/2)<1e-10);
+ assert.equal(sampledPose.interior,null);
+ await evalPage("Array.from(document.querySelectorAll('.graphics-preview-controls button')).find(b=>b.textContent.includes('first-person')).click();true");
+ if(graphicsInitial.gl)assert.match(await evalPage("document.querySelector('.graphics-preview-status').textContent"),/First-person sample/);
+ const avatarButtons=await evalPage("Array.from(document.querySelectorAll('[aria-label=\"Move and rotate the preview-only 3D avatar\"] button')).map(b=>b.textContent)");
+ assert.deepEqual(avatarButtons,['Turn left','Walk forward','Walk backward','Turn right','Reset preview'],
+  'phone-sized Graphics panel exposes complete touch-driven avatar test controls');
+ for(const name of ['Turn right','Walk forward','Walk backward','Reset preview']){
+  await evalPage("Array.from(document.querySelectorAll('.graphics-preview-walk button')).find(b=>b.textContent==="+JSON.stringify(name)+").click();true");
+  const status=await evalPage("document.querySelector('.graphics-preview-status').textContent");
+  assert.match(status,graphicsInitial.gl?/Preview only: the original character position/:/WebGL preview is unavailable/,
+   'test stage controls must never move real player or crash on unsupported GPUs');
+ }
+ assert.equal(await evalPage("localStorage.getItem('offensive-meme-city-v1-center')"),priorSoloSave,
+  'turning and walking the sample avatar never changes the protected Solo save');
+ await evalPage("document.querySelector('#close-panel').click();true");
+ assert.equal(await evalPage("document.querySelector('#city-panel').open"),false,'graphics preview exits safely back into the same solo world');
+ // In-world 3D overlay shares the ORIGINAL playable game state and controls.
+ // It is not the paused Graphics modal and never creates its own actor.
+ const liveInitial=await evalPage("(()=>{const t=document.getElementById('city-live-3d-toggle'),p=document.getElementById('city-live-3d');t.click();return {pressed:t.getAttribute('aria-pressed'),hidden:p.hidden,hasCanvas:!!document.getElementById('city-live-3d-canvas'),gl:!!document.getElementById('city-live-3d-canvas').getContext('webgl')};})()");
+ assert.equal(liveInitial.hasCanvas,true,'original World V1 includes the optional in-world camera canvas');
+ if(liveInitial.gl&&liveInitial.pressed==='true'){
+  await waitFor(()=>evalPage("Number(document.getElementById('city-live-3d')?.dataset.frames||0)>=2"),'live real-player 3D updates from the actual game loop');
+  assert.equal(liveInitial.hidden,false);
+  const liveActors=await evalPage("(()=>{const x=document.getElementById('city-live-3d');return {count:Number(x.dataset.actors),text:document.getElementById('city-live-3d-status').textContent};})()");
+  assert.ok(Number.isInteger(liveActors.count)&&liveActors.count>=0&&liveActors.count<=6,
+   'live World V1 camera draws at most six nearby real NPCs');
+  assert.ok(liveActors.text.includes(' / '+liveActors.count+' nearby characters / read-only mirror'),
+   'live player camera reports source-derived character count');
+  const observedCrowd=await evalPage("(()=>{const L=window.CityLive3D,G=window.CityGraphics,me={id:'me',x:5600,y:5940};const nearby=L.selectNearbyActors({world:{x:5600,y:5940}},me,{players:[{id:'me',x:5600,y:5940}],civilians:[{id:'npc',x:5660,y:5940}],arcade:{bots:[{id:'z',kind:'zombie',x:5650,y:5920,hp:90}]}});const mesh=G.createCrowdMesh(nearby);return {actors:nearby.length,drawn:mesh.actors,vertices:mesh.vertices,finite:mesh.data.every(Number.isFinite)};})()");
+  assert.equal(observedCrowd.actors,2,'actual browser filters own player and selects nearby civilians and zombies');
+  assert.equal(observedCrowd.drawn,2);
+  assert.equal(observedCrowd.finite,true);
+  assert.ok(observedCrowd.vertices>1000);
+  const before=await evalPage("(()=>{const x=document.getElementById('city-live-3d');return {x:Number(x.dataset.worldX),y:Number(x.dataset.worldY),frames:Number(x.dataset.frames)};})()");
+  await evalPage("window.dispatchEvent(new KeyboardEvent('keydown',{key:'w',bubbles:true}));true");
+  await delay(550);
+  await evalPage("window.dispatchEvent(new KeyboardEvent('keyup',{key:'w',bubbles:true}));true");
+  const after=await evalPage("(()=>{const x=document.getElementById('city-live-3d');return {x:Number(x.dataset.worldX),y:Number(x.dataset.worldY),frames:Number(x.dataset.frames)};})()");
+  assert.ok(after.frames>before.frames,'3D camera keeps rendering while the actual 2D simulation runs');
+  assert.ok(Math.hypot(after.x-before.x,after.y-before.y)>=1,
+   'real player movement drives the 3D camera rather than a simulated demo avatar: '+JSON.stringify({before,after}));
+  await evalPage("document.getElementById('city-live-3d-mode').click();true");
+  await waitFor(()=>evalPage("document.getElementById('city-live-3d')?.dataset.mode==='first'"),'live camera switches to first-person from the game');
+  assert.equal(await evalPage("document.querySelector('#city-intro').hidden"),true,'Solo Play never leaves the original game');
+  await evalPage("document.getElementById('city-live-3d-close').click();true");
+  assert.equal(await evalPage("document.getElementById('city-live-3d').hidden"),true,'close releases the 3D overlay');
+  assert.equal(await evalPage("document.getElementById('city-live-3d-toggle').getAttribute('aria-pressed')"),'false');
+ }else{
+  assert.equal(liveInitial.hidden,true,'a WebGL-unavailable game retains the default 2D view');
+ }
+
  // Draw an actual biome into a phone-sized Chromium Canvas, not just source-check it.
  const biomePixels=await evalPage(`(()=>{
   const T=window.CityBiomes,r=T?.regions?.[0];if(!r)return null;
@@ -277,7 +389,8 @@ try{
  await send('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?siege-visual-qa=1'});
  await waitFor(()=>evalPage("!!window.MemeCityCore?.PLOT&&!!document.getElementById('start-button')"),'original fortress game');
- await evalPage("document.getElementById('start-button').click();document.querySelector('[data-panel=menu]').click();true");
+ await waitFor(async()=>{const started=await evalPage("document.getElementById('city-intro').hidden===true");if(!started)await evalPage("document.getElementById('start-button').click();true");return started;},'original fortress game startup and bound listeners');
+ await evalPage("document.querySelector('[data-panel=menu]').click();true");
  await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Hire / command defenders'))"),'one-world fortress menu');
  await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Hire / command defenders')).click();true");
  const siegeReady=await evalPage("({title:document.querySelector('#panel-title').textContent,start:Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Start fortress siege'))?.disabled})");
@@ -416,6 +529,85 @@ try{
  await waitFor(()=>evalPage("document.querySelector('#panel-content .panel-button')!==null"),'room join action');
  await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Quick play')).click();true");
  await waitFor(()=>evalPage("document.querySelector('#room-mode').textContent.startsWith('ONLINE /') && !document.querySelector('#city-panel').open"),'online room connected');
+ const windowCityLayout=await evalPage('window.MemeCityCore.LAYOUT_VERSION');
+
+ // Actual second Chromium tab joins the same locally hosted room. This is
+ // cross-client browser QA, unlike injecting a fabricated NPC into one page.
+ const peerResponse=await fetch('http://127.0.0.1:'+port+'/json/new?about:blank',{method:'PUT'});
+ assert.equal(peerResponse.status,200,'Chromium creates a second real browser target');
+ const peerTarget=await peerResponse.json(),peerWs=new WebSocket(peerTarget.webSocketDebuggerUrl);
+ await new Promise((resolve,reject)=>{
+  peerWs.addEventListener('open',resolve,{once:true});peerWs.addEventListener('error',reject,{once:true});
+ });
+ const peerPending=new Map();let peerSerial=0;
+ peerWs.addEventListener('message',event=>{
+  const msg=JSON.parse(event.data);
+  if(msg.id&&peerPending.has(msg.id)){const task=peerPending.get(msg.id);peerPending.delete(msg.id);
+   msg.error?task.reject(Error(msg.error.message)):task.resolve(msg.result);}
+  if(msg.method==='Runtime.exceptionThrown')
+   exceptions.push('Second browser: '+(msg.params.exceptionDetails.text||'Uncaught exception'));
+ });
+ const peerSend=(method,params={})=>new Promise((resolve,reject)=>{
+  const id=++peerSerial;peerPending.set(id,{resolve,reject});
+  peerWs.send(JSON.stringify({id,method,params}));
+ });
+ const peerEval=async expression=>{
+  const r=await peerSend('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});
+  if(r.exceptionDetails)throw Error('Second-browser exception: '+(r.exceptionDetails.exception?.description||r.exceptionDetails.text));
+  return r.result?.value;
+ };
+ await peerSend('Page.enable');await peerSend('Runtime.enable');
+ await peerSend('Emulation.setDeviceMetricsOverride',{width:393,height:852,deviceScaleFactor:2,mobile:true});
+ // Observe the real accepted room snapshot in QA only. No changed game action,
+ // account, player state or persisted token is exposed in production.
+ await peerSend('Page.addScriptToEvaluateOnNewDocument',{source:
+  "Object.defineProperty(window,'CityRoomClient',{configurable:true,set:function(Client){"+
+  "Object.defineProperty(window,'CityRoomClient',{value:Client,writable:true,configurable:true});"+
+  "const join=Client.prototype.join;Client.prototype.join=function(){window.__qaPeerClient=this;return join.apply(this,arguments);};"+
+  "const accept=Client.prototype.accept;Client.prototype.accept=function(s){window.__qaPeerSnapshot=s;return accept.call(this,s);};}});"});
+ await peerSend('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?second-real-browser=1'});
+ await waitFor(()=>peerEval("!!window.CityRoomClient&&!!document.getElementById('start-button')"),'second real browser loads original World V1');
+ await waitFor(async()=>{const started=await peerEval("document.getElementById('city-intro').hidden===true");if(!started)await peerEval("document.getElementById('start-button').click();true");return started;},'second browser starts Solo with fully bound World V1 listeners');
+ await peerEval("document.querySelector('[data-panel=multiplayer]').click();true");
+ await waitFor(()=>peerEval("!!document.querySelector('input[aria-label=\"Multiplayer nickname\"]')"),'second browser multiplayer dialog');
+ await peerEval("(()=>{document.querySelector('input[aria-label=\"Multiplayer nickname\"]').value='SecondQA';Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Quick play')).click();return true;})()");
+ await waitFor(()=>peerEval("document.querySelector('#room-mode').textContent.startsWith('ONLINE /')&&!document.querySelector('#city-panel').open"),'second guest joins actual hosted room');
+ await waitFor(()=>room.service.health().players===2,'room server has two independently authenticated guest sessions');
+ await waitFor(()=>peerEval("window.__qaPeerSnapshot?.players?.length===2"),'second real browser receives both authenticated players');
+ await send('Page.bringToFront');
+ await waitFor(()=>evalPage("document.querySelector('#population').textContent.includes('2 players')"),'foreground first browser renders the second server-authenticated player',18000);
+ await peerSend('Page.bringToFront');
+ const peerView=await peerEval("(()=>{const s=window.__qaPeerSnapshot,p=s.self,near=window.CityLive3D.selectNearbyActors({world:{x:p.x,y:p.y}},p,s);return {players:s.players.length,remote:near.some(x=>x.id.startsWith('player:')),near:near.length,layout:s.roomInfo.layoutVersion};})()");
+ assert.equal(peerView.players,2);
+ assert.equal(peerView.remote,true,'read-only 3D camera sees a REAL second browser guest, not a synthetic actor');
+ assert.ok(peerView.near>=1&&peerView.near<=6);
+ assert.equal(peerView.layout,windowCityLayout,'both browser clients use the same canonical layout version');
+ const peerGL=await peerEval("!!document.getElementById('city-live-3d-canvas')?.getContext('webgl')");
+ if(peerGL){
+  await peerEval("document.getElementById('city-live-3d-toggle').click();true");
+  await waitFor(()=>peerEval("Number(document.getElementById('city-live-3d')?.dataset.frames||0)>=2"),'second browser renders the live optional 3D camera');
+  const actorCount=await peerEval("Number(document.getElementById('city-live-3d')?.dataset.actors||0)");
+  assert.ok(actorCount>=1&&actorCount<=6,'live WebGL includes the remote real guest in bounded actors');
+  await peerEval("document.getElementById('city-live-3d-mode').click();true");
+  await waitFor(()=>peerEval("document.getElementById('city-live-3d')?.dataset.mode==='first'"),'second browser switches its real camera view');
+  await peerEval("document.getElementById('city-live-3d-close').click();true");
+  assert.equal(await peerEval("document.getElementById('city-live-3d').hidden"),true);
+ }
+ // Force the actual SSE connection to recover, without creating a new player
+ // or changing any wallet / trusted room identity.
+ await peerEval("(()=>{window.__qaOldStream=window.__qaPeerClient.controller;window.__qaOldStream.abort();return true;})()");
+ await waitFor(()=>peerEval("window.__qaPeerClient.ready&&window.__qaPeerClient.controller!==window.__qaOldStream&&window.__qaPeerSnapshot?.players?.length===2"),'second real guest reconnects its server stream',18000);
+ assert.equal(await peerEval("window.__qaPeerClient.active"),true,'stream reconnection preserves the same authenticated guest');
+ await peerEval("document.querySelector('[data-panel=multiplayer]').click();true");
+ await peerEval("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Return to my solo city')).click();true");
+ await waitFor(()=>peerEval("document.querySelector('#room-mode').textContent.startsWith('SOLO')"),'second browser exits the hosted room cleanly');
+ await waitFor(()=>room.service.health().players===1,'server revokes the second session after browser leaves');
+ await send('Page.bringToFront');
+ await waitFor(()=>evalPage("document.querySelector('#population').textContent.includes('1 player')"),'foreground first browser renders the authenticated peer departure',18000);
+ peerWs.close();
+ // The original first browser remains connected to Together for the existing
+ // signed-holder, wallet and cosmetic regression checks below.
+
  await evalPage("document.querySelector('[data-panel=avatar]').click();true");
  await waitFor(()=>evalPage("!!document.querySelector('#offender-wallet-verify')"),'OFFENDED holder wallet button');
  const initial=await evalPage("({open:document.querySelector('#city-panel').open,missing:document.querySelector('.wallet-browser-help')?.textContent,solflare:document.querySelector('.wallet-open-options a')?.href})");
@@ -726,6 +918,24 @@ try{
   assert.equal(mineCutaway.height,350);
   assert.equal(mineCutaway.opaque,true,'real Chromium renders solid geological tiles at depth');
   assert.match(mineCutaway.minerHeight||'',/z=-8/,'the miner now occupies the first cleared underground level');
+  // Compare the actual mining panel with exactly the same geology drawn with
+  // no avatar callback; the live UI must visibly paint the *shared* player rig.
+  const minerPortrait=await evalPage(`(()=>{
+   const live=document.querySelector('canvas.mining-scene'),bare=document.createElement('canvas');
+   bare.width=live.width;bare.height=live.height;
+   const M=window.CityMining,V=window.CityMineVisuals,store=M.createStore(localStorage);
+   V.slice(bare.getContext('2d'),store,window.CityFrontier.regions[0].entry,{layer:1,dx:0,dy:0,z:-8});
+   const area={x:285,y:85,w:70,h:85};
+   const withRig=live.getContext('2d').getImageData(area.x,area.y,area.w,area.h).data;
+   const withoutRig=bare.getContext('2d').getImageData(area.x,area.y,area.w,area.h).data;
+   let different=0;
+   for(let i=0;i<withRig.length;i+=4)
+    if(Math.abs(withRig[i]-withoutRig[i])+Math.abs(withRig[i+1]-withoutRig[i+1])+
+       Math.abs(withRig[i+2]-withoutRig[i+2])>30)different++;
+   return {different};
+  })()`);
+  assert.ok(minerPortrait.different>70,'actual live Chromium cutaway paints the unified player rig, not just a selection marker');
+
   await evalPage(`(()=>{
    const up=[...document.querySelectorAll('.mining-controls button')].find(x=>x.textContent.includes('Ascend'));
    if(up.disabled)throw Error('No exit to surface');

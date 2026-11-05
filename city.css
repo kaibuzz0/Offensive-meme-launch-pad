@@ -220,3 +220,28 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 .camera-view-control{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;color:#b5ccdc;font:10px monospace}
 .camera-view-control select{max-width:112px;padding:7px 5px;background:#172536;border:1px solid #465c73;border-radius:4px;color:#e6f3ff;font:10px monospace}
 @media(max-width:700px){.camera-view-control{font-size:0;gap:0}.camera-view-control select{max-width:88px;padding:7px 3px;font-size:9px}}
+
+/* Graphics panel keeps the original playable Canvas as the default renderer. */
+.graphics-choice{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:13px;margin:10px 0;background:#1a2b39;border:1px solid #50687c;border-radius:7px;color:#e2f1ef;font:600 12px Arial,sans-serif}
+.graphics-select{background:#0f202f;color:#e1f6f1;border:1px solid #7896a3;border-radius:5px;padding:10px;font-size:12px;max-width:100%;min-width:210px}
+.graphics-preview{display:block;width:100%;max-width:640px;aspect-ratio:16/9;height:auto;margin:16px auto 9px;background:#102130;border:1px solid #67839b;border-radius:9px}
+.graphics-preview-controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.graphics-preview-controls button{flex:1;min-width:170px}
+.graphics-preview-status{font:12px/1.5 Arial,sans-serif;color:#b4d6d7;margin:8px 0 16px}
+@media(max-width:600px){.graphics-choice{align-items:stretch;flex-direction:column}.graphics-select{width:100%;min-width:0}.graphics-preview-controls button{min-width:125px}}
+
+/* Real-world geometry sample remains read-only and scrollable on small screens. */
+.graphics-preview-scene{font:11px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;color:#b7d8c4;padding:9px 12px;border:1px solid #476571;background:#112736;border-radius:6px;overflow-wrap:anywhere}
+
+.graphics-preview-metrics{font:10px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;color:#bdddc9;background:#102e32;border:1px solid #356e64;border-radius:6px;padding:8px 12px;overflow-wrap:anywhere}
+
+/* Experimental live camera: overlays the SAME playable World V1 canvas. */
+.city-live-3d{position:absolute;z-index:4;right:14px;top:clamp(198px,30%,270px);width:min(330px,45%);min-width:220px;max-width:calc(100% - 20px);background:#101e2beF;border:1px solid #7799a8;border-radius:9px;box-shadow:0 10px 28px #030912ae;overflow:hidden;pointer-events:none}
+.city-live-3d-toolbar{display:flex;gap:5px;align-items:center;padding:5px 7px;background:#15293a;pointer-events:auto}
+.city-live-3d-toolbar strong{flex:1;font:700 8px/1.2 ui-monospace,monospace;color:#a7e7de;letter-spacing:.6px}
+.city-live-3d-toolbar button{background:#264a56;color:#f4faff;border:1px solid #7eabb8;border-radius:4px;font:700 9px Arial;padding:5px 7px;cursor:pointer}
+.city-live-3d-toolbar button:focus-visible{outline:2px solid #b4ff74}
+.city-live-3d canvas{display:block;width:100%;height:auto;aspect-ratio:16/9;pointer-events:none;touch-action:none;background:#102130}
+#city-live-3d-status{margin:0;padding:6px 8px;font:9px/1.35 ui-monospace,monospace;color:#a9cfe0;background:#112535}
+#city-live-3d-toggle[aria-pressed=true]{background:#284d47;color:#d5ffb7;border-bottom:2px solid #a7fb84}
+@media(max-width:700px){.city-live-3d{right:8px;top:210px;width:min(245px,65%);min-width:200px}.city-live-3d-toolbar strong{font-size:7px}.city-live-3d-toolbar button{font-size:8px;padding:5px}#city-live-3d-status{font-size:8px}}

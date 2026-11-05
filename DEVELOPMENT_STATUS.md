@@ -1,3 +1,52 @@
+## November 5 — Milestone 11: real NPCs in optional live WebGL (draft PR #32)
+
+The existing World V1 player's perspective inset can now display **up to six nearby, living authoritative players/civilians/zombies/guards/monk**, using the same bounded procedural 3D character rig. NPC selection is deterministic and read-only; a single additional draw call renders the batch. The live inset reports character count. WebGL errors have stronger isolation from the original 2D simulation. No NPC AI, multiplayer authority, wallet, combat, save, mining or input protocol has changed. This is **not** finished third-person gameplay. Final opt-in merge criteria are now tracked in `docs/PR32_MERGE_READINESS.md`; physical Android, live multiplayer browser QA and owner review remain.
+
+---
+
+## November 5 — live in-game camera milestone (draft PR #32)
+
+Added optional `Live 3D` inside the **original playable World V1** game shell, not a new standalone world and not a paused Graphics menu. It observes the authoritative current player and aim continuously at a capped 12 FPS while the existing game controls, AI, combat and 2D camera keep running. First-/third-person inset views, automatic 540-world-unit or biome-boundary terrain rebase, player-step gait, and GPU cleanup are implemented in `city-live-3d.js`. Input and saves still belong entirely to the original engine. This is a small experimental 3D perspective viewport, **not yet live full-screen 3D gameplay**. Browser and unit tests guard the original World V1; full details and remaining production blockers in `docs/CAMERA_GRAPHICS_MILESTONE.md`.
+
+---
+
+## November 5 — development runway: faster verified batches
+
+Added a small, no-dependency CLI with **focused graphics, world and systems test modes** and clear full-release checks. Use `npm run test:scopes`, `npm run test:graphics`, `npm run test:world`, `npm run test:systems` while iterating, then `npm run verify:all` and `npm run verify:full` before requesting a release. Preserve existing `npm test` and GitHub CI. The operating playbook is in `docs/DEVELOPMENT_RUNWAY.md`: one coherent vertical slice per batch, fewer needless pushes/CI cycles, explicit exact-head verification, and no prototype-as-production claims. Nothing here changes gameplay, wallet state, mining, saves or production builds.
+
+---
+
+## November 5 — read-only 3D mirror of current game player (draft PR #32)
+
+The experimental camera lab now offers a one-click, read-only snapshot of the **actual World V1 player's coordinates and aim** using `CityGraphics.samplePlayerCamera()`. The scene's existing 120:1 scale and reversed north/south axis map the original player to the prototype 3D camera; invalid or indoor positions fail safely. Controls can return to the independent walking demo, and neither action changes player position, authoritative combat, inventory, mining, wallet, multiplayer, or Solo save. This **does not** implement continuously live 3D gameplay. Detailed acceptance and remaining blockers: `docs/CAMERA_GRAPHICS_MILESTONE.md`.
+
+---
+
+## November 5 — reusable animated-avatar geometry (draft PR #32)
+
+The isolated 3D Graphics preview now uses a reusable, immutable, named-joint procedural skull avatar rig with valid first- and third-person geometry. World-space avatar mesh is rebuilt deterministically for each preview interaction, uploaded to a capped dynamic WebGL1 buffer, and drawn in one animated call alongside the one batched static-world call. GPU diagnostics report avatar vertex count and pose uploads. The original World V1 2D player, save, mining, wallet, NPCs and multiplayer are unchanged. This is **not** production in-game 3D animation or a skinned glTF rig. Full details: `docs/CAMERA_GRAPHICS_MILESTONE.md`.
+
+---
+
+## November 5 — WebGL static-geometry batching (draft PR #32)
+
+Experimental 3D graphics preview now combines up to 64 source-derived biome terrain tiles and up to 16 authored building volumes and facade details into one validated RGB triangle buffer and one WebGL1 draw call per repaint, with a single GPU upload. Procedural skull avatar animation stays separate and intact. The Graphics panel now exposes per-render GPU call counters, batch size and KiB upload metrics; the original 2D game, real saves, multiplayer, mining and wallet verification are untouched. No third-party assets or models added. Not merged or deployed. See `docs/CAMERA_GRAPHICS_MILESTONE.md`.
+
+---
+
+
+## November 5 — 3D camera lab: biome terrain and articulated avatar (draft PR #32)
+
+Added a read-only 8×8 WebGL terrain sampler driven by all 135 canonical biome definitions (3 original and 132 frontier regions), with source-derived colors/material and bounded visual relief, plus a jointed procedural box avatar with upper/lower arms, elbows, thighs, knees, feet and yaw-relative deterministic walk poses. Sampling a real frontier biome now uses that region's own position rather than projecting the old downtown test street into unrelated wilderness. Original gameplay, save, wallet, mining, multiplayer, authoritative collision, and 2D camera remain untouched. This is **not** live first-person/third-person 3D play or a skinned 3D asset. See `docs/CAMERA_GRAPHICS_MILESTONE.md` for QA and pending production steps.
+
+---
+
+## November 5 — continued interactive 3D avatar camera laboratory (draft PR #32)
+
+The unfinished WebGL preview from PR #30 has advanced beyond its static camera sample: the optional Graphics panel now has preview-only controls for turning and walking a skull-inspired, token-color block avatar along a bounded 3D road corridor. In both camera views the same avatar and camera position/yaw move together, with a basic gait phase. The preview is **not real third/first person gameplay**, changes no original World V1 player/world/server/wallet/save data, requires no extra asset downloads or mods, and falls back safely when WebGL is unavailable. Deterministic Node and phone-sized Chromium tests protect avatar movement bounds, input validation, reset, source isolation and Solo save data. See `docs/CAMERA_GRAPHICS_MILESTONE.md` for remaining production 3D blockers.
+
+---
+
 ## November 5 — one-world mining QA and viewport-cache correction (draft PR #29)
 
 Review of the existing 132-biome / underground mining work found a production-facing display bug: the first viewport's filtered mine openings were wrongly cached as if they represented the whole world. Corrected `city-mining.js` to cache the full validated shaft geometry and filter only the returned view. Added a new multi-biome, empty-viewport, depth-change and reload regression to `scripts/city-mining.test.mjs`. Bumped only the mining script cache key in `city.html`, and fixed the welcome copy so the +256 ceiling is not confused with playable vertical construction. No original player save, geometry, wallet integration, online authority or bonus economy changes.
