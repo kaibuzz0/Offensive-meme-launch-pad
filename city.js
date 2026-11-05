@@ -650,7 +650,7 @@
    }),status
   );
   content.append(node('h3','district-heading','Perspective camera research preview'),
-   node('p','beta-note','Experimental 3D camera with a jointed skull-style avatar, procedural walking arms and legs, and token-colored clothing. Buildings in this scene are derived from your existing Meme City world data. Walking here does not move the real player, change saves or affect shooting and combat. Full first-person and third-person gameplay still requires 3D world geometry, collision, interiors and avatar rig conversion.'));
+   node('p','beta-note','Experimental 3D camera with a jointed skull-style avatar, procedural walking arms and legs, and token-colored clothing. Buildings in this scene are derived from your existing Meme City world data. The camera can mirror your current in-game position and aim as a read-only snapshot. Demo walking never moves the real player, changes saves, or affects shooting and combat. Full first-person and third-person gameplay still requires 3D world geometry, collision, interiors and avatar rig conversion.'));
   const surface=node('canvas','graphics-preview');surface.width=640;surface.height=360;
   surface.setAttribute('aria-label','Optional WebGL 3D avatar and city street with third-person or first-person perspective');
   const feedback=node('p','graphics-preview-status');
@@ -699,6 +699,28 @@
   }),button('View first-person sample',()=>{
    previewMode='first';repaint('First-person sample: eye-level view with visible arms and tool.');
   }));
+  const mirrorTools=node('div','graphics-preview-controls graphics-preview-sync');
+  mirrorTools.setAttribute('role','group');
+  mirrorTools.setAttribute('aria-label','Read-only sync of 3D preview camera to current game player');
+  const mirrorInfo=node('p','graphics-preview-scene','Preview character is independent of your actual game player.');
+  mirrorTools.append(
+   button('Mirror current player position & aim',()=>{
+    if(!graphicsPreview?.observePlayer(me,aim)){
+     mirrorInfo.textContent='Player pose cannot be sampled here (indoors, outside preview area or WebGL unavailable). Original game is unchanged.';
+     return;
+    }
+    const sample=graphicsPreview.observed();
+    mirrorInfo.textContent='Read-only game sample X '+Math.round(sample.world.x)+
+     ', Y '+Math.round(sample.world.y)+' · heading '+Math.round(sample.yaw*180/Math.PI)+
+     '°. Walking and firing remain controlled by the 2D game.';
+    repaint('Camera aligned to current game player and aim (read-only snapshot).');
+   }),
+   button('Return to demo avatar',()=>{
+    if(!graphicsPreview?.clearObserved())return;
+    mirrorInfo.textContent='Independent demo avatar restored; no game position was changed.';
+    repaint('Independent demo avatar restored.');
+   })
+  );
   const walking=node('div','graphics-preview-controls graphics-preview-walk');
   walking.setAttribute('role','group');walking.setAttribute('aria-label','Move and rotate the preview-only 3D avatar');
   const attempt=(kind,amount,label)=>{
@@ -713,7 +735,7 @@
    button('Turn right',()=>attempt('turn',Math.PI/6,'Avatar turned right.')),
    button('Reset preview',()=>{if(graphicsPreview?.reset())repaint('Preview avatar returned to its starting position.');})
   );
-  content.append(surface,renderMetrics,controls,walking,feedback,button('Return to game →',closePanel));
+  content.append(surface,renderMetrics,controls,mirrorTools,mirrorInfo,walking,feedback,button('Return to game →',closePanel));
  }
  function panel(type){if(graphicsPreview){graphicsPreview.destroy();graphicsPreview=null;}activePanel=type;$('#joystick-knob').style.transform='';keys.clear();held.clear();stick={x:0,y:0};firing=false;const content=$('#panel-content');content.replaceChildren();$('#panel-status').textContent='';
   const titles={graphics:'Graphics & camera',mining:'Mining / vertical strata',frontierSurvey:'Frontier biome survey',biomeSurvey:'Biome field survey',outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',quarantine:'Quarantine bunker survival',arcadeCabinet:'Chaos Arcade / Rug Runner',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
