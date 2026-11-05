@@ -99,6 +99,9 @@
     }
    }
   }catch{disabled=true;}
+  // Reject the *entire* journal, including any valid prefix. A corrupt tail
+  // must never manufacture a partial material balance in the Gear panel.
+  if(disabled){entries.length=0;mined.clear();totals.clear();regionCounts.clear();surfaceCache=null;}
   // Failed load can never be resumed or written over.
   function inspect(actor,dx=0,dy=0,layer=0){
    const at=location(actor);
