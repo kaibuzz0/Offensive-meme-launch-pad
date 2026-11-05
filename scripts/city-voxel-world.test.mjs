@@ -18,8 +18,8 @@ test('quarter-sized blocks and human-scale first-person height are consistent',(
  assert.equal(v.VOXEL_METERS,.25);
  assert.equal(v.PLAYER_HEIGHT,7.2);
  assert.equal(v.EYE_HEIGHT,6.4);
- assert.equal(v.MIN_HEIGHT,-64);
- assert.equal(v.MAX_HEIGHT,256);
+ assert.equal(v.MIN_HEIGHT,-256);
+ assert.equal(v.MAX_HEIGHT,2048);
  assert.equal(v.CHUNK_SIZE,16);
  assert.equal(ctx.CityVoxelRenderer.VOXEL_METERS,.25);
 });
@@ -35,10 +35,10 @@ test('132 biomes retain seed-based identities with varied mountainous elevations
   for(let dx=-10;dx<=10;dx+=5){
    const c=w.surfaceAt(Math.round(a.x)+dx,Math.round(a.y)+dz);
    samples.push(c.height);
-   assert.ok(c.height>=6&&c.height<=248);
+   assert.ok(c.height>=6&&c.height<=2040);
   }
  assert.ok(new Set(samples).size>=10,'terrain must visibly change elevation rather than staying flat');
- assert.ok(Math.max(...samples)-Math.min(...samples)>20,'mountains must have meaningful vertical relief');
+ assert.ok(Math.max(...samples)-Math.min(...samples)>60,'mountains must have meaningful vertical relief');
 });
 
 test('surface geometry and geology are deterministic at positive and negative chunk boundaries',()=>{
@@ -55,9 +55,9 @@ test('surface geometry and geology are deterministic at positive and negative ch
  const rock=w.surfaceAt(-11,9);
  assert.equal(w.blockAt(-11,rock.height,9).solid,true);
  assert.equal(w.blockAt(-11,rock.height+1,9).solid,false);
- assert.equal(w.blockAt(-11,-64,9).material,'bedrock');
- assert.equal(w.blockAt(-11,-64,9).mineable,false);
- assert.equal(w.blockAt(-11,-65,9),null);
+ assert.equal(w.blockAt(-11,-256,9).material,'bedrock');
+ assert.equal(w.blockAt(-11,-256,9).mineable,false);
+ assert.equal(w.blockAt(-11,-257,9),null);
 });
 
 test('different biome groups generate seeded trees, grasses, flowers, flowers and water candidates',()=>{
@@ -90,7 +90,7 @@ test('subsurface caves, ores and underground bedrock follow 3D coordinates',()=>
   }
  assert.ok(caves>0,'real 3D noise must carve underground spaces');
  assert.ok(rock>0);
- assert.ok(w.caveAt(0,-64,0)===false,'bedrock cannot become a cave');
+ assert.ok(w.caveAt(0,-256,0)===false,'bedrock cannot become a cave');
  assert.deepEqual(plain(w.blockAt(-8,-24,7)),plain(create('cave-test').blockAt(-8,-24,7)));
 });
 
@@ -105,5 +105,9 @@ test('first-person chunk geometry is bounded, finite and uses native cached mesh
  assert.ok(mesh.plants<=256);
  assert.deepEqual(Array.from(mesh.data.slice(0,81)),
   Array.from(ctx.CityVoxelRenderer.generateMesh(create('meshing-001'),0,0).data.slice(0,81)));
- assert.equal(ctx.CityVoxelRenderer.MAX_GPU_CHUNKS,49);
+ assert.equal(ctx.CityVoxelRenderer.MAX_GPU_CHUNKS,176);
+ const far=ctx.CityVoxelRenderer.generateMesh(w,8,0,4);
+ assert.equal(far.tiles,16);
+ assert.equal(far.plants,0);
+ assert.ok(far.vertices<mesh.vertices,'far-distance LOD must use fewer vertices than full detail');
 });
