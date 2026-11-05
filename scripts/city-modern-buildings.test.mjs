@@ -10,7 +10,7 @@ const C=ctx.MemeCityCore,D=ctx.CityDistricts,I=ctx.CityInteriors;
 const get=id=>C.WORLD.buildings.find(b=>b.id===id);
 
 test('all active 3D-style business architecture derives from current immutable V1 building footprints',()=>{
- assert.equal(C.WORLD.width,11200);
+ assert.equal(C.WORLD.originalWidth,11200);assert.equal(C.WORLD.width,24400);
  assert.equal(I.BUILDINGS.length,47);
  const positions=JSON.stringify(C.WORLD.buildings.map(({id,x,y,w,h})=>({id,x,y,w,h})));
  for(const b of C.WORLD.buildings){
