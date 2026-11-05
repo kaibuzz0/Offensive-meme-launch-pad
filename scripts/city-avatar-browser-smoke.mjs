@@ -83,6 +83,18 @@ try{
  assert.equal(await evalPage("document.getElementById('city-intro').hidden"),false,'one-tap original game splash');
  await evalPage("document.getElementById('start-button').click();true");
  await waitFor(()=>evalPage("document.getElementById('city-intro').hidden===true"),'original solo game entrance');
+ // Draw an actual biome into a phone-sized Chromium Canvas, not just source-check it.
+ const biomePixels=await evalPage(`(()=>{
+  const T=window.CityBiomes,r=T?.regions?.[0];if(!r)return null;
+  const el=document.createElement('canvas');el.width=240;el.height=240;
+  const g=el.getContext('2d');g.setTransform(.3,0,0,.3,-r.x*.3,-r.y*.3);
+  const painted=T.drawGround(g,(x,y)=>x===r.x),pixel=g.getImageData(120,120,1,1).data;
+  return {painted,opaque:pixel[3]>0,regions:T.regions.length,props:T.scenery(g,(x,y,w,h)=>x<r.x+r.w&&x+w>r.x&&y<r.y+r.h&&y+h>r.y).length};
+ })()`);
+ assert.equal(biomePixels?.painted,1,'original game paints a biome in real Chromium Canvas');
+ assert.equal(biomePixels?.opaque,true,'terrain texture is visible');
+ assert.equal(biomePixels?.regions,3,'three greenbelt biomes load in the same Solo game');
+ assert.ok(biomePixels?.props>0,'biome contains live scenery layers');
  // Actually paint armed/unarmed 3D people onto a Canvas in the real browser,
  // not merely verify that a method exists or syntactically parses.
  const samples=await evalPage(`(()=>{
