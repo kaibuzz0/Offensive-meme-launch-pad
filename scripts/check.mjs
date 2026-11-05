@@ -25,7 +25,7 @@ console.log(`PASS: ${tokens.length} unique listings, all artwork, mint format ch
 for(const page of ['index.html','beta.html','creators.html','city.html','city-roadmap.html',...tokens.map(t=>'tokens/'+t.id+'/index.html'),'tokens/offensive/index.html']){
  const content=read(page);
  assert.ok(content.includes(page==='city.html'?'pwa.js?v=31-solo-holder':'pwa.js?v=30-android-wallet'),page+' must load shared wallet runtime');
- assert.ok(content.includes('styles.css?v=28-reliable-theme')||content.includes('city.css?v=28-reliable-theme')||content.includes('city.css?v=53-world-scene'),page+' must load wallet controls CSS');
+ assert.ok(content.includes('styles.css?v=28-reliable-theme')||content.includes('city.css?v=28-reliable-theme')||content.includes('city.css?v=56-static-batch'),page+' must load wallet controls CSS');
 }
 // Android PWA adapter is a locally published ES module; it must not rely on
 // a second wallet page/button or ever persist signing material.
@@ -60,7 +60,8 @@ assert.ok(read('city.html').includes('city-visuals.js'),'Clothing renderer must 
 assert.ok(read('.github/workflows/pages.yml').includes('city-visuals.js'),'Clothing renderer must ship in Pages builds');
 console.log('PASS: streetwear renderer and deployment references.');
 
-assert.ok(read('city.html').includes('city-graphics.js?v=55-biome-rig'),'WebGL graphics preview must load before original playable city');
+assert.ok(read('city.html').includes('city-graphics.js?v=56-static-batch'),'WebGL graphics preview must load before original playable city');
+assert.ok(read('city.js').includes('graphics-preview-metrics')&&read('city.css').includes('.graphics-preview-metrics'),'Mobile graphics performance diagnostics must remain visible');
 assert.ok(read('city.html').includes('data-panel="graphics"'),'Graphics menu must be reachable from the existing game');
 assert.ok(read('.github/workflows/pages.yml').includes('city-graphics.js'),'WebGL preview must ship in Pages');
 assert.ok(read('server/city-server.mjs').includes("'city-graphics.js'"),'WebGL preview must be served by the local QA server');
@@ -88,11 +89,11 @@ for(const id of ['city-canvas','start-button','city-intro','room-mode','hud-cred
 assert.ok(city.includes('SOLO / LOCAL SAVE'),'Original V1 solo gameplay must be the default');
 assert.ok(city.includes('id="camera-view"')&&city.includes('value="wide"')&&city.includes('value="classic"')&&city.includes('value="detail"'),'Graphics settings must offer real 2D zoom presets, not unimplemented 3D camera modes');
 assert.ok(read('city.js').includes('meme-city-camera-view-v1')&&read('city.js').includes('setCameraMode(cameraMode)'),'Camera settings must persist independently of player save');
-assert.ok(city.includes('city-interiors.js?v=39-chaos-arcade')&&city.includes('city-room-visuals.js?v=39-chaos-arcade')&&city.includes('city.css?v=53-world-scene'),'The playable in-room Chaos Arcade and mobile cabinet styling must all be present');
+assert.ok(city.includes('city-interiors.js?v=39-chaos-arcade')&&city.includes('city-room-visuals.js?v=39-chaos-arcade')&&city.includes('city.css?v=56-static-batch'),'The playable in-room Chaos Arcade and mobile cabinet styling must all be present');
 assert.ok(city.includes('city-civilians.js?v=44-friendly-civilians'),'Shared reactively fleeing civilians must load in existing playable city');
 assert.ok(city.includes('city-rise-visuals.js?v=43-street-lighting'),'Current center-world street lighting must ship with the original city');
 assert.ok(city.includes('city-territory.js?v=40-district-defense'),'Territory defense encounters must ship in the one playable city');
-assert.ok(city.includes('city.js?v=55-biome-rig'),'Restored V1 playable engine must be loaded with the refreshed script version');
+assert.ok(city.includes('city.js?v=56-static-batch'),'Restored V1 playable engine must be loaded with the refreshed script version');
 assert.ok(city.includes('city-rise.js?v=37-one-world-quarantine')&&city.includes('city-arcade.js?v=41-civilian-patrols')&&city.includes('city-interiors.js?v=39-chaos-arcade'),'All authoritative Quarantine modules must share the live script version');
 assert.ok(city.includes('city-districts.js?v=47-frontier')&&city.includes('city-room-visuals.js?v=39-chaos-arcade'),'Modern exterior and interior renderers must be shipped together');
 assert.ok(city.includes('city-visuals.js?v=37-one-world-quarantine')&&city.includes('city-clans.js?v=37-one-world-quarantine')&&city.includes('city-core.js?v=48-mining'),'Signed beta-token cosmetics must use the updated shared player rig');
