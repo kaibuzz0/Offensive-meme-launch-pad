@@ -277,14 +277,14 @@ test('mine scene delegates player drawing to the shared World V1 avatar instead 
   beginPath(){},lineTo(){},moveTo(){},closePath(){},stroke(){},fill(){},
   ellipse(){},arc(){},translate(){}};
  const owner=(context,x,y,actor)=>calls.push({context,x,y,actor:{...actor}});
- const first={layer:0,dx:0,dy:0,z:0},second={layer:0,dx:1,dy:0,z:0};
- assert.equal(V.slice(c,m,p,first,owner),true);
+ const originPose={layer:0,dx:0,dy:0,z:0},nextPose={layer:0,dx:1,dy:0,z:0};
+ assert.equal(V.slice(c,m,p,originPose,owner),true);
  assert.equal(calls.length,1,'external shared avatar renderer draws once, after terrain');
  assert.equal(calls[0].context,c);
- assert.deepEqual(plain(calls[0].actor),first);
+ assert.deepEqual(plain(calls[0].actor),originPose);
  assert.equal(Number.isFinite(calls[0].x),true);
  assert.equal(Number.isFinite(calls[0].y),true);
- assert.equal(V.slice(c,m,p,second,owner),true);
+ assert.equal(V.slice(c,m,p,nextPose,owner),true);
  assert.equal(calls.length,2,'moving the miner causes the same renderer to draw at its new grid cell');
  assert.notEqual(calls[0].x,calls[1].x);
  assert.notEqual(calls[0].y,calls[1].y);
