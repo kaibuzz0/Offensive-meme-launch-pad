@@ -716,6 +716,50 @@ try{
   assert.equal(Object.values(mineEnd.materials).reduce((sum,n)=>sum+n,0),2);
   assert.equal(mineEnd.original,true,'old Solo save stays in place');
   assert.equal(await evalPage("document.querySelector('#hud-credits').textContent"),creditsBeforeMining,'mining cannot grant credits');
+  const mineCutaway=await evalPage(`(()=>{
+   const canvas=document.querySelector('canvas.mining-scene'),
+    pixel=canvas?.getContext('2d')?.getImageData(320,160,1,1).data;
+   return {width:canvas?.width,height:canvas?.height,opaque:!!pixel&&pixel[3]>0,
+    minerHeight:document.querySelector('.mining-strata')?.previousElementSibling?.textContent};
+  })()`);
+  assert.equal(mineCutaway.width,640,'actual native underground Canvas exists');
+  assert.equal(mineCutaway.height,350);
+  assert.equal(mineCutaway.opaque,true,'real Chromium renders solid geological tiles at depth');
+  assert.match(mineCutaway.minerHeight||'',/z=-8/,'the miner now occupies the first cleared underground level');
+  await evalPage(`(()=>{
+   const up=[...document.querySelectorAll('.mining-controls button')].find(x=>x.textContent.includes('Ascend'));
+   if(up.disabled)throw Error('No exit to surface');
+   up.click();
+   const east=document.querySelectorAll('.mining-cell')[13];
+   if(east.disabled)throw Error('East surface rock not adjacent to player');
+   east.click();return true;
+  })()`);
+  await waitFor(()=>evalPage("document.querySelectorAll('.mining-cell')[13]?.classList.contains('excavated')"),'east surface tunnel excavated');
+  await evalPage(`(()=>{
+   const down=[...document.querySelectorAll('.mining-controls button')].find(x=>x.textContent.includes('Descend'));
+   if(down.disabled)throw Error('Cannot descend reopened original shaft');
+   down.click();
+   const east=[...document.querySelectorAll('.mining-walk button')].find(x=>x.textContent.includes('East'));
+   if(east.disabled)throw Error('Avatar cannot walk into cleared east tunnel');
+   east.click();return true;
+  })()`);
+  await waitFor(()=>evalPage("document.querySelectorAll('.mining-cell')[13]?.classList.contains('miner-tile')"),'avatar moved to eastern excavated tunnel, not through solid wall');
+  const surfaceCutaway=await evalPage(`(()=>{
+   const M=window.CityMining,V=window.CityMineVisuals,store=M.createStore(localStorage),
+    holes=store.surfaceOpenings(),surface=document.createElement('canvas');
+   surface.width=surface.height=130;
+   const g=surface.getContext('2d');
+   g.setTransform(1,0,0,1,-11750,-540);
+   const painted=V.surface(g,holes),sample=g.getImageData(50,50,1,1).data;
+   return {painted,holes:holes.length,shaft:holes.find(h=>h.shaft)?.depth,
+    stored:store.count(),opaque:sample[3]>0};
+  })()`);
+  assert.equal(surfaceCutaway.painted,2,'surface renderer draws exactly two truly dug openings');
+  assert.equal(surfaceCutaway.holes,2);
+  assert.equal(surfaceCutaway.shaft,-16,'true shaft depth reflects the lower mined layer');
+  assert.equal(surfaceCutaway.stored,3);
+  assert.equal(surfaceCutaway.opaque,true,'real Chrome paints visible mine entrance pixels');
+  assert.equal(await evalPage("document.querySelector('#hud-credits').textContent"),creditsBeforeMining,'walking and digging never fabricate coins');
   await evalPage("document.querySelector('#close-panel').click();true");
 
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
