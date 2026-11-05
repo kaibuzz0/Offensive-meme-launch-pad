@@ -232,3 +232,5 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 
 /* Real-world geometry sample remains read-only and scrollable on small screens. */
 .graphics-preview-scene{font:11px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;color:#b7d8c4;padding:9px 12px;border:1px solid #476571;background:#112736;border-radius:6px;overflow-wrap:anywhere}
+
+.graphics-preview-metrics{font:10px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;color:#bdddc9;background:#102e32;border:1px solid #356e64;border-radius:6px;padding:8px 12px;overflow-wrap:anywhere}
