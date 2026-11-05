@@ -215,3 +215,13 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 .mining-walk .panel-button:disabled{opacity:.4;cursor:not-allowed}
 .mining-walk .panel-button:focus-visible{outline:3px solid #dbf59d;outline-offset:2px}
 @media(max-width:700px){.mining-scene{border-width:1px;margin:8px auto}.mining-walk{gap:4px}.mining-walk .panel-button{min-height:52px;font-size:9px;padding:8px 2px}}
+
+
+/* Graphics panel keeps the original playable Canvas as the default renderer. */
+.graphics-choice{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:13px;margin:10px 0;background:#1a2b39;border:1px solid #50687c;border-radius:7px;color:#e2f1ef;font:600 12px Arial,sans-serif}
+.graphics-select{background:#0f202f;color:#e1f6f1;border:1px solid #7896a3;border-radius:5px;padding:10px;font-size:12px;max-width:100%;min-width:210px}
+.graphics-preview{display:block;width:100%;max-width:640px;aspect-ratio:16/9;height:auto;margin:16px auto 9px;background:#102130;border:1px solid #67839b;border-radius:9px}
+.graphics-preview-controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.graphics-preview-controls button{flex:1;min-width:170px}
+.graphics-preview-status{font:12px/1.5 Arial,sans-serif;color:#b4d6d7;margin:8px 0 16px}
+@media(max-width:600px){.graphics-choice{align-items:stretch;flex-direction:column}.graphics-select{width:100%;min-width:0}.graphics-preview-controls button{min-width:125px}}
