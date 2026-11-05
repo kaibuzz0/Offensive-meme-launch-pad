@@ -97,10 +97,44 @@ test('3D avatar stage has bounded local movement, finite camera yaw and reset',(
  assert.equal(p.step(-1),false,'negative edge of corridor is bounded');
 });
 
+test('World V1's actual named building footprints become bounded, immutable 3D meshes',()=>{
+ const root={};
+ vm.runInNewContext(fs.readFileSync(new URL('../city-core.js',import.meta.url),'utf8'),root);
+ vm.runInNewContext(fs.readFileSync(new URL('../city-interiors.js',import.meta.url),'utf8'),root);
+ const worldBuildings=root.CityInteriors.BUILDINGS,launch=worldBuildings.find(b=>b.roomId==='launch');
+ assert.ok(launch&&worldBuildings.length>10,'existing city has named authored buildings');
+ const original={x:launch.x,y:launch.y,w:launch.w,h:launch.h};
+ const scene=G.createWorldScene(worldBuildings,{x:launch.x+launch.w/2,y:launch.y+launch.h+37});
+ assert.equal(scene.name,'Launch House');
+ assert.ok(scene.buildings.length>=1&&scene.buildings.length<=16,'only bounded near-world geometry is loaded');
+ const primary=scene.buildings.find(b=>b.id==='launch');
+ assert.ok(primary,'the selected authored building is included');
+ assert.equal(primary.x,0);
+ assert.ok(Math.abs(primary.w*120-launch.w)<1e-8,'uses original x footprint width');
+ assert.ok(Math.abs(primary.d*120-launch.h)<1e-8,'uses original y footprint depth');
+ assert.equal(primary.color,launch.accent,'uses existing authored building theme');
+ assert.deepEqual(asNative({x:launch.x,y:launch.y,w:launch.w,h:launch.h}),original,'source geometry is unchanged');
+ assert.equal(Object.isFrozen(scene),true);assert.equal(Object.isFrozen(primary),true);
+ assert.equal(Object.isFrozen(scene.buildings),true);
+ const stage=G.createStage(scene);
+ let blocked=false;
+ for(let n=0;n<12;n++)if(!stage.step(.8)){blocked=true;break;}
+ assert.equal(blocked,true,'nearby actual landmark wall blocks preview-only motion');
+ assert.ok(stage.snapshot().z<primary.z-primary.d/2,'avatar stops short of the actual building facade');
+ assert.equal(G.createWorldScene([], {x:0,y:0}),null);
+ assert.equal(G.createWorldScene(worldBuildings,{x:Infinity,y:0}),null);
+ const malformed=[null,{x:0,y:0,w:Infinity,h:100},{x:0,y:0,w:-1,h:10}];
+ assert.equal(G.createWorldScene(malformed,{x:0,y:0}),null,'malformed footprints are rejected');
+ const capped=G.createWorldScene(Array.from({length:250},(_,i)=>({id:'prop-'+i,x:i*3,y:100,w:80,h:120,hue:'#abcdef'})),{x:0,y:200});
+ assert.ok(capped.buildings.length<=16,'massive input cannot create unbounded per-frame draw calls');
+});
+
 test('3D movement controls remain exclusive to the optional graphics preview',()=>{
  const js=fs.readFileSync(new URL('../city.js',import.meta.url),'utf8');
  const mod=fs.readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8');
  assert.match(js,/Move and rotate the preview-only 3D avatar/);
+ assert.match(js,/CityGraphics\.createWorldScene\(I\.BUILDINGS,\{x:me\.x,y:me\.y\}\)/);
+ assert.match(js,/World V1 buildings:/);
  for(const name of ['Turn left','Walk forward','Walk backward','Turn right','Reset preview'])assert.ok(js.includes(name),name);
  assert.match(js,/graphicsPreview\.turn\(amount\)/);
  assert.match(js,/graphicsPreview\.step\(amount\)/);
