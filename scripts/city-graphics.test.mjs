@@ -50,7 +50,8 @@ test('native WebGL preview is only an optional renderer, with robust unsupported
  const html=fs.readFileSync(new URL('../city.html',import.meta.url),'utf8');
  const js=fs.readFileSync(new URL('../city.js',import.meta.url),'utf8');
  assert.match(html,/city-graphics\.js\?v=59-locality-mirror/);
- assert.match(html,/city\.js\?v=58-player-mirror/);
+ assert.match(html,/city-live-3d\.js\?v=60-live-game-camera/);
+ assert.match(html,/city\.js\?v=60-live-game-camera/);
  assert.match(html,/data-panel="graphics"/);
  assert.match(js,/graphicsPanel\(content\)/);
  assert.match(js,/graphics\.pixelRatioCap\(\)/);
@@ -368,7 +369,7 @@ test('graphics module remains isolated from original save and authoritative game
  assert.doesNotMatch(s,/offensive-meme-city-v1-center/);
  assert.doesNotMatch(s,/(walletKey|signMessage|holderTier|credits=|roomClient\.action)/);
  const html=fs.readFileSync(new URL('../city.html',import.meta.url),'utf8');
- assert.ok(html.indexOf('city-graphics.js?v=59-locality-mirror')<html.indexOf('city.js?v=58-player-mirror'));
+ assert.ok(html.indexOf('city-graphics.js?v=59-locality-mirror')<html.indexOf('city.js?v=60-live-game-camera'));
  const pages=fs.readFileSync(new URL('../.github/workflows/pages.yml',import.meta.url),'utf8');
  const server=fs.readFileSync(new URL('../server/city-server.mjs',import.meta.url),'utf8');
  assert.match(pages,/city-graphics\.js/);assert.match(server,/'city-graphics\.js'/);
