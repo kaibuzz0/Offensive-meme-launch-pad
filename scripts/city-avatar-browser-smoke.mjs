@@ -105,6 +105,14 @@ try{
  assert.equal(frontierSample.name,'Twilight Cedar','actual first frontier biome is visible in 3D preview sampler');
  assert.equal(frontierSample.count,64);
  assert.ok(frontierSample.materials>=1,'sample has real authored materials');
+ const gpuMetrics=await evalPage("document.querySelector('.graphics-preview-metrics')?.textContent||''");
+ if(graphicsInitial.gl)assert.match(gpuMetrics,/3D preview GPU draw calls: 1 static \/ [0-9]+ animated · [0-9]+ scenery cubes batched · [0-9]+ KiB static mesh · 1 GPU upload\./,
+  'phone-sized WebGL scene must batch terrain, roofs and building fronts into one static draw');
+ else assert.match(gpuMetrics,/GPU preview unavailable/,'Canvas fallback remains visible');
+ const staticMeshSample=await evalPage("(()=>{const G=window.CityGraphics,scene=G.createWorldScene(window.CityInteriors.BUILDINGS,{x:5600,y:5940},window.CityBiomes,window.CityFrontier);const mesh=G.createStaticMesh(scene);return {boxes:mesh.boxes,bytes:mesh.bytes,vertices:mesh.vertices,finite:mesh.data.every(Number.isFinite)};})()");
+ assert.ok(staticMeshSample.boxes>=60&&staticMeshSample.boxes<=240);
+ assert.equal(staticMeshSample.bytes,staticMeshSample.vertices*24);
+ assert.equal(staticMeshSample.finite,true,'actual authored city geometry contains no NaN GPU vertices');
  assert.match(graphicsInitial.text,/Third-person preview active|WebGL preview is unavailable/);
  if(graphicsInitial.gl)assert.equal(graphicsInitial.visible,true,'software/hardware WebGL paints an opaque camera preview');
  await evalPage("(()=>{const fields=document.querySelectorAll('.graphics-choice select');fields[0].value='detail';fields[0].dispatchEvent(new Event('change',{bubbles:true}));fields[1].value='performance';fields[1].dispatchEvent(new Event('change',{bubbles:true}));return true;})()");
