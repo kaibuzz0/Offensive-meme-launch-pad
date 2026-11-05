@@ -49,7 +49,7 @@ test('native WebGL preview is only an optional renderer, with robust unsupported
  assert.equal(throws.supported,false);assert.equal(throws.draw('first'),false);
  const html=fs.readFileSync(new URL('../city.html',import.meta.url),'utf8');
  const js=fs.readFileSync(new URL('../city.js',import.meta.url),'utf8');
- assert.match(html,/city-graphics\.js\?v=53-world-scene/);
+ assert.match(html,/city-graphics\.js\?v=54-camera-occlusion/);
  assert.match(html,/city\.js\?v=53-world-scene/);
  assert.match(html,/data-panel="graphics"/);
  assert.match(js,/graphicsPanel\(content\)/);
