@@ -1,3 +1,5 @@
+> **Historical release-candidate checklist — completed merge.** The owner-authorized PR #34 merged into `main` as `2fd58e4e1b98d62ccac29a9bc764d22bd50e8a5b` on November 5, 2026. [Final candidate validation](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/42081416917) passed 325/325 tests plus browser/room checks; [GitHub Pages deployment](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/42081764898) passed. The pending checkboxes below document *pre-merge* conditions, not the current release status. See [canonical live release record](CANONICAL_WORLD_V1_RELEASE.md) for current state and continuing feature limitations.
+
 # Meme City World V1 — Combined release candidate
 
 **Release branch:** `codex/world1-camera-mining-release-candidate`
