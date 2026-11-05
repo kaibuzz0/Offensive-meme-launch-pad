@@ -229,7 +229,7 @@ try{
     const b=C.WORLD.buildings.find(b=>b.id===id);return C.areaAt(b.x+b.w/2,b.y+b.h/2);
    })).size,painted:Array.from(center).some(x=>x>0),mapWidth:map.width,mapHeight:map.height};
  })()`);
- assert.equal(mapData.width,11200);assert.equal(mapData.height,11200);
+ assert.equal(mapData.width,24400);assert.equal(mapData.height,14400);
  assert.deepEqual(mapData.fort,[4480,4480]);assert.equal(mapData.clans,6);
  assert.ok(mapData.plot[0]>mapData.fort[0]&&mapData.plot[0]<mapData.fort[0]+2240);
  assert.ok(mapData.shopRegions>=4);assert.ok(mapData.painted);
