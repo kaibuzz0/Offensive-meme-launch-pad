@@ -133,7 +133,7 @@
  // Read-only coordinate bridge from the authoritative 2D game to the
  // experimental local 3D camera scene. Game +Y is south; preview +Z north.
  // No writes to game players, inventory, save data or network messages.
- function samplePlayerCamera(scene,player,aim){
+ function samplePlayerCamera(scene,player,aim,steps=0){
   if(!scene?.world||!player||!aim||player.room||
    ![scene.world.x,scene.world.y,player.x,player.y,aim.x,aim.y].every(Number.isFinite))return null;
   const length=Math.hypot(aim.x,aim.y);
@@ -143,7 +143,7 @@
   const yaw=Math.atan2(aim.x/length,-aim.y/length);
   if(!Number.isFinite(yaw))return null;
   return Object.freeze({
-   x,z,yaw,steps:0,source:'current-game-player',
+   x,z,yaw,steps:Number.isFinite(steps)?Math.max(0,Math.min(1000000,steps)):0,source:'current-game-player',
    world:Object.freeze({x:player.x,y:player.y})
   });
  }
@@ -416,9 +416,9 @@
    stats:()=>Object.freeze({staticBoxes:staticMesh.boxes,staticVertices:staticMesh.vertices,
     staticBytes:staticMesh.bytes,staticUploads,staticDrawCalls,dynamicDrawCalls,avatarUploads,avatarVertices}),
    snapshot:stage.snapshot,observed:()=>observed,
-   observePlayer:(player,aim)=>{
+   observePlayer:(player,aim,steps=0)=>{
     if(disposed)return false;
-    const next=samplePlayerCamera(sample,player,aim);
+    const next=samplePlayerCamera(sample,player,aim,steps);
     if(!next)return false;
     observed=next;return true;
    },
