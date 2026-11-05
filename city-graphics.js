@@ -255,6 +255,74 @@
   }
   return Object.freeze({data,boxes:boxes.length,vertices:data.length/6,bytes:data.byteLength});
  }
+ // Reusable, stateless character rig. Both viewpoints derive from the same
+ // validated pose. Returning immutable local-space parts allows future NPCs,
+ // alternative skins and renderers to share one geometry definition.
+ function createAvatarRig(phase=0,mode='third',outfit='#b6e87a'){
+  if(!['first','third'].includes(mode))return Object.freeze([]);
+  const shirt=rgb(outfit),dark=[.12,.17,.23],skull=[.9,.87,.78],
+   teeth=[.70,.70,.63],trousers=[.2,.26,.34],gun=[.37,.42,.49];
+  const parts=[],pose=avatarPose(phase);
+  const add=(name,pos,size,color,pitch=0)=>{
+   if(parts.length>=56||![...pos,...size,pitch].every(Number.isFinite))return;
+   parts.push(Object.freeze({name,pos:Object.freeze(pos.slice()),size:Object.freeze(size.slice()),
+    color:Object.freeze(color.slice()),pitch}));
+  };
+  const limbSegment=(name,pivot,length,angle,width,depth,color)=>{
+   const end=[pivot[0],pivot[1]-Math.cos(angle)*length,pivot[2]+Math.sin(angle)*length];
+   add(name,[pivot[0],(pivot[1]+end[1])/2,(pivot[2]+end[2])/2],
+    [width,length,depth],color,angle);
+   return end;
+  };
+  if(mode==='first'){
+   for(const side of [-1,1])add('first-arm-'+side,[side*.37,1.04,.95],[.21,.32,.48],shirt);
+   add('first-tool',[.39,1.1,1.3],[.18,.22,.8],gun);
+  }else{
+   add('torso',[0,1.14+pose.bob,0],[.62,.72,.32],shirt);
+   add('skull',[0,1.80+pose.bob,0],[.52,.49,.50],skull);
+   add('jaw',[0,1.57+pose.bob,.06],[.32,.16,.40],skull);
+   for(const side of [-1,1]){
+    add('eye-'+side,[side*.16,1.86+pose.bob,.259],[.115,.14,.024],dark);
+    add('teeth-'+side,[side*.07,1.56+pose.bob,.27],[.055,.10,.025],teeth);
+    const armAngle=side<0?pose.leftArm:pose.rightArm;
+    const elbowAngle=side<0?pose.leftElbow:pose.rightElbow;
+    const elbow=limbSegment('upper-arm-'+side,[side*.40,1.43+pose.bob,0],.36,armAngle,.2,.25,shirt);
+    const wrist=limbSegment('forearm-'+side,elbow,.33,armAngle+elbowAngle,.18,.22,skull);
+    add('hand-'+side,[wrist[0],wrist[1]-.04,wrist[2]],[.17,.13,.20],skull);
+    const legAngle=side<0?pose.leftLeg:pose.rightLeg;
+    const kneeAngle=side<0?pose.leftKnee:pose.rightKnee;
+    const knee=limbSegment('thigh-'+side,[side*.19,.83+pose.bob,0],.40,legAngle,.23,.30,trousers);
+    const foot=limbSegment('shin-'+side,knee,.37,legAngle-kneeAngle,.22,.28,trousers);
+    add('boot-'+side,[foot[0],Math.max(.075,foot[1]-.035),foot[2]+.07],[.27,.15,.39],dark);
+    if(side===1)add('blaster',[wrist[0]+.11,wrist[1]+.025,wrist[2]+.40],
+     [.13,.15,.76],gun,armAngle+elbowAngle);
+   }
+   add('mouth',[0,1.67+pose.bob,.26],[.24,.08,.025],dark);
+   add('back-panel',[0,1.2+pose.bob,-.169],[.34,.34,.01],[.15,.23,.31]);
+  }
+  return Object.freeze(parts);
+ }
+ function createAvatarMesh(snapshot,mode='third',outfit='#b6e87a'){
+  if(!snapshot||![snapshot.x,snapshot.z,snapshot.yaw,snapshot.steps].every(Number.isFinite))
+   return null;
+  const parts=createAvatarRig(snapshot.steps,mode,outfit);
+  const data=new Float32Array(parts.length*36*6);
+  const {x,z,yaw}=snapshot,sin=Math.sin(yaw),cos=Math.cos(yaw);
+  let index=0;
+  for(const part of parts){
+   const [lx,ly,lz]=part.pos;
+   const world=[x+lx*cos+lz*sin,ly,z-lx*sin+lz*cos];
+   const m=model(world,part.size,yaw,-part.pitch);
+   for(let v=0;v<vertices.length;v+=3){
+    const px=vertices[v],py=vertices[v+1],pz=vertices[v+2];
+    data[index++]=m[0]*px+m[4]*py+m[8]*pz+m[12];
+    data[index++]=m[1]*px+m[5]*py+m[9]*pz+m[13];
+    data[index++]=m[2]*px+m[6]*py+m[10]*pz+m[14];
+    data[index++]=part.color[0];data[index++]=part.color[1];data[index++]=part.color[2];
+   }
+  }
+  return Object.freeze({data,parts:parts.length,vertices:data.length/6,bytes:data.byteLength});
+ }
  function createPreview(canvas,color='#b6e87a',scene=null){
   const sample=scene&&Array.isArray(scene.buildings)?scene:null;
   const stage=createStage(sample);
@@ -371,5 +439,5 @@
    reset:()=>{if(disposed)return false;stage.reset();return true;}
   });
  }
- root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createTerrainPatch,createWorldScene,createStaticMesh,createStage,avatarPose,cameraAvoid,createPreview,perspective,lookAt,multiply});
+ root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createTerrainPatch,createWorldScene,createStaticMesh,createAvatarRig,createAvatarMesh,createStage,avatarPose,cameraAvoid,createPreview,perspective,lookAt,multiply});
 })(typeof window==='undefined'?globalThis:window);
