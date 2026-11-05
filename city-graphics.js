@@ -76,6 +76,37 @@
    buildings:Object.freeze(solid.map(b=>Object.freeze(b)))
   });
  }
+ // Segment / 3D AABB camera obstruction. Only moves the optional preview
+ // camera, never the avatar, its collision engine or the game world's camera.
+ function cameraAvoid(scene,eye,target){
+  if(!Array.isArray(eye)||!Array.isArray(target)||eye.length!==3||target.length!==3||
+   ![...eye,...target].every(Number.isFinite))return null;
+  if(!scene?.buildings?.length)return Object.freeze({eye:eye.slice(),obstructed:false});
+  const delta=eye.map((value,i)=>value-target[i]),distance=Math.hypot(...delta);
+  if(distance<.01)return Object.freeze({eye:eye.slice(),obstructed:false});
+  let nearest=1;
+  for(const b of scene.buildings.slice(0,16)){
+   if(![b.x,b.z,b.w,b.d,b.height].every(Number.isFinite)||b.w<=0||b.d<=0||b.height<=0)continue;
+   const margin=.18,bounds=[
+    [b.x-b.w/2-margin,b.x+b.w/2+margin],
+    [0,b.height+.12],
+    [b.z-b.d/2-margin,b.z+b.d/2+margin]
+   ];
+   let enter=0,leave=1,miss=false;
+   for(let axis=0;axis<3;axis++){
+    const origin=target[axis],speed=delta[axis],[lo,hi]=bounds[axis];
+    if(Math.abs(speed)<1e-8){if(origin<lo||origin>hi){miss=true;break;}continue;}
+    const a=(lo-origin)/speed,c=(hi-origin)/speed;
+    enter=Math.max(enter,Math.min(a,c));leave=Math.min(leave,Math.max(a,c));
+    if(enter>leave){miss=true;break;}
+   }
+   if(!miss&&enter<=1&&leave>=0)nearest=Math.min(nearest,Math.max(0,enter-.12/distance));
+  }
+  // Hold a minimum framing distance instead of allowing the eye inside the
+  // avatar. If the focus is somehow already inside a solid, use the input eye.
+  if(nearest<=.01)return Object.freeze({eye:eye.slice(),obstructed:false});
+  return Object.freeze({eye:target.map((value,i)=>value+delta[i]*nearest),obstructed:nearest<1});
+ }
  // A bounded, preview-only camera/character stage. No real game state is mutated.
  function createStage(scene=null){
   let x=0,z=0,yaw=0,steps=0;
@@ -89,12 +120,16 @@
    },
    step(distance){
     if(!Number.isFinite(distance)||Math.abs(distance)>1)return false;
-    const nx=x+Math.sin(yaw)*distance,nz=z+Math.cos(yaw)*distance;
-    // Preview-only corridor. Genuine nearby building footprints are
-    // collision boxes here, never an input to the authoritative game world.
-    if(Math.abs(nx)>1.2||nz< -3||nz>9)return false;
-    if(scene?.buildings?.some(b=>Math.abs(nx-b.x)<b.w/2+.24&&Math.abs(nz-b.z)<b.d/2+.24))return false;
-    x=nx;z=nz;steps++;return true;
+    const dx=Math.sin(yaw)*distance,dz=Math.cos(yaw)*distance;
+    // Swept/substep collision prevents walking through thin building walls
+    // even if the final endpoint would be clear. Preview state only.
+    const count=Math.max(1,Math.ceil(Math.abs(distance)/.1));
+    for(let i=1;i<=count;i++){
+     const nx=x+dx*i/count,nz=z+dz*i/count;
+     if(Math.abs(nx)>1.2||nz< -3||nz>9)return false;
+     if(scene?.buildings?.some(b=>Math.abs(nx-b.x)<b.w/2+.24&&Math.abs(nz-b.z)<b.d/2+.24))return false;
+    }
+    x+=dx;z+=dz;steps++;return true;
    },
    reset(){x=0;z=0;yaw=0;steps=0;}
   });
@@ -143,8 +178,9 @@
    gl.enable(gl.DEPTH_TEST);gl.clearColor(.055,.09,.14,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
    gl.useProgram(program);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.enableVertexAttribArray(attr);gl.vertexAttribPointer(attr,3,gl.FLOAT,false,0,0);
    const {x,z,yaw,steps}=stage.snapshot(),sin=Math.sin(yaw),cos=Math.cos(yaw);
-   const eye=mode==='first'?[x,1.68,z]:[x-sin*5.4+cos*1.4,2.75,z-cos*5.4-sin*1.4];
+   const desiredEye=mode==='first'?[x,1.68,z]:[x-sin*5.4+cos*1.4,2.75,z-cos*5.4-sin*1.4];
    const target=mode==='first'?[x+sin*5,1.60,z+cos*5]:[x+sin*.35,1.12,z+cos*.35];
+   const eye=mode==='third'?(cameraAvoid(sample,desiredEye,target)?.eye||desiredEye):desiredEye;
    const vp=multiply(perspective(w/h),lookAt(eye,target));
    function box(pos,sz,c,angle=0){
     gl.uniformMatrix4fv(matrix,false,multiply(vp,model(pos,sz,angle)));
@@ -165,6 +201,20 @@
      const height=b.height;
      box([b.x,height/2,b.z],[b.w,height,b.d],rgb(b.color));
      box([b.x,height+.09,b.z],[b.w+.15,.18,b.d+.15],[.13,.19,.24]);
+     // Facade faces the existing World V1 south entrance. These are thin
+     // visual panels, not actual passable doors or texture-pack assets.
+     const facade=b.z-b.d/2-.035;
+     const front=[.12,.20,.27],glass=[.31,.63,.69];
+     const doorW=Math.min(.6,Math.max(.22,b.w*.26));
+     box([b.x,.48,facade],[doorW,.96,.045],front);
+     box([b.x,1.0,facade-.014],[doorW*.6,.06,.05],[.83,.79,.61]);
+     if(b.w>=1.3){
+      const offset=Math.min(b.w*.32,.95);
+      for(const side of [-1,1]){
+       box([b.x+side*offset,Math.min(height-.35,1.38),facade],[.35,.45,.046],glass);
+       box([b.x+side*offset,Math.min(height-.35,1.38),facade-.027],[.025,.45,.045],front);
+      }
+     }
     }
    }else{
     for(const side of [-1,1]){
@@ -211,5 +261,5 @@
    reset:()=>{if(disposed)return false;stage.reset();return true;}
   });
  }
- root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createWorldScene,createStage,createPreview,perspective,lookAt,multiply});
+ root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createWorldScene,createStage,cameraAvoid,createPreview,perspective,lookAt,multiply});
 })(typeof window==='undefined'?globalThis:window);
