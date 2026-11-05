@@ -209,9 +209,10 @@
   for(let i=0;i<ROWS;i++)ctx.fillText(families[i].label,(BASE+95)*sx,(i*SIZE+130)*sy);
  }
  function createJournal(storage){
-  let disabled=false;const seen=new Set();
+  let disabled=false,lastRaw=null;const seen=new Set();
   try{
    const raw=storage?.getItem(SAVE_KEY);
+   lastRaw=raw??null;
    if(raw!==null&&raw!==undefined){
     const obj=JSON.parse(raw);
     if(!obj||obj.version!==1||obj.seed!==SEED||!Array.isArray(obj.visited)||obj.visited.length>regions.length
@@ -226,8 +227,11 @@
    discover:id=>{
     if(disabled||!byId.has(id)||seen.has(id))return false;
     try{if(!storage||typeof storage.setItem!=='function')return false;
+     // Fail closed if another tab wrote a newer journal; never clobber it.
+     if((storage.getItem(SAVE_KEY)??null)!==lastRaw)return false;
      const next=Array.from(seen);next.push(id);
-     storage.setItem(SAVE_KEY,JSON.stringify({version:1,seed:SEED,visited:next}));
+     const encoded=JSON.stringify({version:1,seed:SEED,visited:next});
+     storage.setItem(SAVE_KEY,encoded);lastRaw=encoded;
      seen.add(id);return true;
     }catch{return false;}
    }
