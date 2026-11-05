@@ -21,7 +21,7 @@ Use the original **Map** menu to mark each biome and navigate along the existing
 
 ## Milestone A — terrain polish and survey interaction (draft PR #29)
 
-- The forest, wasteland and highlands now use **the same deterministic irregular outlines** for the world Canvas, large map and \`regionAt()\`/material queries. Terrain edges no longer appear as rectangular color blocks. The original roads, story locations, collision and saved data do not move.
+- The forest, wasteland and highlands now use **the same deterministic irregular outlines** for the world Canvas, large map and `regionAt()`/material queries. Terrain edges no longer appear as rectangular color blocks. The original roads, story locations, collision and saved data do not move.
 - Scenery now includes fern stands, flowers, stumps, salvage, rock fragments and strata in addition to pine trees, brush, snags, wreckage and boulders. Each biome's cached texture also contains a modest number of material-specific scratches and contour marks.
 - The decorative population is capped at **144 generated props total** across three regions; only in-range items enter the existing depth queue, and just three survey posts are added. Props, signs and ground textures are **non-solid**; no server NPCs, damage, resource farming or construction permissions are added.
 - Each biome has an **in-world survey post** located at its original map waypoint. From within 115 world units, use **E / SURVEY SITE** or the existing mobile **Interact** button. A local read-only panel displays a field note plus current terrain material and footing. No credits, XP, wallet requests, irreversible actions or saved flags.
