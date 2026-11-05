@@ -48,10 +48,41 @@
   const c=Math.cos(yaw),s=Math.sin(yaw);
   return new Float32Array([c*size[0],0,-s*size[0],0,0,size[1],0,0,s*size[2],0,c*size[2],0,position[0],position[1],position[2],1]);
  }
+ // Compact terrain swatch derived from the SAME region queries used by
+ // the canonical 2D game. These shallow tiles are visual only: no 3D mining,
+ // world-height simulation, navmesh or game collision is modified.
+ function hslHex(h,s,l){
+  if(![h,s,l].every(Number.isFinite))return '#263d3c';
+  const hue=((h%360)+360)%360,ss=clamp(s,0,100)/100,ll=clamp(l,0,100)/100;
+  const k=n=>(n+hue/30)%12,a=ss*Math.min(ll,1-ll);
+  const channel=n=>Math.round(255*(ll-a*Math.max(-1,Math.min(k(n)-3,9-k(n),1))));
+  return '#'+[channel(0),channel(8),channel(4)].map(n=>n.toString(16).padStart(2,'0')).join('');
+ }
+ function createTerrainPatch(originX,originY,biomes,frontier){
+  const local=typeof biomes?.terrainAt==='function'?biomes:null;
+  const outer=typeof frontier?.terrainAt==='function'?frontier:null;
+  if(!local&&!outer)return null;
+  const scale=120,side=3,count=8,cells=[];
+  for(let z=0;z<count;z++)for(let x=0;x<count;x++){
+   const lx=(x-(count-1)/2)*side,lz=(z-(count-1)/2)*side;
+   const wx=originX+lx*scale,wy=originY-lz*scale;
+   const reg=outer?.regionAt?.(wx,wy)||local?.regionAt?.(wx,wy)||null;
+   const material=outer?.terrainAt(wx,wy)||local?.terrainAt(wx,wy)||null;
+   const hex=reg&&Number.isFinite(reg.hue)?hslHex(reg.hue,reg.sat,reg.light):
+    /^#[0-9a-f]{6}$/i.test(reg?.color||'')?reg.color:
+    local?.materials?.[material?.material]?.color||'#263d3c';
+   const rough=Number.isFinite(material?.roughness)?clamp(material.roughness,-1,1):0;
+   cells.push(Object.freeze({x:lx,z:lz,w:side,d:side,color:hex,relief:Math.round(rough*30)/1000,
+    material:String(material?.material||'urban').slice(0,45)}));
+  }
+  const focus=outer?.regionAt?.(originX,originY)||local?.regionAt?.(originX,originY)||null;
+  const name=String(focus?.name||'Center City pavement').slice(0,72);
+  return Object.freeze({name,cells:Object.freeze(cells)});
+ }
  // Read-only miniature of actual authored building footprints in World V1.
  // The nearest entrance becomes the subject of a separate preview camera.
  // All numbers are validated and capped; no player movement or save keys are read.
- function createWorldScene(buildings,location){
+ function createWorldScene(buildings,location,biomes=null,frontier=null){
   if(!Array.isArray(buildings)||!location||!Number.isFinite(location.x)||!Number.isFinite(location.y))return null;
   const valid=buildings.slice(0,128).filter(b=>b&&Number.isFinite(b.x)&&Number.isFinite(b.y)&&
    Number.isFinite(b.w)&&Number.isFinite(b.h)&&b.w>0&&b.h>0&&b.w<=1600&&b.h<=1600&&
@@ -59,7 +90,12 @@
   if(!valid.length)return null;
   const distance=b=>Math.hypot(location.x-(b.x+b.w/2),location.y-(b.y+b.h+37));
   const nearest=valid.reduce((best,b)=>distance(b)<distance(best)?b:best);
-  const originX=nearest.x+nearest.w/2,originY=nearest.y+nearest.h+37+420,scale=120;
+  // When the player is far outside the authored city, sample the actual
+  // frontier region instead of pretending a distant city building is nearby.
+  const sampleFrontier=distance(nearest)>850&&!!(frontier?.terrainAt||biomes?.terrainAt);
+  const originX=sampleFrontier?location.x:nearest.x+nearest.w/2;
+  const originY=sampleFrontier?location.y:nearest.y+nearest.h+37+420,scale=120;
+  const terrain=createTerrainPatch(originX,originY,biomes,frontier);
   const solid=valid.map(b=>({
    id:String(b.roomId||b.id||b.name||'building').slice(0,60),
    name:String(b.name||b.label||b.id||'Meme City building').slice(0,72),
@@ -71,9 +107,10 @@
    .sort((a,b)=>(a.id===String(nearest.roomId||nearest.id)?-1:b.id===String(nearest.roomId||nearest.id)?1:0)||
      Math.hypot(a.x,a.z)-Math.hypot(b.x,b.z)).slice(0,16);
   return Object.freeze({
-   name:String(nearest.name||nearest.label||nearest.id||'Meme City landmark').slice(0,72),
+   name:sampleFrontier?terrain?.name||'Frontier preview':String(nearest.name||nearest.label||nearest.id||'Meme City landmark').slice(0,72),
    world:Object.freeze({x:originX,y:originY}),
-   buildings:Object.freeze(solid.map(b=>Object.freeze(b)))
+   buildings:Object.freeze(solid.map(b=>Object.freeze(b))),
+   terrain
   });
  }
  // Segment / 3D AABB camera obstruction. Only moves the optional preview
@@ -192,7 +229,12 @@
    }
    const shirt=rgb(nextColor),dark=[.12,.17,.23],stone=[.28,.37,.42],road=[.22,.29,.32];
    const skull=[.9,.87,.78],teeth=[.70,.70,.63];
-   box([0,-.17,2],[24,.3,24],[.16,.26,.24]);
+   box([0,-.25,2],[26,.3,26],[.16,.26,.24]);
+   // 64 capped, source-derived terrain swatches with shallow visual relief.
+   // Physics is deliberately unchanged and the street stays flat.
+   for(const tile of sample?.terrain?.cells||[]){
+    box([tile.x,-.09+tile.relief,tile.z],[tile.w,.15,tile.d],rgb(tile.color));
+   }
    box([0,-.005,2],[3,.04,19],road);
    if(sample?.buildings?.length){
     // Footprints come from CityInteriors.BUILDINGS, not randomly invented
@@ -261,5 +303,5 @@
    reset:()=>{if(disposed)return false;stage.reset();return true;}
   });
  }
- root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createWorldScene,createStage,cameraAvoid,createPreview,perspective,lookAt,multiply});
+ root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createTerrainPatch,createWorldScene,createStage,cameraAvoid,createPreview,perspective,lookAt,multiply});
 })(typeof window==='undefined'?globalThis:window);
