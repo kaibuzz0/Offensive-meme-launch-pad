@@ -1,6 +1,6 @@
 'use strict';
 (() => {
- const C=window.MemeCityCore,{WORLD,ITEMS,HUB}=C,V=window.CityVisuals,D=window.CityDistricts,R=window.CityRising,RV=window.CityRisingVisuals,I=window.CityInteriors,IV=window.CityRoomVisuals,T=window.CityBiomes,F=window.CityFrontier;
+ const C=window.MemeCityCore,{WORLD,ITEMS,HUB}=C,V=window.CityVisuals,D=window.CityDistricts,R=window.CityRising,RV=window.CityRisingVisuals,I=window.CityInteriors,IV=window.CityRoomVisuals,T=window.CityBiomes,F=window.CityFrontier,Mine=window.CityMining;
  const tokens=[window.LAUNCHPAD_CONFIG.platformToken,...window.MEME_TOKENS.filter(t=>t.mint)];
  const catalog=new Map(tokens.map(t=>[t.id,t]));
  const clanSkinCards=C.CLAN_SKINS.map(id=>window.MEME_TOKENS.find(t=>t.id===id)).filter(Boolean);
@@ -13,6 +13,7 @@
  const keys=new Set(),held=new Set(),sparks=[];let aim={x:1,y:0},stick={x:0,y:0},firing=false,mouseFiring=false,shotBusy=false,lastNotice=0,lastHP=100,soundOn=false,audio=null,lastResult=0,shotFlash=0,lastShots=0,cameraZoom=1,manualAim=false,worldView=null,emoteText='',emoteUntil=0;
  let routePath=null,lastRouteCalc=0;
  const frontierJournal=F.createJournal((()=>{try{return window.localStorage;}catch{return null;}})());
+ const miningStore=Mine.createStore((()=>{try{return window.localStorage;}catch{return null;}})());
  let groundCache=null;const buildingCache=new Map(),particles=[],seenEffects=new Set(),positions=new Map();
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  const legacySaveKey='offensive-meme-city-v1',saveKey='offensive-meme-city-v1-center',backupKey='offensive-meme-city-v1-center-source-backup',Save=window.CityCenterSave;let saveBlocked=false;
@@ -552,12 +553,63 @@
    button('Return to the arcade room →',closePanel));
   shell.focus({preventScroll:true});
  }
+ function miningPanel(content){
+  if(online){content.append(node('p','beta-note','Mining is currently Solo-only. The multiplayer room server does not yet have authoritative underground edits or material inventories. Return to Solo to mine safely.'),button('Return to the world →',closePanel));return;}
+  if(saveBlocked||miningStore.disabled()){
+   content.append(node('p','beta-note','Mining storage or the protected character save is incompatible. Excavation is disabled to avoid overwriting data.'),button('Back to the world →',closePanel));return;
+  }
+  const origin=Mine.location(me);
+  if(!origin){
+   content.append(node('p','', 'Mining is available in any of the 132 frontier biomes. Walk onto the natural ground outside the original Center City, then reopen Mine. This does not change the existing city or its construction lots.'),
+    button('Find the frontier →',()=>panel('map')));
+   return;
+  }
+  let depth=0,notice='Use your free starter pickaxe to remove a surface tile. Dig the central shaft to descend.';
+  const entry={x:me.x,y:me.y};
+  function draw(){
+   content.replaceChildren();
+   const layer=Mine.STRATA[depth],items=miningStore.inventory();
+   content.append(node('p','district-kicker','MINING / '+origin.region.name.toUpperCase()),
+    node('h3','district-heading',layer.name+' / '+layer.z+' height'),
+    node('p','beta-note','World height: '+Mine.minHeight+' through +'+Mine.maxHeight+' (surface 0). Seven mineable layers, every 8 height units. Bedrock at −64 is permanent. Starter pickaxe is free. Mines stay inside your current frontier biome.'));
+   const strata=node('div','mining-strata');strata.setAttribute('aria-label','Underground vertical strata');
+   for(const l of Mine.STRATA){
+    const item=node('span','mining-stratum',l.name+' · '+l.z);
+    item.style.borderLeftColor=l.color;if(l.index===depth)item.classList.add('active');
+    strata.append(item);
+   }content.append(strata);
+   const grid=node('div','mining-grid');grid.setAttribute('role','group');grid.setAttribute('aria-label','Five by five excavatable mine tiles');
+   for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
+    const sample=miningStore.inspect(entry,dx,dy,depth),labelText=sample?
+      (sample.mined?'EXCAVATED':sample.name.toUpperCase()):'NO GROUND';
+    const tile=button(labelText+' '+(dx===0&&dy===0?'· SHAFT':''),()=>{
+     const result=miningStore.mine(entry,dx,dy,depth);
+     notice=result.ok?'Mined '+result.name+' at height '+result.depth+'. Sample stored only in your local excavation journal.':result.reason;
+     draw();
+    },'mining-cell');
+    tile.style.setProperty('--rock',sample?.color||'#32404b');
+    tile.setAttribute('aria-label',sample?('Tile '+dx+','+dy+' at height '+layer.z+': '+labelText):'Outside mining region');
+    tile.disabled=!sample?.accessible;
+    if(sample?.mined)tile.classList.add('excavated');
+    if(dx===0&&dy===0)tile.classList.add('shaft');
+    grid.append(tile);
+   }content.append(grid);
+   const controls=node('div','mining-controls'),up=button('↑ Ascend one layer',()=>{depth--;notice='Moved up to '+Mine.STRATA[depth].name;draw();}),down=button('↓ Descend one layer',()=>{depth++;notice='Moved down to '+Mine.STRATA[depth].name;draw();});
+   up.disabled=depth===0;
+   down.disabled=depth===Mine.STRATA.length-1||!miningStore.inspect(entry,0,0,depth)?.mined;
+   controls.append(up,down);content.append(controls);
+   const report=node('p','mining-feedback',notice);report.setAttribute('role','status');
+   content.append(report,node('p','beta-note','Excavated blocks: '+miningStore.count()+' / '+Mine.MAX_EDITS+' · This biome: '+miningStore.regionCount(origin.region.id)+' / '+Mine.MAX_REGION_EDITS+'. Samples: '+(Object.entries(items).map(([name,qty])=>name+' ×'+qty).join(' · ')||'None yet')+'. No credits, Solana tokens, tradable items or combat rewards.'),
+    button('Return to same world →',closePanel));
+  }draw();
+ }
  function panel(type){activePanel=type;$('#joystick-knob').style.transform='';keys.clear();held.clear();stick={x:0,y:0};firing=false;const content=$('#panel-content');content.replaceChildren();$('#panel-status').textContent='';
-  const titles={frontierSurvey:'Frontier biome survey',biomeSurvey:'Biome field survey',outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',quarantine:'Quarantine bunker survival',arcadeCabinet:'Chaos Arcade / Rug Runner',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
+  const titles={mining:'Mining / vertical strata',frontierSurvey:'Frontier biome survey',biomeSurvey:'Biome field survey',outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',quarantine:'Quarantine bunker survival',arcadeCabinet:'Chaos Arcade / Rug Runner',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
   if(online&&C.CAPABILITIES.online.soloPanels.includes(type)){content.append(node('p','beta-note','This activity is available in solo mode. Your online journey uses different objectives that you can complete in this room.'),button('Online journey →',()=>panel('journey')));if(!$('#city-panel').open)$('#city-panel').showModal();return;}if(type==='outposts')outpostPanel(content);if(type==='clans')clanPanel(content);if(type==='places')placePanel(content);
   if(type==='multiplayer')multiplayerPanel(content);
   if(['journey','mobility','supplies','fortress','survival'].includes(type))risingPanel(type,content);
   if(type==='quarantine')quarantinePanel(content);
+  if(type==='mining')miningPanel(content);
   if(type==='frontierSurvey'){
    const site=F.nearbySite(me),terrain=F.terrainAt(me.x,me.y);
    if(!site||!terrain)content.append(node('p','beta-note','Walk to a frontier survey marker to inspect the local terrain.'),button('Find a biome →',()=>panel('map')));
@@ -567,7 +619,7 @@
      node('h3','district-heading',site.name),node('p','',site.note),
      node('p','','Material: '+terrain.material+' · Temperature: '+terrain.temperature.toFixed(1)+'°C · Moisture: '+terrain.moisture+'% · Buildable: no.'),
      node('p','beta-note','This read-only survey has no inventory, play-credit or token rewards. '+(online?'Online rooms do not write your personal survey journal.':frontierJournal.disabled()?'Your frontier journal is incompatible or corrupted; it has not been overwritten.':'Solo surveys recorded: '+frontierJournal.count()+' / '+F.regions.length+'.')));
-    content.append(button('Back into this world →',closePanel),button('Browse 132 biome destinations →',()=>panel('map')));
+    content.append(button('Back into this world →',closePanel),button('Mine beneath this biome →',()=>panel('mining')),button('Browse 132 biome destinations →',()=>panel('map')));
    }
   }
   if(type==='biomeSurvey'){
@@ -605,7 +657,7 @@
   if(type==='menu'){
    content.append(node('p','','Everything you need, one stop away. Solo play pauses while menus are open.'));
    if(me.defense)content.append(button('URGENT / Fortress siege repairs →',()=>panel('crew')));
-   for(const [title,type]of [['District outpost workshop','outposts'],['Clans & block jobs','clans'],['Play together','multiplayer'],['Explore building interiors','places'],['Chaos Arcade / Rug Runner','arcadeCabinet'],['Your city journey','journey'],['Hoverboard & travel','mobility'],['Arena survival','survival'],['Quarantine bunker / undead waves','quarantine'],['Medkits & supplies','supplies'],['Upgrade fortress HQ','fortress'],['Explore districts','districts'],['Build my fortress','build'],['Hire / command defenders','crew'],['Beta token purchases','tokens'],['Equipment shop','shop'],['Player marketplace','market'],['Room chat','chat'],['Controls & guide','help'],['Pause / resume','pause']])content.append(button(title,()=>panel(type)));
+   for(const [title,type]of [['Mine underground / strata','mining'],['District outpost workshop','outposts'],['Clans & block jobs','clans'],['Play together','multiplayer'],['Explore building interiors','places'],['Chaos Arcade / Rug Runner','arcadeCabinet'],['Your city journey','journey'],['Hoverboard & travel','mobility'],['Arena survival','survival'],['Quarantine bunker / undead waves','quarantine'],['Medkits & supplies','supplies'],['Upgrade fortress HQ','fortress'],['Explore districts','districts'],['Build my fortress','build'],['Hire / command defenders','crew'],['Beta token purchases','tokens'],['Equipment shop','shop'],['Player marketplace','market'],['Room chat','chat'],['Controls & guide','help'],['Pause / resume','pause']])content.append(button(title,()=>panel(type)));
   }
   if(type==='summary'){
    const r=me.lastResult;if(r){
@@ -719,6 +771,7 @@
   }
   if(type==='inventory'){
    content.append(wardrobe(false));
+   const mined=Object.entries(miningStore.inventory());if(mined.length)content.append(node('p','beta-note','Local mining samples (not tradable or spendable): '+mined.map(([name,qty])=>name+' ×'+qty).join(' · ')));
    content.append(node('p','',`${me.inventory.length} items · ${me.credits} play credits. Equip gear here, or visit Night Market to list it in an online room.`));
    if(!me.inventory.length)content.append(node('p','beta-note','Your bag is empty. Start with 180 play credits; visit Bad Taste Supply to choose your first item.'),button('Find the shop →',()=>track(WORLD.stations.find(s=>s.id==='shop'))));
    for(const owned of me.inventory){const item=ITEMS.find(i=>i.id===owned.item),row=node('article','panel-row'),info=node('div');const equipped=me.equipped[item.slot]===owned.uid;info.append(node('h3','',item.name),node('p','',equipped?'Equipped':`Slot: ${item.slot}`));const equip=button(equipped?'Equipped':'Equip',async()=>{if(await action({type:'equip',uid:owned.uid}))panel('inventory');});equip.disabled=equipped;row.append(info,equip);if(online){const price=node('input');price.type='number';price.min=1;price.max=10000;price.value=60;price.setAttribute('aria-label',`Listing price for ${item.name}`);row.append(price,button('List in market',async()=>{if(await action({type:'list',uid:owned.uid,price:Number(price.value)}))panel('inventory');}));}content.append(row);}
@@ -752,6 +805,7 @@
   const station=C.nearest(me);if(station){if(station.kind==='directions'){markDistrict(station.district);return;}if(station.kind==='roadmap'){panel('mobility');return;}panel(station.kind==='mission'?'missions':station.kind);return;}
   if(T.nearbySite(me)){panel('biomeSurvey');return;}
   if(F.nearbySite(me)){panel('frontierSurvey');return;}
+  if(F.regionAt(me.x,me.y)){panel('mining');return;}
   if(me.area==='fortress'){panel('build');return;}toast('Approach an activity marker, or open Map for walking directions.');
  }
 
@@ -774,7 +828,7 @@
  }
  function updateUI(){updateMonkVerse();updateRouteGuide();const t=catalog.get(me.avatar);$('#hud-avatar').src=window.MEME_TOKENS.find(x=>x.id===me.clanSkin)?.art||t.art;$('#hud-name').textContent=me.name;$('#hud-level').textContent=`Level ${C.level(me.xp)} · ${me.xp} XP`;$('#hud-credits').textContent=me.credits;const l=C.level(me.xp),start=50*(l-1)**2,end=50*l*l;$('#xp-fill').style.width=`${Math.min(100,100*(me.xp-start)/(end-start))}%`;$('#population').textContent=`${online?state.players.length:1} player${online&&state.players.length!==1?'s':''} · ${(state.arcade?.bots.filter(b=>b.hp>0&&Math.hypot(b.x-me.x,b.y-me.y)<1000).length||0)} bots · ${(state.arcade?.bots.filter(b=>b.kind==='zombie'&&b.hp>0&&Math.hypot(b.x-me.x,b.y-me.y)<1100).length||0)} undead · ${(state.civilians||[]).filter(c=>Math.hypot(c.x-me.x,c.y-me.y)<1000&&['fleeing','sheltering'].includes(c.state)).length} civilians alarmed`;
   if(me.shots>lastShots){tone(440,.07,'sawtooth');shotFlash=.12;}lastShots=me.shots;const c=me.contract,target=WORLD.route[me.route];$('#mission-title').textContent=c?({bounty:`Street Sweep · ${c.progress}/4 KOs`,courier:'Deliver to Creator Alley',escape:'Lose the Heat · evade patrols'}[c.type]):target?`${me.route+1}/3 · Visit ${target.name}`:'Pick a new contract ⚡';$('#mission-detail').textContent=c?`${c.countdown>0?'GET READY '+Math.ceil(c.countdown):Math.ceil(c.remaining)+'s left'} · ${c.type==='bounty'?'Hold Fire. Auto-aim locks onto hostile bots.':c.type==='courier'?'Follow the purple beacon. Interact to deliver.':'Break line of sight. Stay hidden to cool your heat.'}`:'Open Missions for combat, delivery, and pursuit jobs.';
-  const station=C.nearest(me),site=T.nearbySite(me)||F.nearbySite(me),delivery=c?.type==='courier'&&Math.hypot(me.x-WORLD.route[1].x,me.y-WORLD.route[1].y)<100,checkpoint=target&&Math.hypot(me.x-target.x,me.y-target.y)<110;$('#interact').textContent=delivery?'E / DELIVER PACKAGE':checkpoint?'E / CLAIM CHECKPOINT':station?`E / ${station.hint.toUpperCase()}`:site?'E / SURVEY SITE':'E / EXPLORE';$('#interact').disabled=me.area!=='fortress'&&!delivery&&!checkpoint&&!station&&!site;if(me.area==='fortress'&&!station)$('#interact').textContent='E / BUILD';$('#fire').hidden=['creator','social'].includes(me.area);$('#dash').textContent=me.dashCooldown>0?`DASH ${me.dashCooldown.toFixed(1)}s`:'DASH ↯';$('#dash').disabled=me.dashCooldown>0;$('#district').textContent=(T.regionAt(me.x,me.y)||F.regionAt(me.x,me.y))?.name.toUpperCase()||(me.area!=='hub'?([...C.DISTRICTS,...C.NEIGHBORHOODS].find(d=>d.id===me.area)?.name||'Dead Zone / Undead').toUpperCase():me.y<HUB.y+650?'CREATOR ALLEY':me.y>HUB.y+1000?'NIGHT MARKET':'FOUNDER PLAZA');
+  const station=C.nearest(me),site=T.nearbySite(me)||F.nearbySite(me),canMine=!!F.regionAt(me.x,me.y),delivery=c?.type==='courier'&&Math.hypot(me.x-WORLD.route[1].x,me.y-WORLD.route[1].y)<100,checkpoint=target&&Math.hypot(me.x-target.x,me.y-target.y)<110;$('#interact').textContent=delivery?'E / DELIVER PACKAGE':checkpoint?'E / CLAIM CHECKPOINT':station?`E / ${station.hint.toUpperCase()}`:site?'E / SURVEY SITE':canMine?'E / MINE':'E / EXPLORE';$('#interact').disabled=me.area!=='fortress'&&!delivery&&!checkpoint&&!station&&!site&&!canMine;if(me.area==='fortress'&&!station)$('#interact').textContent='E / BUILD';$('#fire').hidden=['creator','social'].includes(me.area);$('#dash').textContent=me.dashCooldown>0?`DASH ${me.dashCooldown.toFixed(1)}s`:'DASH ↯';$('#dash').disabled=me.dashCooldown>0;$('#district').textContent=(T.regionAt(me.x,me.y)||F.regionAt(me.x,me.y))?.name.toUpperCase()||(me.area!=='hub'?([...C.DISTRICTS,...C.NEIGHBORHOODS].find(d=>d.id===me.area)?.name||'Dead Zone / Undead').toUpperCase():me.y<HUB.y+650?'CREATOR ALLEY':me.y>HUB.y+1000?'NIGHT MARKET':'FOUNDER PLAZA');
   $('#combat-score').textContent=`${me.kills} ${me.kills===1?'KO':'KOs'} · ${me.jobs} ${me.jobs===1?'job':'jobs'}`;$('#health-value').textContent=Math.ceil(me.hp);$('#health-fill').style.width=`${me.hp}%`;$('#health-fill').style.background=me.hp<35?'#ff5e79':'#6cf0bf';$('#mission-fill').style.width=c?`${100*c.remaining/(c.duration||90)}%`:'0%';$('#mission-kicker').textContent=c?'ACTIVE CONTRACT':'EXPLORE / PICK A JOB';const stars=me.heat<1?0:Math.ceil(me.heat/20);$('#wanted-stars').textContent='★'.repeat(stars)+'☆'.repeat(5-stars);$('#wanted-label').textContent=stars?`${me.policeSeen?'SPOTTED':me.quiet>5?'COOLING':'SEARCHING'} · ${Math.ceil(me.heat)}%`:'OFF THE RADAR';$('.game-shell').classList.toggle('wanted',me.heat>=22);if(me.hp<lastHP){tone(90,.13,'triangle',.05);if(!reduced)$('.game-shell').classList.add('hit');setTimeout(()=>$('.game-shell').classList.remove('hit'),160);}lastHP=me.hp;$('#combo-label').textContent=me.combo>1?`${me.combo} KO STREAK`:'';const ready=c?.countdown||me.defense?.countdown||0;$('#ready-countdown').hidden=!(entered&&ready>0&&!activePanel);$('#ready-countdown').textContent=ready>0?Math.ceil(ready):'';$('#dash').style.setProperty('--charge',`${100*(1-me.dashCooldown/2.8)}%`);$('.game-shell').dataset.area=me.area;if(me.area!=='hub'&&!c){const d=[...C.DISTRICTS,...C.NEIGHBORHOODS].find(d=>d.id===me.area)||T.regionAt(me.x,me.y)||F.regionAt(me.x,me.y)||{name:'Garden Roads'};$('#mission-kicker').textContent='DISTRICT / '+(me.area==='fortress'?'YOUR PRIVATE PLOT':'SOLO ALPHA');if(!c)$('#mission-title').textContent=d.name;$('#mission-detail').textContent=me.area==='fortress'?`${me.plot.length} pieces built · open Build to edit your fortress.`:me.area==='creator'?'Explore collections and change your streetwear.':me.area==='arena'?'Walk to the terminal to start Street Sweep here.':me.area==='social'?'Explore the waterfront. Use an emote to say hello.':(T.regionAt(me.x,me.y)||F.regionAt(me.x,me.y))?'Approach the survey post and press E to inspect the terrain. No item rewards.':'Follow the streets to any district. Open Map for directions.';$('#quick-job').textContent=me.area==='fortress'?'Build my fortress →':me.area==='creator'?'Explore collections →':me.area==='arena'?'Challenge terminal →':me.area==='social'?'Emotes →':'Open world map →';}else $('#quick-job').textContent='Choose contract →';if(me.blockJob){$('#mission-kicker').textContent='CLAN JOB / '+me.blockJob.type.toUpperCase();$('#mission-title').textContent=me.blockJob.type==='salvage'?'Salvage scramble':me.blockJob.type==='hold'?'Hold the block':'Follow the checkpoints';$('#mission-detail').textContent=`${Math.ceil(me.blockJob.remaining)}s left · ${me.blockJob.index}/${me.blockJob.points.length} stops · +1 reputation`;$('#quick-job').textContent='Clans & jobs →';}if(me.defense){$('#mission-kicker').textContent='FORTRESS DEFENSE';$('#mission-title').textContent=`${state.arcade.bots.filter(b=>b.raid&&b.owner===me.id&&b.hp>0).length} raiders remaining`;$('#mission-detail').textContent=`${me.defense.countdown>0?'GET READY '+Math.ceil(me.defense.countdown):Math.ceil(me.defense.timeLeft)+'s'} · CORE ${Math.ceil(me.defense.coreHP)}/${me.defense.coreMaxHP} HP · ${(me.defense.pieces||[]).filter(t=>t.hp===0).length} breaches. Repair from Squad.`;$('#quick-job').textContent='Squad orders →';}if(me.lastResult&&me.lastResult.id!==lastResult){lastResult=me.lastResult.id;if(me.lastResult.status!=='abandoned')panel('summary');}if(me.noticeSeq&&me.noticeSeq!==lastNotice){lastNotice=me.noticeSeq;toast(me.notice);tone(me.notice.startsWith('Busted')?80:780,.18,'triangle');}
   risingHUD();interiorsHUD();const quarantine=state.quarantine;
   if(quarantine?.phase==='active'&&!me.room&&(quarantine.mine||Math.hypot(me.x-quarantine.x,me.y-quarantine.y)<quarantine.radius)){
