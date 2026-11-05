@@ -199,11 +199,68 @@
   if(typeof hex!=='string'||!/^#[0-9a-f]{6}$/i.test(hex))return [0.72,0.91,0.49];
   return [1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);
  }
+ // One-time CPU mesh build: all static terrain/buildings share ONE
+ // position+RGB WebGL buffer. The moving avatar remains on its own box rig.
+ const STATIC_BOX_LIMIT=240;
+ function createStaticBoxes(scene){
+  const boxes=[];
+  const add=(pos,size,color)=>{
+   if(boxes.length>=STATIC_BOX_LIMIT||!Array.isArray(pos)||!Array.isArray(size)||
+    pos.length!==3||size.length!==3||![...pos,...size].every(Number.isFinite)||
+    size.some(v=>v<=0||v>1000)||pos.some(v=>Math.abs(v)>100000))return;
+   const tint=Array.isArray(color)&&color.length===3&&color.every(v=>Number.isFinite(v)&&v>=0&&v<=1)?color:
+    rgb(color);
+   boxes.push(Object.freeze({pos:Object.freeze(pos.slice()),size:Object.freeze(size.slice()),color:Object.freeze(tint.slice())}));
+  };
+  add([0,-.25,2],[26,.3,26],[.16,.26,.24]);
+  for(const tile of (Array.isArray(scene?.terrain?.cells)?scene.terrain.cells:[]).slice(0,64))
+   if(tile&&[tile.x,tile.z,tile.w,tile.d,tile.relief].every(Number.isFinite))
+    add([tile.x,-.09+tile.relief,tile.z],[tile.w,.15,tile.d],tile.color);
+  add([0,-.005,2],[3,.04,19],[.22,.29,.32]);
+  if(scene?.buildings?.length){
+   for(const b of scene.buildings.slice(0,16)){
+    if(!b||![b.x,b.z,b.w,b.d,b.height].every(Number.isFinite))continue;
+    const height=b.height,facade=b.z-b.d/2-.035;
+    add([b.x,height/2,b.z],[b.w,height,b.d],b.color);
+    add([b.x,height+.09,b.z],[b.w+.15,.18,b.d+.15],[.13,.19,.24]);
+    const front=[.12,.20,.27],glass=[.31,.63,.69],doorW=Math.min(.6,Math.max(.22,b.w*.26));
+    add([b.x,.48,facade],[doorW,.96,.045],front);
+    add([b.x,1.0,facade-.014],[doorW*.6,.06,.05],[.83,.79,.61]);
+    if(b.w>=1.3){
+     const offset=Math.min(b.w*.32,.95);
+     for(const side of [-1,1]){
+      add([b.x+side*offset,Math.min(height-.35,1.38),facade],[.35,.45,.046],glass);
+      add([b.x+side*offset,Math.min(height-.35,1.38),facade-.027],[.025,.45,.045],front);
+     }
+    }
+   }
+  }else{
+   for(const side of [-1,1]){
+    add([side*3.4,.8,3.8],[2.3,1.6,2.2],[.28,.37,.42]);
+    add([side*3.4,.9,8],[2.8,1.8,2.9],[.35,.36,.39]);
+    add([side*1.9,.7,6],[.25,1.4,.25],[.29,.25,.20]);
+    add([side*1.9,1.6,6],[.85,.75,.85],[.15,.38,.27]);
+   }
+  }
+  return Object.freeze(boxes);
+ }
+ function createStaticMesh(scene){
+  const boxes=createStaticBoxes(scene),data=new Float32Array(boxes.length*36*6);
+  let index=0;
+  for(const b of boxes)for(let v=0;v<vertices.length;v+=3){
+   data[index++]=vertices[v]*b.size[0]+b.pos[0];
+   data[index++]=vertices[v+1]*b.size[1]+b.pos[1];
+   data[index++]=vertices[v+2]*b.size[2]+b.pos[2];
+   data[index++]=b.color[0];data[index++]=b.color[1];data[index++]=b.color[2];
+  }
+  return Object.freeze({data,boxes:boxes.length,vertices:data.length/6,bytes:data.byteLength});
+ }
  function createPreview(canvas,color='#b6e87a',scene=null){
   const sample=scene&&Array.isArray(scene.buildings)?scene:null;
   const stage=createStage(sample);
   const unavailable=()=>Object.freeze({supported:false,draw:()=>false,destroy:()=>{},turn:()=>false,step:()=>false,reset:()=>false,snapshot:stage.snapshot});
-  let gl,program,buffer,vs,fs;
+  const staticMesh=createStaticMesh(sample);
+  let gl,program,buffer,staticBuffer,vs,fs,staticUploads=0,staticDrawCalls=0,dynamicDrawCalls=0;
   try{gl=canvas?.getContext?.('webgl',{antialias:false,preserveDrawingBuffer:true,alpha:false});}catch{return unavailable();}
   if(!gl)return unavailable();
   try{
@@ -212,31 +269,46 @@
     if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error('Shader failed');
     return s;
    }
-   vs=shader(gl.VERTEX_SHADER,'attribute vec3 p;uniform mat4 matrix;void main(){gl_Position=matrix*vec4(p,1.0);}');
-   fs=shader(gl.FRAGMENT_SHADER,'precision mediump float;uniform vec3 tint;void main(){gl_FragColor=vec4(tint,1.0);}');
+   vs=shader(gl.VERTEX_SHADER,'attribute vec3 p;attribute vec3 vertexColor;uniform mat4 matrix;uniform vec3 tint;uniform float useVertexColor;varying vec3 vColor;void main(){vColor=useVertexColor>0.5?vertexColor:tint;gl_Position=matrix*vec4(p,1.0);}');
+   fs=shader(gl.FRAGMENT_SHADER,'precision mediump float;varying vec3 vColor;void main(){gl_FragColor=vec4(vColor,1.0);}');
    program=gl.createProgram();gl.attachShader(program,vs);gl.attachShader(program,fs);gl.linkProgram(program);
    if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error('Shader link failed');
+   if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error('Shader program failed');
    buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,vertices,gl.STATIC_DRAW);
+   staticBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,staticBuffer);gl.bufferData(gl.ARRAY_BUFFER,staticMesh.data,gl.STATIC_DRAW);
+   staticUploads=1;
   }catch{
-   if(buffer)gl.deleteBuffer(buffer);if(program)gl.deleteProgram(program);if(vs)gl.deleteShader(vs);if(fs)gl.deleteShader(fs);
+   if(buffer)gl.deleteBuffer(buffer);if(staticBuffer)gl.deleteBuffer(staticBuffer);if(program)gl.deleteProgram(program);if(vs)gl.deleteShader(vs);if(fs)gl.deleteShader(fs);
    return unavailable();
   }
   let disposed=false;
-  const matrix=gl.getUniformLocation(program,'matrix'),tint=gl.getUniformLocation(program,'tint'),attr=gl.getAttribLocation(program,'p');
+  const matrix=gl.getUniformLocation(program,'matrix'),tint=gl.getUniformLocation(program,'tint'),useVertexColor=gl.getUniformLocation(program,'useVertexColor'),attr=gl.getAttribLocation(program,'p'),colorAttr=gl.getAttribLocation(program,'vertexColor');
   function draw(mode='third',nextColor=color){
    if(disposed||!['first','third'].includes(mode))return false;
    const w=clamp(Math.round(canvas.clientWidth||640),220,640),h=Math.round(w*9/16);
    canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h);
    gl.enable(gl.DEPTH_TEST);gl.clearColor(.055,.09,.14,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-   gl.useProgram(program);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.enableVertexAttribArray(attr);gl.vertexAttribPointer(attr,3,gl.FLOAT,false,0,0);
+   gl.useProgram(program);gl.enableVertexAttribArray(attr);
    const {x,z,yaw,steps}=stage.snapshot(),sin=Math.sin(yaw),cos=Math.cos(yaw);
    const desiredEye=mode==='first'?[x,1.68,z]:[x-sin*5.4+cos*1.4,2.75,z-cos*5.4-sin*1.4];
    const target=mode==='first'?[x+sin*5,1.60,z+cos*5]:[x+sin*.35,1.12,z+cos*.35];
    const eye=mode==='third'?(cameraAvoid(sample,desiredEye,target)?.eye||desiredEye):desiredEye;
    const vp=multiply(perspective(w/h),lookAt(eye,target));
+   // Static geometry uploads only once at preview creation and renders in
+   // exactly one draw call, regardless of the number of terrain tiles.
+   gl.bindBuffer(gl.ARRAY_BUFFER,staticBuffer);
+   gl.vertexAttribPointer(attr,3,gl.FLOAT,false,24,0);
+   gl.enableVertexAttribArray(colorAttr);
+   gl.vertexAttribPointer(colorAttr,3,gl.FLOAT,false,24,12);
+   gl.uniform1f(useVertexColor,1);gl.uniformMatrix4fv(matrix,false,vp);
+   gl.drawArrays(gl.TRIANGLES,0,staticMesh.vertices);staticDrawCalls++;
+   gl.disableVertexAttribArray(colorAttr);
+   gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+   gl.vertexAttribPointer(attr,3,gl.FLOAT,false,0,0);
+   gl.uniform1f(useVertexColor,0);
    function box(pos,sz,c,angle=0,pitch=0){
     gl.uniformMatrix4fv(matrix,false,multiply(vp,model(pos,sz,angle,pitch)));
-    gl.uniform3fv(tint,c);gl.drawArrays(gl.TRIANGLES,0,36);
+    gl.uniform3fv(tint,c);gl.drawArrays(gl.TRIANGLES,0,36);dynamicDrawCalls++;
    }
    function actorBox(local,sz,c,pitch=0){
     const [lx,ly,lz]=local;
@@ -252,43 +324,6 @@
    }
    const shirt=rgb(nextColor),dark=[.12,.17,.23],stone=[.28,.37,.42],road=[.22,.29,.32];
    const skull=[.9,.87,.78],teeth=[.70,.70,.63];
-   box([0,-.25,2],[26,.3,26],[.16,.26,.24]);
-   // 64 capped, source-derived terrain swatches with shallow visual relief.
-   // Physics is deliberately unchanged and the street stays flat.
-   for(const tile of sample?.terrain?.cells||[]){
-    box([tile.x,-.09+tile.relief,tile.z],[tile.w,.15,tile.d],rgb(tile.color));
-   }
-   box([0,-.005,2],[3,.04,19],road);
-   if(sample?.buildings?.length){
-    // Footprints come from CityInteriors.BUILDINGS, not randomly invented
-    // game-world coordinates. Every mesh remains preview-only.
-    for(const b of sample.buildings){
-     const height=b.height;
-     box([b.x,height/2,b.z],[b.w,height,b.d],rgb(b.color));
-     box([b.x,height+.09,b.z],[b.w+.15,.18,b.d+.15],[.13,.19,.24]);
-     // Facade faces the existing World V1 south entrance. These are thin
-     // visual panels, not actual passable doors or texture-pack assets.
-     const facade=b.z-b.d/2-.035;
-     const front=[.12,.20,.27],glass=[.31,.63,.69];
-     const doorW=Math.min(.6,Math.max(.22,b.w*.26));
-     box([b.x,.48,facade],[doorW,.96,.045],front);
-     box([b.x,1.0,facade-.014],[doorW*.6,.06,.05],[.83,.79,.61]);
-     if(b.w>=1.3){
-      const offset=Math.min(b.w*.32,.95);
-      for(const side of [-1,1]){
-       box([b.x+side*offset,Math.min(height-.35,1.38),facade],[.35,.45,.046],glass);
-       box([b.x+side*offset,Math.min(height-.35,1.38),facade-.027],[.025,.45,.045],front);
-      }
-     }
-    }
-   }else{
-    for(const side of [-1,1]){
-     box([side*3.4,.8,3.8],[2.3,1.6,2.2],stone);
-     box([side*3.4,.9,8],[2.8,1.8,2.9],[.35,.36,.39]);
-     box([side*1.9,.7,6],[.25,1.4,.25],[.29,.25,.20]);
-     box([side*1.9,1.6,6],[.85,.75,.85],[.15,.38,.27]);
-    }
-   }
    // One simple hierarchical box-rig shared by the avatar's body parts.
    // This is procedural articulation, NOT a skinned glTF skeleton or animation.
    const pose=avatarPose(steps);
@@ -323,15 +358,17 @@
   }
   function destroy(){
    if(disposed)return;disposed=true;
-   gl.deleteBuffer(buffer);gl.deleteProgram(program);gl.deleteShader(vs);gl.deleteShader(fs);
+   gl.deleteBuffer(buffer);gl.deleteBuffer(staticBuffer);gl.deleteProgram(program);gl.deleteShader(vs);gl.deleteShader(fs);
   }
   return Object.freeze({
    supported:true,draw,destroy,
+   stats:()=>Object.freeze({staticBoxes:staticMesh.boxes,staticVertices:staticMesh.vertices,
+    staticBytes:staticMesh.bytes,staticUploads,staticDrawCalls,dynamicDrawCalls}),
    snapshot:stage.snapshot,
    turn:radians=>!disposed&&stage.turn(radians),
    step:distance=>!disposed&&stage.step(distance),
    reset:()=>{if(disposed)return false;stage.reset();return true;}
   });
  }
- root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createTerrainPatch,createWorldScene,createStage,avatarPose,cameraAvoid,createPreview,perspective,lookAt,multiply});
+ root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createTerrainPatch,createWorldScene,createStaticMesh,createStage,avatarPose,cameraAvoid,createPreview,perspective,lookAt,multiply});
 })(typeof window==='undefined'?globalThis:window);
