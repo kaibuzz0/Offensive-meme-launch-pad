@@ -389,7 +389,8 @@ try{
  await send('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?siege-visual-qa=1'});
  await waitFor(()=>evalPage("!!window.MemeCityCore?.PLOT&&!!document.getElementById('start-button')"),'original fortress game');
- await evalPage("document.getElementById('start-button').click();document.querySelector('[data-panel=menu]').click();true");
+ await waitFor(async()=>{const started=await evalPage("document.getElementById('city-intro').hidden===true");if(!started)await evalPage("document.getElementById('start-button').click();true");return started;},'original fortress game startup and bound listeners');
+ await evalPage("document.querySelector('[data-panel=menu]').click();true");
  await waitFor(()=>evalPage("Array.from(document.querySelectorAll('#panel-content button')).some(b=>b.textContent.includes('Hire / command defenders'))"),'one-world fortress menu');
  await evalPage("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Hire / command defenders')).click();true");
  const siegeReady=await evalPage("({title:document.querySelector('#panel-title').textContent,start:Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Start fortress siege'))?.disabled})");
@@ -566,8 +567,7 @@ try{
   "const accept=Client.prototype.accept;Client.prototype.accept=function(s){window.__qaPeerSnapshot=s;return accept.call(this,s);};}});"});
  await peerSend('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?second-real-browser=1'});
  await waitFor(()=>peerEval("!!window.CityRoomClient&&!!document.getElementById('start-button')"),'second real browser loads original World V1');
- await peerEval("document.getElementById('start-button').click();true");
- await waitFor(()=>peerEval("document.getElementById('city-intro').hidden===true"),'second browser starts Solo before joining Together');
+ await waitFor(async()=>{const started=await peerEval("document.getElementById('city-intro').hidden===true");if(!started)await peerEval("document.getElementById('start-button').click();true");return started;},'second browser starts Solo with fully bound World V1 listeners');
  await peerEval("document.querySelector('[data-panel=multiplayer]').click();true");
  await waitFor(()=>peerEval("!!document.querySelector('input[aria-label=\"Multiplayer nickname\"]')"),'second browser multiplayer dialog');
  await peerEval("(()=>{document.querySelector('input[aria-label=\"Multiplayer nickname\"]').value='SecondQA';Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Quick play')).click();return true;})()");
