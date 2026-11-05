@@ -83,6 +83,9 @@ try{
  assert.equal(await evalPage("document.getElementById('city-intro').hidden"),false,'one-tap original game splash');
  await evalPage("document.getElementById('start-button').click();true");
  await waitFor(()=>evalPage("document.getElementById('city-intro').hidden===true"),'original solo game entrance');
+ // Establish the real saved baseline before opening Graphics: the original game
+ // legitimately creates its first periodic save shortly after gameplay starts.
+ await waitFor(()=>evalPage("localStorage.getItem('offensive-meme-city-v1-center')!==null"),'initial protected Solo autosave');
  // Verify new graphics tools from the real phone-sized playable game entry.
  const priorSoloSave=await evalPage("localStorage.getItem('offensive-meme-city-v1-center')");
  await evalPage("document.querySelector('[data-panel=graphics]').click();true");
