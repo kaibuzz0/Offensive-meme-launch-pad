@@ -650,13 +650,22 @@
    }),status
   );
   content.append(node('h3','district-heading','Perspective camera research preview'),
-   node('p','beta-note','Experimental 3D camera with a turnable skull avatar, walking test corridor and token-colored clothing. Walking here does not move the real player, change saves or affect shooting and combat. Full first-person and third-person gameplay still requires 3D world geometry, collision, interiors and avatar rig conversion.'));
+   node('p','beta-note','Experimental 3D camera with a turnable skull avatar, walking test corridor and token-colored clothing. Buildings in this scene are derived from your existing Meme City world data. Walking here does not move the real player, change saves or affect shooting and combat. Full first-person and third-person gameplay still requires 3D world geometry, collision, interiors and avatar rig conversion.'));
   const surface=node('canvas','graphics-preview');surface.width=640;surface.height=360;
   surface.setAttribute('aria-label','Optional WebGL 3D avatar and city street with third-person or first-person perspective');
   const feedback=node('p','graphics-preview-status');
   if(graphicsPreview)graphicsPreview.destroy();
   const skin=verifiedBetaSkin(me),token=catalog.get(skin)||catalog.get(me.avatar)||catalog.get('offensive');
-  graphicsPreview=window.CityGraphics.createPreview(surface,token?.color||'#b6e87a');
+  // The camera lab displays genuine World V1 building footprints near the
+  // player's location, without moving or altering the actual game character.
+  const previewScene=window.CityGraphics.createWorldScene(I.BUILDINGS,{x:me.x,y:me.y});
+  const sceneSummary=node('p','graphics-preview-scene',
+   previewScene?'World V1 buildings: '+previewScene.name+' · '+previewScene.buildings.length+
+    ' authored structures · world X '+Math.round(previewScene.world.x)+
+    ', Y '+Math.round(previewScene.world.y)+'. This is a read-only 3D sample, not your active location.':
+    'No valid local building geometry; generic preview corridor shown.');
+  content.append(sceneSummary);
+  graphicsPreview=window.CityGraphics.createPreview(surface,token?.color||'#b6e87a',previewScene);
   if(graphicsPreview.supported){
    feedback.textContent='Third-person preview active. 3D sample only; main game remains fully playable in Classic view.';
    graphicsPreview.draw('third');
