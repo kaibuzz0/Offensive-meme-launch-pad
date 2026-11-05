@@ -233,7 +233,8 @@ try{
  assert.deepEqual(mapData.fort,[4480,4480]);assert.equal(mapData.clans,6);
  assert.ok(mapData.plot[0]>mapData.fort[0]&&mapData.plot[0]<mapData.fort[0]+2240);
  assert.ok(mapData.shopRegions>=4);assert.ok(mapData.painted);
- assert.ok(mapData.mapWidth>=800&&mapData.mapHeight>=800);
+ assert.ok(mapData.mapWidth>=800&&mapData.mapHeight>=450&&mapData.mapHeight<mapData.mapWidth);
+ assert.ok(Math.abs(mapData.mapWidth/mapData.mapHeight-mapData.width/mapData.height)<.01,'expanded world map preserves natural aspect ratio');
  const biomeLinks=await evalPage("Array.from(document.querySelectorAll('.map-destinations button')).filter(b=>b.textContent.startsWith('Explore ')&&/Forest|Dead Zone|Highlands/.test(b.textContent)).map(b=>b.textContent)");
  assert.equal(biomeLinks.length,3,'existing phone map exposes all three walkable biome destinations');
  // The existing 47-door map must yield readable manual guidance on phones:
