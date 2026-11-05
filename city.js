@@ -578,6 +578,18 @@
   }
   let notice='Use your free starter pickaxe to remove a surface tile. Dig the central shaft to descend.';
   const entry={x:me.x,y:me.y},explorer=Mine.createExplorer(miningStore,entry);
+  let mineFacing=me.facing||{x:1,y:0};
+  function drawMiner(c,x,y){
+   // Use the exact wardrobe/street avatar with the same verified cosmetics.
+   // This is a renderer-only adapter, never a wallet grant or new player save.
+   const skinId=verifiedBetaSkin(me),token=catalog.get(skinId)||catalog.get(me.avatar)||tokens[0],gear=clothingGear(me,true);
+   V.person(c,{id:'solo-miner-'+me.id,x,y,scale:.47,role:'player',armed:false,
+    offenderSkin:hasOffenderSkin(me),clanSkin:skinId,
+    ticker:token.ticker,coinName:token.name,color:token.color||'#b7ee88',
+    image:art.get(skinId||me.avatar),style:me.style,gear,
+    holderTier:me.holder?.expires>Date.now()?me.holder.tier:me.holderTier||0,
+    aim:mineFacing,moving:false,upgraded:!!gear.hand},performance.now());
+  }
   function draw(){
    content.replaceChildren();
    const position=explorer.position(),depth=position.layer,layer=Mine.STRATA[depth],items=miningStore.inventory();
@@ -592,9 +604,9 @@
     strata.append(item);
    }content.append(strata);
    const cave=node('canvas','mining-scene');cave.width=640;cave.height=350;
-   cave.setAttribute('aria-label','Isometric mine view showing the same player and excavated geological layers');
+   cave.setAttribute('aria-label','Isometric mine view showing your existing World V1 avatar and excavated geological layers');
    cave.setAttribute('role','img');content.append(cave);
-   MV.slice(cave.getContext('2d'),miningStore,entry,position);
+   MV.slice(cave.getContext('2d'),miningStore,entry,position,drawMiner);
    const grid=node('div','mining-grid');grid.setAttribute('role','group');grid.setAttribute('aria-label','Five by five excavatable mine tiles');
    for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
     const sample=miningStore.inspect(entry,dx,dy,depth),labelText=sample?
@@ -617,7 +629,7 @@
    controls.append(up,down);content.append(controls);
    const walk=node('div','mining-walk');walk.setAttribute('role','group');walk.setAttribute('aria-label','Underground miner movement');
    for(const [label,dx,dy] of [['← West',-1,0],['↑ North',0,-1],['↓ South',0,1],['East →',1,0]]){
-    const b=button(label,()=>{if(explorer.move(dx,dy)){notice='Moved through excavated tunnel at player z='+explorer.position().z;draw();}},'panel-button');
+    const b=button(label,()=>{if(explorer.move(dx,dy)){mineFacing={x:dx,y:dy};notice='Moved through excavated tunnel at player z='+explorer.position().z;draw();}},'panel-button');
     b.disabled=!explorer.canMove(dx,dy);walk.append(b);
    }content.append(walk);
    const report=node('p','mining-feedback',notice);report.setAttribute('role','status');
