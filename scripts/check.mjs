@@ -68,7 +68,7 @@ assert.ok(read('city.html').includes('city-map.js?v=47-frontier'),'World map des
  assert.ok(read('.github/workflows/pages.yml').includes('city-mining.js')&&read('.github/workflows/pages.yml').includes('city-mine-visuals.js'),'Mining logic and visuals must be included in Pages builds');
  assert.ok(read('server/city-server.mjs').includes("'city-mining.js','city-mine-visuals.js'"),'Local server must serve mining module and renderer static assets');
  assert.ok(read('server/city-server.mjs').includes("'city-core.js','city-biomes.js'"),'Existing local multiplayer and Chromium server must serve biome assets');
-assert.ok(read('city.html').includes('city-frontier.js?v=47-frontier')&&read('city.html').includes('city-mining.js?v=49-surface-depth')&&read('city.html').includes('city-mine-visuals.js?v=49-surface-depth')&&read('city.html').includes('city-nav.js?v=42-wayfinding'),'Collision-safe next-turn street navigator must load');
+assert.ok(read('city.html').includes('city-frontier.js?v=47-frontier')&&read('city.html').includes('city-mining.js?v=50-shaft-cache')&&read('city.html').includes('city-mine-visuals.js?v=49-surface-depth')&&read('city.html').includes('city-nav.js?v=42-wayfinding'),'Collision-safe next-turn street navigator must load');
 assert.ok(read('.github/workflows/pages.yml').includes('city-nav.js'),'Street navigator must deploy');
 assert.ok(read('.github/workflows/pages.yml').includes('city-map.js'),'World map destinations must deploy');
 assert.ok(read('city.html').includes('city-districts.js'),'District renderer must load');
