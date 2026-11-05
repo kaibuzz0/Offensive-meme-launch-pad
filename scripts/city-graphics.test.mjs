@@ -97,7 +97,7 @@ test('3D avatar stage has bounded local movement, finite camera yaw and reset',(
  assert.equal(p.step(-1),false,'negative edge of corridor is bounded');
 });
 
-test('World V1's actual named building footprints become bounded, immutable 3D meshes',()=>{
+test('World V1 authored building footprints become bounded, immutable 3D meshes',()=>{
  const root={};
  vm.runInNewContext(fs.readFileSync(new URL('../city-core.js',import.meta.url),'utf8'),root);
  vm.runInNewContext(fs.readFileSync(new URL('../city-interiors.js',import.meta.url),'utf8'),root);
