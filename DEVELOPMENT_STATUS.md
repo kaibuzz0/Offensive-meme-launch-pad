@@ -1,3 +1,9 @@
+## November 5 — read-only 3D mirror of current game player (draft PR #32)
+
+The experimental camera lab now offers a one-click, read-only snapshot of the **actual World V1 player's coordinates and aim** using `CityGraphics.samplePlayerCamera()`. The scene's existing 120:1 scale and reversed north/south axis map the original player to the prototype 3D camera; invalid or indoor positions fail safely. Controls can return to the independent walking demo, and neither action changes player position, authoritative combat, inventory, mining, wallet, multiplayer, or Solo save. This **does not** implement continuously live 3D gameplay. Detailed acceptance and remaining blockers: `docs/CAMERA_GRAPHICS_MILESTONE.md`.
+
+---
+
 ## November 5 — reusable animated-avatar geometry (draft PR #32)
 
 The isolated 3D Graphics preview now uses a reusable, immutable, named-joint procedural skull avatar rig with valid first- and third-person geometry. World-space avatar mesh is rebuilt deterministically for each preview interaction, uploaded to a capped dynamic WebGL1 buffer, and drawn in one animated call alongside the one batched static-world call. GPU diagnostics report avatar vertex count and pose uploads. The original World V1 2D player, save, mining, wallet, NPCs and multiplayer are unchanged. This is **not** production in-game 3D animation or a skinned glTF rig. Full details: `docs/CAMERA_GRAPHICS_MILESTONE.md`.
