@@ -1,3 +1,11 @@
+## November 5 — one-world mining QA and viewport-cache correction (draft PR #29)
+
+Review of the existing 132-biome / underground mining work found a production-facing display bug: the first viewport's filtered mine openings were wrongly cached as if they represented the whole world. Corrected `city-mining.js` to cache the full validated shaft geometry and filter only the returned view. Added a new multi-biome, empty-viewport, depth-change and reload regression to `scripts/city-mining.test.mjs`. Bumped only the mining script cache key in `city.html`, and fixed the welcome copy so the +256 ceiling is not confused with playable vertical construction. No original player save, geometry, wallet integration, online authority or bonus economy changes.
+
+Reviewed permissively licensed spatial-index and procedural sources (Flatbush ISC, D3 Quadtree permissive, Poisson-disk sampling MIT, Simplex Noise MIT) and recorded their integration costs in `docs/OPEN_SOURCE_RESEARCH.md`. No third-party source/art was copied because a smaller native fix is safer for 132 regions and ≤512 mine openings. Verify **PR-head GitHub Actions** before accepting or merging. Original World V1 remains canonical; **PR #29 is draft, not deployed**.
+
+---
+
 ## Visible world mining and temporary underground player depth — draft PR #29
 
 The same 132-biome frontier has an additive Canvas mine renderer and temporary Solo miner state. Actual excavated surface cells/shafts are drawn into the original World V1 camera, with gold map markers for the central shaft coordinates and route buttons to return. The original Mining panel now includes a real 2.5D underground Canvas cutaway and avatar marker. A validated depth and XY-position model allows one-cell cardinal movement only through mined passage tiles, and descending/ascending only through the origin shaft. No new world/map, avatar rig replacement or character-save migration is needed.
