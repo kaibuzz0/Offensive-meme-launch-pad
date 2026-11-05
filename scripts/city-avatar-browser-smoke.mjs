@@ -588,7 +588,9 @@ try{
   // Place a valid LOCAL test save at the canonical in-world post and reload.
   await evalPage(`(()=>{
    const key='offensive-meme-city-v1-center',prior=JSON.parse(localStorage.getItem(key)||'{}'),
-    versions=window.CityCenterSave,site=window.CityBiomes.sites[0];
+    // Neutral offline page intentionally loads no game scripts. Use the
+    // canonical tested forest waypoint and current center-city save schema.
+    versions={SAVE_VERSION:6,WORLD_VERSION:1,LAYOUT_VERSION:2},site={x:560,y:2760};
    localStorage.setItem(key,JSON.stringify({...prior,version:versions.SAVE_VERSION,
     saveVersion:versions.SAVE_VERSION,worldVersion:versions.WORLD_VERSION,
     layoutVersion:versions.LAYOUT_VERSION,x:site.x,y:site.y,area:'greenbelt'}));
