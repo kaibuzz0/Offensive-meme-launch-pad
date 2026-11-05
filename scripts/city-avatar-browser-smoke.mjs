@@ -572,8 +572,11 @@ try{
  await waitFor(()=>peerEval("!!document.querySelector('input[aria-label=\"Multiplayer nickname\"]')"),'second browser multiplayer dialog');
  await peerEval("(()=>{document.querySelector('input[aria-label=\"Multiplayer nickname\"]').value='SecondQA';Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Quick play')).click();return true;})()");
  await waitFor(()=>peerEval("document.querySelector('#room-mode').textContent.startsWith('ONLINE /')&&!document.querySelector('#city-panel').open"),'second guest joins actual hosted room');
- await waitFor(()=>evalPage("document.querySelector('#population').textContent.includes('2 players')"),'first real browser receives second player through room stream');
+ await waitFor(()=>room.service.health().players===2,'room server has two independently authenticated guest sessions');
  await waitFor(()=>peerEval("window.__qaPeerSnapshot?.players?.length===2"),'second real browser receives both authenticated players');
+ await send('Page.bringToFront');
+ await waitFor(()=>evalPage("document.querySelector('#population').textContent.includes('2 players')"),'foreground first browser renders the second server-authenticated player',18000);
+ await peerSend('Page.bringToFront');
  const peerView=await peerEval("(()=>{const s=window.__qaPeerSnapshot,p=s.self,near=window.CityLive3D.selectNearbyActors({world:{x:p.x,y:p.y}},p,s);return {players:s.players.length,remote:near.some(x=>x.id.startsWith('player:')),near:near.length,layout:s.roomInfo.layoutVersion};})()");
  assert.equal(peerView.players,2);
  assert.equal(peerView.remote,true,'read-only 3D camera sees a REAL second browser guest, not a synthetic actor');
@@ -598,7 +601,9 @@ try{
  await peerEval("document.querySelector('[data-panel=multiplayer]').click();true");
  await peerEval("Array.from(document.querySelectorAll('#panel-content button')).find(b=>b.textContent.includes('Return to my solo city')).click();true");
  await waitFor(()=>peerEval("document.querySelector('#room-mode').textContent.startsWith('SOLO')"),'second browser exits the hosted room cleanly');
- await waitFor(()=>evalPage("document.querySelector('#population').textContent.includes('1 player')"),'first browser sees the real peer departure');
+ await waitFor(()=>room.service.health().players===1,'server revokes the second session after browser leaves');
+ await send('Page.bringToFront');
+ await waitFor(()=>evalPage("document.querySelector('#population').textContent.includes('1 player')"),'foreground first browser renders the authenticated peer departure',18000);
  peerWs.close();
  // The original first browser remains connected to Together for the existing
  // signed-holder, wallet and cosmetic regression checks below.
