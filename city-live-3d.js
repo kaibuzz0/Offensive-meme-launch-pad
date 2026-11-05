@@ -56,15 +56,24 @@
   const canView=p=>p&&!p.room&&Number.isFinite(p.x)&&Number.isFinite(p.y);
   const fail=message=>{reason=message;status.textContent=message;return false;};
   function release(){
-   if(preview){preview.destroy();preview=null;}
+   if(preview){
+    const current=preview;preview=null;
+    try{current.destroy();}catch{/* A broken GPU must not stop World V1. */}
+   }
    scene=null;anchor=null;regionId=null;lastPosition=null;
   }
   function rebase(player){
-   const candidate=graphics.createWorldScene(buildings,{x:player.x,y:player.y},biomes,frontier);
-   if(!candidate)return fail('No local World V1 geometry available for 3D preview.');
-   const next=graphics.createPreview(canvas,getColor(player),candidate);
-   if(!next?.supported){next?.destroy?.();return fail('3D unavailable on this device. The original 2D game still works.');}
-   if(preview)preview.destroy();
+   let candidate,next;
+   try{
+    candidate=graphics.createWorldScene(buildings,{x:player.x,y:player.y},biomes,frontier);
+    if(!candidate)return fail('No local World V1 geometry available for 3D preview.');
+    next=graphics.createPreview(canvas,getColor(player),candidate);
+   }catch{return fail('3D graphics initialization failed. The original 2D game continues.');}
+   if(!next?.supported){
+    try{next?.destroy?.();}catch{}
+    return fail('3D unavailable on this device. The original 2D game still works.');
+   }
+   if(preview){try{preview.destroy();}catch{/* broken GPU buffer */}}
    preview=next;scene=candidate;anchor={x:player.x,y:player.y};
    regionId=currentRegion(player);rebases++;return true;
   }
@@ -94,7 +103,10 @@
    }
    const actors=selectNearbyActors(scene,player,getWorldState());
    if(!preview.setActors?.(actors))return fail('3D actor drawing unavailable; the 2D game still works.');
-   if(!preview.draw(mode,getColor(player)))return fail('3D preview stopped; the 2D game still works.');
+   if(!preview.draw(mode,getColor(player))){
+    stop();
+    return fail('3D preview stopped; the original 2D game still works.');
+   }
    lastPosition={x:player.x,y:player.y};lastDraw=now;draws++;
    const seen=preview.observed?.()||pose;
    status.textContent='LIVE 3D / '+(mode==='third'?'third-person':'first-person')+
