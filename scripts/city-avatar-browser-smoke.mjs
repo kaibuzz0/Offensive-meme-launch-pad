@@ -579,6 +579,32 @@ try{
  await waitFor(()=>evalPage("document.querySelector('#panel-content').textContent.includes('Connect once with the site wallet')"),'holder skin revoked');
  assert.equal(await headHash(),normalHead,'disconnect restores the standard face');
 
+  // Real end-to-end mobile survey acceptance in an isolated Chromium profile:
+  // place a valid LOCAL test save at the canonical in-world post and reload.
+  await evalPage(`(()=>{
+   const key='offensive-meme-city-v1-center',prior=JSON.parse(localStorage.getItem(key)||'{}'),
+    versions=window.CityCenterSave,site=window.CityBiomes.sites[0];
+   localStorage.setItem(key,JSON.stringify({...prior,version:versions.SAVE_VERSION,
+    saveVersion:versions.SAVE_VERSION,worldVersion:versions.WORLD_VERSION,
+    layoutVersion:versions.LAYOUT_VERSION,x:site.x,y:site.y,area:'greenbelt'}));
+   return true;
+  })()`);
+  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?solo=1&biome-survey-qa=1'});
+  await waitFor(()=>evalPage("!!window.CityBiomes?.nearbySite&&!!document.querySelector('#start-button')"),'survey entry on the original one-world client');
+  await evalPage("document.getElementById('start-button').click();true");
+  await waitFor(()=>evalPage("document.querySelector('#interact')?.textContent==='E / SURVEY SITE'"),'actual mobile survey action at the saved greenbelt waypoint');
+  const beforeSurvey=await evalPage("document.querySelector('#hud-credits').textContent");
+  assert.match(await evalPage("document.querySelector('#district').textContent"),/PINEWOOD FOREST/,'real HUD identifies the current biome');
+  await evalPage("document.querySelector('#interact').click();true");
+  await waitFor(()=>evalPage("document.querySelector('#panel-title')?.textContent==='Biome field survey'"),'real mobile Interact opens the local field note');
+  const note=await evalPage("document.querySelector('#panel-content').textContent");
+  assert.match(note,/Old-Growth Survey Post/,'survey post identifies itself');
+  assert.match(note,/Forest loam/,'survey displays actual terrain material');
+  assert.match(note,/No items, XP, credits or token transactions/,'survey promises no reward');
+  assert.equal(await evalPage("document.querySelector('#hud-credits').textContent"),beforeSurvey,'observing terrain never grants credits');
+  await evalPage("document.querySelector('#close-panel').click();true");
+  assert.equal(await evalPage("document.getElementById('city-panel').open"),false,'survey exits back to the very same playable world');
+
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
  console.log('PASS: 112 real Canvas armed/unarmed V1 character renders, modern 2.5D building archetypes and themed interiors, Center City map, six verified-only skin cards, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
 }finally{
