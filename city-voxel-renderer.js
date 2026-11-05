@@ -69,32 +69,41 @@
   if(group==='wetland')return rgb(96,30,37);
   return rgb(hue,clamp(sat+8,20,85),clamp(light+5,18,74));
  }
- function generateMesh(world,cx,cz){
-  const chunk=world.chunkAt(cx,cz);if(!chunk)return null;
+ function generateMesh(world,cx,cz,stride=1){
+  if(stride!==1&&stride!==4)throw Error('Unsupported terrain LOD');
+  let chunk;
+  if(stride===1)chunk=world.chunkAt(cx,cz);
+  else{
+   const tiles=[];
+   for(let z=cz*16;z<(cz+1)*16;z+=stride)
+    for(let x=cx*16;x<(cx+1)*16;x+=stride)tiles.push(world.surfaceAt(x,z));
+   chunk={tiles,plants:[]};
+  }
+  if(!chunk)return null;
   const data=[];
   for(const tile of chunk.tiles){
    const {x,z,height:y}=tile,color=baseColor(tile);
-   quad(data,[x,y+1,z],[x+1,y+1,z],[x+1,y+1,z+1],[x,y+1,z+1],color,[0,1,0]);
+   quad(data,[x,y+1,z],[x+stride,y+1,z],[x+stride,y+1,z+stride],[x,y+1,z+stride],color,[0,1,0]);
    const sides=[
-    {n:world.surfaceAt(x-1,z),axis:'left'},
-    {n:world.surfaceAt(x+1,z),axis:'right'},
-    {n:world.surfaceAt(x,z-1),axis:'front'},
-    {n:world.surfaceAt(x,z+1),axis:'back'}
+    {n:world.surfaceAt(x-stride,z),axis:'left'},
+    {n:world.surfaceAt(x+stride,z),axis:'right'},
+    {n:world.surfaceAt(x,z-stride),axis:'front'},
+    {n:world.surfaceAt(x,z+stride),axis:'back'}
    ];
    const shade=color.map(v=>v*.79);
    for(const side of sides){
     const low=side.n?.height??y;
     if(low>=y)continue;
     const a=low+1,b=y+1;
-    if(side.axis==='left')quad(data,[x,a,z],[x,b,z],[x,b,z+1],[x,a,z+1],shade,[-1,0,0]);
-    if(side.axis==='right')quad(data,[x+1,a,z],[x+1,a,z+1],[x+1,b,z+1],[x+1,b,z],shade,[1,0,0]);
-    if(side.axis==='front')quad(data,[x,a,z],[x+1,a,z],[x+1,b,z],[x,b,z],shade,[0,0,-1]);
-    if(side.axis==='back')quad(data,[x,a,z+1],[x,b,z+1],[x+1,b,z+1],[x+1,a,z+1],shade,[0,0,1]);
+    if(side.axis==='left')quad(data,[x,a,z],[x,b,z],[x,b,z+stride],[x,a,z+stride],shade,[-1,0,0]);
+    if(side.axis==='right')quad(data,[x+stride,a,z],[x+stride,a,z+stride],[x+stride,b,z+stride],[x+stride,b,z],shade,[1,0,0]);
+    if(side.axis==='front')quad(data,[x,a,z],[x+stride,a,z],[x+stride,b,z],[x,b,z],shade,[0,0,-1]);
+    if(side.axis==='back')quad(data,[x,a,z+stride],[x,b,z+stride],[x+stride,b,z+stride],[x+stride,a,z+stride],shade,[0,0,1]);
    }
    if(tile.water){
     const water=[.15,.45,.67];
     const yy=world.SEA_LEVEL+1.15;
-    quad(data,[x,yy,z],[x+1,yy,z],[x+1,yy,z+1],[x,yy,z+1],water,[0,1,0]);
+    quad(data,[x,yy,z],[x+stride,yy,z],[x+stride,yy,z+stride],[x,yy,z+stride],water,[0,1,0]);
     // Water surface is deliberately opaque for predictable mobile depth rendering.
    }
   }
@@ -120,7 +129,7 @@
   'if(vWater>.5){float wave=sin(vPosition.x*.81+uTime*.8)*sin(vPosition.z*.62-uTime*.7);'+
   'float sheen=pow(.5+.5*sin((vPosition.x+vPosition.z)*1.5+uTime*1.5),12.0);'+
   'color=vec3(.055,.26,.42)+vec3(.022,.087,.115)*wave+vec3(.10,.15,.15)*sheen;}'+
-  'float fog=smoothstep(35.0,103.0,vDist);'+
+  'float fog=smoothstep(55.0,235.0,vDist);'+
   'gl_FragColor=vec4(mix(color,vec3(.63,.77,.88),fog),1.0);}';
  const skyVertex='attribute vec2 aXY;varying vec2 vUV;'+
   'void main(){gl_Position=vec4(aXY,0.9999,1.0);vUV=aXY*.5+.5;}';
@@ -137,7 +146,7 @@
   if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));
   return s;
  }
- function perspective(aspect,near=.1,far=115){
+ function perspective(aspect,near=.1,far=1050){
   const f=1/Math.tan(77*Math.PI/360/2),a=new Float32Array(16);
   a[0]=f/aspect;a[5]=f;a[10]=(far+near)/(near-far);
   a[11]=-1;a[14]=2*far*near/(near-far);return a;
@@ -182,18 +191,18 @@
   gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
   const skyPos=gl.getAttribLocation(skyProgram,'aXY'),skyLook=gl.getUniformLocation(skyProgram,'uLook');
   const timeUniform=gl.getUniformLocation(program,'uTime');
-  const chunks=new Map(),MAX_CHUNKS=49,RADIUS=3;
+  const chunks=new Map(),MAX_CHUNKS=176,RADIUS=7,NEAR_RADIUS=3;
   gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);
   function release(key){
    const c=chunks.get(key);if(c){gl.deleteBuffer(c.buffer);chunks.delete(key);}
   }
   function dispose(){for(const key of chunks.keys())release(key);gl.deleteBuffer(skyBuffer);gl.deleteProgram(skyProgram);gl.deleteProgram(program);}
-  function load(cx,cz){
+  function load(cx,cz,stride){
    const key=cx+':'+cz;if(chunks.has(key))return;
-   const mesh=generateMesh(world,cx,cz);if(!mesh)return;
+   const mesh=generateMesh(world,cx,cz,stride);if(!mesh)return;
    const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
    gl.bufferData(gl.ARRAY_BUFFER,mesh.data,gl.STATIC_DRAW);
-   chunks.set(key,{cx,cz,buffer,vertices:mesh.vertices,bytes:mesh.data.byteLength});
+   chunks.set(key,{cx,cz,stride,buffer,vertices:mesh.vertices,bytes:mesh.data.byteLength});
   }
   function render(player){
    const rect=canvas.getBoundingClientRect();
@@ -214,15 +223,22 @@
    const px=Math.floor(player.x/16),pz=Math.floor(player.z/16),wanted=[];
    for(let dz=-RADIUS;dz<=RADIUS;dz++)for(let dx=-RADIUS;dx<=RADIUS;dx++){
     if(dx*dx+dz*dz>RADIUS*RADIUS+1)continue;
-    wanted.push({cx:px+dx,cz:pz+dz,d:dx*dx+dz*dz});
+    wanted.push({cx:px+dx,cz:pz+dz,d:dx*dx+dz*dz,stride:dx*dx+dz*dz<=NEAR_RADIUS*NEAR_RADIUS+1?1:4});
    }
    wanted.sort((a,b)=>a.d-b.d);
    const targets=new Set(wanted.map(c=>c.cx+':'+c.cz));
    for(const k of chunks.keys())if(!targets.has(k))release(k);
    // Only one heavy mesh generation/upload per frame, so Android movement
    // remains interactive even when new mountain chunks enter the viewport.
-   const missing=wanted.find(c=>!chunks.has(c.cx+':'+c.cz));
-   if(missing)load(missing.cx,missing.cz);
+   const missing=wanted.find(c=>{
+    const existing=chunks.get(c.cx+':'+c.cz);
+    return !existing||existing.stride>c.stride;
+   });
+   if(missing){
+    const key=missing.cx+':'+missing.cz;
+    if(chunks.has(key))release(key);
+    load(missing.cx,missing.cz,missing.stride);
+   }
    while(chunks.size>MAX_CHUNKS)release(chunks.keys().next().value);
    const eye=[player.x,player.y+world.EYE_HEIGHT,player.z];
    gl.useProgram(program);
@@ -244,5 +260,5 @@
   return Object.freeze({gl,render,dispose,chunkCount:()=>chunks.size,meshAt:(cx,cz)=>generateMesh(world,cx,cz)});
  }
  root.CityVoxelRenderer=Object.freeze({createRenderer,generateMesh,rgb,
-  VOXEL_METERS:.25,MAX_GPU_CHUNKS:49});
+  VOXEL_METERS:.25,MAX_GPU_CHUNKS:176});
 })(typeof window==='undefined'?globalThis:window);
