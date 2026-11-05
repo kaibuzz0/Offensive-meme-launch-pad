@@ -232,8 +232,8 @@ test('live viewport ships in original game UI, local server and GitHub Pages',()
  const css=readFileSync(new URL('../city.css',import.meta.url),'utf8');
  const server=readFileSync(new URL('../server/city-server.mjs',import.meta.url),'utf8');
  const pages=readFileSync(new URL('../.github/workflows/pages.yml',import.meta.url),'utf8');
- assert.match(html,/city-live-3d\.js\?v=60-live-game-camera/);
- assert.ok(html.indexOf('city-live-3d.js?v=60-live-game-camera')<html.indexOf('city.js?v=60-live-game-camera'));
+ assert.match(html,/city-live-3d\.js\?v=61-live-crowd/);
+ assert.ok(html.indexOf('city-live-3d.js?v=61-live-crowd')<html.indexOf('city.js?v=61-live-crowd'));
  for(const id of ['city-live-3d','city-live-3d-toggle','city-live-3d-mode','city-live-3d-close','city-live-3d-canvas','city-live-3d-status'])
   assert.ok(html.includes('id="'+id+'"'),id);
  assert.ok(css.includes('.city-live-3d{'));
