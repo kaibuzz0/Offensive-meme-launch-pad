@@ -1,3 +1,9 @@
+## November 5 — Milestone 11: real NPCs in optional live WebGL (draft PR #32)
+
+The existing World V1 player's perspective inset can now display **up to six nearby, living authoritative players/civilians/zombies/guards/monk**, using the same bounded procedural 3D character rig. NPC selection is deterministic and read-only; a single additional draw call renders the batch. The live inset reports character count. WebGL errors have stronger isolation from the original 2D simulation. No NPC AI, multiplayer authority, wallet, combat, save, mining or input protocol has changed. This is **not** finished third-person gameplay. Final opt-in merge criteria are now tracked in `docs/PR32_MERGE_READINESS.md`; physical Android, live multiplayer browser QA and owner review remain.
+
+---
+
 ## November 5 — live in-game camera milestone (draft PR #32)
 
 Added optional `Live 3D` inside the **original playable World V1** game shell, not a new standalone world and not a paused Graphics menu. It observes the authoritative current player and aim continuously at a capped 12 FPS while the existing game controls, AI, combat and 2D camera keep running. First-/third-person inset views, automatic 540-world-unit or biome-boundary terrain rebase, player-step gait, and GPU cleanup are implemented in `city-live-3d.js`. Input and saves still belong entirely to the original engine. This is a small experimental 3D perspective viewport, **not yet live full-screen 3D gameplay**. Browser and unit tests guard the original World V1; full details and remaining production blockers in `docs/CAMERA_GRAPHICS_MILESTONE.md`.
