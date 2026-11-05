@@ -674,6 +674,50 @@ try{
   assert.ok(savedFrontier.visited>=1&&savedFrontier.playerSave);
   await evalPage("document.querySelector('#close-panel').click();true");
 
+  // Real mobile-sized Chrome mining: actual UI controls, local world save,
+  // layer descent, bedrock bounds, and no play-credit minting.
+  await evalPage("document.querySelector('[data-panel=mining]').click();true");
+  await waitFor(()=>evalPage("document.querySelector('#panel-title')?.textContent==='Mining / vertical strata'"),'original game opens playable mining control');
+  const initialMine=await evalPage(`(()=>{
+   const M=window.CityMining,grid=document.querySelectorAll('.mining-cell');
+   return {height:M.maxHeight,floor:M.minHeight,
+    layers:M.STRATA.length,cells:grid.length,
+    shaftEnabled:!document.querySelector('.mining-cell.shaft')?.disabled,
+    bedrock:M.STRATA[7].mineable,stored:localStorage.getItem(M.KEY)};
+  })()`);
+  assert.equal(initialMine.height,256,'absolute positive world height is enforced');
+  assert.equal(initialMine.floor,-64,'absolute mining bedrock floor is enforced');
+  assert.equal(initialMine.layers,8,'seven diggable depths and a bedrock floor');
+  assert.equal(initialMine.cells,25,'mobile five by five mining interface');
+  assert.equal(initialMine.shaftEnabled,true,'actual frontier shaft is diggable');
+  assert.equal(initialMine.bedrock,false);
+  assert.equal(initialMine.stored,null,'unmined terrain is generated rather than saved in full');
+  const creditsBeforeMining=await evalPage("document.querySelector('#hud-credits').textContent");
+  await evalPage("document.querySelector('.mining-cell.shaft').click();true");
+  await waitFor(()=>evalPage("document.querySelector('.mining-cell.shaft')?.classList.contains('excavated')"),'first surface rock excavated');
+  await evalPage(`(()=>{
+   const button=[...document.querySelectorAll('.mining-controls button')].find(b=>b.textContent.includes('Descend'));
+   if(!button||button.disabled)throw Error('Shaft did not unlock layer descent');
+   button.click();return true;
+  })()`);
+  await waitFor(()=>evalPage("document.querySelector('.district-heading')?.textContent.includes('-16')"),'second subsurface level is playable');
+  await evalPage("document.querySelector('.mining-cell.shaft').click();true");
+  await waitFor(()=>evalPage("document.querySelector('.mining-cell.shaft')?.classList.contains('excavated')"),'second depth excavation saved');
+  const mineEnd=await evalPage(`(()=>{
+   const M=window.CityMining,raw=JSON.parse(localStorage.getItem(M.KEY)||'{}'),
+    loaded=M.createStore(localStorage);
+   return {saved:raw.blocks?.length,hasHeight:raw.maxHeight===256,
+    loaded:loaded.count(),materials:loaded.inventory(),
+    original:!!localStorage.getItem('offensive-meme-city-v1-center')};
+  })()`);
+  assert.equal(mineEnd.saved,2,'only two mined block deltas written');
+  assert.equal(mineEnd.hasHeight,true);
+  assert.equal(mineEnd.loaded,2,'separate mine journal survives a fresh module load');
+  assert.equal(Object.values(mineEnd.materials).reduce((sum,n)=>sum+n,0),2);
+  assert.equal(mineEnd.original,true,'old Solo save stays in place');
+  assert.equal(await evalPage("document.querySelector('#hud-credits').textContent"),creditsBeforeMining,'mining cannot grant credits');
+  await evalPage("document.querySelector('#close-panel').click();true");
+
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
  console.log('PASS: 112 real Canvas armed/unarmed V1 character renders, modern 2.5D building archetypes and themed interiors, Center City map, six verified-only skin cards, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');
 }finally{
