@@ -156,6 +156,14 @@ test('terrain mesh samples authoritative 3 historical and 132 frontier biome reg
  const urban=G.createTerrainPatch(C.WORLD.spawn.x,C.WORLD.spawn.y,B,F);
  assert.equal(urban.cells.length,64);
  assert.equal(urban.name,'Center City pavement');
+ const openStreet={x:5600,y:5940};
+ const street=G.createWorldScene(I.BUILDINGS,openStreet,B,F);
+ assert.deepEqual(asNative(street.world),openStreet,'distant urban streets use actual player origin, not a remote storefront');
+ assert.equal(street.terrain.name,'Center City pavement');
+ const mirrored=G.samplePlayerCamera(street,{...openStreet,room:null},{x:1,y:0});
+ assert.ok(mirrored,'the true center-world Solo spawn remains inside the 3D sample');
+ assert.equal(mirrored.x,0);
+ assert.equal(mirrored.z,0);
  assert.equal(G.createTerrainPatch(0,0,null,null),null);
  assert.equal(G.createWorldScene([],entry,B,F),null,'no invented building records');
 });
