@@ -22,7 +22,7 @@ test('v1 local-area position and every v2-v5 district migrate deterministically 
   assert.equal(a.save.area,id);assert.equal(a.save.x,T.point(C,{x:p.x,y:p.y}).x);
   const legacy={...p,version:1,x:r.w*.4,y:r.h*.5};delete legacy.worldVersion;delete legacy.saveVersion;
   const v1=M.plan(C,T,legacy);assert.equal(v1.status,'preview',id);assert.equal(v1.save.x,a.save.x);}
- assert.equal(C.WORLD.width,11200);assert.equal(ctx.CitySave.WORLD_VERSION,1);assert.equal(T.draft.enabled,false);
+ assert.equal(C.WORLD.originalWidth,11200);assert.equal(C.WORLD.width,24400);assert.equal(ctx.CitySave.WORLD_VERSION,1);assert.equal(T.draft.enabled,false);
 });
 test('migration preserves earned progression, all plot/outpost tile indices and inventory with distinct clones',()=>{
  const old=base(),string=JSON.stringify(old),result=M.plan(C,T,old);assert.equal(result.status,'preview');

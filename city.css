@@ -188,3 +188,30 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 .route-guide[hidden]{display:none}
 .route-guide[data-status="off-route"],.route-guide[data-status="invalid"]{border-color:#edbf7b;color:#ffdbac;background:#3b2a28e9}
 @media(max-width:700px){.route-guide{top:208px;font-size:9px;line-height:1.45;padding:7px 10px;max-width:calc(100% - 16px)}}
+
+
+/* The original world stays 2D; this panel is the intentional vertical
+   excavation slice. Touch controls remain accessible on low-end phones. */
+.mining-strata{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:14px 0}
+.mining-stratum{border:1px solid #53667b;border-left:5px solid #879bab;padding:7px 9px;background:#182934;color:#c7d9e0;font:11px/1.4 monospace}
+.mining-stratum.active{background:#294c5d;color:#fff;border-top-color:#8cd8cb;border-right-color:#8cd8cb}
+.mining-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;max-width:620px;margin:13px auto}
+.mining-cell{font:700 10px/1.3 monospace;padding:12px 4px;min-height:64px;border:2px solid #6a8494;border-radius:6px;color:#eff8f0;background:linear-gradient(155deg,var(--rock,#475969),#142331);overflow-wrap:anywhere;touch-action:manipulation}
+.mining-cell.shaft{border:3px solid #e5d17c;box-shadow:0 0 0 2px #b59a3930 inset}
+.mining-cell.excavated{background:repeating-linear-gradient(135deg,#101d25,#101d25 9px,#172e34 9px,#172e34 18px);color:#88d8c6}
+.mining-cell:disabled{opacity:.55;cursor:not-allowed}
+.mining-cell:focus-visible{outline:3px solid #f6df8b;outline-offset:2px}
+.mining-controls{display:flex;flex-wrap:wrap;gap:9px;margin:10px 0}
+.mining-controls .panel-button{flex:1 1 180px;min-height:46px;background:#213b4e}
+.mining-feedback{padding:10px 12px;border-left:3px solid #8bd5bd;background:#1d3440;color:#e4f4e8;font:12px/1.6 monospace}
+@media(max-width:700px){.mining-strata{grid-template-columns:1fr 1fr;gap:4px}.mining-stratum{padding:5px;font-size:9px}.mining-grid{gap:3px}.mining-cell{min-height:54px;padding:7px 2px;font-size:8px}.mining-controls .panel-button{font-size:11px}}
+
+
+/* Same-world underground cutaway: a native Canvas slice, no new scene engine. */
+.mining-scene{display:block;width:100%;max-width:640px;height:auto;margin:12px auto 8px;border:2px solid #587f86;border-radius:9px;background:#0b1521;box-shadow:inset 0 0 30px #0008,0 12px 30px #0006}
+.mining-grid .mining-cell.miner-tile{border-color:#8af9e3;box-shadow:0 0 0 2px #8af9e340;position:relative}
+.mining-walk{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:11px 0}
+.mining-walk .panel-button{min-height:47px;padding:9px 6px;font:700 11px/1.4 monospace;background:#244657;border:1px solid #6397a2;border-radius:6px;color:#e9f6f1}
+.mining-walk .panel-button:disabled{opacity:.4;cursor:not-allowed}
+.mining-walk .panel-button:focus-visible{outline:3px solid #dbf59d;outline-offset:2px}
+@media(max-width:700px){.mining-scene{border-width:1px;margin:8px auto}.mining-walk{gap:4px}.mining-walk .panel-button{min-height:52px;font-size:9px;padding:8px 2px}}

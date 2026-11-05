@@ -83,6 +83,37 @@ try{
  assert.equal(await evalPage("document.getElementById('city-intro').hidden"),false,'one-tap original game splash');
  await evalPage("document.getElementById('start-button').click();true");
  await waitFor(()=>evalPage("document.getElementById('city-intro').hidden===true"),'original solo game entrance');
+ // Draw an actual biome into a phone-sized Chromium Canvas, not just source-check it.
+ const biomePixels=await evalPage(`(()=>{
+  const T=window.CityBiomes,r=T?.regions?.[0];if(!r)return null;
+  const el=document.createElement('canvas');el.width=240;el.height=240;
+  const g=el.getContext('2d');g.setTransform(.3,0,0,.3,-r.x*.3,-r.y*.3);
+  const painted=T.drawGround(g,(x,y)=>x===r.x&&y===r.y),pixel=g.getImageData(120,120,1,1).data;
+  return {painted,opaque:pixel[3]>0,regions:T.regions.length,props:T.scenery(g,(x,y,w,h)=>x<r.x+r.w&&x+w>r.x&&y<r.y+r.h&&y+h>r.y).length};
+ })()`);
+ assert.equal(biomePixels?.painted,1,'original game paints a biome in real Chromium Canvas');
+ assert.equal(biomePixels?.opaque,true,'terrain texture is visible');
+ assert.equal(biomePixels?.regions,3,'three greenbelt biomes load in the same Solo game');
+ assert.ok(biomePixels?.props>0,'biome contains live scenery layers');
+ const surveys=await evalPage(`(()=>{
+  const T=window.CityBiomes;return T.sites.map(site=>{
+   const canvas=document.createElement('canvas');canvas.width=220;canvas.height=180;
+   const c=canvas.getContext('2d');c.translate(110-site.x,145-site.y);
+   const layers=T.siteLayers(c,(x,y,w,h)=>x<=site.x&&x+w>=site.x&&y<=site.y&&y+h>=site.y);
+   layers.forEach(l=>l.draw());
+   const data=c.getImageData(80,18,60,115).data;
+   let pixels=0;for(let i=3;i<data.length;i+=4)if(data[i]>100)pixels++;
+   return {id:site.id,near:T.nearbySite({x:site.x,y:site.y})?.id,
+    terrain:T.terrainAt(site.x,site.y)?.id,layers:layers.length,pixels};
+  });
+ })()`);
+ assert.equal(surveys.length,3,'three accessible survey signs in the same world');
+ for(const site of surveys){
+  assert.equal(site.near,site.id,'survey E interaction resolves current player position');
+  assert.equal(site.layers,1,'only the visible survey post is painted');
+  assert.ok(site.pixels>100,'survey sign really appears in Canvas pixels');
+ }
+
  // Actually paint armed/unarmed 3D people onto a Canvas in the real browser,
  // not merely verify that a method exists or syntactically parses.
  const samples=await evalPage(`(()=>{
@@ -198,11 +229,14 @@ try{
     const b=C.WORLD.buildings.find(b=>b.id===id);return C.areaAt(b.x+b.w/2,b.y+b.h/2);
    })).size,painted:Array.from(center).some(x=>x>0),mapWidth:map.width,mapHeight:map.height};
  })()`);
- assert.equal(mapData.width,11200);assert.equal(mapData.height,11200);
+ assert.equal(mapData.width,24400);assert.equal(mapData.height,14400);
  assert.deepEqual(mapData.fort,[4480,4480]);assert.equal(mapData.clans,6);
  assert.ok(mapData.plot[0]>mapData.fort[0]&&mapData.plot[0]<mapData.fort[0]+2240);
  assert.ok(mapData.shopRegions>=4);assert.ok(mapData.painted);
- assert.ok(mapData.mapWidth>=800&&mapData.mapHeight>=800);
+ assert.ok(mapData.mapWidth>=800&&mapData.mapHeight>=450&&mapData.mapHeight<mapData.mapWidth);
+ assert.ok(Math.abs(mapData.mapWidth/mapData.mapHeight-mapData.width/mapData.height)<.01,'expanded world map preserves natural aspect ratio');
+ const biomeLinks=await evalPage("Array.from(document.querySelectorAll('.map-destinations button')).filter(b=>b.textContent.startsWith('Explore ')&&/Forest|Dead Zone|Highlands/.test(b.textContent)).map(b=>b.textContent)");
+ assert.equal(biomeLinks.length,3,'existing phone map exposes all three walkable biome destinations');
  // The existing 47-door map must yield readable manual guidance on phones:
  // no teleport, second renderer, wallet action, or changed game entrypoint.
  const shopChoice=await evalPage("(()=>{const I=window.CityInteriors,b=I.BUILDINGS.find(x=>x.activity==='shop'),c=Array.from(document.querySelectorAll('.map-destinations button')).find(el=>el.textContent.includes(b.name));if(!c)return null;c.click();return b.name;})()");
@@ -545,6 +579,188 @@ try{
  await evalPage("document.querySelector('[data-panel=avatar]').click();true");
  await waitFor(()=>evalPage("document.querySelector('#panel-content').textContent.includes('Connect once with the site wallet')"),'holder skin revoked');
  assert.equal(await headHash(),normalHead,'disconnect restores the standard face');
+
+  // Real end-to-end mobile survey acceptance in an isolated Chromium profile:
+  // Go to the same-origin offline page before creating a test save. Leaving
+  // the game triggers its correct pagehide save, so editing storage there
+  // would otherwise be overwritten by the old player's position.
+  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/offline.html?survey-setup=1'});
+  await waitFor(()=>evalPage("document.readyState==='complete'&&location.pathname.endsWith('/offline.html')"),'neutral same-origin page for survey save staging');
+  // Place a valid LOCAL test save at the canonical in-world post and reload.
+  await evalPage(`(()=>{
+   const key='offensive-meme-city-v1-center',prior=JSON.parse(localStorage.getItem(key)||'{}'),
+    // Neutral offline page intentionally loads no game scripts. Use the
+    // canonical tested forest waypoint and current center-city save schema.
+    versions={SAVE_VERSION:6,WORLD_VERSION:1,LAYOUT_VERSION:2},site={x:560,y:2760};
+   localStorage.setItem(key,JSON.stringify({...prior,version:versions.SAVE_VERSION,
+    saveVersion:versions.SAVE_VERSION,worldVersion:versions.WORLD_VERSION,
+    layoutVersion:versions.LAYOUT_VERSION,x:site.x,y:site.y,area:'greenbelt'}));
+   return true;
+  })()`);
+  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?solo=1&biome-survey-qa=1'});
+  await waitFor(()=>evalPage("!!window.CityBiomes?.nearbySite&&!!document.querySelector('#start-button')"),'survey entry on the original one-world client');
+  await evalPage("document.getElementById('start-button').click();true");
+  await waitFor(()=>evalPage("document.querySelector('#interact')?.textContent==='E / SURVEY SITE'"),'actual mobile survey action at the saved greenbelt waypoint');
+  const beforeSurvey=await evalPage("document.querySelector('#hud-credits').textContent");
+  assert.match(await evalPage("document.querySelector('#district').textContent"),/PINEWOOD FOREST/,'real HUD identifies the current biome');
+  await evalPage("document.querySelector('#interact').click();true");
+  await waitFor(()=>evalPage("document.querySelector('#panel-title')?.textContent==='Biome field survey'"),'real mobile Interact opens the local field note');
+  const note=await evalPage("document.querySelector('#panel-content').textContent");
+  assert.match(note,/Old-Growth Survey Post/,'survey post identifies itself');
+  assert.match(note,/Forest loam/,'survey displays actual terrain material');
+  assert.match(note,/No items, XP, credits or token transactions/,'survey promises no reward');
+  assert.equal(await evalPage("document.querySelector('#hud-credits').textContent"),beforeSurvey,'observing terrain never grants credits');
+  await evalPage("document.querySelector('#close-panel').click();true");
+  assert.equal(await evalPage("document.getElementById('city-panel').open"),false,'survey exits back to the very same playable world');
+
+  // Frontier QA: load a preserved center-city save at a new map waypoint.
+  // No teleport feature is added to the game; test positions are staged only
+  // on a neutral same-origin page with no running game/pagehide writer.
+  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/offline.html?frontier-setup=1'});
+  await waitFor(()=>evalPage("document.readyState==='complete'&&location.pathname.endsWith('/offline.html')"),'frontier neutral setup');
+  await evalPage(`(()=>{
+   const key='offensive-meme-city-v1-center',
+    prior=JSON.parse(localStorage.getItem(key)||'{}');
+   // First added 1,200-unit tile in the east: its survey is at (11800,600).
+   localStorage.setItem(key,JSON.stringify({...prior,
+    version:6,saveVersion:6,worldVersion:1,layoutVersion:2,
+    x:11800,y:600,area:'greenbelt'}));
+   return true;
+  })()`);
+  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/city.html?solo=1&frontier-qa=1'});
+  await waitFor(()=>evalPage("window.CityFrontier?.regions.length===132&&!!document.querySelector('#start-button')"),'all frontier assets available on original city entry');
+  await evalPage("document.querySelector('#start-button').click();true");
+  await waitFor(()=>evalPage("document.querySelector('#interact')?.textContent==='E / SURVEY SITE'"),'real new frontier E/Interact near actual saved position');
+  const frontierPixels=await evalPage(`(()=>{
+   const F=window.CityFrontier,r=F.regions[0],el=document.createElement('canvas');
+   el.width=el.height=240;const g=el.getContext('2d');
+   g.setTransform(.2,0,0,.2,-r.x*.2,-r.y*.2);
+   const painted=F.drawGround(g,(x,y)=>x===r.x&&y===r.y),
+    pixel=g.getImageData(120,120,1,1).data;
+   return {painted,opaque:pixel[3]>0,biomes:F.regions.length,
+    groups:F.families.length,cache:F.cacheStats().textures,
+    near:F.nearbySite({x:11800,y:600})?.id};
+  })()`);
+  assert.equal(frontierPixels.painted,1,'real mobile Canvas paints an actual expanded region');
+  assert.equal(frontierPixels.opaque,true,'visible frontier terrain is not blank');
+  assert.equal(frontierPixels.biomes,132,'all 132 distinct regions available');
+  assert.equal(frontierPixels.groups,12);
+  assert.ok(frontierPixels.cache<=12,'frontier texture LRU remains bounded');
+  assert.ok(frontierPixels.near?.startsWith('frontier-survey:'),'new survey post exists');
+  assert.match(await evalPage("document.querySelector('#district').textContent"),/TWILIGHT CEDAR/,'the original HUD shows the new frontier biome');
+  await evalPage("document.querySelector('[data-panel=map]').click();true");
+  await waitFor(()=>evalPage("!!document.querySelector('select[aria-label=\"Choose one of 132 frontier biomes\"]')"),'accessible 132-location mobile map selector');
+  const frontierMap=await evalPage(`(()=>{
+   const s=document.querySelector('select[aria-label="Choose one of 132 frontier biomes"]');
+   return {locations:s.options.length,groups:s.querySelectorAll('optgroup').length,
+    mapWidth:document.querySelector('canvas.large-map')?.width};
+  })()`);
+  assert.deepEqual(frontierMap,{locations:132,groups:12,mapWidth:840},'every new biome is reachable through the original map interface');
+  await evalPage("document.querySelector('#close-panel').click();true");
+  const beforeFrontier=await evalPage("document.querySelector('#hud-credits').textContent");
+  await evalPage("document.querySelector('#interact').click();true");
+  await waitFor(()=>evalPage("document.querySelector('#panel-title')?.textContent==='Frontier biome survey'"),'actual new biome survey panel');
+  const frontierNote=await evalPage("document.querySelector('#panel-content').textContent");
+  assert.match(frontierNote,/Twilight Cedar/);
+  assert.match(frontierNote,/forest soil/);
+  assert.equal(await evalPage("document.querySelector('#hud-credits').textContent"),beforeFrontier,'no frontier survey economy changes');
+  const savedFrontier=await evalPage(`(()=>{
+   const j=JSON.parse(localStorage.getItem('offensive-meme-city-v1-frontier-journal')||'{}');
+   return {version:j.version,visited:j.visited?.length||0,id:j.visited?.[0],
+    playerSave:!!localStorage.getItem('offensive-meme-city-v1-center')};
+  })()`);
+  assert.equal(savedFrontier.version,1);
+  assert.equal(savedFrontier.id,'frontier-evergreen-1');
+  assert.ok(savedFrontier.visited>=1&&savedFrontier.playerSave);
+  await evalPage("document.querySelector('#close-panel').click();true");
+
+  // Real mobile-sized Chrome mining: actual UI controls, local world save,
+  // layer descent, bedrock bounds, and no play-credit minting.
+  await evalPage("document.querySelector('[data-panel=mining]').click();true");
+  await waitFor(()=>evalPage("document.querySelector('#panel-title')?.textContent==='Mining / vertical strata'"),'original game opens playable mining control');
+  const initialMine=await evalPage(`(()=>{
+   const M=window.CityMining,grid=document.querySelectorAll('.mining-cell');
+   return {height:M.maxHeight,floor:M.minHeight,
+    layers:M.STRATA.length,cells:grid.length,
+    shaftEnabled:!document.querySelector('.mining-cell.shaft')?.disabled,
+    bedrock:M.STRATA[7].mineable,stored:localStorage.getItem(M.KEY)};
+  })()`);
+  assert.equal(initialMine.height,256,'absolute positive world height is enforced');
+  assert.equal(initialMine.floor,-64,'absolute mining bedrock floor is enforced');
+  assert.equal(initialMine.layers,8,'seven diggable depths and a bedrock floor');
+  assert.equal(initialMine.cells,25,'mobile five by five mining interface');
+  assert.equal(initialMine.shaftEnabled,true,'actual frontier shaft is diggable');
+  assert.equal(initialMine.bedrock,false);
+  assert.equal(initialMine.stored,null,'unmined terrain is generated rather than saved in full');
+  const creditsBeforeMining=await evalPage("document.querySelector('#hud-credits').textContent");
+  await evalPage("document.querySelector('.mining-cell.shaft').click();true");
+  await waitFor(()=>evalPage("document.querySelector('.mining-cell.shaft')?.classList.contains('excavated')"),'first surface rock excavated');
+  await evalPage(`(()=>{
+   const button=[...document.querySelectorAll('.mining-controls button')].find(b=>b.textContent.includes('Descend'));
+   if(!button||button.disabled)throw Error('Shaft did not unlock layer descent');
+   button.click();return true;
+  })()`);
+  await waitFor(()=>evalPage("document.querySelector('.district-heading')?.textContent.includes('-16')"),'second subsurface level is playable');
+  await evalPage("document.querySelector('.mining-cell.shaft').click();true");
+  await waitFor(()=>evalPage("document.querySelector('.mining-cell.shaft')?.classList.contains('excavated')"),'second depth excavation saved');
+  const mineEnd=await evalPage(`(()=>{
+   const M=window.CityMining,raw=JSON.parse(localStorage.getItem(M.KEY)||'{}'),
+    loaded=M.createStore(localStorage);
+   return {saved:raw.blocks?.length,hasHeight:raw.maxHeight===256,
+    loaded:loaded.count(),materials:loaded.inventory(),
+    original:!!localStorage.getItem('offensive-meme-city-v1-center')};
+  })()`);
+  assert.equal(mineEnd.saved,2,'only two mined block deltas written');
+  assert.equal(mineEnd.hasHeight,true);
+  assert.equal(mineEnd.loaded,2,'separate mine journal survives a fresh module load');
+  assert.equal(Object.values(mineEnd.materials).reduce((sum,n)=>sum+n,0),2);
+  assert.equal(mineEnd.original,true,'old Solo save stays in place');
+  assert.equal(await evalPage("document.querySelector('#hud-credits').textContent"),creditsBeforeMining,'mining cannot grant credits');
+  const mineCutaway=await evalPage(`(()=>{
+   const canvas=document.querySelector('canvas.mining-scene'),
+    pixel=canvas?.getContext('2d')?.getImageData(320,160,1,1).data;
+   return {width:canvas?.width,height:canvas?.height,opaque:!!pixel&&pixel[3]>0,
+    minerHeight:document.querySelector('#panel-content')?.textContent};
+  })()`);
+  assert.equal(mineCutaway.width,640,'actual native underground Canvas exists');
+  assert.equal(mineCutaway.height,350);
+  assert.equal(mineCutaway.opaque,true,'real Chromium renders solid geological tiles at depth');
+  assert.match(mineCutaway.minerHeight||'',/z=-8/,'the miner now occupies the first cleared underground level');
+  await evalPage(`(()=>{
+   const up=[...document.querySelectorAll('.mining-controls button')].find(x=>x.textContent.includes('Ascend'));
+   if(up.disabled)throw Error('No exit to surface');
+   up.click();
+   const east=document.querySelectorAll('.mining-cell')[13];
+   if(east.disabled)throw Error('East surface rock not adjacent to player');
+   east.click();return true;
+  })()`);
+  await waitFor(()=>evalPage("document.querySelectorAll('.mining-cell')[13]?.classList.contains('excavated')"),'east surface tunnel excavated');
+  await evalPage(`(()=>{
+   const down=[...document.querySelectorAll('.mining-controls button')].find(x=>x.textContent.includes('Descend'));
+   if(down.disabled)throw Error('Cannot descend reopened original shaft');
+   down.click();
+   const east=[...document.querySelectorAll('.mining-walk button')].find(x=>x.textContent.includes('East'));
+   if(east.disabled)throw Error('Avatar cannot walk into cleared east tunnel');
+   east.click();return true;
+  })()`);
+  await waitFor(()=>evalPage("document.querySelectorAll('.mining-cell')[13]?.classList.contains('miner-tile')"),'avatar moved to eastern excavated tunnel, not through solid wall');
+  const surfaceCutaway=await evalPage(`(()=>{
+   const M=window.CityMining,V=window.CityMineVisuals,store=M.createStore(localStorage),
+    holes=store.surfaceOpenings(),surface=document.createElement('canvas');
+   surface.width=surface.height=130;
+   const g=surface.getContext('2d');
+   g.setTransform(1,0,0,1,-11750,-540);
+   const painted=V.surface(g,holes),sample=g.getImageData(50,50,1,1).data;
+   return {painted,holes:holes.length,shaft:holes.find(h=>h.shaft)?.depth,
+    stored:store.count(),opaque:sample[3]>0};
+  })()`);
+  assert.equal(surfaceCutaway.painted,2,'surface renderer draws exactly two truly dug openings');
+  assert.equal(surfaceCutaway.holes,2);
+  assert.equal(surfaceCutaway.shaft,-16,'true shaft depth reflects the lower mined layer');
+  assert.equal(surfaceCutaway.stored,3);
+  assert.equal(surfaceCutaway.opaque,true,'real Chrome paints visible mine entrance pixels');
+  assert.equal(await evalPage("document.querySelector('#hud-credits').textContent"),creditsBeforeMining,'walking and digging never fabricate coins');
+  await evalPage("document.querySelector('#close-panel').click();true");
 
   assert.deepEqual(exceptions,[],'no uncaught runtime exceptions in real Chrome');
  console.log('PASS: 112 real Canvas armed/unarmed V1 character renders, modern 2.5D building archetypes and themed interiors, Center City map, six verified-only skin cards, gated plots, global wallet connection on every site page, single-click wallet connection, token-themed gameplay access hooks and wallet-button feedback in Chromium.');

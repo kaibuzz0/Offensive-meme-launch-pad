@@ -56,3 +56,32 @@ We are **not** building World V3, replacing `city.html`, switching `main` to `ci
 ## QA status on branch
 
 The four zombie archetypes, Quarantine Bunker survival scenario, repairable fortress single-assault siege, playable in-room Rug Runner cabinet, six-clan two-wave District Defense encounter, and reactive ambient civilians/patrols are implemented on this draft branch. Automated scenario tests include authority, real blaster participation, one-time payouts, co-op admission, retreat, failure cleanup, map/UI location, and original solo save isolation. The siege implementation passed all automated and actual mobile-sized Chromium checks at [run 41575766266](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/41575766266), including a real Squad-panel start/retreat walkthrough (before the docs-only handoff commit). Rug Runner has validated in-room browser and server authority checks. The civilian/beat-patrol round has dedicated `scripts/city-civilians.test.mjs` tests for six clan blocks, hub/social districts, danger avoidance, local police alerts, idle player protection, legacy save compatibility and private co-op snapshots. The phone-sized Chromium regression now forces one real hostile encounter, checks a civilian fleeing in-world, a witness report to police, the original HUD/Canvas, and calm-down afterwards. The production-matching room benchmark includes new actors. No physical Android performance/interaction acceptance yet. No merge or deployment approved.
+
+
+## November 4, 2026 — walkable biome foundation on new draft branch
+
+See [BIOME_SYSTEM.md](BIOME_SYSTEM.md) and [OPEN_SOURCE_RESEARCH.md](OPEN_SOURCE_RESEARCH.md). Three fixed paint-only, walkable terrain regions in the greenbelt now integrate with the same original Canvas, map and route planner. This does not authorize any new world, save migration, destruction, construction, player economy or main-branch deployment. Next: richer environmental interactions, a restricted construction test lot with server-authoritative permissions, damage/repair for noncritical objects, then NPC settlement responses. Owner acceptance remains a release gate.
+
+
+## Milestone A follow-up — richer biomes, no world migration (draft PR #29)
+
+Added organic deterministic terrain outlines that agree between painted world, map and material lookup; expanded bounded forest, wasteland and highlands scenery; and three nonrewarding, locally inspectable survey posts via existing E/Interact. The world, routes, collision, mobile controls, online authority and saves remain unchanged. Next implement a **small, separately authorized construction-test lot**, first with solo placement and validation, then safe authoritative multiplayer rules. Physical Android QA and owner-approved merge are still required.
+
+
+## 132-biome frontier milestone (draft PR #29)
+
+Implement 132 new named biome regions in 12 families of 11; append the 13,200-unit east frontier to the existing unchanged 11,200-square original city. World extent 24,400×14,400. Original spawn, plot, doors, quests and character saves are unchanged. Use deterministic region metadata, original Canvas viewport culling, bounded 12-texture / 16-prop-cache LRU, existing map/router, native grouped biome selector and separate versioned Solo survey journal.
+
+Architecture references: bareiron / irongingot (GPL C server concepts only; no source imported) and reviewed Poisson-disk sampling as deferred dependency. Next milestones: proper biome-specific weather and flora palettes, collisions and resource balances designed with server authority, sparse per-chunk build/damage deltas and robust recovery; ensure all features are free and preserve original Solo Play. Never deploy or merge without explicit owner review.
+
+## Vertical geology and mining milestone (draft PR #29)
+
+The existing single city now has an explicit vertical z range **−64 to +256**, independent of map x/y and existing character saves. Seven mineable 8-unit strata sit above unbreakable −64 bedrock. Solo frontier players may enter a 5×5 mining slice from the original Mine toolbar, E/Interact or biome survey, excavate a central shaft and adjacent rock, descend only through exposed rock, and earn **non-economic local ore samples**. A bounded, validated versioned sparse journal stores only excavated blocks; geology is regenerated deterministically from the world seed. Online changes, shared inventories and build-height physics are **not enabled** yet; design those with authority, permissions and recovery before any multiplayer mining economy. Read `docs/WORLD_HEIGHT_AND_MINING.md`.
+
+
+## World V1 mine entrances, underground avatar and native cutaway completed in draft PR #29
+
+- Reuse exact persisted sparse excavations for real outdoor camera surface openings, distinguish shaft depth, and show excavated entrances on the original map/route catalog.
+- Add Canvas2D underground cutaway with depth-specific blocks, mined gaps, ore flecks and a local miner; control local z and two-dimensional movement only through cleared cells; allow vertical travel only in a mined central shaft. Close to return to the surface actor with unchanged save and navigation.
+- No direct Minecraft/C GPL code imported. No new hidden server state or new World V2. Rendering remains camera-culled and memory bounded; surface openings are cached per committed edit.
+- Next: authoritative server mining API and sparse chunk datastore, real player z replication, validated tools/durability, multi-client collision checks, save/version migration, resource economy permissions and anti-duplication. Do not merge or deploy without owner approval.

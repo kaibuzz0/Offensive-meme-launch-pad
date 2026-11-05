@@ -1,3 +1,61 @@
+## November 5 — one-world mining QA and viewport-cache correction (draft PR #29)
+
+Review of the existing 132-biome / underground mining work found a production-facing display bug: the first viewport's filtered mine openings were wrongly cached as if they represented the whole world. Corrected `city-mining.js` to cache the full validated shaft geometry and filter only the returned view. Added a new multi-biome, empty-viewport, depth-change and reload regression to `scripts/city-mining.test.mjs`. Bumped only the mining script cache key in `city.html`, and fixed the welcome copy so the +256 ceiling is not confused with playable vertical construction. No original player save, geometry, wallet integration, online authority or bonus economy changes.
+
+Reviewed permissively licensed spatial-index and procedural sources (Flatbush ISC, D3 Quadtree permissive, Poisson-disk sampling MIT, Simplex Noise MIT) and recorded their integration costs in `docs/OPEN_SOURCE_RESEARCH.md`. No third-party source/art was copied because a smaller native fix is safer for 132 regions and ≤512 mine openings. Verify **PR-head GitHub Actions** before accepting or merging. Original World V1 remains canonical; **PR #29 is draft, not deployed**.
+
+---
+
+## Visible world mining and temporary underground player depth — draft PR #29
+
+The same 132-biome frontier has an additive Canvas mine renderer and temporary Solo miner state. Actual excavated surface cells/shafts are drawn into the original World V1 camera, with gold map markers for the central shaft coordinates and route buttons to return. The original Mining panel now includes a real 2.5D underground Canvas cutaway and avatar marker. A validated depth and XY-position model allows one-cell cardinal movement only through mined passage tiles, and descending/ascending only through the origin shaft. No new world/map, avatar rig replacement or character-save migration is needed.
+
+The original street actor remains at z=0 while the Mine panel is open/paused; closing the panel exits to the same position. The browser never mints credits/XP/tokens, and online underground editing is still disabled. Surface geometry is cached and recalculated only on committed excavations. Corrupt save histories show no ore balances and no shafts. Physical Android FPS/thermal and real multiplayer authority must still be validated before merge/release. See docs/WORLD_HEIGHT_AND_MINING.md.
+
+---
+
+## Vertical mining and world height — draft PR #29
+
+- Added explicit vertical **z** boundary of **−64 to +256**, surface level 0. It is independent of existing x/y map coordinates; the original 2D player, NPC, camera and saved positions are preserved.
+- Eight underground levels are modeled at −8, −16, −24, −32, −40, −48, −56 and −64: **seven mineable strata and one immutable bedrock floor**. Layer materials, rarity and hardness derive deterministically from biome/seed/cell/depth.
+- Added **playable Solo mining** through the existing E/Interact, toolbar and menu. The responsive 5×5 grid requires digging a shaft level by level, then excavating adjacent underground rock. Free starter pickaxe, visible layer cross-section, ore samples and back-to-world button.
+- Mined tile IDs persist to a new bounded sparse journal `offensive-meme-city-v1-mining-v1`, **not** the protected original character save. Ore sample counts are recomputed from removed deterministic blocks, never from user-supplied reward balances. Strict validation blocks invalid history, duplicate mining, layer skipping, unbreakable bedrock, malformed edits and overwriting a newer tab's journal. 512 global/96 biome edit caps.
+- **Online mining disabled** until authoritative server validation and persistence are ready. No tradable ore, crypto transfers, credits, XP, construction-height physics or vertical avatar movement are introduced in this foundation. See `docs/WORLD_HEIGHT_AND_MINING.md`.
+- Run full Node, static checks, multiplayer benchmark and mobile Chromium acceptance on the latest PR head. Owner merge/deployment and physical Android QA remain outstanding.
+
+---
+
+## Frontier build — 132 added biomes / expanded original city (draft PR #29)
+
+- **What changed:** The one canonical Center City world now spans 24,400 × 14,400. All original 11,200-square city positions, central fortress, quests, construction tiles, clan settlements, 47 doors and saves remain at their original coordinates. The east frontier contains twelve families of eleven individually named environmental biomes, bringing the total to 135 including the prior three.
+- **Game implementation:** Original Canvas camera paints visible seeded biome textures only. Cached frontier textures: max 12; generated foliage/rock/scrap prop caches: max 16 regions with <=24 props each. Organic region polygons, environment queries, 132 map destinations, responsive grouped map selector and interactable survey signs share existing World V1 code.
+- **Loading/saving:** Generated terrain is stable from a fixed seed. Optional Solo exploration journal persists only validated surveyed region IDs to a new versioned sidecar key, never to the original protected Solo player save. No persistent world edits or credit/token transactions.
+- **Bareiron fork research:** Inspected p2r3/bareiron and TheShovel/irongingot C source and chunk/save architecture. No GPL source copied or imported; the native JS implementation adapts memory-capped chunk generation and delta-save principles. A permissive 2D sampling library was also reviewed but not adopted. See docs/FRONTIER_BAREIRON_ARCHITECTURE.md.
+- **QA:** Expanded Node and real Chromium mobile acceptance verify all 132 new regions, old 47 doors, far walking routes, memory bounds, map controls, actual terrain pixels, journal load/save and all previous gameplay. Check latest PR-head GitHub Actions before claiming a release-quality pass.
+- **Limitations:** 132 named biomes are first playable environmental regions, not 132 independent fully bespoke 3D art packs. Construction outside the original fortress, weather effects, collisions for frontier props, chunk-delta destructibility, server-authoritative edits, real infinite seeds, and physical Android device QA remain future work.
+- **Release state:** Draft PR #29. No merge or deployment without explicit owner approval.
+
+---
+
+## One-world biome Milestone A — richer native scenery and survey posts — November 4, 2026 (draft PR #29)
+
+- **Existing world only:** Continued `codex/one-world-biomes-foundation` on PR #29. The same 11,200 × 11,200 Center City, original `city.html`, Engine, renderer, Solo/Together modes, maps, collision rules, 47 entrances, save key and wallet controls remain canonical.
+- **Visible changes:** Three existing greenbelt biomes now have organic shared outlines, richer cached terrain details and more diverse depth-sorted, non-solid props. At most 144 deterministic props and three survey signs exist across the map. Canvas draw queue and map reflect the same fixed coordinates.
+- **New read-only activity:** Find a survey post at each biome's existing destination, approach within 115 world units and use E or mobile Interact. The existing modal shows a terrain field note without changing saves, credits, XP, holdings, combat or server state. HUD region label reflects the biome when physically inside.
+- **Verification gates:** Extended Node, geometry, input and Canvas rendering tests; existing CI includes route safety, static assets, room benchmark and real mobile-sized Chromium. Do not treat this entry as a release claim until latest PR-head CI passes. No physical Android acceptance, live deployment or owner-approved merge yet.
+- **Next:** permissioned, server-authoritative construction-test zone; later repairable noncritical destructibles. No persistent environment state or procedural world generation in this batch.
+
+---
+
+## One-world biome foundation — November 4, 2026 (draft, not deployed)
+
+- **Branch:** `codex/one-world-biomes-foundation`, started from the owner-merged PR #28 (main at `2c9824fc273c`). Original `city.html`, `MemeCityCore.Engine`, world dimensions, saved state, wallet and server remain canonical.
+- **Implemented on feature branch:** Pinewood Forest, Ashfall Dead Zone and Stonebreak Highlands in undeveloped greenbelt; cached terrain textures, capped non-solid native Canvas scenery, map/minimap labels and walkable destinations accessible in Solo and Together. No collision or save migrations.
+- **Terrain query:** `CityBiomes.terrainAt()` exposes material, footing, deterministic roughness and explicit `buildable:false` for future authorized construction and destruction. No terrain building/damage gameplay yet.
+- **Research:** `docs/OPEN_SOURCE_RESEARCH.md` and `docs/BIOME_SYSTEM.md`. New regression tests and existing static CI/mobile-sized Chromium smoke must pass on this PR head. Physical Android acceptance and owner-approved merge/deployment remain outstanding.
+
+---
+
 ## One-world civilian greetings and safe social behavior — November 4, 2026
 
 - **Same active world:** extended the existing `city-civilians.js` engine plugin, the original `city.js` 360-degree Canvas renderer and the canonical `city.html`. No new map, browser route, NPC body rig, save key, or economy.

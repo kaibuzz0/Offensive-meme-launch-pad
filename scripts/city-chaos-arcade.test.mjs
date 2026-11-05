@@ -38,7 +38,7 @@ test('only the existing Chaos Arcade room activity is connected to playable Rug 
  const g=game(),arc=g.I.BUILDINGS.find(b=>b.roomId==='arcade');
  assert.equal(g.I.BUILDINGS.length,47,'no extra buildings or replacement world');
  assert.equal(arc.activity,'arcadeCabinet');
- assert.equal(g.C.WORLD.width,11200);
+ assert.equal(g.C.WORLD.originalWidth,11200);assert.equal(g.C.WORLD.width,24400);
  assert.equal(g.I.ROOM.activity.x,600);
  assert.throws(()=>g.e.action(g.p.id,{type:'arcadeStart'}),/Enter the actual Chaos Arcade/);
  enter(g,'launch');atTerminal(g);

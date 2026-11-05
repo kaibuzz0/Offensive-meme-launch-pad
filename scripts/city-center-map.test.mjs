@@ -11,10 +11,11 @@ const makeStore=init=>{const m=new Map(Object.entries(init||{}));return {m,getIt
 const keys=['offensive-meme-city-v1-center','offensive-meme-city-v1','offensive-meme-city-v1-center-source-backup'];
 test('World V1 central player base is the middle district, with all six clan HQs in separate quarters',()=>{
  const fort=C.DISTRICTS.find(d=>d.id==='fortress'),world=C.WORLD;
- assert.equal(world.width,11200);assert.equal(world.height,11200);
+ assert.equal(world.width,24400);assert.equal(world.height,14400);
+ assert.equal(world.originalWidth,11200);assert.equal(world.originalHeight,11200);
  assert.equal(fort.ox,4480);assert.equal(fort.oy,4480);
- assert.ok(Math.abs(C.PLOT.x+512-world.width/2)<50);
- assert.ok(Math.abs(C.PLOT.y+320-world.height/2)<400);
+ assert.ok(Math.abs(C.PLOT.x+512-world.originalWidth/2)<50);
+ assert.ok(Math.abs(C.PLOT.y+320-world.originalHeight/2)<400);
  assert.equal(C.areaAt(world.spawn.x,world.spawn.y),'fortress');
  assert.equal(C.blocked(world.spawn.x,world.spawn.y),false);
  assert.equal(new Set(C.NEIGHBORHOODS.map(n=>n.ox+','+n.oy)).size,6);
