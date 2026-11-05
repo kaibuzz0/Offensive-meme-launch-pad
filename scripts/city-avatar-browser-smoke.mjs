@@ -99,6 +99,17 @@ try{
  assert.equal(graphicsSaved.solo,priorSoloSave,'graphics preferences cannot overwrite the original character save');
  await evalPage("Array.from(document.querySelectorAll('.graphics-preview-controls button')).find(b=>b.textContent.includes('first-person')).click();true");
  if(graphicsInitial.gl)assert.match(await evalPage("document.querySelector('.graphics-preview-status').textContent"),/First-person sample/);
+ const avatarButtons=await evalPage("Array.from(document.querySelectorAll('[aria-label=\"Move and rotate the preview-only 3D avatar\"] button')).map(b=>b.textContent)");
+ assert.deepEqual(avatarButtons,['Turn left','Walk forward','Walk backward','Turn right','Reset preview'],
+  'phone-sized Graphics panel exposes complete touch-driven avatar test controls');
+ for(const name of ['Turn right','Walk forward','Walk backward','Reset preview']){
+  await evalPage("Array.from(document.querySelectorAll('.graphics-preview-walk button')).find(b=>b.textContent==="+JSON.stringify(name)+").click();true");
+  const status=await evalPage("document.querySelector('.graphics-preview-status').textContent");
+  assert.match(status,graphicsInitial.gl?/Preview only: the original character position/:/WebGL preview is unavailable/,
+   'test stage controls must never move real player or crash on unsupported GPUs');
+ }
+ assert.equal(await evalPage("localStorage.getItem('offensive-meme-city-v1-center')"),priorSoloSave,
+  'turning and walking the sample avatar never changes the protected Solo save');
  await evalPage("document.querySelector('#close-panel').click();true");
  assert.equal(await evalPage("document.querySelector('#city-panel').open"),false,'graphics preview exits safely back into the same solo world');
  // Draw an actual biome into a phone-sized Chromium Canvas, not just source-check it.
