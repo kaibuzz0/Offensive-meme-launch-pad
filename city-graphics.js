@@ -328,7 +328,7 @@
   const stage=createStage(sample);
   const unavailable=()=>Object.freeze({supported:false,draw:()=>false,destroy:()=>{},turn:()=>false,step:()=>false,reset:()=>false,stats:()=>null,snapshot:stage.snapshot});
   const staticMesh=createStaticMesh(sample);
-  let gl,program,buffer,staticBuffer,vs,fs,staticUploads=0,staticDrawCalls=0,dynamicDrawCalls=0;
+  let gl,program,buffer,staticBuffer,vs,fs,staticUploads=0,staticDrawCalls=0,dynamicDrawCalls=0,avatarUploads=0,avatarVertices=0;
   try{gl=canvas?.getContext?.('webgl',{antialias:false,preserveDrawingBuffer:true,alpha:false});}catch{return unavailable();}
   if(!gl)return unavailable();
   try{
@@ -342,7 +342,7 @@
    program=gl.createProgram();gl.attachShader(program,vs);gl.attachShader(program,fs);gl.linkProgram(program);
    if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error('Shader link failed');
    if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error('Shader program failed');
-   buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,vertices,gl.STATIC_DRAW);
+   buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,56*36*6*4,gl.DYNAMIC_DRAW);
    staticBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,staticBuffer);gl.bufferData(gl.ARRAY_BUFFER,staticMesh.data,gl.STATIC_DRAW);
    staticUploads=1;
   }catch{
@@ -371,58 +371,16 @@
    gl.vertexAttribPointer(colorAttr,3,gl.FLOAT,false,24,12);
    gl.uniform1f(useVertexColor,1);gl.uniformMatrix4fv(matrix,false,vp);
    gl.drawArrays(gl.TRIANGLES,0,staticMesh.vertices);staticDrawCalls++;
-   gl.disableVertexAttribArray(colorAttr);
    gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
-   gl.vertexAttribPointer(attr,3,gl.FLOAT,false,0,0);
-   gl.uniform1f(useVertexColor,0);
-   function box(pos,sz,c,angle=0,pitch=0){
-    gl.uniformMatrix4fv(matrix,false,multiply(vp,model(pos,sz,angle,pitch)));
-    gl.uniform3fv(tint,c);gl.drawArrays(gl.TRIANGLES,0,36);dynamicDrawCalls++;
-   }
-   function actorBox(local,sz,c,pitch=0){
-    const [lx,ly,lz]=local;
-    box([x+lx*cos+lz*sin,ly,z-lx*sin+lz*cos],sz,c,yaw,-pitch);
-   }
-   function limbSegment(pivot,length,angle,width,depth,color){
-    // Hierarchical upper/lower box limbs: each next joint starts at the
-    // previous segment endpoint. All coordinates are avatar-local.
-    const end=[pivot[0],pivot[1]-Math.cos(angle)*length,pivot[2]+Math.sin(angle)*length];
-    actorBox([pivot[0],(pivot[1]+end[1])/2,(pivot[2]+end[2])/2],
-     [width,length,depth],color,angle);
-    return end;
-   }
-   const shirt=rgb(nextColor),dark=[.12,.17,.23],stone=[.28,.37,.42],road=[.22,.29,.32];
-   const skull=[.9,.87,.78],teeth=[.70,.70,.63];
-   // One simple hierarchical box-rig shared by the avatar's body parts.
-   // This is procedural articulation, NOT a skinned glTF skeleton or animation.
-   const pose=avatarPose(steps);
-   if(mode==='third'){
-    actorBox([0,1.14+pose.bob,0],[.62,.72,.32],shirt);
-    actorBox([0,1.80+pose.bob,0],[.52,.49,.50],skull);
-    actorBox([0,1.57+pose.bob,.06],[.32,.16,.40],skull);
-    for(const side of [-1,1]){
-     actorBox([side*.16,1.86+pose.bob,.259],[.115,.14,.024],dark);
-     actorBox([side*.07,1.56+pose.bob,.27],[.055,.10,.025],teeth);
-     const armAngle=side<0?pose.leftArm:pose.rightArm;
-     const elbowAngle=side<0?pose.leftElbow:pose.rightElbow;
-     const elbow=limbSegment([side*.40,1.43+pose.bob,0],.36,armAngle,.2,.25,shirt);
-     const wrist=limbSegment(elbow,.33,armAngle+elbowAngle,.18,.22,skull);
-     actorBox([wrist[0],wrist[1]-.04,wrist[2]],[.17,.13,.20],skull);
-     const legAngle=side<0?pose.leftLeg:pose.rightLeg;
-     const kneeAngle=side<0?pose.leftKnee:pose.rightKnee;
-     const knee=limbSegment([side*.19,.83+pose.bob,0],.40,legAngle,.23,.30,[.2,.26,.34]);
-     const foot=limbSegment(knee,.37,legAngle-kneeAngle,.22,.28,[.2,.26,.34]);
-     actorBox([foot[0],Math.max(.075,foot[1]-.035),foot[2]+.07],[.27,.15,.39],dark);
-     if(side===1)actorBox([wrist[0]+.11,wrist[1]+.025,wrist[2]+.40],
-      [.13,.15,.76],[.37,.42,.49],armAngle+elbowAngle);
-    }
-    actorBox([0,1.67+pose.bob,.26],[.24,.08,.025],dark);
-    actorBox([0,1.2+pose.bob,-.169],[.34,.34,.01],[.15,.23,.31]);
-   }else{
-    // Local arm/tool proxy near camera. This is still a 3D preview, not combat.
-    for(const side of [-1,1])actorBox([side*.37,1.04,.95],[.21,.32,.48],shirt);
-    actorBox([.39,1.1,1.3],[.18,.22,.8],stone);
-   }
+   gl.vertexAttribPointer(attr,3,gl.FLOAT,false,24,0);
+   gl.vertexAttribPointer(colorAttr,3,gl.FLOAT,false,24,12);
+   const avatarMesh=createAvatarMesh(stage.snapshot(),mode,nextColor);
+   if(!avatarMesh)return false;
+   avatarVertices=avatarMesh.vertices;
+   gl.bufferSubData(gl.ARRAY_BUFFER,0,avatarMesh.data);avatarUploads++;
+   gl.uniform1f(useVertexColor,1);gl.uniformMatrix4fv(matrix,false,vp);
+   gl.drawArrays(gl.TRIANGLES,0,avatarMesh.vertices);dynamicDrawCalls++;
+   gl.disableVertexAttribArray(colorAttr);
    gl.flush();return true;
   }
   function destroy(){
@@ -432,7 +390,7 @@
   return Object.freeze({
    supported:true,draw,destroy,
    stats:()=>Object.freeze({staticBoxes:staticMesh.boxes,staticVertices:staticMesh.vertices,
-    staticBytes:staticMesh.bytes,staticUploads,staticDrawCalls,dynamicDrawCalls}),
+    staticBytes:staticMesh.bytes,staticUploads,staticDrawCalls,dynamicDrawCalls,avatarUploads,avatarVertices}),
    snapshot:stage.snapshot,
    turn:radians=>!disposed&&stage.turn(radians),
    step:distance=>!disposed&&stage.step(distance),
