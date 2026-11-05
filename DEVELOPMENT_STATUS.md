@@ -1,3 +1,15 @@
+## Frontier build — 132 added biomes / expanded original city (draft PR #29)
+
+- **What changed:** The one canonical Center City world now spans 24,400 × 14,400. All original 11,200-square city positions, central fortress, quests, construction tiles, clan settlements, 47 doors and saves remain at their original coordinates. The east frontier contains twelve families of eleven individually named environmental biomes, bringing the total to 135 including the prior three.
+- **Game implementation:** Original Canvas camera paints visible seeded biome textures only. Cached frontier textures: max 12; generated foliage/rock/scrap prop caches: max 16 regions with <=24 props each. Organic region polygons, environment queries, 132 map destinations, responsive grouped map selector and interactable survey signs share existing World V1 code.
+- **Loading/saving:** Generated terrain is stable from a fixed seed. Optional Solo exploration journal persists only validated surveyed region IDs to a new versioned sidecar key, never to the original protected Solo player save. No persistent world edits or credit/token transactions.
+- **Bareiron fork research:** Inspected p2r3/bareiron and TheShovel/irongingot C source and chunk/save architecture. No GPL source copied or imported; the native JS implementation adapts memory-capped chunk generation and delta-save principles. A permissive 2D sampling library was also reviewed but not adopted. See docs/FRONTIER_BAREIRON_ARCHITECTURE.md.
+- **QA:** Expanded Node and real Chromium mobile acceptance verify all 132 new regions, old 47 doors, far walking routes, memory bounds, map controls, actual terrain pixels, journal load/save and all previous gameplay. Check latest PR-head GitHub Actions before claiming a release-quality pass.
+- **Limitations:** 132 named biomes are first playable environmental regions, not 132 independent fully bespoke 3D art packs. Construction outside the original fortress, weather effects, collisions for frontier props, chunk-delta destructibility, server-authoritative edits, real infinite seeds, and physical Android device QA remain future work.
+- **Release state:** Draft PR #29. No merge or deployment without explicit owner approval.
+
+---
+
 ## One-world biome Milestone A — richer native scenery and survey posts — November 4, 2026 (draft PR #29)
 
 - **Existing world only:** Continued `codex/one-world-biomes-foundation` on PR #29. The same 11,200 × 11,200 Center City, original `city.html`, Engine, renderer, Solo/Together modes, maps, collision rules, 47 entrances, save key and wallet controls remain canonical.
