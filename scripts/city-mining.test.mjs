@@ -172,6 +172,32 @@ test('world surface displays the exact saved shaft footprint with deeper z from 
  assert.equal(m.surfaceOpenings((x,y)=>x===surface.x&&y===surface.y).length,1);
 });
 
+test('surface shaft cache retains ALL entrances when the first camera sees only a subset',()=>{
+ const s=store(),m=Mining.createStore(s),a={...F.regions[0].entry},b={...F.regions[1].entry};
+ assert.equal(m.mine(a,0,0,0).ok,true);
+ assert.equal(m.mine(b,0,0,0).ok,true);
+ const ax=Math.floor(a.x/Mining.TILE)*Mining.TILE,bx=Math.floor(b.x/Mining.TILE)*Mining.TILE;
+ assert.notEqual(ax,bx,'two distant biomes must have distinct mine entrance coordinates');
+ // Reproduces the actual draw() call: view-cull while the first cache is cold.
+ const firstView=m.surfaceOpenings((x)=>x===ax);
+ assert.equal(firstView.length,1,'camera A paints only its own shaft');
+ const nextView=m.surfaceOpenings((x)=>x===bx);
+ assert.equal(nextView.length,1,'camera B can still see its shaft without a reload');
+ assert.equal(m.surfaceOpenings().length,2,'world map still lists BOTH entrances');
+ const empty=m.surfaceOpenings(()=>false);
+ assert.equal(empty.length,0,'view culling remains effective');
+ assert.equal(m.surfaceOpenings().length,2,'culling must never erase cached journals');
+ assert.equal(m.mine(a,0,0,1).ok,true,'deepening a shaft invalidates surface geometry');
+ const after=m.surfaceOpenings((x)=>x===ax);
+ assert.equal(after.length,1);assert.equal(after[0].depth,-16);
+ assert.equal(m.surfaceOpenings((x)=>x===bx)[0].depth,-8,
+  'changing shaft A must not hide or incorrectly deepen shaft B');
+ const reloaded=Mining.createStore(s);
+ assert.equal(reloaded.surfaceOpenings(()=>false).length,0);
+ assert.equal(reloaded.surfaceOpenings().length,2,
+  'a fresh session must also retain all shafts after a culled first read');
+});
+
 test('underground player cannot walk through walls, skip floors or descend without an open column',()=>{
  const {p,m}=first(),explorer=Mining.createExplorer(m,p);
  assert.ok(explorer);
