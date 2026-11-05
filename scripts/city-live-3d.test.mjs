@@ -7,7 +7,7 @@ const ctx={};
 vm.runInNewContext(readFileSync(new URL('../city-live-3d.js',import.meta.url),'utf8'),ctx);
 const Live=ctx.CityLive3D;
 
-function fixture({webgl=true}={}){
+function fixture({webgl=true,throwInit=false,failDraw=false,throwDestroy=false}={}){
  const calls={scenes:[],creations:[],draws:[],observed:[],crowds:[],destroyed:0};
  let player={id:'mine',x:5600,y:5940,room:null},aim={x:1,y:0},visible=true;
  let world={players:[{id:'mine',x:5600,y:5940,room:null},{id:'friend',x:5620,y:5960,room:null,facing:{x:1,y:0}}],
@@ -19,6 +19,7 @@ function fixture({webgl=true}={}){
    return {world:{...where},buildings:[],terrain:{cells:[]}};
   },
   createPreview(_canvas,color,scene){
+   if(throwInit)throw Error('Simulated WebGL initialization failure');
    calls.creations.push({color,scene});
    let current=null;
    return {
@@ -30,8 +31,8 @@ function fixture({webgl=true}={}){
     },
     observed(){return current;},
     setActors(actors){calls.crowds.push(actors);return true;},
-    draw(mode,tint){calls.draws.push({mode,tint,position:current});return true;},
-    destroy(){calls.destroyed++;},
+    draw(mode,tint){calls.draws.push({mode,tint,position:current});return !failDraw;},
+    destroy(){calls.destroyed++;if(throwDestroy)throw Error('GPU context lost during teardown');},
     stats(){return {staticDrawCalls:1,dynamicDrawCalls:1};}
    };
   },
@@ -203,6 +204,28 @@ test('WebGL unsupported and invalid 3D input fail closed without touching player
   'live 3D reads the existing game instead of introducing another action/save authority');
 });
 
+test('GPU failure during initialization, drawing or teardown cannot affect World V1 state',()=>{
+ const init=fixture({throwInit:true});
+ const original={...init.getPlayer()};
+ assert.equal(init.view.start(),false);
+ assert.equal(init.view.stats().enabled,false);
+ assert.match(init.view.stats().reason,/graphics initialization failed/);
+ assert.equal(init.container.hidden,true);
+ assert.deepEqual(init.getPlayer(),original);
+ const fail=fixture({failDraw:true,throwDestroy:true});
+ assert.equal(fail.view.start(),true);
+ assert.equal(fail.view.tick(0),false,'failed WebGL draw disables the optional viewport');
+ assert.equal(fail.view.stats().enabled,false);
+ assert.equal(fail.container.hidden,true);
+ assert.equal(fail.calls.destroyed,1,'teardown attempted exactly once');
+ assert.match(fail.view.stats().reason,/original 2D game still works/);
+ assert.equal(fail.view.tick(100),false,'no further GPU work after automatic shutdown');
+ assert.equal(fail.view.stop(),false,'cleanup is idempotent');
+ assert.ok(readFileSync(new URL('../city.js',import.meta.url),'utf8').includes('function updateLive3D(time)'),
+  'original game loop catches unexpected WebGL errors');
+ assert.match(readFileSync(new URL('../city.js',import.meta.url),'utf8'),/try\{live3D\.tick\(time\);\}catch\{/);
+});
+
 test('live viewport ships in original game UI, local server and GitHub Pages',()=>{
  const html=readFileSync(new URL('../city.html',import.meta.url),'utf8');
  const js=readFileSync(new URL('../city.js',import.meta.url),'utf8');
@@ -214,7 +237,7 @@ test('live viewport ships in original game UI, local server and GitHub Pages',()
  for(const id of ['city-live-3d','city-live-3d-toggle','city-live-3d-mode','city-live-3d-close','city-live-3d-canvas','city-live-3d-status'])
   assert.ok(html.includes('id="'+id+'"'),id);
  assert.ok(css.includes('.city-live-3d{'));
- assert.ok(js.includes('live3D.tick(time)'),'camera samples current gameplay loop');
+ assert.ok(js.includes('updateLive3D(time)'),'camera safely samples current gameplay loop');
  assert.ok(js.includes("getPlayer:()=>me,getAim:()=>aim"));
  assert.ok(js.includes('getWorldState:()=>state'),'live camera mirrors real NPC state');
  assert.ok(server.includes("'city-live-3d.js'"));
