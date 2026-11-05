@@ -1,3 +1,13 @@
+## One-world biome Milestone A — richer native scenery and survey posts — November 4, 2026 (draft PR #29)
+
+- **Existing world only:** Continued `codex/one-world-biomes-foundation` on PR #29. The same 11,200 × 11,200 Center City, original `city.html`, Engine, renderer, Solo/Together modes, maps, collision rules, 47 entrances, save key and wallet controls remain canonical.
+- **Visible changes:** Three existing greenbelt biomes now have organic shared outlines, richer cached terrain details and more diverse depth-sorted, non-solid props. At most 144 deterministic props and three survey signs exist across the map. Canvas draw queue and map reflect the same fixed coordinates.
+- **New read-only activity:** Find a survey post at each biome's existing destination, approach within 115 world units and use E or mobile Interact. The existing modal shows a terrain field note without changing saves, credits, XP, holdings, combat or server state. HUD region label reflects the biome when physically inside.
+- **Verification gates:** Extended Node, geometry, input and Canvas rendering tests; existing CI includes route safety, static assets, room benchmark and real mobile-sized Chromium. Do not treat this entry as a release claim until latest PR-head CI passes. No physical Android acceptance, live deployment or owner-approved merge yet.
+- **Next:** permissioned, server-authoritative construction-test zone; later repairable noncritical destructibles. No persistent environment state or procedural world generation in this batch.
+
+---
+
 ## One-world biome foundation — November 4, 2026 (draft, not deployed)
 
 - **Branch:** `codex/one-world-biomes-foundation`, started from the owner-merged PR #28 (main at `2c9824fc273c`). Original `city.html`, `MemeCityCore.Engine`, world dimensions, saved state, wallet and server remain canonical.
