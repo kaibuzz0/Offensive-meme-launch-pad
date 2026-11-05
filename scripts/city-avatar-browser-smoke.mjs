@@ -83,6 +83,24 @@ try{
  assert.equal(await evalPage("document.getElementById('city-intro').hidden"),false,'one-tap original game splash');
  await evalPage("document.getElementById('start-button').click();true");
  await waitFor(()=>evalPage("document.getElementById('city-intro').hidden===true"),'original solo game entrance');
+ // Verify new graphics tools from the real phone-sized playable game entry.
+ const priorSoloSave=await evalPage("localStorage.getItem('offensive-meme-city-v1-center')");
+ await evalPage("document.querySelector('[data-panel=graphics]').click();true");
+ await waitFor(()=>evalPage("document.querySelector('#panel-title')?.textContent==='Graphics & camera'"),'accessible graphics settings panel');
+ const graphicsInitial=await evalPage("(()=>{const canvas=document.querySelector('canvas.graphics-preview'),txt=document.querySelector('.graphics-preview-status')?.textContent;const gl=canvas?.getContext('webgl');let visible=false;if(gl){const p=new Uint8Array(4);gl.readPixels(Math.floor(canvas.width/2),Math.floor(canvas.height/2),1,1,gl.RGBA,gl.UNSIGNED_BYTE,p);visible=p[3]>0;}return {count:document.querySelectorAll('.graphics-choice select').length,canvas:!!canvas,gl:!!gl,visible,text:txt,width:canvas?.width};})()");
+ assert.equal(graphicsInitial.count,2,'zoom and performance choices are available on the existing game');
+ assert.equal(graphicsInitial.canvas,true,'perspective preview is embedded inside the same game panel');
+ assert.match(graphicsInitial.text,/Third-person preview active|WebGL preview is unavailable/);
+ if(graphicsInitial.gl)assert.equal(graphicsInitial.visible,true,'software/hardware WebGL paints an opaque camera preview');
+ await evalPage("(()=>{const fields=document.querySelectorAll('.graphics-choice select');fields[0].value='detail';fields[0].dispatchEvent(new Event('change',{bubbles:true}));fields[1].value='performance';fields[1].dispatchEvent(new Event('change',{bubbles:true}));return true;})()");
+ const graphicsSaved=await evalPage("(()=>({data:JSON.parse(localStorage.getItem('offensive-meme-city-graphics-v1')),solo:localStorage.getItem('offensive-meme-city-v1-center')}))()");
+ assert.equal(graphicsSaved.data.zoom,'detail');
+ assert.equal(graphicsSaved.data.quality,'performance');
+ assert.equal(graphicsSaved.solo,priorSoloSave,'graphics preferences cannot overwrite the original character save');
+ await evalPage("Array.from(document.querySelectorAll('.graphics-preview-controls button')).find(b=>b.textContent.includes('first-person')).click();true");
+ if(graphicsInitial.gl)assert.match(await evalPage("document.querySelector('.graphics-preview-status').textContent"),/First-person sample/);
+ await evalPage("document.querySelector('#close-panel').click();true");
+ assert.equal(await evalPage("document.querySelector('#city-panel').open"),false,'graphics preview exits safely back into the same solo world');
  // Draw an actual biome into a phone-sized Chromium Canvas, not just source-check it.
  const biomePixels=await evalPage(`(()=>{
   const T=window.CityBiomes,r=T?.regions?.[0];if(!r)return null;
