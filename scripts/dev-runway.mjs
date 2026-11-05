@@ -30,7 +30,7 @@ Work in coherent batches; use a focused scope while coding, and full CI only
 on the pushed review candidate. Passing a focused scope is not release approval.
 `;
 const choice=process.argv[2]||'--help';
-if(process.argv.length>3||!(choice in scopes)&&!['all','full','--list','--help'].includes(choice)){
+if(process.argv.length>3||(!Object.hasOwn(scopes,choice)&&!['all','full','--list','--help'].includes(choice))){
  console.error(usage);
  process.exitCode=2;
 }else if(choice==='--help'){
