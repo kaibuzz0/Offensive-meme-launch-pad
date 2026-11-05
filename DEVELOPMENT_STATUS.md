@@ -1,3 +1,10 @@
+
+## November 5 — 3D camera lab: biome terrain and articulated avatar (draft PR #32)
+
+Added a read-only 8×8 WebGL terrain sampler driven by all 135 canonical biome definitions (3 original and 132 frontier regions), with source-derived colors/material and bounded visual relief, plus a jointed procedural box avatar with upper/lower arms, elbows, thighs, knees, feet and yaw-relative deterministic walk poses. Sampling a real frontier biome now uses that region's own position rather than projecting the old downtown test street into unrelated wilderness. Original gameplay, save, wallet, mining, multiplayer, authoritative collision, and 2D camera remain untouched. This is **not** live first-person/third-person 3D play or a skinned 3D asset. See `docs/CAMERA_GRAPHICS_MILESTONE.md` for QA and pending production steps.
+
+---
+
 ## November 5 — continued interactive 3D avatar camera laboratory (draft PR #32)
 
 The unfinished WebGL preview from PR #30 has advanced beyond its static camera sample: the optional Graphics panel now has preview-only controls for turning and walking a skull-inspired, token-color block avatar along a bounded 3D road corridor. In both camera views the same avatar and camera position/yaw move together, with a basic gait phase. The preview is **not real third/first person gameplay**, changes no original World V1 player/world/server/wallet/save data, requires no extra asset downloads or mods, and falls back safely when WebGL is unavailable. Deterministic Node and phone-sized Chromium tests protect avatar movement bounds, input validation, reset, source isolation and Solo save data. See `docs/CAMERA_GRAPHICS_MILESTONE.md` for remaining production 3D blockers.
