@@ -131,8 +131,9 @@ try{
  const protectedSave=await evalPage("localStorage.getItem('offensive-meme-city-v1-center')");
  await evalPage("document.querySelector('.graphics-preview-sync button').click();true");
  const mirrorStatus=await evalPage("document.querySelector('.graphics-preview-sync + .graphics-preview-scene')?.textContent||''");
+ const mirrorDiagnostic=await evalPage("(()=>{const G=window.CityGraphics;const saved=JSON.parse(localStorage.getItem('offensive-meme-city-v1-center'));const scene=G.createWorldScene(window.CityInteriors.BUILDINGS,{x:saved.x,y:saved.y},window.CityBiomes,window.CityFrontier);const sample=G.samplePlayerCamera(scene,{x:saved.x,y:saved.y,room:null},{x:1,y:0});return {saveX:saved.x,saveY:saved.y,sceneWorld:scene?.world,pose:sample&&{x:sample.x,z:sample.z},previewStatus:document.querySelector('.graphics-preview-status')?.textContent};})()");
  if(graphicsInitial.gl)assert.match(mirrorStatus,/Read-only game sample X [0-9]+, Y [0-9]+ · heading -?[0-9]+°/,
-  'preview camera follows current game player coordinates and aiming heading only');
+  'preview camera follows current game player coordinates and aiming heading only. Diagnostics: '+JSON.stringify(mirrorDiagnostic));
  else assert.match(mirrorStatus,/WebGL unavailable/);
  assert.equal(await evalPage("localStorage.getItem('offensive-meme-city-v1-center')"),protectedSave,
   'sampling the active player camera must not alter its save');
