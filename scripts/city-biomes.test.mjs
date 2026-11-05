@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const ctx={};
-for(const path of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-biomes.js','city-map.js'])
+for(const path of ['city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-biomes.js','city-map.js','city-nav.js'])
  vm.runInNewContext(fs.readFileSync(new URL('../'+path,import.meta.url),'utf8'),ctx,{filename:path});
 const C=ctx.MemeCityCore,T=ctx.CityBiomes,I=ctx.CityInteriors,R=ctx.CityRising,M=ctx.CityMap;
 
@@ -47,6 +47,17 @@ test('legacy spawn, fortress save grid, quest stations and all physical doors re
  }
  for(const s of C.WORLD.stations)assert.equal(T.regionAt(s.x,s.y),null,'quest station protected: '+s.id);
  assert.ok(fs.readFileSync(new URL('../city.js',import.meta.url),'utf8').includes("saveKey='offensive-meme-city-v1-center'"));
+});
+
+test('every biome is accessible on an unchanged, collision-safe walking route from the player fortress',()=>{
+ const router=ctx.CityNav.createRouter(C);
+ for(const region of T.regions){
+  const route=router.plan(C.WORLD.spawn,region.entry);
+  assert.equal(route.status,'ok',region.name+' must be reachable using original street navigation');
+  assert.ok(route.points.length>=2);
+  for(let i=1;i<route.points.length;i++)
+   assert.equal(router.clear(route.points[i-1],route.points[i]),true,region.name+' routes cannot cross existing structures');
+ }
 });
 
 test('original map retains all real destinations and adds clickable biome waypoints',()=>{
