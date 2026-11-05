@@ -129,6 +129,56 @@ test('World V1 authored building footprints become bounded, immutable 3D meshes'
  assert.ok(capped.buildings.length<=16,'massive input cannot create unbounded per-frame draw calls');
 });
 
+test('terrain mesh samples authoritative 3 historical and 132 frontier biome regions',()=>{
+ const root={};
+ for(const file of ['city-core.js','city-biomes.js','city-frontier.js','city-interiors.js'])
+  vm.runInNewContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),root,{filename:file});
+ const C=root.MemeCityCore,B=root.CityBiomes,F=root.CityFrontier,I=root.CityInteriors;
+ assert.equal(B.regions.length,3);assert.equal(F.regions.length,132);
+ const first=F.regions[0],entry=first.entry;
+ const scene=G.createWorldScene(I.BUILDINGS,entry,B,F);
+ assert.equal(scene.name,first.name,'remote samples display the actual authored region');
+ assert.equal(scene.world.x,entry.x);assert.equal(scene.world.y,entry.y,'frontier samples use real player location');
+ assert.equal(scene.terrain.name,first.name);
+ assert.equal(scene.terrain.cells.length,64);
+ assert.ok(scene.terrain.cells.every(c=>/^#[a-f0-9]{6}$/i.test(c.color)&&Number.isFinite(c.relief)&&Math.abs(c.relief)<=.03));
+ assert.ok(new Set(scene.terrain.cells.map(c=>c.color)).size>1,'adjacent frontier tile palettes vary by real region');
+ assert.ok(scene.terrain.cells.some(c=>c.material===first.material));
+ assert.equal(Object.isFrozen(scene.terrain.cells),true);
+ assert.equal(Object.isFrozen(scene.terrain.cells[0]),true);
+ for(const index of [0,10,11,44,75,99,131]){
+  const biome=F.regions[index],patch=G.createWorldScene(I.BUILDINGS,biome.entry,B,F);
+  assert.equal(patch.terrain.name,biome.name,'regional sampler follows the same 132-biome registry');
+  assert.equal(patch.terrain.cells.length,64);
+ }
+ const local=B.regions[0],central=G.createWorldScene(I.BUILDINGS,local.entry,B,F);
+ assert.equal(central.terrain.name,local.name,'three original biome regions remain available');
+ const urban=G.createTerrainPatch(C.WORLD.spawn.x,C.WORLD.spawn.y,B,F);
+ assert.equal(urban.cells.length,64);
+ assert.equal(urban.name,'Center City pavement');
+ assert.equal(G.createTerrainPatch(0,0,null,null),null);
+ assert.equal(G.createWorldScene([],entry,B,F),null,'no invented building records');
+});
+
+test('jointed avatar pose is bounded, stable and uses opposing limbs',()=>{
+ const idle=G.avatarPose(0),walk=G.avatarPose(1),stepTwo=G.avatarPose(2);
+ assert.equal(idle.bob,0);assert.equal(idle.leftLeg,0);assert.equal(idle.rightLeg,0);
+ assert.equal(walk.leftLeg,-walk.rightLeg,'legs swing in opposing directions');
+ assert.equal(walk.leftArm,-walk.leftLeg*.7,'opposite-arm rhythm');
+ assert.ok(walk.bob>0&&walk.bob<.03);
+ assert.ok(walk.leftKnee>=0&&walk.rightKnee>=0);
+ assert.notEqual(walk.leftLeg,stepTwo.leftLeg);
+ assert.deepEqual(asNative(G.avatarPose(NaN)),asNative(idle),'invalid phases do not create NaN meshes');
+ assert.deepEqual(asNative(G.avatarPose(Infinity)),asNative(idle));
+ assert.ok(Object.values(walk).every(Number.isFinite));
+ assert.equal(Object.isFrozen(walk),true);
+ const render=fs.readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8');
+ assert.match(render,/function limbSegment\(/);
+ assert.match(render,/limbSegment\(elbow/);
+ assert.match(render,/limbSegment\(knee/);
+ assert.match(render,/model\(pos,sz,angle,pitch\)/);
+});
+
 test('third-person camera retracts before solid buildings, with stable scene-independent fallback',()=>{
  const scene={buildings:[{id:'wall',x:0,z:-2,w:3,d:1,height:3}]};
  const target=[0,1.15,0],desired=[0,2.6,-6];
@@ -172,7 +222,8 @@ test('3D movement controls remain exclusive to the optional graphics preview',()
  const js=fs.readFileSync(new URL('../city.js',import.meta.url),'utf8');
  const mod=fs.readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8');
  assert.match(js,/Move and rotate the preview-only 3D avatar/);
- assert.match(js,/CityGraphics\.createWorldScene\(I\.BUILDINGS,\{x:me\.x,y:me\.y\}\)/);
+ assert.match(js,/CityGraphics\.createWorldScene\(I\.BUILDINGS,\{x:me\.x,y:me\.y\},T,F\)/);
+ assert.match(js,/Terrain preview:/);
  assert.match(js,/World V1 buildings:/);
  for(const name of ['Turn left','Walk forward','Walk backward','Turn right','Reset preview'])assert.ok(js.includes(name),name);
  assert.match(js,/graphicsPreview\.turn\(amount\)/);
