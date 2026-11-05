@@ -52,3 +52,18 @@ Automated tests cover the exact world height ceiling and bedrock floor, all fron
 ## Next work
 
 Render physical mine entrances and tunnel walls on the normal world Canvas; implement character depth/state and vertical camera navigation only after a physics specification and server authority design; add tools/durability, harder material mining times, local structural stability, and audited extraction resource economy. Preserve the current Mono/Canvas map and Solo game until the new capabilities have passed regression and owner approval.
+
+
+## Milestone follow-on: rendered shafts and traversable depth slices
+
+The same protected Solo excavation journal now drives **two native Canvas renderers**, through `city-mine-visuals.js`. The original outdoor World V1 camera paints a small recessed opening for every actually removed topsoil tile. Central shaft openings show a rope and mine label; their shading uses the deepest successfully excavated shaft block. The original map displays gold dots for known shaft entrances; players can tap them or use the added mine-entrance waypoint controls to walk back using existing collision-aware routes.
+
+A second **640×350 Canvas cutaway inside the original Mining panel** renders each 5×5 mine as 2.5D native blocks, walls, ore flecks, open passages and a miner figure. It reads the same deterministic `CityMining.blockAt` material data and the same validated `CityMining.createStore` sparse edit journal. It is not a new game world, world map, voxel server or separate saving scheme.
+
+A `CityMining.createExplorer(store,surfacePlayer)` session tracks the **underground avatar's local offset and z depth** from the old surface character. You can dig adjacent rock, descend once the central shaft has been excavated, and use four accessible North/South/East/West movement buttons to walk **only on already opened cells**. Ascending/descending requires returning to that central shaft. Player depth respects the seven mineable levels, the −64 unbreakable bedrock floor, and the +256 global height ceiling.
+
+**Important boundary:** The underground miner's session position is *temporary*, not written into the existing character save and does not move the authoritative street-combat actor. Closing the panel returns the character to its unchanged original surface coordinates (z=0). Players cannot fall into non-collidable visual holes. Online room mining remains disabled until shared server-authoritative mining actions, validation, persistence and collision/depth replication have been implemented and tested. The `surfaceOpenings` array is cached and invalidated only after a committed rock excavation, avoiding repeated journal parsing every rendered frame. Corrupted journals fail closed, including any otherwise plausible prefix; no partial sample totals or shafts are exposed.
+
+**QA:** Node tests verify actual surface opening coordinates/depth, view culling, cache invalidation, reload, shaft navigation, blocked movement, altitude bounds and Canvas drawing. Mobile-sized Chromium exercises an actual two-depth mine, moves the miner to a newly excavated adjacent tile, checks both renderer surfaces, confirms all three edits persisted and verifies that credits and the original saved player are untouched.
+
+**Next milestone:** the room server, not a browser, must own world-edit history, player z, ore inventory and construction restrictions before releasing full free-roaming shared underground physics, destructible terrain, trading or real-time online resources.
