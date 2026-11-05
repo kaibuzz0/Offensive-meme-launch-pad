@@ -97,6 +97,14 @@ try{
  assert.ok(sceneInfo.count>=10,'the real city registry is available to the graphics preview');
  assert.match(sceneInfo.label,/World V1 buildings: .+ · [1-9][0-9]* authored structures · world X [0-9]+, Y [0-9]+/,
   '3D scene contains true landmark name, validated building count and world coordinates');
+ const terrainSummary=await evalPage("document.querySelector('.graphics-preview-scene:last-of-type')?.textContent||''");
+ assert.match(terrainSummary,/Terrain preview: .+ · 64 source-derived surface tiles/,
+  'real game Graphics panel shows capped, biome-derived surface data');
+ const frontierSample=await evalPage("(()=>{const B=window.CityBiomes,F=window.CityFrontier,G=window.CityGraphics,I=window.CityInteriors;const r=F.regions[0];const scene=G.createWorldScene(I.BUILDINGS,r.entry,B,F);return {name:scene?.terrain?.name,count:scene?.terrain?.cells.length,biomes:F.regions.length,materials:new Set(scene?.terrain?.cells.map(c=>c.material)).size};})()");
+ assert.equal(frontierSample.biomes,132);
+ assert.equal(frontierSample.name,'Twilight Cedar','actual first frontier biome is visible in 3D preview sampler');
+ assert.equal(frontierSample.count,64);
+ assert.ok(frontierSample.materials>=1,'sample has real authored materials');
  assert.match(graphicsInitial.text,/Third-person preview active|WebGL preview is unavailable/);
  if(graphicsInitial.gl)assert.equal(graphicsInitial.visible,true,'software/hardware WebGL paints an opaque camera preview');
  await evalPage("(()=>{const fields=document.querySelectorAll('.graphics-choice select');fields[0].value='detail';fields[0].dispatchEvent(new Event('change',{bubbles:true}));fields[1].value='performance';fields[1].dispatchEvent(new Event('change',{bubbles:true}));return true;})()");
