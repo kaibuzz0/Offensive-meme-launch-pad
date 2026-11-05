@@ -60,9 +60,9 @@ assert.ok(read('city.html').includes('city-visuals.js'),'Clothing renderer must 
 assert.ok(read('.github/workflows/pages.yml').includes('city-visuals.js'),'Clothing renderer must ship in Pages builds');
 console.log('PASS: streetwear renderer and deployment references.');
 
-assert.ok(read('city.html').includes('city-graphics.js?v=59-locality-mirror'),'WebGL graphics preview must load before original playable city');
+assert.ok(read('city.html').includes('city-graphics.js?v=61-live-crowd'),'WebGL graphics preview must load before original playable city');
 assert.ok(read('city.js').includes('graphics-preview-metrics')&&read('city.css').includes('.graphics-preview-metrics'),'Mobile graphics performance diagnostics must remain visible');
-assert.ok(read('city.html').includes('city-live-3d.js?v=60-live-game-camera'),'Live 3D camera helper must load before original playable city');
+assert.ok(read('city.html').includes('city-live-3d.js?v=61-live-crowd'),'Live 3D camera helper must load before original playable city');
 assert.ok(read('city.html').includes('id="city-live-3d-toggle"')&&read('city.html').includes('id="city-live-3d-canvas"'),'The playable game must expose its optional live camera control and viewport');
 assert.ok(read('city.js').includes('live3D.tick(time)'),'Live 3D must sample the existing game render loop');
 assert.ok(read('.github/workflows/pages.yml').includes('city-live-3d.js'),'Optional live 3D must ship with the Pages game');
@@ -98,7 +98,7 @@ assert.ok(city.includes('city-interiors.js?v=39-chaos-arcade')&&city.includes('c
 assert.ok(city.includes('city-civilians.js?v=44-friendly-civilians'),'Shared reactively fleeing civilians must load in existing playable city');
 assert.ok(city.includes('city-rise-visuals.js?v=43-street-lighting'),'Current center-world street lighting must ship with the original city');
 assert.ok(city.includes('city-territory.js?v=40-district-defense'),'Territory defense encounters must ship in the one playable city');
-assert.ok(city.includes('city.js?v=60-live-game-camera'),'Restored V1 playable engine must be loaded with the refreshed script version');
+assert.ok(city.includes('city.js?v=61-live-crowd'),'Restored V1 playable engine must be loaded with the refreshed script version');
 assert.ok(city.includes('city-rise.js?v=37-one-world-quarantine')&&city.includes('city-arcade.js?v=41-civilian-patrols')&&city.includes('city-interiors.js?v=39-chaos-arcade'),'All authoritative Quarantine modules must share the live script version');
 assert.ok(city.includes('city-districts.js?v=47-frontier')&&city.includes('city-room-visuals.js?v=39-chaos-arcade'),'Modern exterior and interior renderers must be shipped together');
 assert.ok(city.includes('city-visuals.js?v=37-one-world-quarantine')&&city.includes('city-clans.js?v=37-one-world-quarantine')&&city.includes('city-core.js?v=48-mining'),'Signed beta-token cosmetics must use the updated shared player rig');
