@@ -191,7 +191,9 @@ test('underground player cannot walk through walls, skip floors or descend witho
  assert.equal(explorer.position().dx,1);
  assert.equal(explorer.canDescend(),false,'no floor-to-floor teleport from an unexcavated column');
  assert.equal(explorer.canDig(-1,0),false,'digging range is relative to the miner');
- assert.equal(explorer.ascend(),true,'surface opening allows climbing out');
+ assert.equal(explorer.ascend(),false,'must return to the central shaft before climbing out');
+ assert.equal(explorer.move(-1,0),true,'walk back into the central shaft');
+ assert.equal(explorer.ascend(),true,'surface shaft allows climbing out');
  assert.equal(explorer.position().z,0);
  assert.equal(explorer.move(-1,0),false,'no underground movement after reaching surface');
 });
