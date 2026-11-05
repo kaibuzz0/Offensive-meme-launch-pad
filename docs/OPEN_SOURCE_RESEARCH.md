@@ -31,3 +31,18 @@ Reviewed before implementing expanded foliage and organic borders:
 - **[kchapelier/fast-2d-poisson-disk-sampling](https://github.com/kchapelier/fast-2d-poisson-disk-sampling)** — MIT, deferred optional object spacing source; deterministic native hashes adequate for max 24 props/region.
 
 **No direct code or assets imported.** Built as city-frontier.js using the existing game's own original JavaScript engine. See docs/FRONTIER_BAREIRON_ARCHITECTURE.md for detailed architecture, memory budget, save integrity and licensing review.
+
+## Code review follow-up — viewport culling and mine entrance cache (2026-11-05)
+
+This round looked for reusable open-source options for hundreds of visible props, sparse excavation entrances, and terrain geometry, while preserving the existing all-native browser Canvas and signed wallet path.
+
+| Library | License inspected | Useful capability | Decision now |
+|---|---|---|---|
+| [mourner/flatbush](https://github.com/mourner/flatbush) | ISC (upstream LICENSE) | Packed static Hilbert R-tree for dense rectangle viewport queries, low-overhead bulk index | **Deferred.** The currently bounded 132 biome polygons and max 512 mine edits do not justify shipping a third-party spatial index. Reconsider for thousands of destructible props. |
+| [d3/d3-quadtree](https://github.com/d3/d3-quadtree) | ISC-style permissive LICENSE (upstream file) | Incremental spatial indexing for dynamic NPC or debris positions | **Deferred.** Small existing actor counts and bounded culling are cheaper than a new dependency. Reconsider when simulating persistent debris/settlements. |
+| [kchapelier/fast-2d-poisson-disk-sampling](https://github.com/kchapelier/fast-2d-poisson-disk-sampling) | MIT (upstream LICENSE) | Evenly spaced, seedable procedural vegetation and terrain props | **Deferred.** Current fixed-budget biome scenery uses deterministic original placements and no new npm/CDN dependency. |
+| [jwagner/simplex-noise.js](https://github.com/jwagner/simplex-noise.js) | MIT (upstream LICENSE) | Seedable natural terrain/height/material fields with better spatial variation | **Deferred.** The existing deterministic world-seed noise is adequate for current authored frontiers; not a fix for the rendering bug. |
+
+**Finding implemented:** `CityMining.createStore().surfaceOpenings(visible)` cached the *view-filtered* results on its first call instead of caching all validated surface openings. A player moving to another shaft could find it missing even though mining and the map journal were intact. The fix caches the **entire** validated sparse geometry and only applies the viewport filter to each returned view; excavation still invalidates the cache. The implementation follows the standard separation between immutable source geometry and camera query results; **no third-party source or assets are copied**.
+
+**Checks:** multi-shaft and across-biome camera queries, a cold cache first queried with an empty viewport, reload, unchanged ore depths, and complete map-entrance listing. Keep existing hard caps, save keys, all Solo/Together authority boundaries and original `city.html`. Continue researching physics/destructible object libraries before the next major gameplay batch.
