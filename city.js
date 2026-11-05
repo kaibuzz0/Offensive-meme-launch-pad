@@ -670,15 +670,26 @@
     'Terrain preview unavailable; classic 2D world remains unchanged.');
   content.append(sceneSummary,terrainSummary);
   graphicsPreview=window.CityGraphics.createPreview(surface,token?.color||'#b6e87a',previewScene);
+  const renderMetrics=node('p','graphics-preview-metrics');
+  const reportMetrics=()=>{
+   const stats=graphicsPreview?.stats?.();
+   renderMetrics.textContent=stats?
+    '3D preview GPU draw calls: '+stats.staticDrawCalls+' static / '+stats.dynamicDrawCalls+
+    ' animated · '+stats.staticBoxes+' scenery cubes batched · '+Math.ceil(stats.staticBytes/1024)+
+    ' KiB static mesh · '+stats.staticUploads+' GPU upload.':
+    'GPU preview unavailable; original Canvas city remains playable.';
+  };
   if(graphicsPreview.supported){
    feedback.textContent='Third-person preview active. 3D sample only; main game remains fully playable in Classic view.';
    graphicsPreview.draw('third');
   }else{
    feedback.textContent='WebGL preview is unavailable on this device. The original 2D city and graphics settings still work.';
   }
+  reportMetrics();
   let previewMode='third';
   const repaint=message=>{
    if(graphicsPreview?.draw(previewMode))feedback.textContent=message+' Preview only: the original character position, combat and saves are unchanged.';
+   reportMetrics();
   };
   const controls=node('div','graphics-preview-controls');
   controls.setAttribute('role','group');controls.setAttribute('aria-label','Choose a 3D camera preview');
@@ -701,7 +712,7 @@
    button('Turn right',()=>attempt('turn',Math.PI/6,'Avatar turned right.')),
    button('Reset preview',()=>{if(graphicsPreview?.reset())repaint('Preview avatar returned to its starting position.');})
   );
-  content.append(surface,controls,walking,feedback,button('Return to game →',closePanel));
+  content.append(surface,renderMetrics,controls,walking,feedback,button('Return to game →',closePanel));
  }
  function panel(type){if(graphicsPreview){graphicsPreview.destroy();graphicsPreview=null;}activePanel=type;$('#joystick-knob').style.transform='';keys.clear();held.clear();stick={x:0,y:0};firing=false;const content=$('#panel-content');content.replaceChildren();$('#panel-status').textContent='';
   const titles={graphics:'Graphics & camera',mining:'Mining / vertical strata',frontierSurvey:'Frontier biome survey',biomeSurvey:'Biome field survey',outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',quarantine:'Quarantine bunker survival',arcadeCabinet:'Chaos Arcade / Rug Runner',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
