@@ -637,6 +637,26 @@
    for(const place of mapPoints.filter(p=>p.kind==='door'&&['supplies','shop','market'].includes(p.activity)))links.append(button(place.name+' →',()=>track(place)));
    for(const place of mapPoints.filter(p=>p.kind==='district'))links.append(button(place.name+' →',()=>track(place)));
    for(const biome of T.regions)links.append(button('Explore '+biome.name+' →',()=>track({id:'biome:'+biome.id,name:biome.name,x:biome.entry.x,y:biome.entry.y})));
+
+   // Accessible grouped catalog rather than 132 buttons on a phone.
+   const explorer=node('section','frontier-explorer'),pick=node('select');
+   pick.setAttribute('aria-label','Choose one of 132 frontier biomes');
+   for(const family of F.families){
+    const group=node('optgroup');group.label=family.label;
+    for(const r of F.regions.filter(r=>r.group===family.id)){
+     const option=node('option','',r.name);option.value=r.id;group.append(option);
+    }pick.append(group);
+   }
+   const currentFrontier=F.regionAt(me.x,me.y);
+   if(currentFrontier)pick.value=currentFrontier.id;
+   explorer.append(node('h3','','Explore all 132 frontier biomes'),
+    node('p','beta-note','12 ecological families × 11 distinct regions. Select a destination to mark a walking route through the continuous world. Every biome is free to visit. '+(online?'Solo-only discovery journal is paused online.':'Surveyed: '+frontierJournal.count()+' of 132.')),
+    pick,button('Track selected frontier biome →',()=>{
+     const r=F.byId.get(pick.value);
+     if(r)track({id:'biome:'+r.id,name:r.name,x:r.entry.x,y:r.entry.y});
+    }));
+   content.append(explorer);
+
    for(const plot of C.TOKEN_PLOTS)links.append(button((C.plotAccess(me,plot.id)?'OPEN · ':'LOCKED · ')+plot.name+' →',()=>track({x:plot.x+plot.w/2,y:plot.y+plot.h+65,name:plot.name+' entrance'})));
    links.append(button('Next journey objective →',()=>{const o=R.objective(me);if(o?.target)track(o.target);else panel('journey');}));
    if(tracked)links.append(button('Clear waypoint ×',()=>{tracked=null;routePath=null;panel('map');toast('Waypoint cleared.');}));
