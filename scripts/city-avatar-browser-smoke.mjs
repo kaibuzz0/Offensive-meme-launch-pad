@@ -97,7 +97,7 @@ try{
  assert.ok(sceneInfo.count>=10,'the real city registry is available to the graphics preview');
  assert.match(sceneInfo.label,/World V1 buildings: .+ · [1-9][0-9]* authored structures · world X [0-9]+, Y [0-9]+/,
   '3D scene contains true landmark name, validated building count and world coordinates');
- const terrainSummary=await evalPage("document.querySelector('.graphics-preview-scene:last-of-type')?.textContent||''");
+ const terrainSummary=await evalPage("Array.from(document.querySelectorAll('.graphics-preview-scene')).at(-1)?.textContent||''");
  assert.match(terrainSummary,/Terrain preview: .+ · 64 source-derived surface tiles/,
   'real game Graphics panel shows capped, biome-derived surface data');
  const frontierSample=await evalPage("(()=>{const B=window.CityBiomes,F=window.CityFrontier,G=window.CityGraphics,I=window.CityInteriors;const r=F.regions[0];const scene=G.createWorldScene(I.BUILDINGS,r.entry,B,F);return {name:scene?.terrain?.name,count:scene?.terrain?.cells.length,biomes:F.regions.length,materials:new Set(scene?.terrain?.cells.map(c=>c.material)).size};})()");
