@@ -215,7 +215,8 @@
    if(raw!==null&&raw!==undefined){
     const obj=JSON.parse(raw);
     if(!obj||obj.version!==1||obj.seed!==SEED||!Array.isArray(obj.visited)||obj.visited.length>regions.length
-       ||obj.visited.some(id=>typeof id!=='string'||!byId.has(id)||seen.has(id)))disabled=true;
+       ||new Set(obj.visited).size!==obj.visited.length
+       ||obj.visited.some(id=>typeof id!=='string'||!byId.has(id)))disabled=true;
     else for(const id of obj.visited)seen.add(id);
    }
   }catch{disabled=true;}
