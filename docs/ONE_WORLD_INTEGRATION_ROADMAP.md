@@ -66,3 +66,10 @@ See [BIOME_SYSTEM.md](BIOME_SYSTEM.md) and [OPEN_SOURCE_RESEARCH.md](OPEN_SOURCE
 ## Milestone A follow-up — richer biomes, no world migration (draft PR #29)
 
 Added organic deterministic terrain outlines that agree between painted world, map and material lookup; expanded bounded forest, wasteland and highlands scenery; and three nonrewarding, locally inspectable survey posts via existing E/Interact. The world, routes, collision, mobile controls, online authority and saves remain unchanged. Next implement a **small, separately authorized construction-test lot**, first with solo placement and validation, then safe authoritative multiplayer rules. Physical Android QA and owner-approved merge are still required.
+
+
+## 132-biome frontier milestone (draft PR #29)
+
+Implement 132 new named biome regions in 12 families of 11; append the 13,200-unit east frontier to the existing unchanged 11,200-square original city. World extent 24,400×14,400. Original spawn, plot, doors, quests and character saves are unchanged. Use deterministic region metadata, original Canvas viewport culling, bounded 12-texture / 16-prop-cache LRU, existing map/router, native grouped biome selector and separate versioned Solo survey journal.
+
+Architecture references: bareiron / irongingot (GPL C server concepts only; no source imported) and reviewed Poisson-disk sampling as deferred dependency. Next milestones: proper biome-specific weather and flora palettes, collisions and resource balances designed with server authority, sparse per-chunk build/damage deltas and robust recovery; ensure all features are free and preserve original Solo Play. Never deploy or merge without explicit owner review.
