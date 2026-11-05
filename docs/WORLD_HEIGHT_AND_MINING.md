@@ -67,3 +67,11 @@ A `CityMining.createExplorer(store,surfacePlayer)` session tracks the **undergro
 **QA:** Node tests verify actual surface opening coordinates/depth, view culling, cache invalidation, reload, shaft navigation, blocked movement, altitude bounds and Canvas drawing. Mobile-sized Chromium exercises an actual two-depth mine, moves the miner to a newly excavated adjacent tile, checks both renderer surfaces, confirms all three edits persisted and verifies that credits and the original saved player are untouched.
 
 **Next milestone:** the room server, not a browser, must own world-edit history, player z, ore inventory and construction restrictions before releasing full free-roaming shared underground physics, destructible terrain, trading or real-time online resources.
+
+## November 5 review fix: mine entrance visibility across camera transitions
+
+Corrected a rendering-only bug in the validated Solo excavation sidecar. Previously, the first camera to query `surfaceOpenings(viewportPredicate)` could permanently limit the in-memory cache to just those visible openings. Other entrances could disappear from the outdoor Canvas or be omitted by the map until a new mining edit invalidated the cache.
+
+Now the cache always contains the entire (at most 512) set of validated openings, and each viewport gets a separately filtered result. Surface geometry is still invalidated by a successfully committed excavation, never by a rejected or failed write. The map receives all shaft waypoints, including those outside the current camera. Regression tests cover two distant regions, zero-visible cold-cache queries, depth updates and reload.
+
+The welcome HTML now distinguishes seven playable mining levels (down to z=−56), unbreakable z=−64 bedrock, and the **+256 ceiling reserved for future mechanics**; it does not claim current buildable 3D space. `city-mining.js?v=50-shaft-cache` ensures browsers fetch the corrected module. No gameplay balances, existing player location, original save schema, wallet or online mining authority changed.
