@@ -20,12 +20,15 @@
   cameraMode=mode;cameraZoom=cameraModes[mode];
   const picker=$('#camera-view');if(picker)picker.value=mode;
   $('#zoom-toggle').textContent=mode==='detail'?'− Wide':'+ Detail';
+  graphics.setZoom(mode==='classic'?'normal':mode);
   try{window.localStorage.setItem(cameraKey,mode);}catch{}
   return true;
  }
  let routePath=null,lastRouteCalc=0;
  const frontierJournal=F.createJournal((()=>{try{return window.localStorage;}catch{return null;}})());
  const miningStore=Mine.createStore((()=>{try{return window.localStorage;}catch{return null;}})());
+ const graphics=window.CityGraphics.createSettings((()=>{try{return window.localStorage;}catch{return null;}})());
+ let graphicsPreview=null;
  let groundCache=null;const buildingCache=new Map(),particles=[],seenEffects=new Set(),positions=new Map();
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  const legacySaveKey='offensive-meme-city-v1',saveKey='offensive-meme-city-v1-center',backupKey='offensive-meme-city-v1-center-source-backup',Save=window.CityCenterSave;let saveBlocked=false;
@@ -108,7 +111,7 @@
  }
  let roomCamera=null;
  function drawInterior(time,dt){
-  const rect=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);
+  const rect=canvas.getBoundingClientRect(),dpr=Math.min(graphics.pixelRatioCap(),window.devicePixelRatio||1);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);
   const r=me.room,w=rect.width,h=rect.height,zoom=(w<600?.74:.95)*cameraZoom;if(!roomCamera||roomCamera.id!==r.id)roomCamera={id:r.id,x:r.x,y:r.y};const k=1-Math.exp(-dt*12);roomCamera.x+=(r.x-roomCamera.x)*k;roomCamera.y+=(r.y-roomCamera.y)*k;
   ctx.fillStyle='#0b1522';ctx.fillRect(0,0,w,h);ctx.save();ctx.scale(zoom,zoom);ctx.translate(-roomCamera.x+w/(2*zoom),-roomCamera.y+h*.6/zoom);
   IV.draw(ctx,me,time,art,(x,y)=>character({...state.players.find(p=>p.id===me.id),x,y},true,{x,y}),state.players.filter(p=>p.id!==me.id&&p.room?.id===me.room.id),(p)=>character(p,false,{x:p.room.x,y:p.room.y}));if(emoteUntil>time){roundRect(r.x-70,r.y-155,140,29,8,'#e7edda');label(emoteText,r.x,r.y-135,12,'#1e3541');}ctx.restore();
@@ -238,7 +241,7 @@
   if(me.area==='social')content.append(button('Emotes & meeting space →',()=>panel('social')));
   content.append(node('p','beta-note',online?'All neighborhoods are walkable together. Fortress construction and squads remain solo.':'All districts share one walkable map. Solo progress saves in this browser. Together opens temporary online rooms.'));
  }
- function closePanel(){$('#city-panel').close();$('#joystick-knob').style.transform='';activePanel='';keys.clear();held.clear();stick={x:0,y:0};firing=false;canvas.focus({preventScroll:true});}
+ function closePanel(){if(graphicsPreview){graphicsPreview.destroy();graphicsPreview=null;}$('#city-panel').close();$('#joystick-knob').style.transform='';activePanel='';keys.clear();held.clear();stick={x:0,y:0};firing=false;canvas.focus({preventScroll:true});}
  let holderTimer=null,holderClan=null,walletCheckBusy=false,offenderWalletStatus='';
  let androidChallenge=null,androidChallengePending=false;
  let soloChallenge=null,soloChallengePending=false,soloProof=null,soloWalletEpoch=0,soloTimer=null;
@@ -625,13 +628,57 @@
     button('Return to same world →',closePanel));
   }draw();
  }
- function panel(type){activePanel=type;$('#joystick-knob').style.transform='';keys.clear();held.clear();stick={x:0,y:0};firing=false;const content=$('#panel-content');content.replaceChildren();$('#panel-status').textContent='';
-  const titles={mining:'Mining / vertical strata',frontierSurvey:'Frontier biome survey',biomeSurvey:'Biome field survey',outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',quarantine:'Quarantine bunker survival',arcadeCabinet:'Chaos Arcade / Rug Runner',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
+
+ function graphicsPanel(content){
+  content.append(node('p','district-kicker','CAMERA & PERFORMANCE / LOCAL DEVICE'),
+   node('p','beta-note','Your actual game stays in the original top-down world. These settings change the live game camera and render resolution, not your character save or wallet.'));
+  const status=node('p','beta-note','Settings are stored on this device only.');
+  function choice(title,items,value,change){
+   const label=node('label','graphics-choice'),select=node('select','graphics-select');
+   label.append(node('span','',title));
+   for(const [key,name] of items){const option=node('option','',name);option.value=key;select.append(option);}
+   select.value=value;select.setAttribute('aria-label',title);
+   select.addEventListener('change',()=>change(select.value));
+   label.append(select);return label;
+  }
+  content.append(
+   choice('Live top-down camera', [['wide','Wide / more terrain'],['normal','Classic / default'],['detail','Detail / close']],(cameraMode==='classic'?'normal':cameraMode),v=>{
+    setCameraMode(v==='normal'?'classic':v);status.textContent='Live camera framing updated; the city and controls are unchanged.';
+   }),
+   choice('Render resolution', [['auto','Automatic / device default'],['performance','Performance / 1× max'],['balanced','Balanced / 1.5× max'],['high','High detail / 2× max']],graphics.snapshot().quality,v=>{
+    graphics.setQuality(v);status.textContent='Rendering resolution updated. On low-end phones Performance uses fewer pixels.';
+   }),status
+  );
+  content.append(node('h3','district-heading','Perspective camera research preview'),
+   node('p','beta-note','Experimental 3D camera and low-poly character stand-in. Not a new playable world, 3D save, or a change to shooting or combat. Full first-person and third-person gameplay still requires 3D world geometry, collision, interiors and avatar rig conversion.'));
+  const surface=node('canvas','graphics-preview');surface.width=640;surface.height=360;
+  surface.setAttribute('aria-label','Optional WebGL 3D avatar and city street with third-person or first-person perspective');
+  const feedback=node('p','graphics-preview-status');
+  if(graphicsPreview)graphicsPreview.destroy();
+  const skin=verifiedBetaSkin(me),token=catalog.get(skin)||catalog.get(me.avatar)||catalog.get('offensive');
+  graphicsPreview=window.CityGraphics.createPreview(surface,token?.color||'#b6e87a');
+  if(graphicsPreview.supported){
+   feedback.textContent='Third-person preview active. 3D sample only; main game remains fully playable in Classic view.';
+   graphicsPreview.draw('third');
+  }else{
+   feedback.textContent='WebGL preview is unavailable on this device. The original 2D city and graphics settings still work.';
+  }
+  const controls=node('div','graphics-preview-controls');
+  controls.append(button('View third-person sample',()=>{
+   if(graphicsPreview?.draw('third'))feedback.textContent='Third-person sample: perspective behind the avatar, independent of main-game position.';
+  }),button('View first-person sample',()=>{
+   if(graphicsPreview?.draw('first'))feedback.textContent='First-person sample: camera at eye level with visible arms and tool. Main game remains Classic.';
+  }));
+  content.append(surface,controls,feedback,button('Return to game →',closePanel));
+ }
+ function panel(type){if(graphicsPreview){graphicsPreview.destroy();graphicsPreview=null;}activePanel=type;$('#joystick-knob').style.transform='';keys.clear();held.clear();stick={x:0,y:0};firing=false;const content=$('#panel-content');content.replaceChildren();$('#panel-status').textContent='';
+  const titles={graphics:'Graphics & camera',mining:'Mining / vertical strata',frontierSurvey:'Frontier biome survey',biomeSurvey:'Biome field survey',outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',quarantine:'Quarantine bunker survival',arcadeCabinet:'Chaos Arcade / Rug Runner',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
   if(online&&C.CAPABILITIES.online.soloPanels.includes(type)){content.append(node('p','beta-note','This activity is available in solo mode. Your online journey uses different objectives that you can complete in this room.'),button('Online journey →',()=>panel('journey')));if(!$('#city-panel').open)$('#city-panel').showModal();return;}if(type==='outposts')outpostPanel(content);if(type==='clans')clanPanel(content);if(type==='places')placePanel(content);
   if(type==='multiplayer')multiplayerPanel(content);
   if(['journey','mobility','supplies','fortress','survival'].includes(type))risingPanel(type,content);
   if(type==='quarantine')quarantinePanel(content);
   if(type==='mining')miningPanel(content);
+  if(type==='graphics')graphicsPanel(content);
   if(type==='frontierSurvey'){
    const site=F.nearbySite(me),terrain=F.terrainAt(me.x,me.y);
    if(!site||!terrain)content.append(node('p','beta-note','Walk to a frontier survey marker to inspect the local terrain.'),button('Find a biome →',()=>panel('map')));
@@ -674,12 +721,12 @@
   }
   if(type==='pause'){
    content.append(node('p','beta-note',online?'You are in an online room. The shared city keeps running while this menu is open.':'Solo game paused. Take your time — enemies and timers are paused too.'));
-   content.append(button('Resume game →',closePanel),button('Choose a mission',()=>panel('missions')),button('Controls & guide',()=>panel('help')));
+   content.append(button('Resume game →',closePanel),button('Choose a mission',()=>panel('missions')),button('Controls & guide',()=>panel('help')),button('Graphics / camera',()=>panel('graphics')));
   }
   if(type==='menu'){
    content.append(node('p','','Everything you need, one stop away. Solo play pauses while menus are open.'));
    if(me.defense)content.append(button('URGENT / Fortress siege repairs →',()=>panel('crew')));
-   for(const [title,type]of [['Mine underground / strata','mining'],['District outpost workshop','outposts'],['Clans & block jobs','clans'],['Play together','multiplayer'],['Explore building interiors','places'],['Chaos Arcade / Rug Runner','arcadeCabinet'],['Your city journey','journey'],['Hoverboard & travel','mobility'],['Arena survival','survival'],['Quarantine bunker / undead waves','quarantine'],['Medkits & supplies','supplies'],['Upgrade fortress HQ','fortress'],['Explore districts','districts'],['Build my fortress','build'],['Hire / command defenders','crew'],['Beta token purchases','tokens'],['Equipment shop','shop'],['Player marketplace','market'],['Room chat','chat'],['Controls & guide','help'],['Pause / resume','pause']])content.append(button(title,()=>panel(type)));
+   for(const [title,type]of [['Mine underground / strata','mining'],['District outpost workshop','outposts'],['Clans & block jobs','clans'],['Play together','multiplayer'],['Explore building interiors','places'],['Chaos Arcade / Rug Runner','arcadeCabinet'],['Your city journey','journey'],['Hoverboard & travel','mobility'],['Arena survival','survival'],['Quarantine bunker / undead waves','quarantine'],['Medkits & supplies','supplies'],['Upgrade fortress HQ','fortress'],['Explore districts','districts'],['Build my fortress','build'],['Hire / command defenders','crew'],['Beta token purchases','tokens'],['Equipment shop','shop'],['Player marketplace','market'],['Room chat','chat'],['Graphics & camera','graphics'],['Controls & guide','help'],['Pause / resume','pause']])content.append(button(title,()=>panel(type)));
   }
   if(type==='summary'){
    const r=me.lastResult;if(r){
@@ -902,7 +949,7 @@
   if(p.clan){const clan=C.NEIGHBORHOODS.find(n=>n.id===p.clan);label(`${clan?.clan||''} ${'◆'.repeat(p.clanRank||0)}${p.holderTier?' / HOLDER '+p.holderTier:''}`,x,y-134,9,clan?.color||'#cce4ca');}if(isMe){ctx.strokeStyle='#d1e3c688';ctx.lineWidth=1.3;ctx.beginPath();ctx.ellipse(x,y+3,21,8,0,0,Math.PI*2);ctx.stroke();}
  }
  function beacon(t,time,color){const pulse=1+Math.sin(time/240)*.1;ctx.strokeStyle=color;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(t.x,t.y,32*pulse,17*pulse,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle=color+'22';ctx.beginPath();ctx.moveTo(t.x-23,t.y);ctx.lineTo(t.x-10,t.y-95);ctx.lineTo(t.x+10,t.y-95);ctx.lineTo(t.x+23,t.y);ctx.fill();label('↓',t.x,t.y-58+Math.sin(time/300)*7,30,color);label(t.name,t.x,t.y+37,12,color);}
- function draw(time,dt){if(me.room){drawInterior(time,dt);return;}const rect=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height,zoom=(w<600?.72:.88)*cameraZoom;ctx.fillStyle='#13232d';ctx.fillRect(0,0,w,h);paintX+=(me.x-paintX)*Math.min(1,dt*18);paintY+=(me.y-paintY)*Math.min(1,dt*18);const camX=paintX-w/(2*zoom),camY=paintY-h*.61/zoom;ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camX,-camY);worldView={x:camX,y:camY,zoom};D.land(ctx);T.drawGround(ctx,(x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150);F.drawGround(ctx,(x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150);
+ function draw(time,dt){if(me.room){drawInterior(time,dt);return;}const rect=canvas.getBoundingClientRect(),dpr=Math.min(graphics.pixelRatioCap(),window.devicePixelRatio||1);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height,zoom=(w<600?.72:.88)*cameraZoom;ctx.fillStyle='#13232d';ctx.fillRect(0,0,w,h);paintX+=(me.x-paintX)*Math.min(1,dt*18);paintY+=(me.y-paintY)*Math.min(1,dt*18);const camX=paintX-w/(2*zoom),camY=paintY-h*.61/zoom;ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camX,-camY);worldView={x:camX,y:camY,zoom};D.land(ctx);T.drawGround(ctx,(x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150);F.drawGround(ctx,(x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150);
  if(!online)MV.surface(ctx,miningStore.surfaceOpenings((x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150));if(routePath?.length>1){ctx.save();ctx.beginPath();routePath.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.strokeStyle="#6ee5f3bc";ctx.lineWidth=5;ctx.setLineDash([16,14]);ctx.stroke();ctx.restore();}
  const visible=(x,y,bw=200,bh=200)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150;
  const layers=[];
@@ -1131,7 +1178,7 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
   e.preventDefault();
   if(!state.self.cabinet.paused)void action({type:'arcadePause'},true).then(ok=>{if(ok)panel('arcadeCabinet');});
   else closePanel();
- });$('#city-panel').addEventListener('close',()=>{activePanel='';keys.clear();held.clear();});
+ });$('#city-panel').addEventListener('close',()=>{if(graphicsPreview){graphicsPreview.destroy();graphicsPreview=null;}activePanel='';keys.clear();held.clear();});
  document.querySelectorAll('[data-panel]').forEach(b=>b.addEventListener('click',()=>panel(b.dataset.panel)));
  document.querySelectorAll('[data-move]').forEach(b=>{const release=()=>{held.delete(b.dataset.move);b.classList.remove('pressed');};b.addEventListener('pointerdown',e=>{e.preventDefault();if(!entered)return;b.setPointerCapture(e.pointerId);held.add(b.dataset.move);b.classList.add('pressed');});b.addEventListener('pointerup',release);b.addEventListener('pointercancel',release);b.addEventListener('lostpointercapture',release);});
  const fireButton=$('#fire');fireButton.addEventListener('pointerdown',e=>{e.preventDefault();if(!entered||activePanel)return;fireButton.setPointerCapture(e.pointerId);firing=true;fire();});for(const name of ['pointerup','pointercancel','lostpointercapture'])fireButton.addEventListener(name,()=>firing=false);
