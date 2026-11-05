@@ -66,7 +66,8 @@
   return total/norm;
  }
  const ordered=(a,b)=>a.id.localeCompare(b.id);
- function createWorld(seed){
+ function createWorld(seed,options={}){
+  const terrainOnly=options?.terrainOnly===true;
   if(typeof seed!=='string'&&!(typeof seed==='number'&&Number.isSafeInteger(seed)))
    throw Error('Provide a stable string or safe integer world seed');
   if(String(seed).length>128)throw Error('World seed is too long');
@@ -183,6 +184,11 @@
    return Object.freeze(buildings.sort(ordered));
   }
   function spawnAt(){
+   if(terrainOnly){
+    const x=Math.floor(unit(numericSeed,1,7)*33)-16;
+    const y=Math.floor(unit(numericSeed,2,9)*33)-16;
+    return Object.freeze({x,y,z:biomeAt(x,y).height+STEP,seedHash:numericSeed});
+   }
    // A new world begins at a seed-selected safe town/village crossing; no
    // hard-coded fortress, old saved coordinates, or fixed tutorial town.
    const candidates=[];
@@ -203,15 +209,15 @@
    if(!finiteTile(cx)||!finiteTile(cy)||Math.abs(cx)>1000000||Math.abs(cy)>1000000)return null;
    const left=cx*CHUNK_SIZE,top=cy*CHUNK_SIZE;
    const centerX=left+CHUNK_SIZE/2,centerY=top+CHUNK_SIZE/2;
-   const sites=settlementsNear(centerX,centerY,CHUNK_SIZE*1.1);
+   const sites=terrainOnly?Object.freeze([]):settlementsNear(centerX,centerY,CHUNK_SIZE*1.1);
    const surface=[];
    for(let dy=0;dy<CHUNK_SIZE;dy++)for(let dx=0;dx<CHUNK_SIZE;dx++){
     const x=left+dx,y=top+dy,b=biomeAt(x,y),site=siteAt(x,y,sites);
-    const road=isRoad(x,y,site);
+    const road=!terrainOnly&&isRoad(x,y,site);
     surface.push(Object.freeze({x,y,height:b.height,biome:b.id,
      material:road?'packed-road':b.surface,road,settlementId:site?.id||null}));
    }
-   const structures=sites.flatMap(s=>buildingsFor(s)).filter(p=>
+   const structures=(terrainOnly?[]:sites.flatMap(s=>buildingsFor(s))).filter(p=>
     p.x<left+CHUNK_SIZE&&p.x+p.w>left&&p.y<top+CHUNK_SIZE&&p.y+p.h>top);
    const uniq=[...new Map(structures.map(x=>[x.id,x])).values()].sort(ordered);
    return Object.freeze({id:'chunk:'+numericSeed.toString(16)+':'+cx+':'+cy,
@@ -245,7 +251,7 @@
     cx,cy,z,tiles:Object.freeze(tiles)});
   }
   return Object.freeze({
-   seed:String(seed),seedHash:numericSeed,CHUNK_SIZE,TILE_SIZE,MIN_HEIGHT,MAX_HEIGHT,STEP,
+   seed:String(seed),seedHash:numericSeed,terrainOnly,CHUNK_SIZE,TILE_SIZE,MIN_HEIGHT,MAX_HEIGHT,STEP,
    BIOMES,SETTLEMENT_TYPES,climateAt,biomeAt,settlementCell,settlementsNear,
    spawnAt,chunkAt,blockAt,sliceAt
   });
