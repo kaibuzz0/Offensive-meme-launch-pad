@@ -91,7 +91,7 @@ test('versioned delta-only solo journal survives a reload without touching the o
  assert.equal(j.discover(first),false,'idempotent observation');
  assert.equal(j.count(),2);
  const next=F.createJournal(s);
- assert.deepEqual(next.list(),[first,last]);
+ assert.deepEqual(plain(next.list()),[first,last]);
  assert.equal(next.has(first),true);
  assert.equal(s.getItem('offensive-meme-city-v1-center'),'protected original bytes');
  const raw=JSON.parse(s.getItem(F.SAVE_KEY));
@@ -124,7 +124,7 @@ test('only visible frontier chunks paint, and 12 textures plus 16 scenery caches
  assert.equal(F.siteLayers(painter(),()=>false).length,0);
  for(const r of F.regions.slice(0,25)){
   assert.equal(F.drawGround(painter(),(x,y)=>x===r.x&&y===r.y),1);
-  assert.equal(F.siteLayers(painter(),(x,y)=>x===r.x&&y===r.y).length,1);
+  assert.equal(F.siteLayers(painter(),(x,y,w,h)=>x<r.x+r.w&&x+w>r.x&&y<r.y+r.h&&y+h>r.y).length,1);
   const props=F.scenery(painter(),(x,y,w,h)=>x<r.x+r.w&&x+w>r.x&&y<r.y+r.h&&y+h>r.y);
   assert.ok(props.length<=24,r.id);
  }
