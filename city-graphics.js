@@ -84,9 +84,10 @@
  }
  function createPreview(canvas,color='#b6e87a'){
   const stage=createStage();
+  const unavailable=()=>Object.freeze({supported:false,draw:()=>false,destroy:()=>{},turn:()=>false,step:()=>false,reset:()=>false,snapshot:stage.snapshot});
   let gl,program,buffer,vs,fs;
-  try{gl=canvas?.getContext?.('webgl',{antialias:false,preserveDrawingBuffer:true,alpha:false});}catch{return Object.freeze({supported:false,draw:()=>false,destroy:()=>{}});}
-  if(!gl)return Object.freeze({supported:false,draw:()=>false,destroy:()=>{}});
+  try{gl=canvas?.getContext?.('webgl',{antialias:false,preserveDrawingBuffer:true,alpha:false});}catch{return unavailable();}
+  if(!gl)return unavailable();
   try{
    function shader(type,text){
     const s=gl.createShader(type);gl.shaderSource(s,text);gl.compileShader(s);
@@ -100,7 +101,7 @@
    buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,vertices,gl.STATIC_DRAW);
   }catch{
    if(buffer)gl.deleteBuffer(buffer);if(program)gl.deleteProgram(program);if(vs)gl.deleteShader(vs);if(fs)gl.deleteShader(fs);
-   return Object.freeze({supported:false,draw:()=>false,destroy:()=>{}});
+   return unavailable();
   }
   let disposed=false;
   const matrix=gl.getUniformLocation(program,'matrix'),tint=gl.getUniformLocation(program,'tint'),attr=gl.getAttribLocation(program,'p');
