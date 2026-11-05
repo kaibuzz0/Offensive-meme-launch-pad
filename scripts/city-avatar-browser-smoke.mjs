@@ -88,7 +88,7 @@ try{
   const T=window.CityBiomes,r=T?.regions?.[0];if(!r)return null;
   const el=document.createElement('canvas');el.width=240;el.height=240;
   const g=el.getContext('2d');g.setTransform(.3,0,0,.3,-r.x*.3,-r.y*.3);
-  const painted=T.drawGround(g,(x,y)=>x===r.x),pixel=g.getImageData(120,120,1,1).data;
+  const painted=T.drawGround(g,(x,y)=>x===r.x&&y===r.y),pixel=g.getImageData(120,120,1,1).data;
   return {painted,opaque:pixel[3]>0,regions:T.regions.length,props:T.scenery(g,(x,y,w,h)=>x<r.x+r.w&&x+w>r.x&&y<r.y+r.h&&y+h>r.y).length};
  })()`);
  assert.equal(biomePixels?.painted,1,'original game paints a biome in real Chromium Canvas');
