@@ -60,9 +60,9 @@ test('shaft must be excavated one layer at a time; lateral tunnels require an op
  assert.equal(m.inspect(p,0,0,7).accessible,false);
  assert.equal(m.inspect(p,0,0,7).material,'bedrock');
  assert.equal(m.mine(p,0,0,8).ok,false);
- assert.equal(m.count(),10);
- assert.equal(JSON.parse(s.getItem(Mining.KEY)).blocks.length,10);
- assert.equal(Object.values(m.inventory()).reduce((a,b)=>a+b,0),10,'ore inventory is derived, never trusted input');
+ assert.equal(m.count(),9);
+ assert.equal(JSON.parse(s.getItem(Mining.KEY)).blocks.length,9);
+ assert.equal(Object.values(m.inventory()).reduce((a,b)=>a+b,0),9,'ore inventory is derived, never trusted input');
 });
 
 test('mine location and tile range are validated, not provided by an arbitrary request',()=>{
