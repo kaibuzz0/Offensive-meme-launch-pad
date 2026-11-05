@@ -29,3 +29,5 @@ jobs:
         run: node scripts/city-benchmark.mjs
       - name: Verify original World V1 graphics and mobile entry in real Chromium
         run: node scripts/city-avatar-browser-smoke.mjs
+      - name: Verify terrain-only 132-biome entry and persistence in real Chromium
+        run: node scripts/city-terrain-browser-smoke.mjs
