@@ -650,7 +650,7 @@
    }),status
   );
   content.append(node('h3','district-heading','Perspective camera research preview'),
-   node('p','beta-note','Experimental 3D camera and low-poly character stand-in. Not a new playable world, 3D save, or a change to shooting or combat. Full first-person and third-person gameplay still requires 3D world geometry, collision, interiors and avatar rig conversion.'));
+   node('p','beta-note','Experimental 3D camera with a turnable skull avatar, walking test corridor and token-colored clothing. Walking here does not move the real player, change saves or affect shooting and combat. Full first-person and third-person gameplay still requires 3D world geometry, collision, interiors and avatar rig conversion.'));
   const surface=node('canvas','graphics-preview');surface.width=640;surface.height=360;
   surface.setAttribute('aria-label','Optional WebGL 3D avatar and city street with third-person or first-person perspective');
   const feedback=node('p','graphics-preview-status');
@@ -663,13 +663,32 @@
   }else{
    feedback.textContent='WebGL preview is unavailable on this device. The original 2D city and graphics settings still work.';
   }
+  let previewMode='third';
+  const repaint=message=>{
+   if(graphicsPreview?.draw(previewMode))feedback.textContent=message+' Preview only: the original character position, combat and saves are unchanged.';
+  };
   const controls=node('div','graphics-preview-controls');
+  controls.setAttribute('role','group');controls.setAttribute('aria-label','Choose a 3D camera preview');
   controls.append(button('View third-person sample',()=>{
-   if(graphicsPreview?.draw('third'))feedback.textContent='Third-person sample: perspective behind the avatar, independent of main-game position.';
+   previewMode='third';repaint('Third-person sample: camera follows the test skull avatar.');
   }),button('View first-person sample',()=>{
-   if(graphicsPreview?.draw('first'))feedback.textContent='First-person sample: camera at eye level with visible arms and tool. Main game remains Classic.';
+   previewMode='first';repaint('First-person sample: eye-level view with visible arms and tool.');
   }));
-  content.append(surface,controls,feedback,button('Return to game →',closePanel));
+  const walking=node('div','graphics-preview-controls graphics-preview-walk');
+  walking.setAttribute('role','group');walking.setAttribute('aria-label','Move and rotate the preview-only 3D avatar');
+  const attempt=(kind,amount,label)=>{
+   if(!graphicsPreview)return;
+   const ok=kind==='turn'?graphicsPreview.turn(amount):graphicsPreview.step(amount);
+   repaint(ok?label:'Preview corridor boundary reached.');
+  };
+  walking.append(
+   button('Turn left',()=>attempt('turn',-Math.PI/6,'Avatar turned left.')),
+   button('Walk forward',()=>attempt('step',.8,'Avatar walked forward.')),
+   button('Walk backward',()=>attempt('step',-.8,'Avatar stepped backward.')),
+   button('Turn right',()=>attempt('turn',Math.PI/6,'Avatar turned right.')),
+   button('Reset preview',()=>{if(graphicsPreview?.reset())repaint('Preview avatar returned to its starting position.');})
+  );
+  content.append(surface,controls,walking,feedback,button('Return to game →',closePanel));
  }
  function panel(type){if(graphicsPreview){graphicsPreview.destroy();graphicsPreview=null;}activePanel=type;$('#joystick-knob').style.transform='';keys.clear();held.clear();stick={x:0,y:0};firing=false;const content=$('#panel-content');content.replaceChildren();$('#panel-status').textContent='';
   const titles={graphics:'Graphics & camera',mining:'Mining / vertical strata',frontierSurvey:'Frontier biome survey',biomeSurvey:'Biome field survey',outposts:'District outpost workshop',clans:'Clans & block jobs',multiplayer:'Play together',places:'Explore buildings',journey:'Your city journey',mobility:'Meme Motors',supplies:'Street medic',fortress:'Fortress command',survival:'Arena survival',quarantine:'Quarantine bunker survival',arcadeCabinet:'Chaos Arcade / Rug Runner',crew:'Your defenders',districts:'Explore the districts',build:'Build your fortress',collections:'Creator Quarter collections',arena:'Arena challenge terminal',social:'Social Boardwalk',avatar:'Your streetwear',inventory:'Your equipment',shop:'Bad Taste Supply',market:'Night Market',chat:'City chat',help:'Street survival guide',pause:'Take a breather',map:'Neighborhood map',menu:'City menu',summary:'Contract results',missions:'Choose your next contract',tokens:'Beta token purchases'};$('#panel-title').textContent=titles[type]||'City guide';
