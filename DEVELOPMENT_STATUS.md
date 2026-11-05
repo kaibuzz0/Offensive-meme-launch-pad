@@ -1,3 +1,9 @@
+## November 5 — WebGL static-geometry batching (draft PR #32)
+
+Experimental 3D graphics preview now combines up to 64 source-derived biome terrain tiles and up to 16 authored building volumes and facade details into one validated RGB triangle buffer and one WebGL1 draw call per repaint, with a single GPU upload. Procedural skull avatar animation stays separate and intact. The Graphics panel now exposes per-render GPU call counters, batch size and KiB upload metrics; the original 2D game, real saves, multiplayer, mining and wallet verification are untouched. No third-party assets or models added. Not merged or deployed. See `docs/CAMERA_GRAPHICS_MILESTONE.md`.
+
+---
+
 
 ## November 5 — 3D camera lab: biome terrain and articulated avatar (draft PR #32)
 
