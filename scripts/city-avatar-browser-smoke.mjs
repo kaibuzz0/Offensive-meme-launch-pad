@@ -125,6 +125,25 @@ try{
  assert.equal(graphicsSaved.data.zoom,'detail');
  assert.equal(graphicsSaved.data.quality,'performance');
  assert.equal(graphicsSaved.solo,priorSoloSave,'graphics preferences cannot overwrite the original character save');
+ const mirrorButtons=await evalPage("Array.from(document.querySelectorAll('.graphics-preview-sync button')).map(b=>b.textContent)");
+ assert.deepEqual(mirrorButtons,['Mirror current player position & aim','Return to demo avatar'],
+  'Graphics menu offers explicit read-only camera mirror without replacing original movement');
+ const protectedSave=await evalPage("localStorage.getItem('offensive-meme-city-v1-center')");
+ await evalPage("document.querySelector('.graphics-preview-sync button').click();true");
+ const mirrorStatus=await evalPage("document.querySelectorAll('.graphics-preview-scene')[2]?.textContent||''");
+ if(graphicsInitial.gl)assert.match(mirrorStatus,/Read-only game sample X [0-9]+, Y [0-9]+ · heading -?[0-9]+°/,
+  'preview camera follows current game player coordinates and aiming heading only');
+ else assert.match(mirrorStatus,/WebGL unavailable/);
+ assert.equal(await evalPage("localStorage.getItem('offensive-meme-city-v1-center')"),protectedSave,
+  'sampling the active player camera must not alter its save');
+ await evalPage("document.querySelectorAll('.graphics-preview-sync button')[1].click();true");
+ if(graphicsInitial.gl)assert.match(
+  await evalPage("document.querySelectorAll('.graphics-preview-scene')[2]?.textContent||''"),
+  /Independent demo avatar restored/);
+ const sampledPose=await evalPage("(()=>{const G=window.CityGraphics;const scene={world:{x:4000,y:6000},buildings:[]};const p=G.samplePlayerCamera(scene,{x:4120,y:5880,room:null},{x:1,y:0});return {x:p?.x,z:p?.z,yaw:p?.yaw,interior:G.samplePlayerCamera(scene,{x:4120,y:5880,room:{id:'x'}},{x:1,y:0})};})()");
+ assert.equal(sampledPose.x,1);assert.equal(sampledPose.z,1);
+ assert.ok(Math.abs(sampledPose.yaw-Math.PI/2)<1e-10);
+ assert.equal(sampledPose.interior,null);
  await evalPage("Array.from(document.querySelectorAll('.graphics-preview-controls button')).find(b=>b.textContent.includes('first-person')).click();true");
  if(graphicsInitial.gl)assert.match(await evalPage("document.querySelector('.graphics-preview-status').textContent"),/First-person sample/);
  const avatarButtons=await evalPage("Array.from(document.querySelectorAll('[aria-label=\"Move and rotate the preview-only 3D avatar\"] button')).map(b=>b.textContent)");
