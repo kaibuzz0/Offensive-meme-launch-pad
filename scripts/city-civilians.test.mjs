@@ -171,7 +171,7 @@ test('the original renderer shows animated panic using the SAME rotating NPC ava
   districts=fs.readFileSync(new URL('../city-districts.js',import.meta.url),'utf8'),
   server=fs.readFileSync(new URL('../server/city-server.mjs',import.meta.url),'utf8');
  assert.match(html,/city-civilians\.js\?v=44-friendly-civilians/);
- assert.match(html,/city\.js\?v=56-static-batch/);
+ assert.match(html,/city\.js\?v=57-avatar-batch/);
  assert.ok(server.includes("'city-civilians.js'"));
  assert.ok(client.includes('for(const c of state.civilians||[])'));
  assert.ok(client.includes("role:'civilian'"));
