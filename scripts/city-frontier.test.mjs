@@ -148,3 +148,16 @@ test('all 132 biome polygons and 12 group names can be drawn on existing map Can
  assert.match(src,/Choose one of 132 frontier biomes/);
  assert.equal(F.regions.length,132);
 });
+
+test('a stale tab cannot replace newer generated-world discovery deltas',()=>{
+ const s=storage(),a=F.createJournal(s),b=F.createJournal(s);
+ const first=F.regions[1].id,second=F.regions[2].id;
+ assert.equal(a.discover(first),true);
+ const committed=s.getItem(F.SAVE_KEY);
+ assert.equal(b.discover(second),false,'stale snapshot must not overwrite newer visits');
+ assert.equal(s.getItem(F.SAVE_KEY),committed);
+ const fresh=F.createJournal(s);
+ assert.equal(fresh.has(first),true);
+ assert.equal(fresh.discover(second),true);
+ assert.deepEqual(plain(F.createJournal(s).list()),[first,second]);
+});
