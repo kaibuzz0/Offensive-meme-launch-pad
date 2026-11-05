@@ -1,3 +1,9 @@
+## November 5 — reusable animated-avatar geometry (draft PR #32)
+
+The isolated 3D Graphics preview now uses a reusable, immutable, named-joint procedural skull avatar rig with valid first- and third-person geometry. World-space avatar mesh is rebuilt deterministically for each preview interaction, uploaded to a capped dynamic WebGL1 buffer, and drawn in one animated call alongside the one batched static-world call. GPU diagnostics report avatar vertex count and pose uploads. The original World V1 2D player, save, mining, wallet, NPCs and multiplayer are unchanged. This is **not** production in-game 3D animation or a skinned glTF rig. Full details: `docs/CAMERA_GRAPHICS_MILESTONE.md`.
+
+---
+
 ## November 5 — WebGL static-geometry batching (draft PR #32)
 
 Experimental 3D graphics preview now combines up to 64 source-derived biome terrain tiles and up to 16 authored building volumes and facade details into one validated RGB triangle buffer and one WebGL1 draw call per repaint, with a single GPU upload. Procedural skull avatar animation stays separate and intact. The Graphics panel now exposes per-render GPU call counters, batch size and KiB upload metrics; the original 2D game, real saves, multiplayer, mining and wallet verification are untouched. No third-party assets or models added. Not merged or deployed. See `docs/CAMERA_GRAPHICS_MILESTONE.md`.
