@@ -110,6 +110,9 @@ test('malformed, duplicate, out-of-bounds, and forged deep mining records fail c
  ];
  for(const raw of cases){const mem=store({[Mining.KEY]:raw}),x=Mining.createStore(mem);
   assert.equal(x.disabled(),true);
+  assert.equal(x.count(),0,'reject the full corrupt history rather than exposing a valid-looking prefix');
+  assert.deepEqual(plain(x.inventory()),{},'corrupt journal cannot manufacture sample totals');
+  assert.equal(x.surfaceOpenings().length,0,'corrupt journal cannot show forged shafts');
   assert.equal(x.mine(p,0,0,0).ok,false);
   assert.equal(mem.getItem(Mining.KEY),raw,'corrupted original bytes never overwritten');
  }
