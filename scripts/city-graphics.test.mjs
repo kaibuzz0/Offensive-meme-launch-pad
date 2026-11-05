@@ -229,7 +229,7 @@ test('3D movement controls remain exclusive to the optional graphics preview',()
  assert.match(js,/graphicsPreview\.turn\(amount\)/);
  assert.match(js,/graphicsPreview\.step\(amount\)/);
  assert.match(mod,/const stage=createStage\(sample\)/,'preview stage receives the authored scene for local collision');
- assert.match(mod,/createAvatarMesh\(stage\.snapshot\(\),mode,nextColor\)/,'both camera views must use the same world-relative reusable avatar rig');
+ assert.match(mod,/createAvatarMesh\(pose,mode,nextColor\)/,'both camera views must use the selected read-only real-player or demo avatar rig');
  assert.doesNotMatch(mod,/localStorage|sessionStorage|roomClient\.action|engine\.action/,'preview walking never modifies real state');
 });
 
