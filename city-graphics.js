@@ -258,7 +258,7 @@
  function createPreview(canvas,color='#b6e87a',scene=null){
   const sample=scene&&Array.isArray(scene.buildings)?scene:null;
   const stage=createStage(sample);
-  const unavailable=()=>Object.freeze({supported:false,draw:()=>false,destroy:()=>{},turn:()=>false,step:()=>false,reset:()=>false,snapshot:stage.snapshot});
+  const unavailable=()=>Object.freeze({supported:false,draw:()=>false,destroy:()=>{},turn:()=>false,step:()=>false,reset:()=>false,stats:()=>null,snapshot:stage.snapshot});
   const staticMesh=createStaticMesh(sample);
   let gl,program,buffer,staticBuffer,vs,fs,staticUploads=0,staticDrawCalls=0,dynamicDrawCalls=0;
   try{gl=canvas?.getContext?.('webgl',{antialias:false,preserveDrawingBuffer:true,alpha:false});}catch{return unavailable();}
@@ -284,7 +284,8 @@
   let disposed=false;
   const matrix=gl.getUniformLocation(program,'matrix'),tint=gl.getUniformLocation(program,'tint'),useVertexColor=gl.getUniformLocation(program,'useVertexColor'),attr=gl.getAttribLocation(program,'p'),colorAttr=gl.getAttribLocation(program,'vertexColor');
   function draw(mode='third',nextColor=color){
-   if(disposed||!['first','third'].includes(mode))return false;
+   if(disposed||!['first','third'].includes(mode)||gl.isContextLost?.())return false;
+   staticDrawCalls=0;dynamicDrawCalls=0;
    const w=clamp(Math.round(canvas.clientWidth||640),220,640),h=Math.round(w*9/16);
    canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h);
    gl.enable(gl.DEPTH_TEST);gl.clearColor(.055,.09,.14,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
