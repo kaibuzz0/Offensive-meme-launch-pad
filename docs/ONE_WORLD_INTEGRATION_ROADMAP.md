@@ -77,3 +77,11 @@ Architecture references: bareiron / irongingot (GPL C server concepts only; no s
 ## Vertical geology and mining milestone (draft PR #29)
 
 The existing single city now has an explicit vertical z range **−64 to +256**, independent of map x/y and existing character saves. Seven mineable 8-unit strata sit above unbreakable −64 bedrock. Solo frontier players may enter a 5×5 mining slice from the original Mine toolbar, E/Interact or biome survey, excavate a central shaft and adjacent rock, descend only through exposed rock, and earn **non-economic local ore samples**. A bounded, validated versioned sparse journal stores only excavated blocks; geology is regenerated deterministically from the world seed. Online changes, shared inventories and build-height physics are **not enabled** yet; design those with authority, permissions and recovery before any multiplayer mining economy. Read `docs/WORLD_HEIGHT_AND_MINING.md`.
+
+
+## World V1 mine entrances, underground avatar and native cutaway completed in draft PR #29
+
+- Reuse exact persisted sparse excavations for real outdoor camera surface openings, distinguish shaft depth, and show excavated entrances on the original map/route catalog.
+- Add Canvas2D underground cutaway with depth-specific blocks, mined gaps, ore flecks and a local miner; control local z and two-dimensional movement only through cleared cells; allow vertical travel only in a mined central shaft. Close to return to the surface actor with unchanged save and navigation.
+- No direct Minecraft/C GPL code imported. No new hidden server state or new World V2. Rendering remains camera-culled and memory bounded; surface openings are cached per committed edit.
+- Next: authoritative server mining API and sparse chunk datastore, real player z replication, validated tools/durability, multi-client collision checks, save/version migration, resource economy permissions and anti-duplication. Do not merge or deploy without owner approval.
