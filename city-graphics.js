@@ -44,9 +44,24 @@
   const z=norm(eye.map((v,i)=>v-target[i])),x=norm(cross([0,1,0],z)),y=cross(z,x);
   return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,eye),-dot(y,eye),-dot(z,eye),1]);
  }
- function model(position,size,yaw=0){
-  const c=Math.cos(yaw),s=Math.sin(yaw);
-  return new Float32Array([c*size[0],0,-s*size[0],0,0,size[1],0,0,s*size[2],0,c*size[2],0,position[0],position[1],position[2],1]);
+ function model(position,size,yaw=0,pitch=0){
+  const c=Math.cos(yaw),s=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+  // Local pitch articulation before parent yaw: Rx(pitch), then Ry(yaw).
+  return new Float32Array([c*size[0],0,-s*size[0],0,
+   s*sp*size[1],cp*size[1],c*sp*size[1],0,
+   s*cp*size[2],-sp*size[2],c*cp*size[2],0,
+   position[0],position[1],position[2],1]);
+ }
+ function avatarPose(steps){
+  const safe=Number.isFinite(steps)?clamp(steps,0,1000000):0;
+  const swing=Math.sin(safe*1.7)*.5,bob=Math.abs(swing)*.045;
+  return Object.freeze({
+   bob,
+   leftLeg:swing,rightLeg:-swing,
+   leftKnee:Math.max(0,-swing)*.65,rightKnee:Math.max(0,swing)*.65,
+   leftArm:-swing*.7,rightArm:.48+swing*.17,
+   leftElbow:.2,rightElbow:.86
+  });
  }
  // Compact terrain swatch derived from the SAME region queries used by
  // the canonical 2D game. These shallow tiles are visual only: no 3D mining,
@@ -219,13 +234,21 @@
    const target=mode==='first'?[x+sin*5,1.60,z+cos*5]:[x+sin*.35,1.12,z+cos*.35];
    const eye=mode==='third'?(cameraAvoid(sample,desiredEye,target)?.eye||desiredEye):desiredEye;
    const vp=multiply(perspective(w/h),lookAt(eye,target));
-   function box(pos,sz,c,angle=0){
-    gl.uniformMatrix4fv(matrix,false,multiply(vp,model(pos,sz,angle)));
+   function box(pos,sz,c,angle=0,pitch=0){
+    gl.uniformMatrix4fv(matrix,false,multiply(vp,model(pos,sz,angle,pitch)));
     gl.uniform3fv(tint,c);gl.drawArrays(gl.TRIANGLES,0,36);
    }
-   function actorBox(local,sz,c){
+   function actorBox(local,sz,c,pitch=0){
     const [lx,ly,lz]=local;
-    box([x+lx*cos+lz*sin,ly,z-lx*sin+lz*cos],sz,c,yaw);
+    box([x+lx*cos+lz*sin,ly,z-lx*sin+lz*cos],sz,c,yaw,-pitch);
+   }
+   function limbSegment(pivot,length,angle,width,depth,color){
+    // Hierarchical upper/lower box limbs: each next joint starts at the
+    // previous segment endpoint. All coordinates are avatar-local.
+    const end=[pivot[0],pivot[1]-Math.cos(angle)*length,pivot[2]+Math.sin(angle)*length];
+    actorBox([pivot[0],(pivot[1]+end[1])/2,(pivot[2]+end[2])/2],
+     [width,length,depth],color,angle);
+    return end;
    }
    const shirt=rgb(nextColor),dark=[.12,.17,.23],stone=[.28,.37,.42],road=[.22,.29,.32];
    const skull=[.9,.87,.78],teeth=[.70,.70,.63];
@@ -266,24 +289,31 @@
      box([side*1.9,1.6,6],[.85,.75,.85],[.15,.38,.27]);
     }
    }
-   // The same simple box-rig rotates as a unit for third-person views.
-   const gait=steps?Math.sin(steps*1.7)*.11:0;
+   // One simple hierarchical box-rig shared by the avatar's body parts.
+   // This is procedural articulation, NOT a skinned glTF skeleton or animation.
+   const pose=avatarPose(steps);
    if(mode==='third'){
-    actorBox([0,1.14+Math.abs(gait)*.2,0],[.62,.72,.32],shirt);
-    actorBox([0,1.80+Math.abs(gait)*.2,0],[.52,.49,.50],skull);
-    actorBox([0,1.57,.06],[.32,.16,.40],skull);
-    // Eye sockets and jaw turn with the head; unlike the previous static cube,
-    // token outfit and recognizable skull features rotate together.
+    actorBox([0,1.14+pose.bob,0],[.62,.72,.32],shirt);
+    actorBox([0,1.80+pose.bob,0],[.52,.49,.50],skull);
+    actorBox([0,1.57+pose.bob,.06],[.32,.16,.40],skull);
     for(const side of [-1,1]){
-     actorBox([side*.16,1.86,.259],[.115,.14,.024],dark);
-     actorBox([side*.39,1.12+gait*side,0],[.2,.69,.25],shirt);
-     actorBox([side*.19,.43-gait*side,0],[.24,.72,.29],[.2,.26,.34]);
-     actorBox([side*.19,.09-gait*side,.08],[.27,.16,.44],dark);
-     actorBox([side*.07,1.56,.27],[.055,.10,.025],teeth);
+     actorBox([side*.16,1.86+pose.bob,.259],[.115,.14,.024],dark);
+     actorBox([side*.07,1.56+pose.bob,.27],[.055,.10,.025],teeth);
+     const armAngle=side<0?pose.leftArm:pose.rightArm;
+     const elbowAngle=side<0?pose.leftElbow:pose.rightElbow;
+     const elbow=limbSegment([side*.40,1.43+pose.bob,0],.36,armAngle,.2,.25,shirt);
+     const wrist=limbSegment(elbow,.33,armAngle+elbowAngle,.18,.22,skull);
+     actorBox([wrist[0],wrist[1]-.04,wrist[2]],[.17,.13,.20],skull);
+     const legAngle=side<0?pose.leftLeg:pose.rightLeg;
+     const kneeAngle=side<0?pose.leftKnee:pose.rightKnee;
+     const knee=limbSegment([side*.19,.83+pose.bob,0],.40,legAngle,.23,.30,[.2,.26,.34]);
+     const foot=limbSegment(knee,.37,legAngle-kneeAngle,.22,.28,[.2,.26,.34]);
+     actorBox([foot[0],Math.max(.075,foot[1]-.035),foot[2]+.07],[.27,.15,.39],dark);
+     if(side===1)actorBox([wrist[0]+.11,wrist[1]+.025,wrist[2]+.40],
+      [.13,.15,.76],[.37,.42,.49],armAngle+elbowAngle);
     }
-    actorBox([0,1.67,.26],[.24,.08,.025],dark);
-    actorBox([0,1.2,-.169],[.34,.34,.01],[.15,.23,.31]);
-    actorBox([.58,1.14,.48],[.13,.16,.9],[.37,.42,.49]);
+    actorBox([0,1.67+pose.bob,.26],[.24,.08,.025],dark);
+    actorBox([0,1.2+pose.bob,-.169],[.34,.34,.01],[.15,.23,.31]);
    }else{
     // Local arm/tool proxy near camera. This is still a 3D preview, not combat.
     for(const side of [-1,1])actorBox([side*.37,1.04,.95],[.21,.32,.48],shirt);
@@ -303,5 +333,5 @@
    reset:()=>{if(disposed)return false;stage.reset();return true;}
   });
  }
- root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createTerrainPatch,createWorldScene,createStage,cameraAvoid,createPreview,perspective,lookAt,multiply});
+ root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createTerrainPatch,createWorldScene,createStage,avatarPose,cameraAvoid,createPreview,perspective,lookAt,multiply});
 })(typeof window==='undefined'?globalThis:window);
