@@ -14,7 +14,7 @@
  const HUB={...origin('hub'),width:2240,height:1660};
  // Preserve every original coordinate; frontier is additive east of Center City.
  const ORIGINAL_CITY_SIZE=CELL*5;
- const WORLD={width:ORIGINAL_CITY_SIZE+11*1200,height:12*1200,originalWidth:ORIGINAL_CITY_SIZE,originalHeight:ORIGINAL_CITY_SIZE,spawn:{x:1120,y:900},buildings:[
+ const WORLD={width:ORIGINAL_CITY_SIZE+11*1200,height:12*1200,originalWidth:ORIGINAL_CITY_SIZE,originalHeight:ORIGINAL_CITY_SIZE,vertical:Object.freeze({minHeight:-64,maxHeight:256,surface:0,stratumHeight:8}),spawn:{x:1120,y:900},buildings:[
   {id:'launch',x:120,y:160,w:420,h:260,hue:'#605293',label:'LAUNCH HOUSE',sub:'YOUR MEME STARTS HERE'},
   {id:'arcade',x:850,y:150,w:420,h:260,hue:'#39797d',label:'CHAOS ARCADE',sub:'PLAY. LEVEL. REPEAT.'},
   {id:'club',x:1590,y:160,w:400,h:260,hue:'#7d3a75',label:'THE UNFILTERED',sub:'MEME SOCIAL CLUB'},
