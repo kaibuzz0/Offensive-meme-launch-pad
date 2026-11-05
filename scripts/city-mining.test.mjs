@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const ctx={};
-for(const file of ['city-core.js','city-biomes.js','city-frontier.js','city-mining.js'])
+for(const file of ['city-core.js','city-biomes.js','city-frontier.js','city-mining.js','city-mine-visuals.js'])
  vm.runInNewContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),ctx,{filename:file});
 const C=ctx.MemeCityCore,F=ctx.CityFrontier,Mining=ctx.CityMining;
 const plain=o=>JSON.parse(JSON.stringify(o));
@@ -144,4 +144,95 @@ test('exact same module is wired to canonical client, deploy package and server 
  assert.match(city,/miningStore\.mine\(entry,dx,dy,depth\)/);
  assert.match(city,/online\)\{content\.append\(node\('p','beta-note','Mining is currently Solo-only/);
  assert.match(city,/if\(type==='mining'\)miningPanel\(content\)/);
+});
+
+
+test('world surface displays the exact saved shaft footprint with deeper z from later excavation',()=>{
+ const {p,s,m}=first(),front=F.regionAt(p.x,p.y);
+ assert.deepEqual(plain(m.surfaceOpenings()),[]);
+ assert.equal(m.mine(p,0,0,0).ok,true);
+ const firstHole=m.surfaceOpenings()[0];
+ assert.equal(firstHole.shaft,true);
+ assert.equal(firstHole.depth,-8);
+ assert.equal(firstHole.regionId,front.id);
+ assert.equal(firstHole.w,32);
+ assert.equal(m.surfaceOpenings(()=>false).length,0,'off-screen mine never enters draw queue');
+ assert.equal(m.mine(p,0,0,1).ok,true);
+ assert.equal(m.surfaceOpenings()[0].depth,-16,'new depth must invalidate the cached hole texture geometry');
+ assert.equal(m.mine(p,1,0,0).ok,true);
+ const openings=m.surfaceOpenings(),shaft=openings.find(o=>o.shaft),surface=openings.find(o=>!o.shaft);
+ assert.equal(openings.length,2);
+ assert.equal(shaft.depth,-16);
+ assert.equal(surface.depth,-8);
+ assert.equal(Mining.createStore(s).surfaceOpenings().length,2,'restored journal has same surface geometry');
+ assert.equal(Mining.createStore(s).surfaceOpenings().find(o=>o.shaft).depth,-16);
+ assert.equal(m.surfaceOpenings((x,y)=>x===surface.x&&y===surface.y).length,1);
+});
+
+test('underground player cannot walk through walls, skip floors or descend without an open column',()=>{
+ const {p,m}=first(),explorer=Mining.createExplorer(m,p);
+ assert.ok(explorer);
+ assert.deepEqual(plain(explorer.position()),{
+  layer:0,dx:0,dy:0,x:(Math.floor(p.x/32)+.5)*32,
+  y:(Math.floor(p.y/32)+.5)*32,z:0
+ });
+ assert.equal(explorer.canMove(1,0),false,'ground-plane movement remains owned by the existing engine');
+ assert.equal(explorer.descend(),false,'must first open the shaft');
+ assert.equal(explorer.ascend(),false,'surface is maximum for this mine subscene');
+ assert.equal(explorer.canDig(2,0),false,'miner cannot dig through two cells of solid rock');
+ assert.equal(explorer.canDig(0,0),true);
+ assert.equal(m.mine(p,0,0,0).ok,true);
+ assert.equal(explorer.descend(),true);
+ assert.equal(explorer.position().z,-8);
+ assert.equal(explorer.canMove(1,0),false,'sealed topsoil blocks movement');
+ assert.equal(explorer.move(0,0),false,'movement is cardinal one cell');
+ assert.equal(m.mine(p,1,0,0).ok,true);
+ assert.equal(explorer.move(1,0),true,'surface-cut passage makes a walkable tunnel at -8');
+ assert.equal(explorer.position().dx,1);
+ assert.equal(explorer.canDescend(),false,'no floor-to-floor teleport from an unexcavated column');
+ assert.equal(explorer.canDig(-1,0),false,'digging range is relative to the miner');
+ assert.equal(explorer.ascend(),true,'surface opening allows climbing out');
+ assert.equal(explorer.position().z,0);
+ assert.equal(explorer.move(-1,0),false,'no underground movement after reaching surface');
+});
+
+test('mining avatar moves between two excavated underground depths and respects vertical ceiling',()=>{
+ const {p,m}=first(),explorer=Mining.createExplorer(m,p);
+ assert.equal(m.mine(p,0,0,0).ok,true);
+ assert.equal(explorer.descend(),true);
+ assert.equal(m.mine(p,0,0,1).ok,true);
+ assert.equal(explorer.descend(),true);
+ assert.equal(explorer.position().z,-16);
+ assert.equal(explorer.canMove(1,0),false);
+ assert.equal(m.mine(p,1,0,1).ok,true);
+ assert.equal(explorer.move(1,0),true,'open -16 tunnel can be traversed');
+ assert.equal(explorer.ascend(),false,'the -8 block above this tunnel remains solid');
+ assert.equal(explorer.move(-1,0),true);
+ assert.equal(explorer.ascend(),true);
+ assert.equal(explorer.position().z,-8);
+ assert.equal(explorer.ascend(),true);
+ assert.equal(explorer.position().z,0);
+ assert.equal(explorer.descend(),true);
+ assert.equal(explorer.position().z,-8);
+ assert.equal(explorer.move(2,0),false,'cannot cross two grid cells in one step');
+ assert.equal(Mining.createExplorer(m,{x:5600,y:5940}),null,'original city is protected');
+ assert.equal(Mining.createExplorer(m,{...p,room:{id:'shop'}}),null);
+});
+
+test('original Canvas mine visuals draw only validated surface geometry and live isometric cutaway',()=>{
+ const {p,m}=first(),V=ctx.CityMineVisuals,trace=[];
+ const gradient={addColorStop(){}};
+ const g={canvas:{width:640,height:350},save(){},restore(){},
+  createLinearGradient:()=>gradient,clearRect(){trace.push('clear')},
+  fillRect(){trace.push('rect')},fillText(){trace.push('text')},beginPath(){},
+  lineTo(){},moveTo(){},closePath(){},stroke(){},fill(){},ellipse(){},arc(){},translate(){}};
+ assert.equal(V.surface(g,[]),0);
+ assert.equal(V.slice(g,m,p,{layer:0,dx:0,dy:0,z:0}),true);
+ assert.ok(trace.includes('rect')&&trace.includes('text'),'visible Canvas geology and labels draw');
+ trace.length=0;
+ assert.equal(m.mine(p,0,0,0).ok,true);
+ assert.equal(V.surface(g,m.surfaceOpenings()),1);
+ assert.ok(trace.includes('text'),'shaft includes a visible Mine label');
+ assert.equal(V.slice(g,m,p,{layer:7,dx:0,dy:0,z:-56}),true,'bedrock is rendered');
+ assert.equal(V.slice(g,m,p,{layer:8,dx:0,dy:0,z:-64}),false,'out-of-bounds layer cannot render');
 });
