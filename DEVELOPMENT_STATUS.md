@@ -1,3 +1,14 @@
+## Vertical mining and world height — draft PR #29
+
+- Added explicit vertical **z** boundary of **−64 to +256**, surface level 0. It is independent of existing x/y map coordinates; the original 2D player, NPC, camera and saved positions are preserved.
+- Eight underground levels are modeled at −8, −16, −24, −32, −40, −48, −56 and −64: **seven mineable strata and one immutable bedrock floor**. Layer materials, rarity and hardness derive deterministically from biome/seed/cell/depth.
+- Added **playable Solo mining** through the existing E/Interact, toolbar and menu. The responsive 5×5 grid requires digging a shaft level by level, then excavating adjacent underground rock. Free starter pickaxe, visible layer cross-section, ore samples and back-to-world button.
+- Mined tile IDs persist to a new bounded sparse journal `offensive-meme-city-v1-mining-v1`, **not** the protected original character save. Ore sample counts are recomputed from removed deterministic blocks, never from user-supplied reward balances. Strict validation blocks invalid history, duplicate mining, layer skipping, unbreakable bedrock, malformed edits and overwriting a newer tab's journal. 512 global/96 biome edit caps.
+- **Online mining disabled** until authoritative server validation and persistence are ready. No tradable ore, crypto transfers, credits, XP, construction-height physics or vertical avatar movement are introduced in this foundation. See `docs/WORLD_HEIGHT_AND_MINING.md`.
+- Run full Node, static checks, multiplayer benchmark and mobile Chromium acceptance on the latest PR head. Owner merge/deployment and physical Android QA remain outstanding.
+
+---
+
 ## Frontier build — 132 added biomes / expanded original city (draft PR #29)
 
 - **What changed:** The one canonical Center City world now spans 24,400 × 14,400. All original 11,200-square city positions, central fortress, quests, construction tiles, clan settlements, 47 doors and saves remain at their original coordinates. The east frontier contains twelve families of eleven individually named environmental biomes, bringing the total to 135 including the prior three.
