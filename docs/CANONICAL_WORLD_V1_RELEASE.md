@@ -1,9 +1,9 @@
 # Canonical Meme City World V1 — release record
 
-**Updated:** November 5, 2026  
-**Playable entry:** https://kaibuzz0.github.io/Offensive-meme-launch-pad/city.html  
-**GitHub:** https://github.com/kaibuzz0/Offensive-meme-launch-pad  
-**Default branch:** `main` — one authoritative playable World V1  
+**Updated:** November 5, 2026
+**Playable entry:** https://kaibuzz0.github.io/Offensive-meme-launch-pad/city.html
+**GitHub:** https://github.com/kaibuzz0/Offensive-meme-launch-pad
+**Default branch:** `main` — one authoritative playable World V1
 **Core merge:** [PR #34](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/34), commit `2fd58e4e1b98d62ccac29a9bc764d22bd50e8a5b`
 
 ## What is actually merged
