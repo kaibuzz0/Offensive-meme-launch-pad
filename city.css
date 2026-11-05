@@ -215,3 +215,8 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 .mining-walk .panel-button:disabled{opacity:.4;cursor:not-allowed}
 .mining-walk .panel-button:focus-visible{outline:3px solid #dbf59d;outline-offset:2px}
 @media(max-width:700px){.mining-scene{border-width:1px;margin:8px auto}.mining-walk{gap:4px}.mining-walk .panel-button{min-height:52px;font-size:9px;padding:8px 2px}}
+
+/* Camera view selector: native 2D camera presets, not simulated 3D modes. */
+.camera-view-control{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;color:#b5ccdc;font:10px monospace}
+.camera-view-control select{max-width:112px;padding:7px 5px;background:#172536;border:1px solid #465c73;border-radius:4px;color:#e6f3ff;font:10px monospace}
+@media(max-width:700px){.camera-view-control{font-size:0;gap:0}.camera-view-control select{max-width:88px;padding:7px 3px;font-size:9px}}

@@ -25,7 +25,7 @@ console.log(`PASS: ${tokens.length} unique listings, all artwork, mint format ch
 for(const page of ['index.html','beta.html','creators.html','city.html','city-roadmap.html',...tokens.map(t=>'tokens/'+t.id+'/index.html'),'tokens/offensive/index.html']){
  const content=read(page);
  assert.ok(content.includes(page==='city.html'?'pwa.js?v=31-solo-holder':'pwa.js?v=30-android-wallet'),page+' must load shared wallet runtime');
- assert.ok(content.includes('styles.css?v=28-reliable-theme')||content.includes('city.css?v=28-reliable-theme')||content.includes('city.css?v=49-surface-depth'),page+' must load wallet controls CSS');
+ assert.ok(content.includes('styles.css?v=28-reliable-theme')||content.includes('city.css?v=28-reliable-theme')||content.includes('city.css?v=51-camera-preferences'),page+' must load wallet controls CSS');
 }
 // Android PWA adapter is a locally published ES module; it must not rely on
 // a second wallet page/button or ever persist signing material.
@@ -82,11 +82,13 @@ const city=read('city.html'),landing=read('index.html'),pages=read('.github/work
 for(const id of ['city-canvas','start-button','city-intro','room-mode','hud-credits','hud-level','mission-title','health-value','joystick','fire'])
  assert.ok(city.includes('id="'+id+'"'),'Original playable V1 HUD or control missing: '+id);
 assert.ok(city.includes('SOLO / LOCAL SAVE'),'Original V1 solo gameplay must be the default');
-assert.ok(city.includes('city-interiors.js?v=39-chaos-arcade')&&city.includes('city-room-visuals.js?v=39-chaos-arcade')&&city.includes('city.css?v=49-surface-depth'),'The playable in-room Chaos Arcade and mobile cabinet styling must all be present');
+assert.ok(city.includes('id="camera-view"')&&city.includes('value="wide"')&&city.includes('value="classic"')&&city.includes('value="detail"'),'Graphics settings must offer real 2D zoom presets, not unimplemented 3D camera modes');
+assert.ok(read('city.js').includes('meme-city-camera-view-v1')&&read('city.js').includes('setCameraMode(cameraMode)'),'Camera settings must persist independently of player save');
+assert.ok(city.includes('city-interiors.js?v=39-chaos-arcade')&&city.includes('city-room-visuals.js?v=39-chaos-arcade')&&city.includes('city.css?v=51-camera-preferences'),'The playable in-room Chaos Arcade and mobile cabinet styling must all be present');
 assert.ok(city.includes('city-civilians.js?v=44-friendly-civilians'),'Shared reactively fleeing civilians must load in existing playable city');
 assert.ok(city.includes('city-rise-visuals.js?v=43-street-lighting'),'Current center-world street lighting must ship with the original city');
 assert.ok(city.includes('city-territory.js?v=40-district-defense'),'Territory defense encounters must ship in the one playable city');
-assert.ok(city.includes('city.js?v=49-surface-depth'),'Restored V1 playable engine must be loaded with the refreshed script version');
+assert.ok(city.includes('city.js?v=51-camera-preferences'),'Restored V1 playable engine must be loaded with the refreshed script version');
 assert.ok(city.includes('city-rise.js?v=37-one-world-quarantine')&&city.includes('city-arcade.js?v=41-civilian-patrols')&&city.includes('city-interiors.js?v=39-chaos-arcade'),'All authoritative Quarantine modules must share the live script version');
 assert.ok(city.includes('city-districts.js?v=47-frontier')&&city.includes('city-room-visuals.js?v=39-chaos-arcade'),'Modern exterior and interior renderers must be shipped together');
 assert.ok(city.includes('city-visuals.js?v=37-one-world-quarantine')&&city.includes('city-clans.js?v=37-one-world-quarantine')&&city.includes('city-core.js?v=48-mining'),'Signed beta-token cosmetics must use the updated shared player rig');
