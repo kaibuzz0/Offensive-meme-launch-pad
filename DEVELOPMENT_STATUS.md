@@ -1,3 +1,11 @@
+## Visible world mining and temporary underground player depth — draft PR #29
+
+The same 132-biome frontier has an additive Canvas mine renderer and temporary Solo miner state. Actual excavated surface cells/shafts are drawn into the original World V1 camera, with gold map markers for the central shaft coordinates and route buttons to return. The original Mining panel now includes a real 2.5D underground Canvas cutaway and avatar marker. A validated depth and XY-position model allows one-cell cardinal movement only through mined passage tiles, and descending/ascending only through the origin shaft. No new world/map, avatar rig replacement or character-save migration is needed.
+
+The original street actor remains at z=0 while the Mine panel is open/paused; closing the panel exits to the same position. The browser never mints credits/XP/tokens, and online underground editing is still disabled. Surface geometry is cached and recalculated only on committed excavations. Corrupt save histories show no ore balances and no shafts. Physical Android FPS/thermal and real multiplayer authority must still be validated before merge/release. See docs/WORLD_HEIGHT_AND_MINING.md.
+
+---
+
 ## Vertical mining and world height — draft PR #29
 
 - Added explicit vertical **z** boundary of **−64 to +256**, surface level 0. It is independent of existing x/y map coordinates; the original 2D player, NPC, camera and saved positions are preserved.
