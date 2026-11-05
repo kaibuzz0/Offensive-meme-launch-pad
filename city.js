@@ -1,6 +1,6 @@
 'use strict';
 (() => {
- const C=window.MemeCityCore,{WORLD,ITEMS,HUB}=C,V=window.CityVisuals,D=window.CityDistricts,R=window.CityRising,RV=window.CityRisingVisuals,I=window.CityInteriors,IV=window.CityRoomVisuals,T=window.CityBiomes,F=window.CityFrontier,Mine=window.CityMining;
+ const C=window.MemeCityCore,{WORLD,ITEMS,HUB}=C,V=window.CityVisuals,D=window.CityDistricts,R=window.CityRising,RV=window.CityRisingVisuals,I=window.CityInteriors,IV=window.CityRoomVisuals,T=window.CityBiomes,F=window.CityFrontier,Mine=window.CityMining,MV=window.CityMineVisuals;
  const tokens=[window.LAUNCHPAD_CONFIG.platformToken,...window.MEME_TOKENS.filter(t=>t.mint)];
  const catalog=new Map(tokens.map(t=>[t.id,t]));
  const clanSkinCards=C.CLAN_SKINS.map(id=>window.MEME_TOKENS.find(t=>t.id===id)).filter(Boolean);
@@ -564,13 +564,14 @@
     button('Find the frontier →',()=>panel('map')));
    return;
   }
-  let depth=0,notice='Use your free starter pickaxe to remove a surface tile. Dig the central shaft to descend.';
-  const entry={x:me.x,y:me.y};
+  let notice='Use your free starter pickaxe to remove a surface tile. Dig the central shaft to descend.';
+  const entry={x:me.x,y:me.y},explorer=Mine.createExplorer(miningStore,entry);
   function draw(){
    content.replaceChildren();
-   const layer=Mine.STRATA[depth],items=miningStore.inventory();
+   const position=explorer.position(),depth=position.layer,layer=Mine.STRATA[depth],items=miningStore.inventory();
    content.append(node('p','district-kicker','MINING / '+origin.region.name.toUpperCase()),
     node('h3','district-heading',layer.name+' / '+layer.z+' height'),
+    node('p','beta-note','Your miner position z='+position.z+'. Move through previously excavated tunnels; digging does not change the surface character save.'),
     node('p','beta-note','World height: '+Mine.minHeight+' through +'+Mine.maxHeight+' (surface 0). Seven mineable layers, every 8 height units. Bedrock at −64 is permanent. Starter pickaxe is free. Mines stay inside your current frontier biome.'));
    const strata=node('div','mining-strata');strata.setAttribute('aria-label','Underground vertical strata');
    for(const l of Mine.STRATA){
@@ -578,6 +579,10 @@
     item.style.borderLeftColor=l.color;if(l.index===depth)item.classList.add('active');
     strata.append(item);
    }content.append(strata);
+   const cave=node('canvas','mining-scene');cave.width=640;cave.height=350;
+   cave.setAttribute('aria-label','Isometric mine view showing the same player and excavated geological layers');
+   cave.setAttribute('role','img');content.append(cave);
+   MV.slice(cave.getContext('2d'),miningStore,entry,position);
    const grid=node('div','mining-grid');grid.setAttribute('role','group');grid.setAttribute('aria-label','Five by five excavatable mine tiles');
    for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
     const sample=miningStore.inspect(entry,dx,dy,depth),labelText=sample?
@@ -589,15 +594,20 @@
     },'mining-cell');
     tile.style.setProperty('--rock',sample?.color||'#32404b');
     tile.setAttribute('aria-label',sample?('Tile '+dx+','+dy+' at height '+layer.z+': '+labelText):'Outside mining region');
-    tile.disabled=!sample?.accessible;
+    tile.disabled=!sample?.accessible||!explorer.canDig(dx,dy);
+    if(dx===position.dx&&dy===position.dy)tile.classList.add('miner-tile');
     if(sample?.mined)tile.classList.add('excavated');
     if(dx===0&&dy===0)tile.classList.add('shaft');
     grid.append(tile);
    }content.append(grid);
-   const controls=node('div','mining-controls'),up=button('↑ Ascend one layer',()=>{depth--;notice='Moved up to '+Mine.STRATA[depth].name;draw();}),down=button('↓ Descend one layer',()=>{depth++;notice='Moved down to '+Mine.STRATA[depth].name;draw();});
-   up.disabled=depth===0;
-   down.disabled=depth===Mine.STRATA.length-1||!miningStore.inspect(entry,0,0,depth)?.mined;
+   const controls=node('div','mining-controls'),up=button('↑ Ascend one layer',()=>{if(explorer.ascend()){notice='Climbed to player z='+explorer.position().z;draw();}}),down=button('↓ Descend one layer',()=>{if(explorer.descend()){notice='Descended to player z='+explorer.position().z;draw();}});
+   up.disabled=!explorer.canAscend();down.disabled=!explorer.canDescend();
    controls.append(up,down);content.append(controls);
+   const walk=node('div','mining-walk');walk.setAttribute('role','group');walk.setAttribute('aria-label','Underground miner movement');
+   for(const [label,dx,dy] of [['← West',-1,0],['↑ North',0,-1],['↓ South',0,1],['East →',1,0]]){
+    const b=button(label,()=>{if(explorer.move(dx,dy)){notice='Moved through excavated tunnel at player z='+explorer.position().z;draw();}},'panel-button');
+    b.disabled=!explorer.canMove(dx,dy);walk.append(b);
+   }content.append(walk);
    const report=node('p','mining-feedback',notice);report.setAttribute('role','status');
    content.append(report,node('p','beta-note','Excavated blocks: '+miningStore.count()+' / '+Mine.MAX_EDITS+' · This biome: '+miningStore.regionCount(origin.region.id)+' / '+Mine.MAX_REGION_EDITS+'. Samples: '+(Object.entries(items).map(([name,qty])=>name+' ×'+qty).join(' · ')||'None yet')+'. No credits, Solana tokens, tradable items or combat rewards.'),
     button('Return to same world →',closePanel));
@@ -682,13 +692,19 @@
    if(state.conflict){g.strokeStyle='#ffbd69';g.beginPath();g.arc(state.conflict.x*sx,state.conflict.y*sy,7,0,7);g.stroke();}
    // All tappable markers come from stable IDs for actual doors, stations, landmarks and districts.
    for(const place of mapPoints)if(place.kind==='door'){g.fillStyle=['shop','market','supplies'].includes(place.activity)?'#fbd083':'#b7c8d2';g.beginPath();g.arc(place.x*sx,place.y*sy,place.activity==='supplies'?3.8:2.2,0,Math.PI*2);g.fill();}
+   if(!online)for(const hole of miningStore.surfaceOpenings().filter(h=>h.shaft)){
+    g.fillStyle='#e2c68e';g.beginPath();g.arc((hole.x+hole.w/2)*sx,(hole.y+hole.h/2)*sy,3,0,Math.PI*2);g.fill();
+   }
    if(tracked){g.strokeStyle='#6ee5f3';g.lineWidth=3;g.beginPath();g.arc(tracked.x*sx,tracked.y*sy,7,0,Math.PI*2);g.stroke();}
    const note=node('p','beta-note',tracked?(routePath?'Safe walking route to ':'No safe path found to ')+tracked.name+(routePath?' · '+routeInstruction(routePlanner.guidance(me,routePath)):' · try another door or marker'):'. Tap a location marker to set your waypoint.');content.append(note);
-   map.addEventListener('click',event=>{const point=M.fromCanvas(event.clientX,event.clientY,map.getBoundingClientRect(),WORLD),place=M.closest(mapPoints,point,190);if(place)track(place);else note.textContent='No nearby destination marker. Tap a marked location or use the buttons below.';});
+   const mines=online?[]:miningStore.surfaceOpenings().filter(h=>h.shaft).map(h=>({id:'mine:'+h.x+':'+h.y,name:'Your mining shaft',x:h.x+h.w/2,y:h.y+h.h/2,kind:'mine'}));
+   map.addEventListener('click',event=>{const point=M.fromCanvas(event.clientX,event.clientY,map.getBoundingClientRect(),WORLD),place=M.closest([...mapPoints,...mines],point,190);if(place)track(place);else note.textContent='No nearby destination marker. Tap a marked location or use the buttons below.';});
+   if(mines.length)content.append(node('p','beta-note','Gold dots mark your excavated mine entrances. Tap a dot or select an entrance below.'));
    const links=node('div','map-destinations');links.append(button('Quarantine Bunker / zombie survival →',()=>track(C.QUARANTINE)));if(state.conflict)links.append(button('Founders Crossing conflict →',()=>track(state.conflict)));if(state.territory?.phase!=='idle')links.append(button('ACTIVE / District Defense →',()=>track({...state.territory,name:'District Defense'})));
    for(const place of mapPoints.filter(p=>p.kind==='door'&&['supplies','shop','market'].includes(p.activity)))links.append(button(place.name+' →',()=>track(place)));
    for(const place of mapPoints.filter(p=>p.kind==='district'))links.append(button(place.name+' →',()=>track(place)));
    for(const biome of T.regions)links.append(button('Explore '+biome.name+' →',()=>track({id:'biome:'+biome.id,name:biome.name,x:biome.entry.x,y:biome.entry.y})));
+   for(const shaft of mines.slice(0,12))links.append(button('Return to your mine at '+Math.round(shaft.x)+', '+Math.round(shaft.y)+' →',()=>track(shaft)));
 
    // Accessible grouped catalog rather than 132 buttons on a phone.
    const explorer=node('section','frontier-explorer'),pick=node('select');
@@ -874,7 +890,8 @@
   if(p.clan){const clan=C.NEIGHBORHOODS.find(n=>n.id===p.clan);label(`${clan?.clan||''} ${'◆'.repeat(p.clanRank||0)}${p.holderTier?' / HOLDER '+p.holderTier:''}`,x,y-134,9,clan?.color||'#cce4ca');}if(isMe){ctx.strokeStyle='#d1e3c688';ctx.lineWidth=1.3;ctx.beginPath();ctx.ellipse(x,y+3,21,8,0,0,Math.PI*2);ctx.stroke();}
  }
  function beacon(t,time,color){const pulse=1+Math.sin(time/240)*.1;ctx.strokeStyle=color;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(t.x,t.y,32*pulse,17*pulse,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle=color+'22';ctx.beginPath();ctx.moveTo(t.x-23,t.y);ctx.lineTo(t.x-10,t.y-95);ctx.lineTo(t.x+10,t.y-95);ctx.lineTo(t.x+23,t.y);ctx.fill();label('↓',t.x,t.y-58+Math.sin(time/300)*7,30,color);label(t.name,t.x,t.y+37,12,color);}
- function draw(time,dt){if(me.room){drawInterior(time,dt);return;}const rect=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height,zoom=(w<600?.72:.88)*cameraZoom;ctx.fillStyle='#13232d';ctx.fillRect(0,0,w,h);paintX+=(me.x-paintX)*Math.min(1,dt*18);paintY+=(me.y-paintY)*Math.min(1,dt*18);const camX=paintX-w/(2*zoom),camY=paintY-h*.61/zoom;ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camX,-camY);worldView={x:camX,y:camY,zoom};D.land(ctx);T.drawGround(ctx,(x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150);F.drawGround(ctx,(x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150);if(routePath?.length>1){ctx.save();ctx.beginPath();routePath.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.strokeStyle="#6ee5f3bc";ctx.lineWidth=5;ctx.setLineDash([16,14]);ctx.stroke();ctx.restore();}
+ function draw(time,dt){if(me.room){drawInterior(time,dt);return;}const rect=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height,zoom=(w<600?.72:.88)*cameraZoom;ctx.fillStyle='#13232d';ctx.fillRect(0,0,w,h);paintX+=(me.x-paintX)*Math.min(1,dt*18);paintY+=(me.y-paintY)*Math.min(1,dt*18);const camX=paintX-w/(2*zoom),camY=paintY-h*.61/zoom;ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camX,-camY);worldView={x:camX,y:camY,zoom};D.land(ctx);T.drawGround(ctx,(x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150);F.drawGround(ctx,(x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150);
+ if(!online)MV.surface(ctx,miningStore.surfaceOpenings((x,y,bw,bh)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150));if(routePath?.length>1){ctx.save();ctx.beginPath();routePath.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.strokeStyle="#6ee5f3bc";ctx.lineWidth=5;ctx.setLineDash([16,14]);ctx.stroke();ctx.restore();}
  const visible=(x,y,bw=200,bh=200)=>x+bw>camX-120&&x<camX+w/zoom+120&&y+bh>camY-150&&y<camY+h/zoom+150;
  const layers=[];
  if(visible(C.QUARANTINE.x-245,C.QUARANTINE.y-180,490,360))drawQuarantineSite(time);
