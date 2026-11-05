@@ -5,11 +5,49 @@
 'use strict';
 (function(root){
  const MAX_FPS=12,REBASING_DISTANCE=540;
+ // Choose up to six real nearby World V1 actors, by distance. They reuse
+ // the same 3D procedural avatar geometry, never duplicate their game AI.
+ function selectNearbyActors(scene,player,world,maxActors=6){
+  if(!scene?.world||!player||!world||!Number.isFinite(player.x)||!Number.isFinite(player.y))
+   return Object.freeze([]);
+  const max=Math.min(6,Math.max(0,Number.isFinite(maxActors)?Math.floor(maxActors):6));
+  const groups=[
+   ['player',world.players],['civilian',world.civilians],
+   ['bot',world.arcade?.bots],['guard',world.arcade?.guards],
+   ['monk',world.monk?[world.monk]:[]]
+  ];
+  const candidates=[];
+  for(const [kind,actors] of groups){
+   if(!Array.isArray(actors))continue;
+   for(const [i,actor] of actors.slice(0,128).entries()){
+    if(!actor||!Number.isFinite(actor.x)||!Number.isFinite(actor.y)||actor.room||
+     kind==='player'&&actor.id===player.id||
+     ['bot','guard','monk'].includes(kind)&&!(actor.hp>0))continue;
+    const distance=Math.hypot(actor.x-player.x,actor.y-player.y);
+    if(!Number.isFinite(distance)||distance>1200)continue;
+    const x=(actor.x-scene.world.x)/120,z=(scene.world.y-actor.y)/120;
+    if(!Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>12||Math.abs(z)>12)continue;
+    const face=actor.facing&&Number.isFinite(actor.facing.x)&&Number.isFinite(actor.facing.y)?
+     actor.facing:Number.isFinite(actor.faceX)&&Number.isFinite(actor.faceY)?
+      {x:actor.faceX,y:actor.faceY}:null;
+    const yaw=face&&Math.hypot(face.x,face.y)>1e-6?
+     Math.atan2(face.x,-face.y):0;
+    const color=kind==='player'?'#b6e87a':kind==='civilian'?'#baa69b':
+     kind==='guard'?'#9dcadd':kind==='monk'?'#e6d3a1':
+     actor.kind==='zombie'?'#a7d583':actor.kind==='cop'?'#8bbdf1':'#e8a0ad';
+    const id=kind+':'+String(actor.id??i).slice(0,64);
+    candidates.push({id,x,z,yaw,steps:Number.isFinite(actor.phase)?Math.abs(actor.phase)%10000:0,
+     color,distance});
+   }
+  }
+  candidates.sort((a,b)=>a.distance-b.distance||a.id.localeCompare(b.id));
+  return Object.freeze(candidates.slice(0,max).map(({distance,...actor})=>Object.freeze(actor)));
+ }
  function create(options){
   const {graphics,canvas,container,status,buildings,biomes,frontier,
-   getPlayer,getAim,getColor,isVisible}=options||{};
+   getPlayer,getAim,getWorldState,getColor,isVisible}=options||{};
   if(!graphics?.createWorldScene||!graphics?.createPreview||!graphics?.samplePlayerCamera||
-    !canvas||!container||!status||typeof getPlayer!=='function'||
+    !canvas||!container||!status||typeof getWorldState!=='function'||typeof getPlayer!=='function'||
     typeof getAim!=='function'||typeof getColor!=='function'||typeof isVisible!=='function')
    throw Error('Live 3D requires game view, read-only state providers and the graphics module');
   let enabled=false,mode='third',preview=null,scene=null,anchor=null,regionId=null;
@@ -54,12 +92,14 @@
     if(!rebase(player)||!preview.observePlayer(player,aim,phase))
      return fail('3D view paused outside this sampled neighborhood.');
    }
+   const actors=selectNearbyActors(scene,player,getWorldState());
+   if(!preview.setActors?.(actors))return fail('3D actor drawing unavailable; the 2D game still works.');
    if(!preview.draw(mode,getColor(player)))return fail('3D preview stopped; the 2D game still works.');
    lastPosition={x:player.x,y:player.y};lastDraw=now;draws++;
    const seen=preview.observed?.()||pose;
    status.textContent='LIVE 3D / '+(mode==='third'?'third-person':'first-person')+
     ' / X '+Math.round(seen.world.x)+' · Y '+Math.round(seen.world.y)+
-    ' / read-only mirror';
+    ' / '+actors.length+' nearby characters / read-only mirror';
    container.dataset.worldX=String(Math.round(seen.world.x));
    container.dataset.worldY=String(Math.round(seen.world.y));
    container.dataset.mode=mode;container.dataset.frames=String(draws);
@@ -88,5 +128,5 @@
   container.hidden=true;
   return Object.freeze({start,stop,tick,setMode,stats,destroy:stop});
  }
- root.CityLive3D=Object.freeze({create,MAX_FPS,REBASING_DISTANCE});
+ root.CityLive3D=Object.freeze({create,selectNearbyActors,MAX_FPS,REBASING_DISTANCE});
 })(typeof window!=='undefined'?window:globalThis);
