@@ -102,7 +102,10 @@
      return fail('3D view paused outside this sampled neighborhood.');
    }
    const actors=selectNearbyActors(scene,player,getWorldState());
-   if(!preview.setActors?.(actors))return fail('3D actor drawing unavailable; the 2D game still works.');
+   if(!preview.setActors?.(actors)){
+    stop();
+    return fail('3D actor drawing unavailable; the original 2D game still works.');
+   }
    if(!preview.draw(mode,getColor(player))){
     stop();
     return fail('3D preview stopped; the original 2D game still works.');
@@ -115,6 +118,7 @@
    container.dataset.worldX=String(Math.round(seen.world.x));
    container.dataset.worldY=String(Math.round(seen.world.y));
    container.dataset.mode=mode;container.dataset.frames=String(draws);
+   container.dataset.actors=String(actors.length);
    reason='';return true;
   }
   function start(){
