@@ -19,7 +19,10 @@ test('fresh seed selects a new world without importing legacy city, biome grid o
  assert.equal(Object.isFrozen(a),true);
  assert.equal(Object.isFrozen(a.BIOMES),true);
  assert.notDeepEqual(own(a.chunkAt(0,0).tiles),own(b.chunkAt(0,0).tiles));
- assert.doesNotMatch(source,/Math\.random|localStorage|sessionStorage|fetch\(|createElement|MemeCityCore|CityFrontier|\.\s*save\(/,
+ // Source comments document which legacy APIs are intentionally excluded.
+ // Scan executable code, not the explanatory comment text.
+ const executable=source.replace(/\/\*[\s\S]*?\*\//g,'').replace(/^\s*\/\/.*$/gm,'');
+ assert.doesNotMatch(executable,/Math\.random|localStorage|sessionStorage|fetch\(|createElement|MemeCityCore|CityFrontier|\.\s*save\(/,
   'world generation must be pure and independent of old fixed 132-region layouts');
  for(const invalid of [undefined,null,{},[],Infinity,2.2])
   assert.throws(()=>World.createWorld(invalid));
@@ -99,7 +102,8 @@ test('world seed procedurally distributes cities, towns, villages and buildings 
  const chunk=a.chunkAt(Math.floor(site.x/16),Math.floor(site.y/16));
  assert.ok(chunk.sites.some(s=>s.id===site.id),'randomized city is discoverable without hardcoded districts');
  assert.ok(chunk.structures.length>=1,'randomized city actually generates building footprints');
- assert.ok(chunk.structures.some(p=>p.kind==='home'||p.kind==='market'||p.kind==='workshop'));
+ assert.ok(chunk.structures.every(p=>['home','market','workshop','inn','farm'].includes(p.kind)),
+  'every generated building receives a valid procedural use');
  const near=a.settlementsNear(site.x,site.y);
  assert.ok(near.some(s=>s.id===site.id));
  assert.equal(a.settlementsNear(NaN,0).length,0);
