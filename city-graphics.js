@@ -344,15 +344,35 @@
   }
   return Object.freeze({data,parts:parts.length,vertices:data.length/6,bytes:data.byteLength});
  }
+ // Additional real-world characters use the exact same skull avatar rig.
+ // They are visual-only observations: no NPC AI, physics or wallet authority.
+ const MAX_CROWD=6;
+ function createCrowdMesh(actors){
+  const valid=Array.isArray(actors)?actors.slice(0,MAX_CROWD):[];
+  const meshes=[],ids=new Set();
+  for(const actor of valid){
+   if(!actor||typeof actor.id!=='string'||!actor.id||ids.has(actor.id)||
+    ![actor.x,actor.z,actor.yaw,actor.steps].every(Number.isFinite)||
+    Math.abs(actor.x)>12||Math.abs(actor.z)>12)continue;
+   const mesh=createAvatarMesh(actor,'third',actor.color);
+   if(!mesh)continue;
+   ids.add(actor.id);meshes.push(mesh);
+  }
+  const bytes=meshes.reduce((sum,m)=>sum+m.data.byteLength,0);
+  const data=new Float32Array(bytes/4);
+  let cursor=0;
+  for(const mesh of meshes){data.set(mesh.data,cursor);cursor+=mesh.data.length;}
+  return Object.freeze({data,actors:meshes.length,vertices:data.length/6,bytes:data.byteLength});
+ }
  function createPreview(canvas,color='#b6e87a',scene=null){
   const sample=scene&&Array.isArray(scene.buildings)?scene:null;
   const stage=createStage(sample);
-  let observed=null;
+  let observed=null,observedActors=Object.freeze([]);
   const unavailable=()=>Object.freeze({supported:false,draw:()=>false,destroy:()=>{},
    turn:()=>false,step:()=>false,reset:()=>false,stats:()=>null,snapshot:stage.snapshot,
-   observePlayer:()=>false,clearObserved:()=>false,observed:()=>null});
+   observePlayer:()=>false,clearObserved:()=>false,observed:()=>null,setActors:()=>false});
   const staticMesh=createStaticMesh(sample);
-  let gl,program,buffer,staticBuffer,vs,fs,staticUploads=0,staticDrawCalls=0,dynamicDrawCalls=0,avatarUploads=0,avatarVertices=0;
+  let gl,program,buffer,staticBuffer,crowdBuffer,vs,fs,staticUploads=0,staticDrawCalls=0,dynamicDrawCalls=0,avatarUploads=0,avatarVertices=0,crowdDrawCalls=0,crowdActors=0,crowdVertices=0;
   try{gl=canvas?.getContext?.('webgl',{antialias:false,preserveDrawingBuffer:true,alpha:false});}catch{return unavailable();}
   if(!gl)return unavailable();
   try{
@@ -368,16 +388,17 @@
    if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error('Shader program failed');
    buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,56*36*6*4,gl.DYNAMIC_DRAW);
    staticBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,staticBuffer);gl.bufferData(gl.ARRAY_BUFFER,staticMesh.data,gl.STATIC_DRAW);
+   crowdBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,crowdBuffer);gl.bufferData(gl.ARRAY_BUFFER,MAX_CROWD*56*36*6*4,gl.DYNAMIC_DRAW);
    staticUploads=1;
   }catch{
-   if(buffer)gl.deleteBuffer(buffer);if(staticBuffer)gl.deleteBuffer(staticBuffer);if(program)gl.deleteProgram(program);if(vs)gl.deleteShader(vs);if(fs)gl.deleteShader(fs);
+   if(buffer)gl.deleteBuffer(buffer);if(staticBuffer)gl.deleteBuffer(staticBuffer);if(crowdBuffer)gl.deleteBuffer(crowdBuffer);if(program)gl.deleteProgram(program);if(vs)gl.deleteShader(vs);if(fs)gl.deleteShader(fs);
    return unavailable();
   }
   let disposed=false;
   const matrix=gl.getUniformLocation(program,'matrix'),tint=gl.getUniformLocation(program,'tint'),useVertexColor=gl.getUniformLocation(program,'useVertexColor'),attr=gl.getAttribLocation(program,'p'),colorAttr=gl.getAttribLocation(program,'vertexColor');
   function draw(mode='third',nextColor=color){
    if(disposed||!['first','third'].includes(mode)||gl.isContextLost?.())return false;
-   staticDrawCalls=0;dynamicDrawCalls=0;
+   staticDrawCalls=0;dynamicDrawCalls=0;crowdDrawCalls=0;crowdActors=0;crowdVertices=0;
    const w=clamp(Math.round(canvas.clientWidth||640),220,640),h=Math.round(w*9/16);
    canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h);
    gl.enable(gl.DEPTH_TEST);gl.clearColor(.055,.09,.14,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
@@ -404,18 +425,37 @@
    gl.bufferSubData(gl.ARRAY_BUFFER,0,avatarMesh.data);avatarUploads++;
    gl.uniform1f(useVertexColor,1);gl.uniformMatrix4fv(matrix,false,vp);
    gl.drawArrays(gl.TRIANGLES,0,avatarMesh.vertices);dynamicDrawCalls++;
+   const crowd=createCrowdMesh(observedActors);
+   crowdActors=crowd.actors;crowdVertices=crowd.vertices;
+   if(crowd.vertices){
+    gl.bindBuffer(gl.ARRAY_BUFFER,crowdBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER,0,crowd.data);
+    gl.vertexAttribPointer(attr,3,gl.FLOAT,false,24,0);
+    gl.vertexAttribPointer(colorAttr,3,gl.FLOAT,false,24,12);
+    gl.drawArrays(gl.TRIANGLES,0,crowd.vertices);crowdDrawCalls++;
+   }
    gl.disableVertexAttribArray(colorAttr);
    gl.flush();return true;
   }
   function destroy(){
    if(disposed)return;disposed=true;
-   gl.deleteBuffer(buffer);gl.deleteBuffer(staticBuffer);gl.deleteProgram(program);gl.deleteShader(vs);gl.deleteShader(fs);
+   gl.deleteBuffer(buffer);gl.deleteBuffer(staticBuffer);gl.deleteBuffer(crowdBuffer);gl.deleteProgram(program);gl.deleteShader(vs);gl.deleteShader(fs);
   }
   return Object.freeze({
    supported:true,draw,destroy,
    stats:()=>Object.freeze({staticBoxes:staticMesh.boxes,staticVertices:staticMesh.vertices,
-    staticBytes:staticMesh.bytes,staticUploads,staticDrawCalls,dynamicDrawCalls,avatarUploads,avatarVertices}),
+    staticBytes:staticMesh.bytes,staticUploads,staticDrawCalls,dynamicDrawCalls,avatarUploads,avatarVertices,crowdActors,crowdVertices,crowdDrawCalls}),
    snapshot:stage.snapshot,observed:()=>observed,
+   setActors:actors=>{
+    if(disposed||!Array.isArray(actors))return false;
+    // Defensive copy: never retain mutable authoritative game objects.
+    observedActors=Object.freeze(actors.slice(0,MAX_CROWD).filter(actor=>
+     actor&&typeof actor.id==='string'&&actor.id&&
+     [actor.x,actor.z,actor.yaw,actor.steps].every(Number.isFinite)).map(actor=>
+      Object.freeze({id:actor.id,x:actor.x,z:actor.z,yaw:actor.yaw,steps:actor.steps,
+       color:typeof actor.color==='string'?actor.color:'#b6e87a'})));
+    return true;
+   },
    observePlayer:(player,aim,steps=0)=>{
     if(disposed)return false;
     const next=samplePlayerCamera(sample,player,aim,steps);
@@ -428,5 +468,5 @@
    reset:()=>{if(disposed)return false;observed=null;stage.reset();return true;}
   });
  }
- root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createTerrainPatch,createWorldScene,samplePlayerCamera,createStaticMesh,createAvatarRig,createAvatarMesh,createStage,avatarPose,cameraAvoid,createPreview,perspective,lookAt,multiply});
+ root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createTerrainPatch,createWorldScene,samplePlayerCamera,createStaticMesh,createAvatarRig,createAvatarMesh,createCrowdMesh,MAX_CROWD,createStage,avatarPose,cameraAvoid,createPreview,perspective,lookAt,multiply});
 })(typeof window==='undefined'?globalThis:window);
