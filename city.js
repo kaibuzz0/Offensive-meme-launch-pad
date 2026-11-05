@@ -676,7 +676,8 @@
    renderMetrics.textContent=stats?
     '3D preview GPU draw calls: '+stats.staticDrawCalls+' static / '+stats.dynamicDrawCalls+
     ' animated · '+stats.staticBoxes+' scenery cubes batched · '+Math.ceil(stats.staticBytes/1024)+
-    ' KiB static mesh · '+stats.staticUploads+' GPU upload.':
+    ' KiB static mesh · '+stats.staticUploads+' GPU upload · '+stats.avatarVertices+
+    ' avatar vertices · '+stats.avatarUploads+' pose uploads.':
     'GPU preview unavailable; original Canvas city remains playable.';
   };
   if(graphicsPreview.supported){
