@@ -1,3 +1,19 @@
+# Meme City — canonical live World V1 (November 5, 2026)
+
+**[PLAY THE LIVE GAME](https://kaibuzz0.github.io/Offensive-meme-launch-pad/city.html)** · [View source](https://github.com/kaibuzz0/Offensive-meme-launch-pad) · [Combined release PR #34](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/34)
+
+This repository has **one playable canonical World V1**, the original `city.html` and `MemeCityCore.Engine`, now integrated into `main`. It includes the expanded 24,400 × 14,400 world and 132 frontier biomes, Solo-only seven-layer excavation, surface shafts, the shared 360-degree player/NPC rig in the underground cutaway, original 47 interior entrances and fortress, quests, factions, wallet-gated cosmetics, Together guest rooms and the optional **read-only Live 3D first-/third-person camera viewport**. The default gameplay remains the original 2D Canvas. This is **not** a full free-roaming, physics-driven 3D game, and online mining is not available.
+
+**Release state:** the owner-approved combined implementation was merged on November 5, 2026 as commit `2fd58e4e1b98d62ccac29a9bc764d22bd50e8a5b`. [GitHub Pages deployment](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/42081764898) and [the 325/325 regression + mobile Chromium test gate](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/42081416917) succeeded. This includes actual two-tab local server/browser room, reconnect and player-visual acceptance. Physical Android behavior was reported working by the owner; a separate measured Android GPU/thermal audit or independently tested public hosted-room load test is not claimed.
+
+**Save safety:** browser-local Solo character state persists under `offensive-meme-city-v1-center`. Mining uses its own bounded journal. Do not clear browser site data to force an update. Wallet proofs, financial transactions and online room authority remain separate from the renderer. Archived World V2 experimental branches and preview URLs are not merged into the playable World V1. See [canonical release record](docs/CANONICAL_WORLD_V1_RELEASE.md) for the latest integration audit and outstanding limits.
+
+---
+
+### Earlier release notes (historical)
+
+The dated milestones below describe the features and test counts available *at that time*; they are retained for development history and should not be read as the latest release status.
+
 ## Live game: Meme City Center City (October 31, 2026)
 
 **Public release:** the full playable World V1 game now uses the expanded **Center City** map, 11,200 × 11,200 units, with the player's private fortress at the map center, six separately identified clan headquarters and surrounding territories, and equipment, trading, vehicles and entertainment spread across multiple districts.
