@@ -580,7 +580,12 @@ try{
  assert.equal(await headHash(),normalHead,'disconnect restores the standard face');
 
   // Real end-to-end mobile survey acceptance in an isolated Chromium profile:
-  // place a valid LOCAL test save at the canonical in-world post and reload.
+  // Go to the same-origin offline page before creating a test save. Leaving
+  // the game triggers its correct pagehide save, so editing storage there
+  // would otherwise be overwritten by the old player's position.
+  await send('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/offline.html?survey-setup=1'});
+  await waitFor(()=>evalPage("document.readyState==='complete'&&location.pathname.endsWith('/offline.html')"),'neutral same-origin page for survey save staging');
+  // Place a valid LOCAL test save at the canonical in-world post and reload.
   await evalPage(`(()=>{
    const key='offensive-meme-city-v1-center',prior=JSON.parse(localStorage.getItem(key)||'{}'),
     versions=window.CityCenterSave,site=window.CityBiomes.sites[0];
