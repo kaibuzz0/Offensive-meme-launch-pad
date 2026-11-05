@@ -32,7 +32,7 @@
  const live3D=window.CityLive3D.create({
   graphics:window.CityGraphics,canvas:$('#city-live-3d-canvas'),container:$('#city-live-3d'),
   status:$('#city-live-3d-status'),buildings:I.BUILDINGS,biomes:T,frontier:F,
-  getPlayer:()=>me,getAim:()=>aim,
+  getPlayer:()=>me,getAim:()=>aim,getWorldState:()=>state,
   getColor:p=>{const skin=verifiedBetaSkin(p),token=catalog.get(skin)||catalog.get(p?.avatar)||catalog.get('offensive');return token?.color||'#b6e87a';},
   isVisible:()=>entered&&!activePanel&&!document.hidden
  });
