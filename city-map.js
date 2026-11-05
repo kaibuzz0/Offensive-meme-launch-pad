@@ -1,7 +1,7 @@
 /* World-map destinations share existing street stations, district anchors and real interior doors. */
 'use strict';
 (function(root){
- function catalog(C,I,R){
+ function catalog(C,I,R,T){
   const points=[],ids=new Set(),world=C.WORLD;
   function add(id,name,x,y,kind,activity=''){
    if(typeof id!=='string'||!id||ids.has(id)||typeof name!=='string'||!name||!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>world.width||y>world.height)throw Error('Invalid or duplicate map destination: '+id);
@@ -13,6 +13,7 @@
   for(const s of world.stations)add('station:'+s.id,s.name,s.x,s.y,'station',s.kind);
   for(const b of I.BUILDINGS){const entrance=I.door(b);add('door:'+b.roomId,b.name,entrance.x,entrance.y,'door',b.activity);}
   for(const n of R.LANDMARKS)add('landmark:'+n.id,n.name,n.x,n.y,'landmark');
+  for(const biome of T?.regions||[])add('biome:'+biome.id,biome.name,biome.entry.x,biome.entry.y,'biome');
   return Object.freeze(points);
  }
  function fromCanvas(clientX,clientY,rect,world){
