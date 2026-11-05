@@ -234,3 +234,14 @@ body{background:radial-gradient(ellipse at 45% 0,#27334b 0,#0b111c 60%)}.city-he
 .graphics-preview-scene{font:11px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;color:#b7d8c4;padding:9px 12px;border:1px solid #476571;background:#112736;border-radius:6px;overflow-wrap:anywhere}
 
 .graphics-preview-metrics{font:10px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;color:#bdddc9;background:#102e32;border:1px solid #356e64;border-radius:6px;padding:8px 12px;overflow-wrap:anywhere}
+
+/* Experimental live camera: overlays the SAME playable World V1 canvas. */
+.city-live-3d{position:absolute;z-index:4;right:14px;top:clamp(198px,30%,270px);width:min(330px,45%);min-width:220px;max-width:calc(100% - 20px);background:#101e2beF;border:1px solid #7799a8;border-radius:9px;box-shadow:0 10px 28px #030912ae;overflow:hidden;pointer-events:none}
+.city-live-3d-toolbar{display:flex;gap:5px;align-items:center;padding:5px 7px;background:#15293a;pointer-events:auto}
+.city-live-3d-toolbar strong{flex:1;font:700 8px/1.2 ui-monospace,monospace;color:#a7e7de;letter-spacing:.6px}
+.city-live-3d-toolbar button{background:#264a56;color:#f4faff;border:1px solid #7eabb8;border-radius:4px;font:700 9px Arial;padding:5px 7px;cursor:pointer}
+.city-live-3d-toolbar button:focus-visible{outline:2px solid #b4ff74}
+.city-live-3d canvas{display:block;width:100%;height:auto;aspect-ratio:16/9;pointer-events:none;touch-action:none;background:#102130}
+#city-live-3d-status{margin:0;padding:6px 8px;font:9px/1.35 ui-monospace,monospace;color:#a9cfe0;background:#112535}
+#city-live-3d-toggle[aria-pressed=true]{background:#284d47;color:#d5ffb7;border-bottom:2px solid #a7fb84}
+@media(max-width:700px){.city-live-3d{right:8px;top:210px;width:min(245px,65%);min-width:200px}.city-live-3d-toolbar strong{font-size:7px}.city-live-3d-toolbar button{font-size:8px;padding:5px}#city-live-3d-status{font-size:8px}}
