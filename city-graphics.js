@@ -105,11 +105,13 @@
   if(!valid.length)return null;
   const distance=b=>Math.hypot(location.x-(b.x+b.w/2),location.y-(b.y+b.h+37));
   const nearest=valid.reduce((best,b)=>distance(b)<distance(best)?b:best);
-  // When the player is far outside the authored city, sample the actual
-  // frontier region instead of pretending a distant city building is nearby.
-  const sampleFrontier=distance(nearest)>850&&!!(frontier?.regionAt?.(location.x,location.y)||biomes?.regionAt?.(location.x,location.y));
-  const originX=sampleFrontier?location.x:nearest.x+nearest.w/2;
-  const originY=sampleFrontier?location.y:nearest.y+nearest.h+37+420,scale=120;
+  // Anchor to the actual player's locality whenever the nearest authored
+  // building is too distant. This includes downtown/open urban streets as well
+  // as named biomes; otherwise a valid player can fall outside the 3D camera.
+  const localTerrain=frontier?.terrainAt?.(location.x,location.y)||biomes?.terrainAt?.(location.x,location.y);
+  const sampleLocal=distance(nearest)>850&&!!localTerrain;
+  const originX=sampleLocal?location.x:nearest.x+nearest.w/2;
+  const originY=sampleLocal?location.y:nearest.y+nearest.h+37+420,scale=120;
   const terrain=createTerrainPatch(originX,originY,biomes,frontier);
   const solid=valid.map(b=>({
    id:String(b.roomId||b.id||b.name||'building').slice(0,60),
@@ -122,7 +124,7 @@
    .sort((a,b)=>(a.id===String(nearest.roomId||nearest.id)?-1:b.id===String(nearest.roomId||nearest.id)?1:0)||
      Math.hypot(a.x,a.z)-Math.hypot(b.x,b.z)).slice(0,16);
   return Object.freeze({
-   name:sampleFrontier?terrain?.name||'Frontier preview':String(nearest.name||nearest.label||nearest.id||'Meme City landmark').slice(0,72),
+   name:sampleLocal?terrain?.name||'Nearby street preview':String(nearest.name||nearest.label||nearest.id||'Meme City landmark').slice(0,72),
    world:Object.freeze({x:originX,y:originY}),
    buildings:Object.freeze(solid.map(b=>Object.freeze(b))),
    terrain
