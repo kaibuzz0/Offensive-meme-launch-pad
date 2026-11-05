@@ -95,6 +95,25 @@ try{
  assert.equal(biomePixels?.opaque,true,'terrain texture is visible');
  assert.equal(biomePixels?.regions,3,'three greenbelt biomes load in the same Solo game');
  assert.ok(biomePixels?.props>0,'biome contains live scenery layers');
+ const surveys=await evalPage(`(()=>{
+  const T=window.CityBiomes;return T.sites.map(site=>{
+   const canvas=document.createElement('canvas');canvas.width=220;canvas.height=180;
+   const c=canvas.getContext('2d');c.translate(110-site.x,145-site.y);
+   const layers=T.siteLayers(c,(x,y,w,h)=>x<=site.x&&x+w>=site.x&&y<=site.y&&y+h>=site.y);
+   layers.forEach(l=>l.draw());
+   const data=c.getImageData(80,18,60,115).data;
+   let pixels=0;for(let i=3;i<data.length;i+=4)if(data[i]>100)pixels++;
+   return {id:site.id,near:T.nearbySite({x:site.x,y:site.y})?.id,
+    terrain:T.terrainAt(site.x,site.y)?.id,layers:layers.length,pixels};
+  });
+ })()`);
+ assert.equal(surveys.length,3,'three accessible survey signs in the same world');
+ for(const site of surveys){
+  assert.equal(site.near,site.id,'survey E interaction resolves current player position');
+  assert.equal(site.layers,1,'only the visible survey post is painted');
+  assert.ok(site.pixels>100,'survey sign really appears in Canvas pixels');
+ }
+
  // Actually paint armed/unarmed 3D people onto a Canvas in the real browser,
  // not merely verify that a method exists or syntactically parses.
  const samples=await evalPage(`(()=>{
@@ -215,6 +234,8 @@ try{
  assert.ok(mapData.plot[0]>mapData.fort[0]&&mapData.plot[0]<mapData.fort[0]+2240);
  assert.ok(mapData.shopRegions>=4);assert.ok(mapData.painted);
  assert.ok(mapData.mapWidth>=800&&mapData.mapHeight>=800);
+ const biomeLinks=await evalPage("Array.from(document.querySelectorAll('.map-destinations button')).filter(b=>b.textContent.startsWith('Explore ')&&/Forest|Dead Zone|Highlands/.test(b.textContent)).map(b=>b.textContent)");
+ assert.equal(biomeLinks.length,3,'existing phone map exposes all three walkable biome destinations');
  // The existing 47-door map must yield readable manual guidance on phones:
  // no teleport, second renderer, wallet action, or changed game entrypoint.
  const shopChoice=await evalPage("(()=>{const I=window.CityInteriors,b=I.BUILDINGS.find(x=>x.activity==='shop'),c=Array.from(document.querySelectorAll('.map-destinations button')).find(el=>el.textContent.includes(b.name));if(!c)return null;c.click();return b.name;})()");
