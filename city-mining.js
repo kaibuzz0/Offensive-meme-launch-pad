@@ -55,7 +55,7 @@
   if(typeof id!=='string'||id.length>95)return null;
   const a=id.split(':');if(a.length!==6)return null;
   const [rId,...rest]=a,n=rest.map(Number),r=F.byId.get(rId);
-  if(!r||rest.some((s,i)=>!String(Number(s))===s)||n.some(x=>!Number.isSafeInteger(x)))return null;
+  if(!r||rest.some(s=>!Number.isSafeInteger(Number(s)))||n.some(x=>!Number.isSafeInteger(x)))return null;
   const [layer,ix,iy,ox,oy]=n;
   if(id!==idFor(r,layer,ix,iy,ox,oy)||layer<0||layer>=7||
    Math.abs(ix-ox)>2||Math.abs(iy-oy)>2||!within(r,ix,iy)||!within(r,ox,oy))return null;
