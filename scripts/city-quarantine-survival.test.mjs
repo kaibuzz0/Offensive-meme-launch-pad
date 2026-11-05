@@ -123,7 +123,7 @@ test('quarantine panel, map tracking, HUD and rendered arena all stay in the ori
  assert.ok(js.includes("state.quarantine?.phase==='active'"));
  assert.ok(js.includes('QUARANTINE / THREE WAVES'));
  assert.ok(js.includes("'Quarantine Bunker / zombie survival →'"));
- assert.ok(html.includes('city.js?v=46-surveys'));
+ assert.ok(html.includes('city.js?v=47-frontier'));
  assert.ok(!html.includes('city-world2-online.js'));
  assert.match(roadmap,/ONE PLAYABLE WORLD/);
 });
