@@ -78,10 +78,10 @@
  }
  function createStore(storage){
   const entries=[],mined=new Set(),totals=new Map(),regionCounts=new Map();
-  let disabled=false,raw=null;
+  let disabled=false,raw=null,surfaceCache=null;
   function apply(o,id){
    const block=blockAt(o.ix,o.iy,o.layer);
-   mined.add(geoKey(o.region,o.layer,o.ix,o.iy));entries.push(id);
+   mined.add(geoKey(o.region,o.layer,o.ix,o.iy));entries.push(id);surfaceCache=null;
    const material=block.material;totals.set(material,(totals.get(material)||0)+1);
    regionCounts.set(o.region.id,(regionCounts.get(o.region.id)||0)+1);
   }
@@ -135,6 +135,7 @@
   // arbitrary saved mineral balance or client-provided height.
   function surfaceOpenings(visible){
    if(disabled)return [];
+   if(surfaceCache)return visible?surfaceCache.filter(h=>visible(h.x,h.y,h.w,h.h)):surfaceCache.slice();
    const shafts=new Map();
    for(const id of entries){
     const o=parse(id);if(!o||o.ix!==o.ox||o.iy!==o.oy)continue;
@@ -151,7 +152,8 @@
      depth:shaft?shafts.get(o.region.id+':'+o.ox+':'+o.oy):STRATA[0].z,
      regionId:o.region.id}));
    }
-   return out;
+   surfaceCache=Object.freeze(out);
+   return visible?out.filter(h=>visible(h.x,h.y,h.w,h.h)):out.slice();
   }
   return Object.freeze({
    key:KEY,disabled:()=>disabled,count:()=>entries.length,
