@@ -128,6 +128,23 @@
    terrain
   });
  }
+ // Read-only coordinate bridge from the authoritative 2D game to the
+ // experimental local 3D camera scene. Game +Y is south; preview +Z north.
+ // No writes to game players, inventory, save data or network messages.
+ function samplePlayerCamera(scene,player,aim){
+  if(!scene?.world||!player||!aim||player.room||
+   ![scene.world.x,scene.world.y,player.x,player.y,aim.x,aim.y].every(Number.isFinite))return null;
+  const length=Math.hypot(aim.x,aim.y);
+  if(length<1e-6||!Number.isFinite(length))return null;
+  const x=(player.x-scene.world.x)/120,z=(scene.world.y-player.y)/120;
+  if(!Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>12||Math.abs(z)>12)return null;
+  const yaw=Math.atan2(aim.x/length,-aim.y/length);
+  if(!Number.isFinite(yaw))return null;
+  return Object.freeze({
+   x,z,yaw,steps:0,source:'current-game-player',
+   world:Object.freeze({x:player.x,y:player.y})
+  });
+ }
  // Segment / 3D AABB camera obstruction. Only moves the optional preview
  // camera, never the avatar, its collision engine or the game world's camera.
  function cameraAvoid(scene,eye,target){
@@ -328,7 +345,10 @@
  function createPreview(canvas,color='#b6e87a',scene=null){
   const sample=scene&&Array.isArray(scene.buildings)?scene:null;
   const stage=createStage(sample);
-  const unavailable=()=>Object.freeze({supported:false,draw:()=>false,destroy:()=>{},turn:()=>false,step:()=>false,reset:()=>false,stats:()=>null,snapshot:stage.snapshot});
+  let observed=null;
+  const unavailable=()=>Object.freeze({supported:false,draw:()=>false,destroy:()=>{},
+   turn:()=>false,step:()=>false,reset:()=>false,stats:()=>null,snapshot:stage.snapshot,
+   observePlayer:()=>false,clearObserved:()=>false,observed:()=>null});
   const staticMesh=createStaticMesh(sample);
   let gl,program,buffer,staticBuffer,vs,fs,staticUploads=0,staticDrawCalls=0,dynamicDrawCalls=0,avatarUploads=0,avatarVertices=0;
   try{gl=canvas?.getContext?.('webgl',{antialias:false,preserveDrawingBuffer:true,alpha:false});}catch{return unavailable();}
@@ -360,7 +380,7 @@
    canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h);
    gl.enable(gl.DEPTH_TEST);gl.clearColor(.055,.09,.14,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
    gl.useProgram(program);gl.enableVertexAttribArray(attr);
-   const {x,z,yaw,steps}=stage.snapshot(),sin=Math.sin(yaw),cos=Math.cos(yaw);
+   const pose=observed||stage.snapshot(),{x,z,yaw}=pose,sin=Math.sin(yaw),cos=Math.cos(yaw);
    const desiredEye=mode==='first'?[x,1.68,z]:[x-sin*5.4+cos*1.4,2.75,z-cos*5.4-sin*1.4];
    const target=mode==='first'?[x+sin*5,1.60,z+cos*5]:[x+sin*.35,1.12,z+cos*.35];
    const eye=mode==='third'?(cameraAvoid(sample,desiredEye,target)?.eye||desiredEye):desiredEye;
@@ -376,7 +396,7 @@
    gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
    gl.vertexAttribPointer(attr,3,gl.FLOAT,false,24,0);
    gl.vertexAttribPointer(colorAttr,3,gl.FLOAT,false,24,12);
-   const avatarMesh=createAvatarMesh(stage.snapshot(),mode,nextColor);
+   const avatarMesh=createAvatarMesh(pose,mode,nextColor);
    if(!avatarMesh)return false;
    avatarVertices=avatarMesh.vertices;
    gl.bufferSubData(gl.ARRAY_BUFFER,0,avatarMesh.data);avatarUploads++;
@@ -393,11 +413,18 @@
    supported:true,draw,destroy,
    stats:()=>Object.freeze({staticBoxes:staticMesh.boxes,staticVertices:staticMesh.vertices,
     staticBytes:staticMesh.bytes,staticUploads,staticDrawCalls,dynamicDrawCalls,avatarUploads,avatarVertices}),
-   snapshot:stage.snapshot,
-   turn:radians=>!disposed&&stage.turn(radians),
-   step:distance=>!disposed&&stage.step(distance),
-   reset:()=>{if(disposed)return false;stage.reset();return true;}
+   snapshot:stage.snapshot,observed:()=>observed,
+   observePlayer:(player,aim)=>{
+    if(disposed)return false;
+    const next=samplePlayerCamera(sample,player,aim);
+    if(!next)return false;
+    observed=next;return true;
+   },
+   clearObserved:()=>{if(disposed)return false;observed=null;return true;},
+   turn:radians=>{if(disposed)return false;const ok=stage.turn(radians);if(ok)observed=null;return ok;},
+   step:distance=>{if(disposed)return false;const ok=stage.step(distance);if(ok)observed=null;return ok;},
+   reset:()=>{if(disposed)return false;observed=null;stage.reset();return true;}
   });
  }
- root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createTerrainPatch,createWorldScene,createStaticMesh,createAvatarRig,createAvatarMesh,createStage,avatarPose,cameraAvoid,createPreview,perspective,lookAt,multiply});
+ root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createTerrainPatch,createWorldScene,samplePlayerCamera,createStaticMesh,createAvatarRig,createAvatarMesh,createStage,avatarPose,cameraAvoid,createPreview,perspective,lookAt,multiply});
 })(typeof window==='undefined'?globalThis:window);
