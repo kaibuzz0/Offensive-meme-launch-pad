@@ -720,7 +720,7 @@ try{
    const canvas=document.querySelector('canvas.mining-scene'),
     pixel=canvas?.getContext('2d')?.getImageData(320,160,1,1).data;
    return {width:canvas?.width,height:canvas?.height,opaque:!!pixel&&pixel[3]>0,
-    minerHeight:document.querySelector('.mining-strata')?.previousElementSibling?.textContent};
+    minerHeight:document.querySelector('#panel-content')?.textContent};
   })()`);
   assert.equal(mineCutaway.width,640,'actual native underground Canvas exists');
   assert.equal(mineCutaway.height,350);
