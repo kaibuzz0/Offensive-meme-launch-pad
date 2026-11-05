@@ -51,7 +51,7 @@ test('native WebGL preview is only an optional renderer, with robust unsupported
  const js=fs.readFileSync(new URL('../city.js',import.meta.url),'utf8');
  assert.match(html,/city-graphics\.js\?v=61-live-crowd/);
  assert.match(html,/city-live-3d\.js\?v=61-live-crowd/);
- assert.match(html,/city\.js\?v=61-live-crowd/);
+ assert.match(html,/city\.js\?v=62-unified-miner/);
  assert.match(html,/data-panel="graphics"/);
  assert.match(js,/graphicsPanel\(content\)/);
  assert.match(js,/graphics\.pixelRatioCap\(\)/);
