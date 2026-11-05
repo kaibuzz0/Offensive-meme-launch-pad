@@ -44,3 +44,7 @@ Optional exploration-only journal key: **offensive-meme-city-v1-frontier-journal
 New tests validate all 132 distinct names and region identities, old city geometry and saves, traversable destinations, exact 47 original doors, routing to distant biomes, cached texture/props limits, deterministic queries and a safe journal. Existing tests and mobile-sized Chromium checks remain mandatory.
 
 Physical Android device FPS, memory, thermal/battery and accessibility review are not complete. Draft PR #29 must not merge or deploy without explicit owner approval.
+
+## Sparse vertical rock edits and maximum world height (follow-on)
+
+Meme City now defines a distinct z elevation from **−64 (solid bedrock)** to **+256 (highest permitted world elevation)** with surface zero, without altering x/y, city maps or legacy character saves. The native `city-mining.js` module creates seven deterministic subsurface strata with a step of 8. In the existing Solo interface, a player excavates a shaft and adjacent tiles and descends level by level. Mined blocks are represented only as sparse IDs in a new versioned, size-capped sidecar journal. Ore sample totals are **reconstructed from seed and block IDs**, not saved as claimed balances. Bad records, duplicates, inaccessible tunnel histories and stale-tab updates are rejected. Minecraft C source is not copied or imported. See [WORLD_HEIGHT_AND_MINING.md](WORLD_HEIGHT_AND_MINING.md) for coordinates, UI, persistence and limitation details.
