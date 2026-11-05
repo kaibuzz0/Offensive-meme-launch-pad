@@ -129,12 +129,64 @@
     return {ok:true,material:block.material,name:block.name,depth:block.z,total:entries.length};
    }catch{return {ok:false,reason:'Storage quota exceeded or unavailable. The block was not mined.'};}
   }
+
+  // Render only actual player-made entrances and exposed surface tiles.
+  // Values are derived from the validated sparse journal; never trust an
+  // arbitrary saved mineral balance or client-provided height.
+  function surfaceOpenings(visible){
+   if(disabled)return [];
+   const shafts=new Map();
+   for(const id of entries){
+    const o=parse(id);if(!o||o.ix!==o.ox||o.iy!==o.oy)continue;
+    const key=o.region.id+':'+o.ox+':'+o.oy;
+    shafts.set(key,Math.min(shafts.get(key)??0,STRATA[o.layer].z));
+   }
+   const out=[];
+   for(const id of entries){
+    const o=parse(id);if(!o||o.layer!==0)continue;
+    const x=o.ix*TILE,y=o.iy*TILE;
+    if(visible&&!visible(x,y,TILE,TILE))continue;
+    const shaft=o.ix===o.ox&&o.iy===o.oy;
+    out.push(Object.freeze({x,y,w:TILE,h:TILE,shaft,
+     depth:shaft?shafts.get(o.region.id+':'+o.ox+':'+o.oy):STRATA[0].z,
+     regionId:o.region.id}));
+   }
+   return out;
+  }
   return Object.freeze({
    key:KEY,disabled:()=>disabled,count:()=>entries.length,
    inventory:()=>Object.freeze(Object.fromEntries(totals)),
-   inspect,mine,entries:()=>entries.slice(),regionCount:r=>regionCounts.get(r)||0
+   inspect,mine,surfaceOpenings,entries:()=>entries.slice(),regionCount:r=>regionCounts.get(r)||0
+  });
+ }
+
+ // A solo excavation session is an explicit player depth/position state, not a
+ // mutation of the ground-plane engine or the protected Solo save. On exit the
+ // avatar returns to its existing world location at surface z=0.
+ function createExplorer(store,actor){
+  const entry=location(actor);
+  if(!store||store.disabled?.()||!entry)return null;
+  const at={x:actor.x,y:actor.y};
+  let layer=0,dx=0,dy=0;
+  const pos=()=>Object.freeze({layer,dx,dy,x:(entry.ox+dx+.5)*TILE,
+   y:(entry.oy+dy+.5)*TILE,z:layer===0?surface:STRATA[layer-1].z});
+  const sample=(x,y,index)=>store.inspect(at,x,y,index);
+  const canDescend=()=>layer<STRATA.length-1&&!!sample(dx,dy,layer)?.mined;
+  const canAscend=()=>layer>0&&(layer===1||!!sample(dx,dy,layer-2)?.mined);
+  const canMove=(mx,my)=>{
+   if(layer===0||!Number.isInteger(mx)||!Number.isInteger(my)||Math.abs(mx)+Math.abs(my)!==1)return false;
+   const nx=dx+mx,ny=dy+my;
+   if(Math.abs(nx)>2||Math.abs(ny)>2)return false;
+   return !!sample(nx,ny,layer-1)?.mined;
+  };
+  const canDig=(tx,ty)=>Number.isInteger(tx)&&Number.isInteger(ty)&&Math.abs(tx)<=2&&Math.abs(ty)<=2&&
+   Math.abs(tx-dx)+Math.abs(ty-dy)<=1&&!!sample(tx,ty,layer)?.accessible;
+  return Object.freeze({position:pos,canAscend,canDescend,canMove,canDig,
+   move:(mx,my)=>{if(!canMove(mx,my))return false;dx+=mx;dy+=my;return true;},
+   descend:()=>{if(!canDescend())return false;layer++;return true;},
+   ascend:()=>{if(!canAscend())return false;layer--;return true;}
   });
  }
  root.CityMining=Object.freeze({TILE,VERSION,KEY,maxHeight,minHeight,surface,stratumHeight,STRATA,
-  MAX_EDITS,MAX_REGION_EDITS,validZ,blockAt,location,createStore});
+  MAX_EDITS,MAX_REGION_EDITS,validZ,blockAt,location,createStore,createExplorer});
 })(typeof window==='undefined'?globalThis:window);
