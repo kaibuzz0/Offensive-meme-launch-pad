@@ -48,8 +48,36 @@
   const c=Math.cos(yaw),s=Math.sin(yaw);
   return new Float32Array([c*size[0],0,-s*size[0],0,0,size[1],0,0,s*size[2],0,c*size[2],0,position[0],position[1],position[2],1]);
  }
+ // Read-only miniature of actual authored building footprints in World V1.
+ // The nearest entrance becomes the subject of a separate preview camera.
+ // All numbers are validated and capped; no player movement or save keys are read.
+ function createWorldScene(buildings,location){
+  if(!Array.isArray(buildings)||!location||!Number.isFinite(location.x)||!Number.isFinite(location.y))return null;
+  const valid=buildings.slice(0,128).filter(b=>b&&Number.isFinite(b.x)&&Number.isFinite(b.y)&&
+   Number.isFinite(b.w)&&Number.isFinite(b.h)&&b.w>0&&b.h>0&&b.w<=1600&&b.h<=1600&&
+   b.x>=0&&b.y>=0&&b.x<1e6&&b.y<1e6);
+  if(!valid.length)return null;
+  const distance=b=>Math.hypot(location.x-(b.x+b.w/2),location.y-(b.y+b.h+37));
+  const nearest=valid.reduce((best,b)=>distance(b)<distance(best)?b:best);
+  const originX=nearest.x+nearest.w/2,originY=nearest.y+nearest.h+37+420,scale=120;
+  const solid=valid.map(b=>({
+   id:String(b.roomId||b.id||b.name||'building').slice(0,60),
+   name:String(b.name||b.label||b.id||'Meme City building').slice(0,72),
+   x:(b.x+b.w/2-originX)/scale,z:(originY-b.y-b.h/2)/scale,
+   w:b.w/scale,d:b.h/scale,
+   height:Math.max(1.1,Math.min(3.2,b.h/120)),
+   color:/^#[0-9a-f]{6}$/i.test(b.accent||b.hue||'')?(b.accent||b.hue):'#78949f'
+  })).filter(b=>Math.abs(b.x)<18&&Math.abs(b.z)<18)
+   .sort((a,b)=>(a.id===String(nearest.roomId||nearest.id)?-1:b.id===String(nearest.roomId||nearest.id)?1:0)||
+     Math.hypot(a.x,a.z)-Math.hypot(b.x,b.z)).slice(0,16);
+  return Object.freeze({
+   name:String(nearest.name||nearest.label||nearest.id||'Meme City landmark').slice(0,72),
+   world:Object.freeze({x:originX,y:originY}),
+   buildings:Object.freeze(solid.map(b=>Object.freeze(b)))
+  });
+ }
  // A bounded, preview-only camera/character stage. No real game state is mutated.
- function createStage(){
+ function createStage(scene=null){
   let x=0,z=0,yaw=0,steps=0;
   const snapshot=()=>Object.freeze({x,z,yaw,steps});
   return Object.freeze({
@@ -62,8 +90,10 @@
    step(distance){
     if(!Number.isFinite(distance)||Math.abs(distance)>1)return false;
     const nx=x+Math.sin(yaw)*distance,nz=z+Math.cos(yaw)*distance;
-    // The test corridor is narrower than the nearby buildings.
+    // Preview-only corridor. Genuine nearby building footprints are
+    // collision boxes here, never an input to the authoritative game world.
     if(Math.abs(nx)>1.2||nz< -3||nz>9)return false;
+    if(scene?.buildings?.some(b=>Math.abs(nx-b.x)<b.w/2+.24&&Math.abs(nz-b.z)<b.d/2+.24))return false;
     x=nx;z=nz;steps++;return true;
    },
    reset(){x=0;z=0;yaw=0;steps=0;}
@@ -82,8 +112,9 @@
   if(typeof hex!=='string'||!/^#[0-9a-f]{6}$/i.test(hex))return [0.72,0.91,0.49];
   return [1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);
  }
- function createPreview(canvas,color='#b6e87a'){
-  const stage=createStage();
+ function createPreview(canvas,color='#b6e87a',scene=null){
+  const sample=scene&&Array.isArray(scene.buildings)?scene:null;
+  const stage=createStage(sample);
   const unavailable=()=>Object.freeze({supported:false,draw:()=>false,destroy:()=>{},turn:()=>false,step:()=>false,reset:()=>false,snapshot:stage.snapshot});
   let gl,program,buffer,vs,fs;
   try{gl=canvas?.getContext?.('webgl',{antialias:false,preserveDrawingBuffer:true,alpha:false});}catch{return unavailable();}
@@ -127,11 +158,21 @@
    const skull=[.9,.87,.78],teeth=[.70,.70,.63];
    box([0,-.17,2],[24,.3,24],[.16,.26,.24]);
    box([0,-.005,2],[3,.04,19],road);
-   for(const side of [-1,1]){
-    box([side*3.4,.8,3.8],[2.3,1.6,2.2],stone);
-    box([side*3.4,.9,8],[2.8,1.8,2.9],[.35,.36,.39]);
-    box([side*1.9,.7,6],[.25,1.4,.25],[.29,.25,.20]);
-    box([side*1.9,1.6,6],[.85,.75,.85],[.15,.38,.27]);
+   if(sample?.buildings?.length){
+    // Footprints come from CityInteriors.BUILDINGS, not randomly invented
+    // game-world coordinates. Every mesh remains preview-only.
+    for(const b of sample.buildings){
+     const height=b.height;
+     box([b.x,height/2,b.z],[b.w,height,b.d],rgb(b.color));
+     box([b.x,height+.09,b.z],[b.w+.15,.18,b.d+.15],[.13,.19,.24]);
+    }
+   }else{
+    for(const side of [-1,1]){
+     box([side*3.4,.8,3.8],[2.3,1.6,2.2],stone);
+     box([side*3.4,.9,8],[2.8,1.8,2.9],[.35,.36,.39]);
+     box([side*1.9,.7,6],[.25,1.4,.25],[.29,.25,.20]);
+     box([side*1.9,1.6,6],[.85,.75,.85],[.15,.38,.27]);
+    }
    }
    // The same simple box-rig rotates as a unit for third-person views.
    const gait=steps?Math.sin(steps*1.7)*.11:0;
@@ -170,5 +211,5 @@
    reset:()=>{if(disposed)return false;stage.reset();return true;}
   });
  }
- root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createStage,createPreview,perspective,lookAt,multiply});
+ root.CityGraphics=Object.freeze({KEY,ZOOM,QUALITY,createSettings,createWorldScene,createStage,createPreview,perspective,lookAt,multiply});
 })(typeof window==='undefined'?globalThis:window);
