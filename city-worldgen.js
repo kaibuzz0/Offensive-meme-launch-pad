@@ -182,6 +182,23 @@
    }
    return Object.freeze(buildings.sort(ordered));
   }
+  function spawnAt(){
+   // A new world begins at a seed-selected safe town/village crossing; no
+   // hard-coded fortress, old saved coordinates, or fixed tutorial town.
+   const candidates=[];
+   for(let gy=-4;gy<=4;gy++)for(let gx=-4;gx<=4;gx++){
+    const site=settlementCell(gx,gy);
+    if(site)candidates.push(site);
+   }
+   candidates.sort((a,b)=>Math.hypot(a.x,a.y)-Math.hypot(b.x,b.y)||ordered(a,b));
+   const choice=candidates[0];
+   if(!choice)throw Error('No safe settlement spawn for this world seed');
+   const ground=biomeAt(choice.x,choice.y);
+   return Object.freeze({
+    x:choice.x,y:choice.y,z:ground.height+STEP,
+    settlementId:choice.id,settlementName:choice.name,seedHash:numericSeed
+   });
+  }
   function chunkAt(cx,cy){
    if(!finiteTile(cx)||!finiteTile(cy)||Math.abs(cx)>1000000||Math.abs(cy)>1000000)return null;
    const left=cx*CHUNK_SIZE,top=cy*CHUNK_SIZE;
@@ -230,7 +247,7 @@
   return Object.freeze({
    seed:String(seed),seedHash:numericSeed,CHUNK_SIZE,TILE_SIZE,MIN_HEIGHT,MAX_HEIGHT,STEP,
    BIOMES,SETTLEMENT_TYPES,climateAt,biomeAt,settlementCell,settlementsNear,
-   chunkAt,blockAt,sliceAt
+   spawnAt,chunkAt,blockAt,sliceAt
   });
  }
  root.CityWorldgen=Object.freeze({createWorld,BIOMES,CHUNK_SIZE,TILE_SIZE,MIN_HEIGHT,MAX_HEIGHT,STEP});
