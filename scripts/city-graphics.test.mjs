@@ -138,7 +138,7 @@ test('3D movement controls remain exclusive to the optional graphics preview',()
  for(const name of ['Turn left','Walk forward','Walk backward','Turn right','Reset preview'])assert.ok(js.includes(name),name);
  assert.match(js,/graphicsPreview\.turn\(amount\)/);
  assert.match(js,/graphicsPreview\.step\(amount\)/);
- assert.match(mod,/const stage=createStage\(\)/);
+ assert.match(mod,/const stage=createStage\(sample\)/,'preview stage receives the authored scene for local collision');
  assert.match(mod,/actorBox\(/,'shared procedural avatar body and skull rig must rotate in perspective');
  assert.doesNotMatch(mod,/localStorage|sessionStorage|roomClient\.action|engine\.action/,'preview walking never modifies real state');
 });
