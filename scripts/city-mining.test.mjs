@@ -139,7 +139,7 @@ test('exact same module is wired to canonical client, deploy package and server 
   html=fs.readFileSync(new URL('../city.html',import.meta.url),'utf8'),
   pages=fs.readFileSync(new URL('../.github/workflows/pages.yml',import.meta.url),'utf8'),
   server=fs.readFileSync(new URL('../server/city-server.mjs',import.meta.url),'utf8');
- assert.match(html,/city-mining\.js\?v=49-surface-depth/);
+ assert.match(html,/city-mining\.js\?v=50-shaft-cache/);
  assert.match(html,/data-panel="mining"/);
  assert.match(pages,/city-mining\.js/);
  assert.match(server,/'city-mining\.js'/);
