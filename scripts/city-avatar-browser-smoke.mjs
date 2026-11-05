@@ -726,6 +726,25 @@ try{
   assert.equal(mineCutaway.height,350);
   assert.equal(mineCutaway.opaque,true,'real Chromium renders solid geological tiles at depth');
   assert.match(mineCutaway.minerHeight||'',/z=-8/,'the miner now occupies the first cleared underground level');
+
+  // Compare the actual mining panel with exactly the same geology drawn with
+  // no avatar callback; the live UI must visibly paint the *shared* player rig.
+  const minerPortrait=await evalPage(`(()=>{
+   const live=document.querySelector('canvas.mining-scene'),bare=document.createElement('canvas');
+   bare.width=live.width;bare.height=live.height;
+   const M=window.CityMining,V=window.CityMineVisuals,store=M.createStore(localStorage);
+   V.slice(bare.getContext('2d'),store,window.CityFrontier.regions[0].entry,{layer:1,dx:0,dy:0,z:-8});
+   const area={x:285,y:85,w:70,h:85};
+   const withRig=live.getContext('2d').getImageData(area.x,area.y,area.w,area.h).data;
+   const withoutRig=bare.getContext('2d').getImageData(area.x,area.y,area.w,area.h).data;
+   let different=0;
+   for(let i=0;i<withRig.length;i+=4)
+    if(Math.abs(withRig[i]-withoutRig[i])+Math.abs(withRig[i+1]-withoutRig[i+1])+
+       Math.abs(withRig[i+2]-withoutRig[i+2])>30)different++;
+   return {different};
+  })()`);
+  assert.ok(minerPortrait.different>70,'actual live Chromium cutaway paints the unified player rig, not just a selection marker');
+
   await evalPage(`(()=>{
    const up=[...document.querySelectorAll('.mining-controls button')].find(x=>x.textContent.includes('Ascend'));
    if(up.disabled)throw Error('No exit to surface');
