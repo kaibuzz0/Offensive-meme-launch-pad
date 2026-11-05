@@ -1,3 +1,9 @@
+## November 5 — live in-game camera milestone (draft PR #32)
+
+Added optional `Live 3D` inside the **original playable World V1** game shell, not a new standalone world and not a paused Graphics menu. It observes the authoritative current player and aim continuously at a capped 12 FPS while the existing game controls, AI, combat and 2D camera keep running. First-/third-person inset views, automatic 540-world-unit or biome-boundary terrain rebase, player-step gait, and GPU cleanup are implemented in `city-live-3d.js`. Input and saves still belong entirely to the original engine. This is a small experimental 3D perspective viewport, **not yet live full-screen 3D gameplay**. Browser and unit tests guard the original World V1; full details and remaining production blockers in `docs/CAMERA_GRAPHICS_MILESTONE.md`.
+
+---
+
 ## November 5 — development runway: faster verified batches
 
 Added a small, no-dependency CLI with **focused graphics, world and systems test modes** and clear full-release checks. Use `npm run test:scopes`, `npm run test:graphics`, `npm run test:world`, `npm run test:systems` while iterating, then `npm run verify:all` and `npm run verify:full` before requesting a release. Preserve existing `npm test` and GitHub CI. The operating playbook is in `docs/DEVELOPMENT_RUNWAY.md`: one coherent vertical slice per batch, fewer needless pushes/CI cycles, explicit exact-head verification, and no prototype-as-production claims. Nothing here changes gameplay, wallet state, mining, saves or production builds.
