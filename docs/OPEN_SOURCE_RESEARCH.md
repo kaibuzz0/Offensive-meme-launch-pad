@@ -22,3 +22,12 @@ Reviewed before implementing expanded foliage and organic borders:
 | [jwagner/simplex-noise.js](https://github.com/jwagner/simplex-noise.js) | `6bfff874f5f0efed6375a9bf27fbd39b3cec6b4e` (2024-07-26) | MIT, LICENSE previously verified | Self-contained ~2kB browser/Node noise implementation suitable for noise maps or seeded biomes. Existing original value-noise helper is sufficient for fixed, once-baked terrain and polygon perimeter. **Deferred**. |
 
 **Reused:** existing Meme City Canvas2D and deterministic hash/noise helpers; **new third-party code and art imported:** none. No package-lock, external script, shader engine or attribution changes are needed. Before later adopting a sampling library, revalidate license notices, all example asset rights and safety/performance on target Android phones.
+
+
+## 132 biome frontier: bareiron-fork design review
+
+- **[p2r3/bareiron](https://github.com/p2r3/bareiron)** — GPL-3.0 C Minecraft server, memory-first deterministic terrain and network chunk generation. Not a browser renderer.
+- **[TheShovel/irongingot](https://github.com/TheShovel/irongingot)** — GPL-3.0 fork, with src/chunk_generator.c cache and pre-generation; src/worldgen.c terrain and biomes; src/serialize.c JSON snapshots of modified blocks and player state. These were used as research references for original Canvas chunk caches and a versioned observation journal; **no GPL implementation was copied**.
+- **[kchapelier/fast-2d-poisson-disk-sampling](https://github.com/kchapelier/fast-2d-poisson-disk-sampling)** — MIT, deferred optional object spacing source; deterministic native hashes adequate for max 24 props/region.
+
+**No direct code or assets imported.** Built as city-frontier.js using the existing game's own original JavaScript engine. See docs/FRONTIER_BAREIRON_ARCHITECTURE.md for detailed architecture, memory budget, save integrity and licensing review.
