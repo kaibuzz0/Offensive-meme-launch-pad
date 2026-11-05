@@ -212,7 +212,7 @@ test('substep walking rejects narrow structures rather than tunneling through th
 
 test('perspective architecture keeps authored facade detail and uses no downloaded models',()=>{
  const mod=fs.readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8');
- assert.match(mod,/const facade=b\.z-b\.d\/2-\.035/);
+ assert.match(mod,/facade=b\.z-b\.d\/2-\.035/);
  assert.match(mod,/cameraAvoid\(sample,desiredEye,target\)/);
  assert.match(mod,/const count=Math\.max\(1,Math\.ceil\(Math\.abs\(distance\)\/\.1\)\)/);
  assert.doesNotMatch(mod,/fetch\(|import\(|<img|localStorage|roomClient\.action/);
