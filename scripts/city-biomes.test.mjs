@@ -9,7 +9,8 @@ for(const path of ['city-core.js','city-arcade.js','city-rise.js','city-interior
 const C=ctx.MemeCityCore,T=ctx.CityBiomes,I=ctx.CityInteriors,R=ctx.CityRising,M=ctx.CityMap;
 
 test('three nonblocking terrain biomes occupy safe greenbelt, avoiding roads, buildings and reserved locations',()=>{
- assert.deepEqual([C.WORLD.width,C.WORLD.height],[11200,11200]);
+ assert.deepEqual([C.WORLD.width,C.WORLD.height],[24400,14400]);
+ assert.deepEqual([C.WORLD.originalWidth,C.WORLD.originalHeight],[11200,11200]);
  assert.equal(T.regions.length,3);
  assert.equal(T.sites.length,3,'each region has an actual survey post');
  assert.equal(new Set(T.regions.map(r=>r.id)).size,3);
