@@ -149,14 +149,15 @@
    for(const id of entries){
     const o=parse(id);if(!o||o.layer!==0)continue;
     const x=o.ix*TILE,y=o.iy*TILE;
-    if(visible&&!visible(x,y,TILE,TILE))continue;
+    // Cache the complete, validated shaft set. Filtering here used to poison
+    // the cache with a single camera viewport and hide other mined entrances.
     const shaft=o.ix===o.ox&&o.iy===o.oy;
     out.push(Object.freeze({x,y,w:TILE,h:TILE,shaft,
      depth:shaft?shafts.get(o.region.id+':'+o.ox+':'+o.oy):STRATA[0].z,
      regionId:o.region.id}));
    }
    surfaceCache=Object.freeze(out);
-   return visible?out.filter(h=>visible(h.x,h.y,h.w,h.h)):out.slice();
+   return visible?surfaceCache.filter(h=>visible(h.x,h.y,h.w,h.h)):surfaceCache.slice();
   }
   return Object.freeze({
    key:KEY,disabled:()=>disabled,count:()=>entries.length,
