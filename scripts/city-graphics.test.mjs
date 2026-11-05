@@ -233,6 +233,40 @@ test('3D movement controls remain exclusive to the optional graphics preview',()
  assert.doesNotMatch(mod,/localStorage|sessionStorage|roomClient\.action|engine\.action/,'preview walking never modifies real state');
 });
 
+test('static world mesh bakes terrain and authored architecture into one capped RGB buffer',()=>{
+ const scene={terrain:{cells:Array.from({length:64},(_,i)=>({x:i%8-4,z:Math.floor(i/8)-4,w:1,d:1,relief:0,color:i%2?'#33564b':'#98705a'}))},
+  buildings:[{id:'sample',x:0,z:6,w:2,d:2,height:2,color:'#478890'}]};
+ const mesh=G.createStaticMesh(scene);
+ assert.ok(mesh.boxes>=70,'ground, sixty-four biome tiles, road and facades are baked');
+ assert.ok(mesh.boxes<=240,'hard ceiling on submitted static boxes');
+ assert.equal(mesh.vertices,mesh.boxes*36,'each cube is exactly thirty-six triangle vertices');
+ assert.equal(mesh.bytes,mesh.vertices*6*4,'position RGB interleaving uses six floats per vertex');
+ assert.equal(mesh.data.length,mesh.vertices*6);
+ assert.ok(mesh.data.every(Number.isFinite),'no malformed GPU coordinates or tints');
+ for(let i=3;i<mesh.data.length;i+=6)
+  assert.ok(mesh.data[i]>=0&&mesh.data[i]<=1&&mesh.data[i+1]>=0&&mesh.data[i+1]<=1&&
+   mesh.data[i+2]>=0&&mesh.data[i+2]<=1,'vertex colors are valid normalized RGB');
+ assert.deepEqual(Array.from(G.createStaticMesh(scene).data),Array.from(mesh.data),'deterministic geometry');
+ assert.equal(Object.isFrozen(mesh),true);
+ const overLimit=G.createStaticMesh({terrain:{cells:Array.from({length:500},()=>({x:0,z:0,w:3,d:3,relief:0,color:'#888888'}))},
+  buildings:Array.from({length:500},(_,i)=>({id:'building-'+i,x:i,z:2,w:5,d:2,height:2,color:'#336699'}))});
+ assert.ok(overLimit.boxes<=240,'untrusted scene input cannot allocate unbounded WebGL geometry');
+ const fallback=G.createStaticMesh(null);
+ assert.ok(fallback.boxes>=10,'background geometry survives without authored biome data');
+});
+
+test('batch renderer uses one static draw per redraw and frees its GPU buffer',()=>{
+ const source=fs.readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8');
+ assert.match(source,/createStaticMesh\(sample\)/);
+ assert.match(source,/gl\.drawArrays\(gl\.TRIANGLES,0,staticMesh\.vertices\);staticDrawCalls\+\+/);
+ assert.match(source,/gl\.vertexAttribPointer\(colorAttr,3,gl\.FLOAT,false,24,12\)/);
+ assert.match(source,/gl\.deleteBuffer\(staticBuffer\)/);
+ assert.match(source,/gl\.isContextLost\?\.\(\)/);
+ assert.doesNotMatch(source,/fetch\(|import\(|requestAnimationFrame|roomClient\.action/);
+ const unsupported=G.createPreview({getContext:()=>null});
+ assert.equal(unsupported.stats(),null,'no GPU statistics promised when WebGL is missing');
+});
+
 test('graphics module remains isolated from original save and authoritative game state',()=>{
  const s=fs.readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8');
  assert.doesNotMatch(s,/offensive-meme-city-v1-center/);
