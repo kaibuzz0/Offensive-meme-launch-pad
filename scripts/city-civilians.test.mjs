@@ -34,7 +34,8 @@ test('bounded civilians inhabit the ORIGINAL hub, clan blocks and social boardwa
  }
  assert.equal('civilians' in p,false,'not written into saved player data');
  assert.equal(e.arcade.bots.filter(b=>b.kind==='civilian').length,0,'not combat-farmable bots');
- assert.equal(C.WORLD.width,11200);assert.equal(C.WORLD.height,11200);
+ assert.equal(C.WORLD.originalWidth,11200);assert.equal(C.WORLD.originalHeight,11200);
+ assert.equal(C.WORLD.width,24400);assert.equal(C.WORLD.height,14400);
 });
 test('nearby street pedestrians stroll safely while distant NPCs sleep for performance',()=>{
  const {C,e,p}=setup();quiet(e);
