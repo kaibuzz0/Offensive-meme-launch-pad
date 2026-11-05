@@ -8,8 +8,10 @@ vm.runInNewContext(readFileSync(new URL('../city-live-3d.js',import.meta.url),'u
 const Live=ctx.CityLive3D;
 
 function fixture({webgl=true}={}){
- const calls={scenes:[],creations:[],draws:[],observed:[],destroyed:0};
- let player={x:5600,y:5940,room:null},aim={x:1,y:0},visible=true;
+ const calls={scenes:[],creations:[],draws:[],observed:[],crowds:[],destroyed:0};
+ let player={id:'mine',x:5600,y:5940,room:null},aim={x:1,y:0},visible=true;
+ let world={players:[{id:'mine',x:5600,y:5940,room:null},{id:'friend',x:5620,y:5960,room:null,facing:{x:1,y:0}}],
+  civilians:[{id:'civil1',x:5570,y:5960,phase:2}],arcade:{bots:[],guards:[]},monk:null};
  const container={hidden:true,dataset:{}},status={textContent:''},canvas={};
  const graphics={
   createWorldScene(_buildings,where){
@@ -27,6 +29,7 @@ function fixture({webgl=true}={}){
      current=snapshot;calls.observed.push(snapshot);return true;
     },
     observed(){return current;},
+    setActors(actors){calls.crowds.push(actors);return true;},
     draw(mode,tint){calls.draws.push({mode,tint,position:current});return true;},
     destroy(){calls.destroyed++;},
     stats(){return {staticDrawCalls:1,dynamicDrawCalls:1};}
@@ -40,9 +43,9 @@ function fixture({webgl=true}={}){
  };
  const view=Live.create({graphics,canvas,container,status,buildings:[{id:'sample'}],
   biomes:{regionAt:(x)=>x>=7000?{id:'local-east'}:{id:'local-west'}},frontier:null,
-  getPlayer:()=>player,getAim:()=>aim,getColor:()=> '#bdff56',isVisible:()=>visible});
+  getPlayer:()=>player,getAim:()=>aim,getWorldState:()=>world,getColor:()=> '#bdff56',isVisible:()=>visible});
  return {view,calls,container,status,setPlayer:p=>{player=p;},getPlayer:()=>player,
-  setAim:a=>{aim=a;},setVisible:v=>{visible=v;}};
+  setAim:a=>{aim=a;},setVisible:v=>{visible=v;},setWorld:w=>{world=w;}};
 }
 
 test('live view initializes only on demand and mirrors authoritative moving 2D position',()=>{
@@ -120,6 +123,71 @@ test('inactive panels and hidden pages suspend the optional GPU view without sto
  v.stop();
 });
 
+test('real World V1 NPCs render through bounded, immutable, sorted read-only snapshots',()=>{
+ const player={id:'me',x:5600,y:5940},scene={world:{x:5600,y:5940}};
+ const original={
+  players:[{id:'me',x:5600,y:5940},{id:'peer',x:5630,y:5940,facing:{x:1,y:0}}],
+  civilians:[{id:'civil',x:5580,y:5940,phase:2},{id:'far',x:8000,y:8000}],
+  arcade:{bots:[{id:'z',kind:'zombie',x:5620,y:5930,faceX:0,faceY:-1,hp:80},
+   {id:'dead',kind:'zombie',x:5620,y:5920,hp:0}],
+   guards:[{id:'guard',x:5625,y:5945,hp:50}]},
+  monk:{id:'monk',x:5632,y:5930,hp:95}
+ };
+ const before=JSON.stringify(original);
+ const actors=Live.selectNearbyActors(scene,player,original);
+ assert.ok(actors.length===5,'only actual nearby, living, non-self entities are selected');
+ assert.equal(actors[0].id,'civilian:civil','nearest characters are drawn first');
+ assert.ok(actors.some(a=>a.id==='bot:z'&&a.color==='#a7d583'));
+ assert.ok(actors.some(a=>a.id==='player:peer'&&Math.abs(a.yaw-Math.PI/2)<1e-8));
+ assert.ok(actors.some(a=>a.id==='guard:guard'));
+ assert.ok(actors.some(a=>a.id==='monk:monk'));
+ assert.ok(!actors.some(a=>a.id==='player:me'||a.id==='bot:dead'));
+ assert.equal(Object.isFrozen(actors),true);
+ assert.equal(Object.isFrozen(actors[0]),true);
+ assert.equal(JSON.stringify(original),before,'observing a crowd cannot mutate authoritative NPC state');
+ const limited=Live.selectNearbyActors(scene,player,original,2);
+ assert.equal(limited.length,2,'mobile draw cap is respected');
+ assert.equal(Live.selectNearbyActors(scene,player,null).length,0);
+ assert.equal(Live.selectNearbyActors(scene,{x:NaN,y:5940},original).length,0);
+});
+
+test('moving real game entities update the live crowd without allocating a new simulation',()=>{
+ const f=fixture(),v=f.view;
+ v.start();v.tick(0);
+ assert.equal(f.calls.crowds.length,1);
+ assert.equal(f.calls.crowds[0].length,2,'self player excluded but nearby peer and civilian included');
+ const other={players:[{id:'mine',x:5600,y:5940}],civilians:[{id:'moving',x:5650,y:5940,phase:3}],arcade:{bots:[],guards:[]}};
+ const original=JSON.stringify(other);
+ f.setWorld(other);v.tick(100);
+ assert.equal(f.calls.crowds[1][0].id,'civilian:moving');
+ assert.ok(Math.abs(f.calls.crowds[1][0].x-50/120)<1e-8);
+ assert.equal(f.calls.creations.length,1,'nearby changes reuse one WebGL context');
+ assert.equal(JSON.stringify(other),original,'live crowd does not modify NPC positions');
+ v.stop();
+});
+
+test('crowd renderer batches multiple avatars into a single bounded dynamic mesh',()=>{
+ const glContext={};
+ vm.runInNewContext(readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8'),glContext);
+ const G=glContext.CityGraphics;
+ const actors=[
+  {id:'p',x:0,z:0,yaw:0,steps:0,color:'#88bbff'},
+  {id:'z',x:1,z:-2,yaw:Math.PI,steps:2,color:'#aacc88'}
+ ];
+ const batch=G.createCrowdMesh(actors);
+ assert.equal(batch.actors,2);
+ assert.ok(batch.vertices>1000&&batch.vertices<56*36*2);
+ assert.equal(batch.bytes,batch.vertices*24);
+ assert.ok(batch.data.every(Number.isFinite));
+ assert.deepEqual(Array.from(G.createCrowdMesh(actors).data),Array.from(batch.data),'crowd mesh is deterministic');
+ assert.ok(Array.from(batch.data).some(x=>x<0),'world coordinates are signed');
+ assert.equal(G.createCrowdMesh([{id:'bad',x:Infinity,z:0,yaw:0,steps:0}]).actors,0);
+ assert.equal(G.createCrowdMesh([...actors,...actors]).actors,2,'duplicate characters cannot be drawn twice');
+ const full=G.createCrowdMesh(Array.from({length:30},(_,i)=>({id:'a'+i,x:i%10,z:0,yaw:0,steps:0})));
+ assert.equal(full.actors,6,'crowd draw has a hard six-character limit');
+ assert.ok(full.bytes<=6*56*36*24);
+});
+
 test('WebGL unsupported and invalid 3D input fail closed without touching player or saves',()=>{
  const f=fixture({webgl:false});
  assert.equal(f.view.start(),false);assert.equal(f.view.stats().enabled,false);
@@ -148,6 +216,7 @@ test('live viewport ships in original game UI, local server and GitHub Pages',()
  assert.ok(css.includes('.city-live-3d{'));
  assert.ok(js.includes('live3D.tick(time)'),'camera samples current gameplay loop');
  assert.ok(js.includes("getPlayer:()=>me,getAim:()=>aim"));
+ assert.ok(js.includes('getWorldState:()=>state'),'live camera mirrors real NPC state');
  assert.ok(server.includes("'city-live-3d.js'"));
  assert.ok(pages.includes('city-live-3d.js'));
 });
