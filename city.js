@@ -42,6 +42,15 @@
   toggle.textContent=data.enabled?'◫ Hide 3D':'◫ Live 3D';
   mode.textContent=data.mode==='third'?'First person':'Third person';
  }
+ function updateLive3D(time){
+  // Never let optional WebGL exceptions interrupt the authoritative game loop.
+  try{live3D.tick(time);}catch{
+   try{live3D.stop();}catch{}
+   $('#city-live-3d').hidden=true;
+   $('#city-live-3d-status').textContent='3D renderer failed. The original 2D game continues.';
+   syncLive3DControls();
+  }
+ }
  let groundCache=null;const buildingCache=new Map(),particles=[],seenEffects=new Set(),positions=new Map();
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  const legacySaveKey='offensive-meme-city-v1',saveKey='offensive-meme-city-v1-center',backupKey='offensive-meme-city-v1-center-source-backup',Save=window.CityCenterSave;let saveBlocked=false;
@@ -1224,7 +1233,7 @@ ctx.fillStyle='#1b3036';ctx.fillRect(0,0,2240,1660);ctx.fillStyle='#3d4e58';ctx.
   ctx.strokeStyle='#ffd698';ctx.lineWidth=2;const r=26;for(let i=0;i<4;i++){ctx.beginPath();ctx.arc(b.x,b.y-58,r,i*Math.PI/2+.15,i*Math.PI/2+.75);ctx.stroke();}
  }
  function movement(){let x=stick.x,y=stick.y;if(keys.has('a')||keys.has('arrowleft')||held.has('left'))x--;if(keys.has('d')||keys.has('arrowright')||held.has('right'))x++;if(keys.has('w')||keys.has('arrowup')||held.has('up'))y--;if(keys.has('s')||keys.has('arrowdown')||held.has('down'))y++;if(!entered||activePanel||document.hidden)x=y=0;if((x||y)&&!manualAim){const n=Math.hypot(x,y);aim={x:x/n,y:y/n};}return{x,y};}
- function frame(time){if(tracked&&entered&&!activePanel&&Math.hypot(tracked.x-me.x,tracked.y-me.y)<60){const arrived=tracked;tracked=null;routePath=null;toast(arrived.id?.startsWith('biome:')?arrived.name+' reached. Press E to survey.':'Destination reached. Press E for nearby activities.');}if(tracked&&routePath&&time-lastRouteCalc>6000&&routePlanner.distanceToRoute(me,routePath)>150){const path=routePlanner.plan(me,tracked,online?null:me);routePath=path.status==='ok'?path.points:null;lastRouteCalc=time;}const dt=Math.min(1,(time-lastFrame)/1000||.016);lastFrame=time;if(!online){const m=movement();engine.input('solo',m.x,m.y);engine.trigger('solo',entered&&!activePanel&&!document.hidden&&(firing||keys.has(' ')),aim.x,aim.y,mouseFiring);if(entered&&!activePanel&&!document.hidden)for(let remaining=dt;remaining>0;remaining-=.05)engine.tick(Math.min(.05,remaining));refreshState();}draw(time,dt);live3D.tick(time);if(time-lastDrawUI>150){updateUI();lastDrawUI=time;}if(time-saveAt>2500){save();saveAt=time;}requestAnimationFrame(frame);}
+ function frame(time){if(tracked&&entered&&!activePanel&&Math.hypot(tracked.x-me.x,tracked.y-me.y)<60){const arrived=tracked;tracked=null;routePath=null;toast(arrived.id?.startsWith('biome:')?arrived.name+' reached. Press E to survey.':'Destination reached. Press E for nearby activities.');}if(tracked&&routePath&&time-lastRouteCalc>6000&&routePlanner.distanceToRoute(me,routePath)>150){const path=routePlanner.plan(me,tracked,online?null:me);routePath=path.status==='ok'?path.points:null;lastRouteCalc=time;}const dt=Math.min(1,(time-lastFrame)/1000||.016);lastFrame=time;if(!online){const m=movement();engine.input('solo',m.x,m.y);engine.trigger('solo',entered&&!activePanel&&!document.hidden&&(firing||keys.has(' ')),aim.x,aim.y,mouseFiring);if(entered&&!activePanel&&!document.hidden)for(let remaining=dt;remaining>0;remaining-=.05)engine.tick(Math.min(.05,remaining));refreshState();}draw(time,dt);updateLive3D(time);if(time-lastDrawUI>150){updateUI();syncLive3DControls();lastDrawUI=time;}if(time-saveAt>2500){save();saveAt=time;}requestAnimationFrame(frame);}
  function multiplayerPanel(content){
   content.append(node('p','district-kicker','PLAY TOGETHER / SERVER-CONTROLLED ROOMS'),node('h3','district-heading',online?'Your crew is here.':'A shared city for your crew.'),node('p','', 'Up to eight players share streets, interiors, enemy bots, room chat and play-credit trading. Solo fortresses and squads remain in your separate solo save. Online guests reset when the room service restarts.'));
   if(online){const info=state.roomInfo;content.append(node('p','room-code',`${info.private?'FRIEND ROOM':'PUBLIC ROOM'} / ${info.code} · ${info.players}/${info.capacity}`),node('p','',roomStatus==='reconnecting'?'Reconnecting to your existing character…':'Connected. The server validates movement, equipment and rewards.'),button('Copy friend invite',async()=>{const u=new URL(location.href);u.search='';u.hash='';u.searchParams.set('room',info.code);try{await navigator.clipboard.writeText(u.href);toast('Invite copied. It contains the room code, never a session key.');}catch{toast('Room code: '+info.code);}}),button('Room chat →',()=>panel('chat')),button('Return to my solo city',async()=>{await roomClient.leave();disconnect('Left the room. Back in your solo city.');closePanel();}));
