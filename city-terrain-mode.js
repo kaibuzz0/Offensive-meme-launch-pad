@@ -160,12 +160,12 @@
   const cs=world.CHUNK_SIZE;
   for(let cy=Math.floor(top/cs);cy<=Math.floor(bottom/cs);cy++)
    for(let cx=Math.floor(left/cs);cx<=Math.floor(right/cs);cx++){
-    const chunk=world.chunkAt(cx,cy);
+    const chunk=voxel?voxel.chunkAt(cx,cy):world.chunkAt(cx,cy);
     if(!chunk)continue;
     for(const tile of chunk.tiles){
      if(tile.x<left||tile.x>right||tile.y<top||tile.y>bottom)continue;
-     const px=(tile.x-player.x)*zoom+w/2,py=(tile.y-player.y)*zoom+h/2;
-     ctx.fillStyle=groundColor(tile);ctx.fillRect(Math.floor(px),Math.floor(py),Math.ceil(zoom)+1,Math.ceil(zoom)+1);
+     const px=(tile.x-player.x)*zoom+w/2,py=((tile.z??tile.y)-player.y)*zoom+h/2;
+     ctx.fillStyle=tile.water?'#1b6689':groundColor(tile);ctx.fillRect(Math.floor(px),Math.floor(py),Math.ceil(zoom)+1,Math.ceil(zoom)+1);
      ctx.fillStyle=tile.height>=80?'#0a172029':'#fff9cf11';
      ctx.fillRect(Math.floor(px),Math.floor(py+zoom-2),Math.ceil(zoom)+1,2);
     }
