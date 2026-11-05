@@ -67,3 +67,11 @@ Accessible mobile/touch controls in the original Graphics panel allow **Turn lef
 ## Integration update (2026-11-05)
 
 PR #31 merged a working camera selector and its `meme-city-camera-view-v1` preference. The updated integration **retains that setting**, and synchronizes it with `CityGraphics` zoom preferences rather than replacing the current user interface. Pixel ratio quality and optional WebGL preview remain isolated from the game engine. This integration supersedes the conflicting first draft in PR #30; this branch starts from the latest `main`.
+
+## Milestone 3 — existing World V1 geometry in the perspective lab
+
+The browser graphics panel now obtains the existing `CityInteriors.BUILDINGS` authored world footprints and the current player's coordinates **only as read-only inputs**. `CityGraphics.createWorldScene` validates/caps the source, chooses the nearest real named door, maps up to 16 nearby building footprints to a small 3D perspective layout (120 world units per preview unit), and displays the actual selected landmark and origin coordinates. Roofs and volumes use the real building footprints and existing theme/accent colors, rather than four invented generic blocks. The local walking stage rejects steps into those 3D preview footprints; it retains its corridor bounds and reset behavior.
+
+This is a **rendered world-data sample**, not a 1:1 real-world 3D traversal. The preview stage origin intentionally begins south of the selected building door; moving the test character changes **only** preview-local x/z/yaw. There is no player teleport, no mutation of game collisions, saved coordinates, rooms, missions, miner state or wallet entitlements. Additional terrain meshes, working door portals, actual camera syncing, skeletal animations, 3D mining and authoritative first-/third-person gameplay remain incomplete.
+
+QA adds direct tests against the real authored building registry, nearest-landmark selection, tampered/invalid geometry rejection, bounded geometry count, collision checking and browser UI labeling. Devices without WebGL retain the safe 2D gameplay and a descriptive fallback.
