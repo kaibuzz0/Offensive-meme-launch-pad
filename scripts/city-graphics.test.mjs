@@ -162,7 +162,7 @@ test('terrain mesh samples authoritative 3 historical and 132 frontier biome reg
 
 test('jointed avatar pose is bounded, stable and uses opposing limbs',()=>{
  const idle=G.avatarPose(0),walk=G.avatarPose(1),stepTwo=G.avatarPose(2);
- assert.equal(idle.bob,0);assert.equal(idle.leftLeg,0);assert.equal(idle.rightLeg,0);
+ assert.equal(idle.bob,0);assert.equal(idle.leftLeg,0);assert.ok(idle.rightLeg===0,'signed zero is an equally valid resting joint angle');
  assert.equal(walk.leftLeg,-walk.rightLeg,'legs swing in opposing directions');
  assert.equal(walk.leftArm,-walk.leftLeg*.7,'opposite-arm rhythm');
  assert.ok(walk.bob>0&&walk.bob<.03);
