@@ -78,7 +78,7 @@ assert.ok(read('city.html').includes('city-map.js?v=47-frontier'),'World map des
  assert.ok(read('.github/workflows/pages.yml').includes('city-mining.js')&&read('.github/workflows/pages.yml').includes('city-mine-visuals.js'),'Mining logic and visuals must be included in Pages builds');
  assert.ok(read('server/city-server.mjs').includes("'city-mining.js','city-mine-visuals.js'"),'Local server must serve mining module and renderer static assets');
  assert.ok(read('server/city-server.mjs').includes("'city-core.js','city-biomes.js'"),'Existing local multiplayer and Chromium server must serve biome assets');
-assert.ok(read('city.html').includes('city-frontier.js?v=47-frontier')&&read('city.html').includes('city-mining.js?v=50-shaft-cache')&&read('city.html').includes('city-mine-visuals.js?v=49-surface-depth')&&read('city.html').includes('city-nav.js?v=42-wayfinding'),'Collision-safe next-turn street navigator must load');
+assert.ok(read('city.html').includes('city-frontier.js?v=47-frontier')&&read('city.html').includes('city-mining.js?v=50-shaft-cache')&&read('city.html').includes('city-mine-visuals.js?v=62-unified-miner')&&read('city.html').includes('city-nav.js?v=42-wayfinding'),'Collision-safe next-turn street navigator must load');
 assert.ok(read('.github/workflows/pages.yml').includes('city-nav.js'),'Street navigator must deploy');
 assert.ok(read('.github/workflows/pages.yml').includes('city-map.js'),'World map destinations must deploy');
 assert.ok(read('city.html').includes('city-districts.js'),'District renderer must load');
@@ -98,7 +98,7 @@ assert.ok(city.includes('city-interiors.js?v=39-chaos-arcade')&&city.includes('c
 assert.ok(city.includes('city-civilians.js?v=44-friendly-civilians'),'Shared reactively fleeing civilians must load in existing playable city');
 assert.ok(city.includes('city-rise-visuals.js?v=43-street-lighting'),'Current center-world street lighting must ship with the original city');
 assert.ok(city.includes('city-territory.js?v=40-district-defense'),'Territory defense encounters must ship in the one playable city');
-assert.ok(city.includes('city.js?v=61-live-crowd'),'Restored V1 playable engine must be loaded with the refreshed script version');
+assert.ok(city.includes('city.js?v=62-unified-miner'),'Restored V1 playable engine must be loaded with the refreshed script version');
 assert.ok(city.includes('city-rise.js?v=37-one-world-quarantine')&&city.includes('city-arcade.js?v=41-civilian-patrols')&&city.includes('city-interiors.js?v=39-chaos-arcade'),'All authoritative Quarantine modules must share the live script version');
 assert.ok(city.includes('city-districts.js?v=47-frontier')&&city.includes('city-room-visuals.js?v=39-chaos-arcade'),'Modern exterior and interior renderers must be shipped together');
 assert.ok(city.includes('city-visuals.js?v=37-one-world-quarantine')&&city.includes('city-clans.js?v=37-one-world-quarantine')&&city.includes('city-core.js?v=48-mining'),'Signed beta-token cosmetics must use the updated shared player rig');
