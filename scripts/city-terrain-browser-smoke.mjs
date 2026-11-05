@@ -37,7 +37,7 @@ try{
   server.once('error',reject);server.listen(0,'127.0.0.1',()=>{server.off('error',reject);resolve();});
  });
  browser=spawn(executable,['--headless=new','--no-sandbox','--disable-dev-shm-usage',
-  '--disable-gpu','--remote-debugging-port=0','--user-data-dir='+profile,
+  '--enable-unsafe-swiftshader','--use-angle=swiftshader','--remote-debugging-port=0','--user-data-dir='+profile,
   '--no-first-run','about:blank'],{stdio:'ignore'});
  const port=await waitFor(async()=>{
   try{return Number((await readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0])||null;}
@@ -61,10 +61,24 @@ try{
  await waitFor(()=>evalPage('!!window.CityTerrainWorld?.createTerrain && document.body.classList.contains("terrain-only-mode")'),'terrain script boot');
  const initial=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");const w=CityTerrainWorld.createTerrain(seed,CityFrontier.regions);const c=w.chunkAt(0,0);return {seed,count:w.anchors.length,types:new Set(w.anchors.map(a=>w.biomeAt(Math.round(a.x),Math.round(a.y)).id)).size,sites:c.sites.length,structures:c.structures.length,roads:c.tiles.filter(t=>t.road).length,legacy:localStorage.getItem("offensive-meme-city-v1-center")};})()');
  assert.equal(initial.count,132);assert.equal(initial.types,132);
+ const voxel=await evalPage('(()=>{const atlas=CityTerrainWorld.createTerrain(localStorage.getItem("meme-city-terrain-seed-v1"),CityFrontier.regions);const world=CityVoxelWorld.createVoxelWorld(atlas);const ground=world.surfaceAt(0,0);const mesh=CityVoxelRenderer.generateMesh(world,0,0);return {block:world.VOXEL_METERS,eye:world.EYE_HEIGHT,caves:typeof world.caveAt==="function",height:ground.height,vertices:mesh.vertices,plants:mesh.plants};})()');
+ assert.equal(voxel.block,.25);
+ assert.equal(voxel.eye,6.4);
+ assert.equal(voxel.caves,true);
+ assert.ok(voxel.height>0&&voxel.vertices>1536);
  assert.equal(initial.sites,0);assert.equal(initial.structures,0);assert.equal(initial.roads,0);
  assert.equal(initial.legacy,null,'new terrain preview does not overwrite the original solo save');
  await evalPage('document.getElementById("start-button").click();true');
  await waitFor(()=>evalPage('document.getElementById("city-intro").hidden===true'),'enter terrain');
+ const view=await evalPage('(()=>{const canvas=document.getElementById("city-voxel-canvas");const gl=canvas?.getContext("webgl");return {exists:!!canvas,gl:!!gl,hidden:canvas?.hidden,crosshair:!!document.getElementById("city-voxel-crosshair")};})()');
+ assert.equal(view.exists,true);assert.equal(view.crosshair,true);
+ if(view.gl){
+  assert.equal(view.hidden,false,'first person is default when WebGL works');
+  await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.textContent.startsWith("3D ·")'),'3D chunk rendering',30000);
+  const error=await evalPage('document.getElementById("city-voxel-canvas").getContext("webgl").getError()');
+  assert.equal(error,0,'first-person 3D frame must not cause WebGL errors');
+ }
+
  await waitFor(()=>evalPage('(()=>{const c=document.getElementById("city-canvas");return c.width>100&&c.height>100&&!!localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"));})()'),'paint and save world');
  const start=await evalPage('JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).x');
  await request('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
@@ -78,11 +92,19 @@ try{
  assert.ok(stored.saved.x>start);
  assert.equal(stored.original,null);
  assert.deepEqual(exceptions,[],'no uncaught JS exceptions in terrain-mode browser entry');
- console.log('PASS: mobile Chromium terrain world paints, exposes all 132 biome anchors, has no streets/NPCs, moves and restores same seed');
+ console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, no streets/NPCs, movement and seed restoration');
 }finally{
  for(const x of pending.values())x.reject(Error('Browser closed'));
  if(ws){try{ws.close();}catch{}}
- if(browser){browser.kill('SIGKILL');}
+ if(browser){
+  browser.kill('SIGKILL');
+  await Promise.race([
+   new Promise(resolve=>{if(browser.exitCode!==null||browser.signalCode!==null)return resolve();browser.once('exit',resolve);}),
+   delay(1800)
+  ]);
+ }
  await new Promise(resolve=>server.close(resolve));
- await rm(profile,{recursive:true,force:true});
+ // Chrome can still flush its Default profile briefly after termination.
+ // Let Node retry ENOTEMPTY/EBUSY rather than fail an otherwise green QA run.
+ await rm(profile,{recursive:true,force:true,maxRetries:8,retryDelay:160});
 }

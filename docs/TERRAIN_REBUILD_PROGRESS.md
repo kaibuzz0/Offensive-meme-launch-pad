@@ -28,8 +28,8 @@ Rebuild the map first. A fresh player creates a unique seeded world with all **1
 
 ## Estimated progress (engineering judgment, not automated percent)
 
-**Terrain-only map milestone:** approximately **55%** of the way to an Android-tested, selectable generated-world map.
-**Complete Minecraft-like sandbox world:** approximately **15%**, because voxel physics, infinite region streaming, 3D meshing, world editing and multiplayer remain.
+**Terrain-only map milestone (round 1):** approximately **55%** of the way to an Android-tested, selectable generated-world map.
+**Complete sandbox world (round 1):** approximately **15%**, because voxel physics, infinite region streaming, 3D meshing, world editing and multiplayer remain.
 
 The estimates cover the explicitly agreed map-first scope, and will be revised after each verified batch rather than presented as exact completion measurements.
 
@@ -42,3 +42,36 @@ The estimates cover the explicitly agreed map-first scope, and will be revised a
 5. Switch the public default only after the new terrain mode achieves acceptable mobile usability; preserve legacy save entry as an explicit selectable option.
 
 **Merge gate:** Full Node, asset/static, original World V1 Chromium regression, new terrain Chromium smoke, and successful GitHub Pages deployment. Preserve existing saves. Never force a destructive default-world migration.
+## Milestone 2 — Quarter-meter first-person wilderness (PR #37)
+
+**Visual target:** A distinctive realistic wilderness, not an imitation of Minecraft textures or UI. The present native WebGL renderer is a procedural foundation; it does **not** meet photorealistic visual quality yet.
+
+**Block scale and world height:**
+- One voxel edge = **0.25 m**, one-sixty-fourth of a standard 1m cube's volume.
+- Player reference height = 7.2 voxels (1.8m). Eye height = 6.4 voxels (1.6m).
+- Underground bedrock = -256 voxels (-64m), maximum world elevation = +2048 voxels (+512m), water level = 112 voxels (28m).
+- Terrain noise produces different mountain ridges, hills, river-cut channels and submerged basins, with separate alpine, tropical, desert, volcanic, grassland and other family influences.
+
+**Implemented on opt-in generated-world path:**
+- First-person WebGL camera with mouse/touch drag, relative WASD/d-pad/joystick movement, persisted viewing angles, top-down fallback and atlas switching.
+- Biome-conditioned, seed-stable 3D vegetation prototypes: pines, broadleaf trees, palms, mushrooms, cacti, shrubs, grasses, flowers, reeds, crystals and rocks.
+- Terrain surface and exposed sides, bounded GPU chunk-cache, near/far mesh LOD, blue water surfaces, sky gradient/sun glow, directional sunlight approximation, distance fog, texture-free procedural material grain.
+- Seed-generated 3D caves and ore/bedrock sampling, but underground tunnel meshes and physically enterable caves **remain incomplete**.
+- Separate terrain save namespace; no alteration of legacy Solo game saves, wallet, NPCs, buildings or streets.
+- Native browser/Node unit checks for 132-biome catalog, seed variation, quarter-voxel scale, mountains, caves, plants, seam continuity, bounded geometry and mobile-sized Chromium entry.
+
+**Quality and technical limitations:**
+- First-person camera currently follows sampled terrain elevation, **without full player collision, jumps, falling physics or underground pathing**.
+- Terrain materials use procedural colors and shading, not high-resolution material textures, physically based shading or real dynamic shadows. Lighting and water are visual approximations.
+- Dense forest rendering and all 132 distinct biome-specific vegetation identities are not finished. Starter biome anchors still occupy an internally seeded 12×11 arrangement, not a geographically realistic unlimited ecology simulation.
+- Far geometry uses a coarse 4-voxel sampling step; adaptive fog/LOD and Web Workers require subsequent optimization. No measured physical Android GPU/FPS guarantee.
+- This is still an optional wilderness mode within **the same** `city.html`, not a second independent game or production replacement.
+
+**Next graphics-intensive work:** biome-specific PBR material atlases with verified texture licenses, normal/roughness maps, ambient occlusion, cast shadows, better water and shoreline transparency, stratified forests with grass and leaf billboards/geometry LOD, eroded slopes and rock faces, real rendered subterranean caves, player collision and worker-based generation.
+
+**Estimated progress after round 2 (not a precise metric):**
+- Core first-person voxel landscape prototype: **~65%**.
+- Realism-quality graphics and environmental simulation: **~20%**.
+- Full Minecraft-like but original sandbox gameplay/world systems: **~20%**.
+
+**Merge gate:** No release without exact-head tests, local legacy/game regressions, GitHub Pages integrity and mobile-sized Chromium verification. Keep original public mode and saves intact until a separately approved cutover.
