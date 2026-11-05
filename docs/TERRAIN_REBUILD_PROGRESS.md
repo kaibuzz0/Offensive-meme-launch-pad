@@ -1,6 +1,6 @@
 # Meme City — Terrain-Only Rebuild Progress
 
-**Working branch:** `codex/seeded-worldgen-rebuild` (PR #36)  
+**Working branch:** `codex/seeded-worldgen-rebuild` (PR #36)
 **Production policy:** Existing World V1 at `city.html` remains the default until terrain mode is robust; no original saves deleted. Owner requested incremental main merges of tested milestones.
 
 ## Product scope for the present rounds
@@ -28,7 +28,7 @@ Rebuild the map first. A fresh player creates a unique seeded world with all **1
 
 ## Estimated progress (engineering judgment, not automated percent)
 
-**Terrain-only map milestone:** approximately **55%** of the way to an Android-tested, selectable generated-world map.  
+**Terrain-only map milestone:** approximately **55%** of the way to an Android-tested, selectable generated-world map.
 **Complete Minecraft-like sandbox world:** approximately **15%**, because voxel physics, infinite region streaming, 3D meshing, world editing and multiplayer remain.
 
 The estimates cover the explicitly agreed map-first scope, and will be revised after each verified batch rather than presented as exact completion measurements.
