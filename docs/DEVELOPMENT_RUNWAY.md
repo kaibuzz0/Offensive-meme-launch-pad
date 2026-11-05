@@ -44,3 +44,7 @@ When merging completed work, review conflicts against the latest `main`, check e
 ## Suggested next vertical slice
 
 A continuously read-only camera feed **while the original player keeps moving** in a safely framed in-world viewport, with no new authority, no wallet interaction and browser acceptance. Once this works, attach input/aiming to the same existing engine under an explicit feature flag and test combat/collision before making 3D a primary view.
+
+## Completed vertical slice: live gameplay camera input observation
+
+The first feature developed using this workflow is a live read-only **in-game** 3D camera inset: the same current player's movement and aiming drive the visual geometry without an independent player/world authority. Its unit tests, actual mobile Chromium game input acceptance, scene streaming, camera-mode controls, Canvas fallback, asset deployment and documentation were implemented in a cohesive batch. See `docs/CAMERA_GRAPHICS_MILESTONE.md`. The next phase can add server-authoritative in-game perspective and aiming only after collision and save-isolation checks; the 2D game must remain selectable and untouched by default.
