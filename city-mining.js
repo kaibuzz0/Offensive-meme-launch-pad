@@ -173,8 +173,8 @@
   const pos=()=>Object.freeze({layer,dx,dy,x:(entry.ox+dx+.5)*TILE,
    y:(entry.oy+dy+.5)*TILE,z:layer===0?surface:STRATA[layer-1].z});
   const sample=(x,y,index)=>store.inspect(at,x,y,index);
-  const canDescend=()=>layer<STRATA.length-1&&!!sample(dx,dy,layer)?.mined;
-  const canAscend=()=>layer>0&&(layer===1||!!sample(dx,dy,layer-2)?.mined);
+  const canDescend=()=>dx===0&&dy===0&&layer<STRATA.length-1&&!!sample(0,0,layer)?.mined;
+  const canAscend=()=>dx===0&&dy===0&&layer>0&&(layer===1||!!sample(0,0,layer-2)?.mined);
   const canMove=(mx,my)=>{
    if(layer===0||!Number.isInteger(mx)||!Number.isInteger(my)||Math.abs(mx)+Math.abs(my)!==1)return false;
    const nx=dx+mx,ny=dy+my;
