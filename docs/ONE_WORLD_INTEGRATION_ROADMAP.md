@@ -61,3 +61,8 @@ The four zombie archetypes, Quarantine Bunker survival scenario, repairable fort
 ## November 4, 2026 — walkable biome foundation on new draft branch
 
 See [BIOME_SYSTEM.md](BIOME_SYSTEM.md) and [OPEN_SOURCE_RESEARCH.md](OPEN_SOURCE_RESEARCH.md). Three fixed paint-only, walkable terrain regions in the greenbelt now integrate with the same original Canvas, map and route planner. This does not authorize any new world, save migration, destruction, construction, player economy or main-branch deployment. Next: richer environmental interactions, a restricted construction test lot with server-authoritative permissions, damage/repair for noncritical objects, then NPC settlement responses. Owner acceptance remains a release gate.
+
+
+## Milestone A follow-up — richer biomes, no world migration (draft PR #29)
+
+Added organic deterministic terrain outlines that agree between painted world, map and material lookup; expanded bounded forest, wasteland and highlands scenery; and three nonrewarding, locally inspectable survey posts via existing E/Interact. The world, routes, collision, mobile controls, online authority and saves remain unchanged. Next implement a **small, separately authorized construction-test lot**, first with solo placement and validation, then safe authoritative multiplayer rules. Physical Android QA and owner-approved merge are still required.
