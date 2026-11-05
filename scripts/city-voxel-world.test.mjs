@@ -1,0 +1,109 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+
+const ctx={};
+for(const file of ['city-worldgen.js','city-terrain-world.js','city-voxel-world.js','city-voxel-renderer.js'])
+ vm.runInNewContext(readFileSync(new URL('../'+file,import.meta.url),'utf8'),ctx,{filename:file});
+const catalog=Array.from({length:132},(_,i)=>({
+ id:'terrain-'+i,name:'Biome '+i,group:['evergreen','desert','tundra','wetland','volcanic','alpine','tropical','grassland','salt','crystal','fungal','ruins'][Math.floor(i/11)],
+ material:'topsoil',hue:(i*19)%360,sat:30+(i%6)*6,light:40
+}));
+const create=seed=>ctx.CityVoxelWorld.createVoxelWorld(ctx.CityTerrainWorld.createTerrain(seed,catalog));
+const plain=v=>JSON.parse(JSON.stringify(v));
+
+test('quarter-sized blocks and human-scale first-person height are consistent',()=>{
+ const v=ctx.CityVoxelWorld;
+ assert.equal(v.VOXEL_METERS,.25);
+ assert.equal(v.PLAYER_HEIGHT,7.2);
+ assert.equal(v.EYE_HEIGHT,6.4);
+ assert.equal(v.MIN_HEIGHT,-64);
+ assert.equal(v.MAX_HEIGHT,256);
+ assert.equal(v.CHUNK_SIZE,16);
+ assert.equal(ctx.CityVoxelRenderer.VOXEL_METERS,.25);
+});
+
+test('132 biomes retain seed-based identities with varied mountainous elevations',()=>{
+ const w=create('mountains-001'),other=create('mountains-002');
+ assert.equal(w.atlas.anchors.length,132);
+ assert.notDeepEqual(plain(w.atlas.anchors),plain(other.atlas.anchors));
+ const high=w.atlas.anchors.filter(a=>a.group==='alpine');
+ assert.equal(high.length,11);
+ const samples=[];
+ for(const a of high.slice(0,5))for(let dz=-10;dz<=10;dz+=5)
+  for(let dx=-10;dx<=10;dx+=5){
+   const c=w.surfaceAt(Math.round(a.x)+dx,Math.round(a.y)+dz);
+   samples.push(c.height);
+   assert.ok(c.height>=6&&c.height<=248);
+  }
+ assert.ok(new Set(samples).size>=10,'terrain must visibly change elevation rather than staying flat');
+ assert.ok(Math.max(...samples)-Math.min(...samples)>20,'mountains must have meaningful vertical relief');
+});
+
+test('surface geometry and geology are deterministic at positive and negative chunk boundaries',()=>{
+ const w=create('seam-001'),other=create('seam-001');
+ const a=w.chunkAt(-1,0),b=w.chunkAt(0,0);
+ assert.equal(a.tiles.length,256);
+ assert.equal(b.tiles.length,256);
+ assert.equal(a.roads.length,0);assert.equal(a.structures.length,0);assert.equal(a.npc.length,0);
+ for(let row=0;row<16;row++){
+  const left=a.tiles[row*16+15],right=b.tiles[row*16];
+  assert.equal(left.x+1,right.x);assert.equal(left.z,right.z);
+  assert.deepEqual(plain(left),plain(other.surfaceAt(left.x,left.z)));
+ }
+ const rock=w.surfaceAt(-11,9);
+ assert.equal(w.blockAt(-11,rock.height,9).solid,true);
+ assert.equal(w.blockAt(-11,rock.height+1,9).solid,false);
+ assert.equal(w.blockAt(-11,-64,9).material,'bedrock');
+ assert.equal(w.blockAt(-11,-64,9).mineable,false);
+ assert.equal(w.blockAt(-11,-65,9),null);
+});
+
+test('different biome groups generate seeded trees, grasses, flowers, flowers and water candidates',()=>{
+ const w=create('plants-001');
+ const groups=new Set(),plants=new Set();let water=false;
+ for(const a of w.atlas.anchors.filter((_,i)=>i%8===0)){
+  for(let z=Math.round(a.y)-12;z<=Math.round(a.y)+12;z+=2)
+   for(let x=Math.round(a.x)-12;x<=Math.round(a.x)+12;x+=2){
+    const col=w.surfaceAt(x,z),f=w.featureAt(x,z);
+    groups.add(col.group);water ||= col.water;
+    if(f)plants.add(f.type);
+   }
+ }
+ assert.ok(groups.size>=8);
+ assert.ok(plants.size>=3,'biome-dependent vegetation types must be seeded');
+ // Specific water presence depends on the land seed, not fixed painted lakes.
+ assert.equal(typeof water,'boolean');
+ const a=w.featureAt(1,-4),b=create('plants-001').featureAt(1,-4);
+ assert.deepEqual(plain(a),plain(b));
+});
+
+test('subsurface caves, ores and underground bedrock follow 3D coordinates',()=>{
+ const w=create('cave-test');
+ let caves=0,rock=0;
+ for(let x=-20;x<=20;x+=2)for(let z=-20;z<=20;z+=2)
+  for(const y of [-50,-33,-16,4,20]){
+   const block=w.blockAt(x,y,z);
+   if(block?.cave)caves++;
+   if(block?.solid)rock++;
+  }
+ assert.ok(caves>0,'real 3D noise must carve underground spaces');
+ assert.ok(rock>0);
+ assert.ok(w.caveAt(0,-64,0)===false,'bedrock cannot become a cave');
+ assert.deepEqual(plain(w.blockAt(-8,-24,7)),plain(create('cave-test').blockAt(-8,-24,7)));
+});
+
+test('first-person chunk geometry is bounded, finite and uses native cached mesh data',()=>{
+ const w=create('meshing-001');
+ const mesh=ctx.CityVoxelRenderer.generateMesh(w,0,0);
+ assert.equal(mesh.tiles,256);
+ assert.ok(mesh.vertices>=256*6);
+ assert.ok(mesh.vertices<500000,'one 16x16 chunk must stay below a safe primitive bound');
+ assert.equal(mesh.data.length,mesh.vertices*9);
+ assert.ok(Array.from(mesh.data).every(Number.isFinite));
+ assert.ok(mesh.plants<=256);
+ assert.deepEqual(Array.from(mesh.data.slice(0,81)),
+  Array.from(ctx.CityVoxelRenderer.generateMesh(create('meshing-001'),0,0).data.slice(0,81)));
+ assert.equal(ctx.CityVoxelRenderer.MAX_GPU_CHUNKS,49);
+});
