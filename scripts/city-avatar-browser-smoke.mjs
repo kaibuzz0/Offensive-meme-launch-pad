@@ -160,6 +160,31 @@ try{
   'turning and walking the sample avatar never changes the protected Solo save');
  await evalPage("document.querySelector('#close-panel').click();true");
  assert.equal(await evalPage("document.querySelector('#city-panel').open"),false,'graphics preview exits safely back into the same solo world');
+ // In-world 3D overlay shares the ORIGINAL playable game state and controls.
+ // It is not the paused Graphics modal and never creates its own actor.
+ const liveInitial=await evalPage("(()=>{const t=document.getElementById('city-live-3d-toggle'),p=document.getElementById('city-live-3d');t.click();return {pressed:t.getAttribute('aria-pressed'),hidden:p.hidden,hasCanvas:!!document.getElementById('city-live-3d-canvas'),gl:!!document.getElementById('city-live-3d-canvas').getContext('webgl')};})()");
+ assert.equal(liveInitial.hasCanvas,true,'original World V1 includes the optional in-world camera canvas');
+ if(liveInitial.gl&&liveInitial.pressed==='true'){
+  await waitFor(()=>evalPage("Number(document.getElementById('city-live-3d')?.dataset.frames||0)>=2"),'live real-player 3D updates from the actual game loop');
+  assert.equal(liveInitial.hidden,false);
+  const before=await evalPage("(()=>{const x=document.getElementById('city-live-3d');return {x:Number(x.dataset.worldX),y:Number(x.dataset.worldY),frames:Number(x.dataset.frames)};})()");
+  await evalPage("window.dispatchEvent(new KeyboardEvent('keydown',{key:'w',bubbles:true}));true");
+  await delay(550);
+  await evalPage("window.dispatchEvent(new KeyboardEvent('keyup',{key:'w',bubbles:true}));true");
+  const after=await evalPage("(()=>{const x=document.getElementById('city-live-3d');return {x:Number(x.dataset.worldX),y:Number(x.dataset.worldY),frames:Number(x.dataset.frames)};})()");
+  assert.ok(after.frames>before.frames,'3D camera keeps rendering while the actual 2D simulation runs');
+  assert.ok(Math.hypot(after.x-before.x,after.y-before.y)>=1,
+   'real player movement drives the 3D camera rather than a simulated demo avatar: '+JSON.stringify({before,after}));
+  await evalPage("document.getElementById('city-live-3d-mode').click();true");
+  await waitFor(()=>evalPage("document.getElementById('city-live-3d')?.dataset.mode==='first'"),'live camera switches to first-person from the game');
+  assert.equal(await evalPage("document.querySelector('#city-intro').hidden"),true,'Solo Play never leaves the original game');
+  await evalPage("document.getElementById('city-live-3d-close').click();true");
+  assert.equal(await evalPage("document.getElementById('city-live-3d').hidden"),true,'close releases the 3D overlay');
+  assert.equal(await evalPage("document.getElementById('city-live-3d-toggle').getAttribute('aria-pressed')"),'false');
+ }else{
+  assert.equal(liveInitial.hidden,true,'a WebGL-unavailable game retains the default 2D view');
+ }
+
  // Draw an actual biome into a phone-sized Chromium Canvas, not just source-check it.
  const biomePixels=await evalPage(`(()=>{
   const T=window.CityBiomes,r=T?.regions?.[0];if(!r)return null;
