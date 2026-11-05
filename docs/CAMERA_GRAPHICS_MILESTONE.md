@@ -8,14 +8,14 @@
 2. Top-down zoom options (**Wide, Classic, Detail**) change the original player's street and interior camera immediately. The quick zoom button cycles these modes, rather than resetting a user's preference.
 3. Rendering quality is selectable (**Automatic, Performance 1x, Balanced 1.5x, High 2x**). It caps the existing Canvas device-pixel ratio to reduce fill rate on low-end Android phones, not the world geometry. The original avatar renderer, mining panels, overlays and controls are untouched.
 4. Preferences are saved in a small, version-independent browser-local key: `offensive-meme-city-graphics-v1`. A failed/malformed/disabled storage read always falls back to classic settings. These settings never write to the protected `offensive-meme-city-v1-center` player save.
-5. The Graphics panel includes an **optional real WebGL perspective prototype**: a static low-poly character stand-in wearing the currently selected token's color, block-built street geometry, and two actual perspective views (first-person eye-level with hands/tool; third-person camera behind character). This is not a new playable world or a photo-real avatar conversion. It draws only when opened/selected, with no continuous render loop. It releases its WebGL resources on exit. WebGL-unavailable devices see an explanatory fallback.
+5. The Graphics panel includes an **optional real WebGL perspective prototype**: an interactive low-poly skull-inspired character stand-in wearing the currently selected token's color, block-built street geometry, and two actual perspective views (first-person eye-level with hands/tool; third-person camera behind character). This is not a new playable world or a photo-real avatar conversion. It draws on opening, perspective selection, or touch control actions, with no continuous render loop. It releases its WebGL resources on exit. WebGL-unavailable devices see an explanatory fallback.
 6. No npm/CDN package, model download, or mod pack is required. Browser WebGL is a standard capability. The preview is generated entirely from code, not copied third-party artwork.
 
 ## What is NOT yet complete
 
-- No live 3D streets, 3D collision, bridge/terrain meshes, height raycasts, building interiors or first/third person character locomotion.
+- No live 3D streets, 3D world collision, bridge/terrain meshes, height raycasts, building interiors or **gameplay** first/third person character locomotion.
 - The preview does not affect movement/aiming/shot physics, saves, player position, wallet holdings, or authoritative server state.
-- The WebGL sample's block avatar is intentionally a placeholder and not the current proprietary 2D skull character converted into a production 3D skeleton.
+- The WebGL sample's procedural skull-like block avatar remains a placeholder and is not the current proprietary 2D skull character converted into a production skinned 3D skeleton.
 - Physical Android FPS, graphics memory, battery/thermal and touch testing are not complete.
 - No deploy or release of this prototype is authorized until review.
 
@@ -46,6 +46,23 @@ Reviewed upstream repositories and licenses:
 Run static checks, the complete existing Node suite, room benchmark and Chromium phone-sized smoke tests. The browser test must open the Graphics panel via the live game, exercise both preview perspectives, change the zoom/quality values, confirm the dedicated preference key updates and the protected player save stays byte-identical, then close the panel and keep playing the same world. Test a disabled WebGL context and corrupted storage behavior in Node.
 
 Keep this integration in a new draft pull request until acceptance tests and owner approval.
+
+## Milestone 2 — interactive preview-only character stage (2026-11-05)
+
+This round advances the on-demand WebGL proof into an **interactive demonstration**, not full 3D gameplay. The existing first-/third-person views now follow a small finite local test avatar. The low-poly rig approximates the MEME CITY skull with eye sockets, teeth and token-colored clothing; its body, limbs and face share a consistent yaw and a bounded step animation.
+
+Accessible mobile/touch controls in the original Graphics panel allow **Turn left / Turn right / Walk forward / Walk backward / Reset preview** in either perspective. The camera follows the preview avatar. Walking uses safe 0.8-unit steps with a max input of 1, a road corridor within x = [-1.2, 1.2], z = [-3, 9], and single rotations <= pi radians. Non-finite inputs and out-of-bounds steps are rejected. Reset restores the initial preview-only state. No game world geometry, player position, authoritative room movement, wallet proofs, inventory or player save is changed. Closing the panel frees the WebGL buffers/shaders, and unsupported devices expose no-op controls with descriptive status rather than crashing.
+
+**QA:** Added deterministic stage tests covering turning, direction-relative motion, collision-like corridor bounds, rejection of invalid inputs, reset, and state isolation. Phone-sized Chromium checks exercise the real panel buttons, unavailable-WebGL fallback, and byte-identical Solo save after walking the preview. No external code or artwork added.
+
+**Limitations:** The preview corridor is an original block scene, **not a rendering of the actual 132-biome world**; the skull body uses simple boxes, **not a skinned glTF/VRM model**. There is no gameplay character locomotion, collision mesh, real inventory/skeleton animations, 3D physics, mining, first-person shooting, live 3D building interiors, or cross-device performance guarantee. The original Canvas game remains active and independent.
+
+### Remaining priorities
+
+1. Implement reusable avatar geometry/skinning in a standalone, properly licensed glTF pipeline (consider verified CC0 KayKit prototypes).
+2. Create a bounded 3D room or street mesh mapped to actual existing Meme City objects without changing the canonical 2D simulation.
+3. Replace preview-only movement with validated state-derived 3D camera-follow only after 3D collision and camera-occlusion tests.
+4. Optimize models, material draw calls, and WebGL context lifecycle on physical Android hardware before any in-game camera toggle.
 
 ## Integration update (2026-11-05)
 
