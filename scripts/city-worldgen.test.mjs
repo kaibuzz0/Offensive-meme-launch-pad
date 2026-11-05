@@ -26,6 +26,21 @@ test('fresh seed selects a new world without importing legacy city, biome grid o
  assert.throws(()=>World.createWorld('a'.repeat(129)));
 });
 
+test('new seeded worlds start at different safe generated settlements, not the old fortress',()=>{
+ const a=World.createWorld('new-world-alpha');
+ const b=World.createWorld('new-world-beta');
+ const spawn=a.spawnAt(),other=b.spawnAt();
+ assert.ok(Object.isFrozen(spawn));
+ assert.notEqual(spawn.settlementId,other.settlementId,'new seeds create independent world geography');
+ assert.ok(spawn.settlementName.length>=5);
+ assert.equal(spawn.seedHash,a.seedHash);
+ assert.equal(spawn.z,a.biomeAt(spawn.x,spawn.y).height+8);
+ assert.equal(a.settlementsNear(spawn.x,spawn.y)[0]?.id,spawn.settlementId);
+ assert.ok(a.chunkAt(Math.floor(spawn.x/16),Math.floor(spawn.y/16)).sites.some(s=>s.id===spawn.settlementId));
+ assert.deepEqual(own(a.spawnAt()),own(World.createWorld('new-world-alpha').spawnAt()));
+ assert.notDeepEqual(own([spawn.x,spawn.y]),own([other.x,other.y]));
+});
+
 test('chunks are deterministic and order-independent, including negative coordinates',()=>{
  const w=World.createWorld('map-consistency');
  const chunks=[w.chunkAt(0,0),w.chunkAt(1,0),w.chunkAt(-1,-2)];
