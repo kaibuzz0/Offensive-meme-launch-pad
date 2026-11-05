@@ -1,3 +1,9 @@
+## November 5 — development runway: faster verified batches
+
+Added a small, no-dependency CLI with **focused graphics, world and systems test modes** and clear full-release checks. Use `npm run test:scopes`, `npm run test:graphics`, `npm run test:world`, `npm run test:systems` while iterating, then `npm run verify:all` and `npm run verify:full` before requesting a release. Preserve existing `npm test` and GitHub CI. The operating playbook is in `docs/DEVELOPMENT_RUNWAY.md`: one coherent vertical slice per batch, fewer needless pushes/CI cycles, explicit exact-head verification, and no prototype-as-production claims. Nothing here changes gameplay, wallet state, mining, saves or production builds.
+
+---
+
 ## November 5 — read-only 3D mirror of current game player (draft PR #32)
 
 The experimental camera lab now offers a one-click, read-only snapshot of the **actual World V1 player's coordinates and aim** using `CityGraphics.samplePlayerCamera()`. The scene's existing 120:1 scale and reversed north/south axis map the original player to the prototype 3D camera; invalid or indoor positions fail safely. Controls can return to the independent walking demo, and neither action changes player position, authoritative combat, inventory, mining, wallet, multiplayer, or Solo save. This **does not** implement continuously live 3D gameplay. Detailed acceptance and remaining blockers: `docs/CAMERA_GRAPHICS_MILESTONE.md`.
