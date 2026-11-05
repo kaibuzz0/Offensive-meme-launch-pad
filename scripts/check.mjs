@@ -65,6 +65,7 @@ assert.ok(read('.github/workflows/pages.yml').includes('city-save.js'),'Save ver
 assert.ok(read('city.html').includes('city-map.js'),'World map destinations must load');
  assert.ok(read('city.html').includes('city-biomes.js?v=45-biomes'),'Live biome system must load');
  assert.ok(read('.github/workflows/pages.yml').includes('city-biomes.js'),'Biome module must ship in Pages builds');
+ assert.ok(read('server/city-server.mjs').includes("'city-core.js','city-biomes.js'"),'Existing local multiplayer and Chromium server must serve biome assets');
 assert.ok(read('city.html').includes('city-nav.js?v=42-wayfinding'),'Collision-safe next-turn street navigator must load');
 assert.ok(read('.github/workflows/pages.yml').includes('city-nav.js'),'Street navigator must deploy');
 assert.ok(read('.github/workflows/pages.yml').includes('city-map.js'),'World map destinations must deploy');
