@@ -1,3 +1,9 @@
+## November 5 — continued interactive 3D avatar camera laboratory (draft PR #32)
+
+The unfinished WebGL preview from PR #30 has advanced beyond its static camera sample: the optional Graphics panel now has preview-only controls for turning and walking a skull-inspired, token-color block avatar along a bounded 3D road corridor. In both camera views the same avatar and camera position/yaw move together, with a basic gait phase. The preview is **not real third/first person gameplay**, changes no original World V1 player/world/server/wallet/save data, requires no extra asset downloads or mods, and falls back safely when WebGL is unavailable. Deterministic Node and phone-sized Chromium tests protect avatar movement bounds, input validation, reset, source isolation and Solo save data. See `docs/CAMERA_GRAPHICS_MILESTONE.md` for remaining production 3D blockers.
+
+---
+
 ## November 5 — one-world mining QA and viewport-cache correction (draft PR #29)
 
 Review of the existing 132-biome / underground mining work found a production-facing display bug: the first viewport's filtered mine openings were wrongly cached as if they represented the whole world. Corrected `city-mining.js` to cache the full validated shaft geometry and filter only the returned view. Added a new multi-biome, empty-viewport, depth-change and reload regression to `scripts/city-mining.test.mjs`. Bumped only the mining script cache key in `city.html`, and fixed the welcome copy so the +256 ceiling is not confused with playable vertical construction. No original player save, geometry, wallet integration, online authority or bonus economy changes.
