@@ -96,7 +96,15 @@ try{
 }finally{
  for(const x of pending.values())x.reject(Error('Browser closed'));
  if(ws){try{ws.close();}catch{}}
- if(browser){browser.kill('SIGKILL');}
+ if(browser){
+  browser.kill('SIGKILL');
+  await Promise.race([
+   new Promise(resolve=>{if(browser.exitCode!==null||browser.signalCode!==null)return resolve();browser.once('exit',resolve);}),
+   delay(1800)
+  ]);
+ }
  await new Promise(resolve=>server.close(resolve));
- await rm(profile,{recursive:true,force:true});
+ // Chrome can still flush its Default profile briefly after termination.
+ // Let Node retry ENOTEMPTY/EBUSY rather than fail an otherwise green QA run.
+ await rm(profile,{recursive:true,force:true,maxRetries:8,retryDelay:160});
 }
