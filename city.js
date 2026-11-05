@@ -1,5 +1,7 @@
 'use strict';
 (() => {
+ // Terrain-only first milestone uses the same city.html canvas without booting the legacy city simulation.
+ if(new URLSearchParams(window.location?.search||'').get('terrain')==='1')return;
  const C=window.MemeCityCore,{WORLD,ITEMS,HUB}=C,V=window.CityVisuals,D=window.CityDistricts,R=window.CityRising,RV=window.CityRisingVisuals,I=window.CityInteriors,IV=window.CityRoomVisuals,T=window.CityBiomes,F=window.CityFrontier,Mine=window.CityMining,MV=window.CityMineVisuals;
  const tokens=[window.LAUNCHPAD_CONFIG.platformToken,...window.MEME_TOKENS.filter(t=>t.mint)];
  const catalog=new Map(tokens.map(t=>[t.id,t]));
