@@ -267,3 +267,42 @@ test('original Canvas mine visuals draw only validated surface geometry and live
  assert.equal(V.slice(g,m,p,{layer:7,dx:0,dy:0,z:-56}),true,'bedrock is rendered');
  assert.equal(V.slice(g,m,p,{layer:8,dx:0,dy:0,z:-64}),false,'out-of-bounds layer cannot render');
 });
+
+
+test('mine scene delegates player drawing to the shared World V1 avatar instead of a second miner skeleton',()=>{
+ const {p,m}=first(),V=ctx.CityMineVisuals,calls=[];
+ const gradient={addColorStop(){}};
+ const c={canvas:{width:640,height:350},save(){},restore(){},
+  createLinearGradient:()=>gradient,clearRect(){},fillRect(){},fillText(){},
+  beginPath(){},lineTo(){},moveTo(){},closePath(){},stroke(){},fill(){},
+  ellipse(){},arc(){},translate(){}};
+ const owner=(context,x,y,actor)=>calls.push({context,x,y,actor:{...actor}});
+ const first={layer:0,dx:0,dy:0,z:0},second={layer:0,dx:1,dy:0,z:0};
+ assert.equal(V.slice(c,m,p,first,owner),true);
+ assert.equal(calls.length,1,'external shared avatar renderer draws once, after terrain');
+ assert.equal(calls[0].context,c);
+ assert.deepEqual(plain(calls[0].actor),first);
+ assert.equal(Number.isFinite(calls[0].x),true);
+ assert.equal(Number.isFinite(calls[0].y),true);
+ assert.equal(V.slice(c,m,p,second,owner),true);
+ assert.equal(calls.length,2,'moving the miner causes the same renderer to draw at its new grid cell');
+ assert.notEqual(calls[0].x,calls[1].x);
+ assert.notEqual(calls[0].y,calls[1].y);
+ assert.equal(V.slice(c,m,p,{layer:8,dx:0,dy:0,z:-64},owner),false);
+ assert.equal(calls.length,2,'invalid height never invokes the player renderer');
+});
+
+test('mine renderer uses wallet-gated street avatar inputs and ships cache-busted HTML',()=>{
+ const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8'),
+  game=read('city.js'),visual=read('city-mine-visuals.js'),html=read('city.html'),check=read('scripts/check.mjs');
+ assert.match(html,/city-mine-visuals\.js\?v=52-miner-rig/);
+ assert.match(html,/city\.js\?v=52-miner-rig/);
+ assert.match(check,/city-mine-visuals\.js\?v=52-miner-rig/);
+ assert.match(game,/MV\.slice\(cave\.getContext\('2d'\),miningStore,entry,position,drawMiner\)/);
+ assert.match(game,/V\.person\(c,\{id:'solo-miner-'/,'reuse the original 360-degree renderer');
+ assert.match(game,/const skinId=verifiedBetaSkin\(me\)/,'only the pre-existing verified token state selects holder skins');
+ assert.match(game,/offenderSkin:hasOffenderSkin\(me\),clanSkin:skinId/);
+ assert.match(game,/style:me\.style,gear/);
+ assert.match(game,/mineFacing=\{x:dx,y:dy\}/,'walking rotates the same miner');
+ assert.ok(!visual.includes('ctx.fillRect(-9,-4,18,21)'),'duplicate hard-coded miner body was removed');
+});
