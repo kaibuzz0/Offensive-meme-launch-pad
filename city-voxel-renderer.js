@@ -102,13 +102,36 @@
   return {data:new Float32Array(data),tiles:chunk.tiles.length,plants:chunk.plants.length,
    vertices:data.length/9};
  }
+ // Procedural material grain, atmosphere and water. No external textures.
  const vertexSource='attribute vec3 aPos;attribute vec3 aColor;attribute vec3 aNormal;'+
   'uniform mat4 uMatrix;uniform vec3 uEye;varying vec3 vColor;varying float vDist;'+
-  'void main(){gl_Position=uMatrix*vec4(aPos,1.0);float lit=.53+.44*max(0.0,dot(normalize(aNormal),normalize(vec3(.40,.87,.22))));'+
-  'vColor=aColor*lit;vDist=distance(aPos,uEye);}';
+  'varying vec3 vPosition;varying float vWater;'+
+  'void main(){gl_Position=uMatrix*vec4(aPos,1.0);'+
+  'float lit=.47+.50*max(0.0,dot(normalize(aNormal),normalize(vec3(.40,.87,.22))));'+
+  'vColor=aColor*lit;vDist=distance(aPos,uEye);vPosition=aPos;'+
+  'vWater=(aColor.r<.20&&aColor.g>.40&&aColor.g<.49&&aColor.b>.64)?1.0:0.0;}';
  const fragmentSource='precision mediump float;varying vec3 vColor;varying float vDist;'+
-  'void main(){float fog=clamp((vDist-35.0)/60.0,0.0,1.0);'+
-  'gl_FragColor=vec4(mix(vColor,vec3(.62,.76,.88),fog),1.0);}';
+  'varying vec3 vPosition;varying float vWater;uniform float uTime;'+
+  'float grain(vec3 p){return fract(sin(dot(floor(p),vec3(19.17,53.41,7.63)))*43758.5453);}'+
+  'void main(){'+
+  'float micro=grain(vPosition*3.0)*.13-.055;'+
+  'float strata=sin(vPosition.y*.53+vPosition.x*.11)*.027;'+
+  'vec3 color=vColor*(1.0+micro+strata);'+
+  'if(vWater>.5){float wave=sin(vPosition.x*.81+uTime*.8)*sin(vPosition.z*.62-uTime*.7);'+
+  'float sheen=pow(.5+.5*sin((vPosition.x+vPosition.z)*1.5+uTime*1.5),12.0);'+
+  'color=vec3(.055,.26,.42)+vec3(.022,.087,.115)*wave+vec3(.10,.15,.15)*sheen;}'+
+  'float fog=smoothstep(35.0,103.0,vDist);'+
+  'gl_FragColor=vec4(mix(color,vec3(.63,.77,.88),fog),1.0);}';
+ const skyVertex='attribute vec2 aXY;varying vec2 vUV;'+
+  'void main(){gl_Position=vec4(aXY,0.9999,1.0);vUV=aXY*.5+.5;}';
+ const skyFragment='precision mediump float;varying vec2 vUV;uniform vec2 uLook;'+
+  'void main(){float y=clamp(vUV.y,0.0,1.0);'+
+  'vec3 sky=mix(vec3(.75,.83,.85),vec3(.12,.35,.63),smoothstep(.1,1.0,y));'+
+  'vec2 sun=vec2(.5+.5*sin(1.3-uLook.x),.68-.45*sin(uLook.y));'+
+  'float halo=exp(-pow(distance(vUV,sun)*6.0,2.0));'+
+  'float disc=1.0-smoothstep(.027,.049,distance(vUV,sun));'+
+  'sky+=vec3(.29,.22,.11)*halo+vec3(.51,.43,.31)*disc;'+
+  'gl_FragColor=vec4(min(sky,vec3(1.0)),1.0);}';
  function shader(gl,kind,source){
   const s=gl.createShader(kind);gl.shaderSource(s,source);gl.compileShader(s);
   if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));
@@ -122,7 +145,7 @@
  function view(eye,yaw,pitch){
   const cp=Math.cos(pitch),fx=Math.sin(yaw)*cp,fy=Math.sin(pitch),fz=Math.cos(yaw)*cp;
   const rx=Math.cos(yaw),rz=-Math.sin(yaw);
-  const ux=-fy*rz,uy=cp,uz=fy*rx;
+  const ux=fy*rz,uy=cp,uz=-fy*rx;
   const m=new Float32Array(16);
   m[0]=rx;m[4]=0;m[8]=rz;m[12]=-(rx*eye[0]+rz*eye[2]);
   m[1]=ux;m[5]=uy;m[9]=uz;m[13]=-(ux*eye[0]+uy*eye[1]+uz*eye[2]);
@@ -149,12 +172,22 @@
    normal:gl.getAttribLocation(program,'aNormal'),matrix:gl.getUniformLocation(program,'uMatrix'),
    eye:gl.getUniformLocation(program,'uEye')
   };
+  const skyProgram=gl.createProgram();
+  gl.attachShader(skyProgram,shader(gl,gl.VERTEX_SHADER,skyVertex));
+  gl.attachShader(skyProgram,shader(gl,gl.FRAGMENT_SHADER,skyFragment));
+  gl.linkProgram(skyProgram);
+  if(!gl.getProgramParameter(skyProgram,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(skyProgram));
+  const skyBuffer=gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER,skyBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const skyPos=gl.getAttribLocation(skyProgram,'aXY'),skyLook=gl.getUniformLocation(skyProgram,'uLook');
+  const timeUniform=gl.getUniformLocation(program,'uTime');
   const chunks=new Map(),MAX_CHUNKS=49,RADIUS=3;
   gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);
   function release(key){
    const c=chunks.get(key);if(c){gl.deleteBuffer(c.buffer);chunks.delete(key);}
   }
-  function dispose(){for(const key of chunks.keys())release(key);gl.deleteProgram(program);}
+  function dispose(){for(const key of chunks.keys())release(key);gl.deleteBuffer(skyBuffer);gl.deleteProgram(skyProgram);gl.deleteProgram(program);}
   function load(cx,cz){
    const key=cx+':'+cz;if(chunks.has(key))return;
    const mesh=generateMesh(world,cx,cz);if(!mesh)return;
@@ -168,7 +201,16 @@
    const width=Math.max(2,Math.round(rect.width*dpr)),height=Math.max(2,Math.round(rect.height*dpr));
    if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
    gl.viewport(0,0,width,height);
-   gl.clearColor(.62,.76,.88,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+   gl.clearColor(.63,.77,.88,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+   gl.disable(gl.DEPTH_TEST);
+   gl.useProgram(skyProgram);
+   gl.uniform2f(skyLook,player.yaw,player.pitch);
+   gl.bindBuffer(gl.ARRAY_BUFFER,skyBuffer);
+   gl.enableVertexAttribArray(skyPos);
+   gl.vertexAttribPointer(skyPos,2,gl.FLOAT,false,0,0);
+   gl.drawArrays(gl.TRIANGLES,0,3);
+   gl.disableVertexAttribArray(skyPos);
+   gl.clear(gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);
    const px=Math.floor(player.x/16),pz=Math.floor(player.z/16),wanted=[];
    for(let dz=-RADIUS;dz<=RADIUS;dz++)for(let dx=-RADIUS;dx<=RADIUS;dx++){
     if(dx*dx+dz*dz>RADIUS*RADIUS+1)continue;
@@ -184,6 +226,7 @@
    while(chunks.size>MAX_CHUNKS)release(chunks.keys().next().value);
    const eye=[player.x,player.y+world.EYE_HEIGHT,player.z];
    gl.useProgram(program);
+   gl.uniform1f(timeUniform,(typeof performance!=='undefined'?performance.now():0)/1000);
    gl.uniformMatrix4fv(loc.matrix,false,multiply(perspective(width/height),view(eye,player.yaw,player.pitch)));
    gl.uniform3fv(loc.eye,eye);
    gl.enableVertexAttribArray(loc.pos);gl.enableVertexAttribArray(loc.color);gl.enableVertexAttribArray(loc.normal);
