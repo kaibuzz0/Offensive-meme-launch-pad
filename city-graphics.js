@@ -107,7 +107,7 @@
   const nearest=valid.reduce((best,b)=>distance(b)<distance(best)?b:best);
   // When the player is far outside the authored city, sample the actual
   // frontier region instead of pretending a distant city building is nearby.
-  const sampleFrontier=distance(nearest)>850&&!!(frontier?.terrainAt||biomes?.terrainAt);
+  const sampleFrontier=distance(nearest)>850&&!!(frontier?.regionAt?.(location.x,location.y)||biomes?.regionAt?.(location.x,location.y));
   const originX=sampleFrontier?location.x:nearest.x+nearest.w/2;
   const originY=sampleFrontier?location.y:nearest.y+nearest.h+37+420,scale=120;
   const terrain=createTerrainPatch(originX,originY,biomes,frontier);
