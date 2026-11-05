@@ -170,7 +170,7 @@ try{
   const liveActors=await evalPage("(()=>{const x=document.getElementById('city-live-3d');return {count:Number(x.dataset.actors),text:document.getElementById('city-live-3d-status').textContent};})()");
   assert.ok(Number.isInteger(liveActors.count)&&liveActors.count>=0&&liveActors.count<=6,
    'live World V1 camera draws at most six nearby real NPCs');
-  assert.match(liveActors.text,/\\/ [0-6] nearby characters \\/ read-only mirror/,
+  assert.ok(liveActors.text.includes(' / '+liveActors.count+' nearby characters / read-only mirror'),
    'live player camera reports source-derived character count');
   const observedCrowd=await evalPage("(()=>{const L=window.CityLive3D,G=window.CityGraphics,me={id:'me',x:5600,y:5940};const nearby=L.selectNearbyActors({world:{x:5600,y:5940}},me,{players:[{id:'me',x:5600,y:5940}],civilians:[{id:'npc',x:5660,y:5940}],arcade:{bots:[{id:'z',kind:'zombie',x:5650,y:5920,hp:90}]}});const mesh=G.createCrowdMesh(nearby);return {actors:nearby.length,drawn:mesh.actors,vertices:mesh.vertices,finite:mesh.data.every(Number.isFinite)};})()");
   assert.equal(observedCrowd.actors,2,'actual browser filters own player and selects nearby civilians and zombies');
