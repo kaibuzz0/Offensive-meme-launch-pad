@@ -187,7 +187,7 @@ test('graphics module remains isolated from original save and authoritative game
  assert.doesNotMatch(s,/offensive-meme-city-v1-center/);
  assert.doesNotMatch(s,/(walletKey|signMessage|holderTier|credits=|roomClient\.action)/);
  const html=fs.readFileSync(new URL('../city.html',import.meta.url),'utf8');
- assert.ok(html.indexOf('city-graphics.js?v=53-world-scene')<html.indexOf('city.js?v=53-world-scene'));
+ assert.ok(html.indexOf('city-graphics.js?v=54-camera-occlusion')<html.indexOf('city.js?v=53-world-scene'));
  const pages=fs.readFileSync(new URL('../.github/workflows/pages.yml',import.meta.url),'utf8');
  const server=fs.readFileSync(new URL('../server/city-server.mjs',import.meta.url),'utf8');
  assert.match(pages,/city-graphics\.js/);assert.match(server,/'city-graphics\.js'/);
