@@ -73,6 +73,42 @@ test('perspective math computes finite, nondegenerate matrices for both camera p
  }
 });
 
+test('3D avatar stage has bounded local movement, finite camera yaw and reset',()=>{
+ const p=G.createStage();
+ assert.deepEqual(asNative(p.snapshot()),{x:0,z:0,yaw:0,steps:0});
+ assert.equal(p.step(.8),true);
+ assert.equal(p.snapshot().z,.8);
+ assert.equal(p.turn(Math.PI/2),true);
+ assert.equal(p.step(.8),true);
+ assert.ok(Math.abs(p.snapshot().x-.8)<1e-9,'forward movement rotates with the model');
+ assert.equal(p.step(.8),false,'corridor wall blocks movement');
+ assert.equal(p.snapshot().steps,2,'rejected steps do not advance walk animation');
+ for(const v of [NaN,Infinity,-Infinity,1e50]){assert.equal(p.step(v),false);assert.equal(p.turn(v),false);}
+ assert.equal(p.step(1.01),false,'single movement step has a safe bound');
+ assert.equal(p.turn(Math.PI+0.01),false,'single camera rotation has a safe bound');
+ assert.equal(p.snapshot().steps,2);
+ p.reset();
+ assert.deepEqual(asNative(p.snapshot()),{x:0,z:0,yaw:0,steps:0});
+ assert.equal(p.step(-.7),true,'walking backward stays available');
+ p.reset();
+ assert.equal(p.step(-1),true);
+ assert.equal(p.step(-1),true);
+ assert.equal(p.step(-1),true);
+ assert.equal(p.step(-1),false,'negative edge of corridor is bounded');
+});
+
+test('3D movement controls remain exclusive to the optional graphics preview',()=>{
+ const js=fs.readFileSync(new URL('../city.js',import.meta.url),'utf8');
+ const mod=fs.readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8');
+ assert.match(js,/Move and rotate the preview-only 3D avatar/);
+ for(const name of ['Turn left','Walk forward','Walk backward','Turn right','Reset preview'])assert.ok(js.includes(name),name);
+ assert.match(js,/graphicsPreview\.turn\(amount\)/);
+ assert.match(js,/graphicsPreview\.step\(amount\)/);
+ assert.match(mod,/const stage=createStage\(\)/);
+ assert.match(mod,/actorBox\(/,'shared procedural avatar body and skull rig must rotate in perspective');
+ assert.doesNotMatch(mod,/localStorage|sessionStorage|roomClient\.action|engine\.action/,'preview walking never modifies real state');
+});
+
 test('graphics module remains isolated from original save and authoritative game state',()=>{
  const s=fs.readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8');
  assert.doesNotMatch(s,/offensive-meme-city-v1-center/);
