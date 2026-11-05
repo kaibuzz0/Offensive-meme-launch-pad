@@ -1,9 +1,9 @@
 # Meme City World V1 — Combined release candidate
 
-**Release branch:** `codex/world1-camera-mining-release-candidate`  
-**Base:** already-merged `main` at `f4fb0ffe39aa71785592b69fc6d8ad478279ce0f`  
-**Integrated features:** [PR #32](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/32) native optional live WebGL camera (based on the exact head `9cedf3743ab912b1f256c7ffa8328fe09ab21160`) + [PR #33](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/33) shared-360° underground miner avatar.  
-**Earlier merged work:** PR #29's 132-biome frontier, shafts, sparse mining, corrected surface-opening cache.  
+**Release branch:** `codex/world1-camera-mining-release-candidate`
+**Base:** already-merged `main` at `f4fb0ffe39aa71785592b69fc6d8ad478279ce0f`
+**Integrated features:** [PR #32](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/32) native optional live WebGL camera (based on the exact head `9cedf3743ab912b1f256c7ffa8328fe09ab21160`) + [PR #33](https://github.com/kaibuzz0/Offensive-meme-launch-pad/pull/33) shared-360° underground miner avatar.
+**Earlier merged work:** PR #29's 132-biome frontier, shafts, sparse mining, corrected surface-opening cache.
 **Status:** draft release candidate, not merged into main or deployed.
 
 ## Conflict resolution
