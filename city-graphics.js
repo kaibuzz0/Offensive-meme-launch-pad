@@ -283,6 +283,7 @@
    add('jaw',[0,1.57+pose.bob,.06],[.32,.16,.40],skull);
    for(const side of [-1,1]){
     add('eye-'+side,[side*.16,1.86+pose.bob,.259],[.115,.14,.024],dark);
+    add('brow-'+side,[side*.16,1.96+pose.bob,.265],[.14,.035,.04],dark);
     add('teeth-'+side,[side*.07,1.56+pose.bob,.27],[.055,.10,.025],teeth);
     const armAngle=side<0?pose.leftArm:pose.rightArm;
     const elbowAngle=side<0?pose.leftElbow:pose.rightElbow;
@@ -297,6 +298,7 @@
     if(side===1)add('blaster',[wrist[0]+.11,wrist[1]+.025,wrist[2]+.40],
      [.13,.15,.76],gun,armAngle+elbowAngle);
    }
+   add('nose-bridge',[0,1.72+pose.bob,.266],[.065,.095,.037],dark);
    add('mouth',[0,1.67+pose.bob,.26],[.24,.08,.025],dark);
    add('back-panel',[0,1.2+pose.bob,-.169],[.34,.34,.01],[.15,.23,.31]);
   }
