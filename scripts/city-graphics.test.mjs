@@ -304,9 +304,55 @@ test('animated rig is uploaded once and drawn once per 3D preview repaint',()=>{
  const source=fs.readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8');
  assert.match(source,/gl\.bufferSubData\(gl\.ARRAY_BUFFER,0,avatarMesh\.data\);avatarUploads\+\+/);
  assert.match(source,/gl\.drawArrays\(gl\.TRIANGLES,0,avatarMesh\.vertices\);dynamicDrawCalls\+\+/);
- assert.match(source,/createAvatarMesh\(stage\.snapshot\(\),mode,nextColor\)/);
+ assert.match(source,/createAvatarMesh\(pose,mode,nextColor\)/);
  assert.match(source,/gl\.bufferData\(gl\.ARRAY_BUFFER,56\*36\*6\*4,gl\.DYNAMIC_DRAW\)/);
  assert.doesNotMatch(source,/requestAnimationFrame\(|roomClient\.action/);
+});
+
+test('real 2D player position and aiming synchronize to a read-only 3D camera pose',()=>{
+ const scene={world:{x:1000,y:2000},buildings:[]};
+ const me={x:1120,y:1880,room:null,hp:88,credits:200};
+ const aim={x:1,y:0};
+ const original=asNative({me,aim});
+ const pose=G.samplePlayerCamera(scene,me,aim);
+ assert.equal(pose.x,1);
+ assert.equal(pose.z,1,'world game Y south maps to 3D Z north');
+ assert.ok(Math.abs(pose.yaw-Math.PI/2)<1e-10,'aiming east turns 3D camera right');
+ assert.equal(pose.steps,0);
+ assert.equal(pose.source,'current-game-player');
+ assert.deepEqual(asNative(pose.world),{x:1120,y:1880});
+ assert.equal(Object.isFrozen(pose),true);
+ assert.equal(Object.isFrozen(pose.world),true);
+ assert.deepEqual(asNative({me,aim}),original,'sampling never mutates player or aim');
+ assert.equal(G.samplePlayerCamera(scene,me,{x:0,y:-1}).yaw,0,'aim north maps to 3D forward');
+ assert.equal(G.samplePlayerCamera(scene,me,{x:-1,y:0}).yaw,-Math.PI/2);
+ assert.ok(Math.abs(G.samplePlayerCamera(scene,me,{x:0,y:1}).yaw-Math.PI)<1e-10);
+ for(const bad of [
+  [scene,{...me,x:Infinity},aim],
+  [scene,{...me,room:{id:'shop'}},aim],
+  [scene,{...me,x:100000},aim],
+  [scene,me,{x:0,y:0}],
+  [scene,me,{x:NaN,y:0}],
+  [{world:{x:NaN,y:0},buildings:[]},me,aim],
+  [null,me,aim]
+ ])assert.equal(G.samplePlayerCamera(...bad),null,'invalid or interior-only player pose must fail closed');
+});
+
+test('optional mirror UI samples game state but cannot drive the authoritative player',()=>{
+ const js=fs.readFileSync(new URL('../city.js',import.meta.url),'utf8');
+ const source=fs.readFileSync(new URL('../city-graphics.js',import.meta.url),'utf8');
+ assert.match(js,/graphicsPreview\?\.observePlayer\(me,aim\)/);
+ assert.match(js,/graphicsPreview\?\.clearObserved\(\)/);
+ assert.match(js,/Mirror current player position & aim/);
+ assert.match(js,/Walking and firing remain controlled by the 2D game/);
+ assert.match(source,/const pose=observed\|\|stage\.snapshot\(\)/);
+ assert.match(source,/samplePlayerCamera\(sample,player,aim\)/);
+ assert.doesNotMatch(source,/engine\.action|engine\.input|roomClient\.action|save\(|localStorage|sessionStorage/,
+  'renderer must have no writable game or account APIs');
+ const absent=G.createPreview({getContext:()=>null});
+ assert.equal(absent.observePlayer({x:1,y:1},{x:1,y:0}),false);
+ assert.equal(absent.clearObserved(),false);
+ assert.equal(absent.observed(),null);
 });
 
 test('graphics module remains isolated from original save and authoritative game state',()=>{
