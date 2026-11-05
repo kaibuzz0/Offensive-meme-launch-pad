@@ -97,7 +97,7 @@ try{
  assert.ok(sceneInfo.count>=10,'the real city registry is available to the graphics preview');
  assert.match(sceneInfo.label,/World V1 buildings: .+ · [1-9][0-9]* authored structures · world X [0-9]+, Y [0-9]+/,
   '3D scene contains true landmark name, validated building count and world coordinates');
- const terrainSummary=await evalPage("Array.from(document.querySelectorAll('.graphics-preview-scene')).at(-1)?.textContent||''");
+ const terrainSummary=await evalPage("Array.from(document.querySelectorAll('.graphics-preview-scene')).find(e=>e.textContent.startsWith('Terrain preview:'))?.textContent||''");
  assert.match(terrainSummary,/Terrain preview: .+ · 64 source-derived surface tiles/,
   'real game Graphics panel shows capped, biome-derived surface data');
  const frontierSample=await evalPage("(()=>{const B=window.CityBiomes,F=window.CityFrontier,G=window.CityGraphics,I=window.CityInteriors;const r=F.regions[0];const scene=G.createWorldScene(I.BUILDINGS,r.entry,B,F);return {name:scene?.terrain?.name,count:scene?.terrain?.cells.length,biomes:F.regions.length,materials:new Set(scene?.terrain?.cells.map(c=>c.material)).size};})()");
@@ -130,7 +130,7 @@ try{
   'Graphics menu offers explicit read-only camera mirror without replacing original movement');
  const protectedSave=await evalPage("localStorage.getItem('offensive-meme-city-v1-center')");
  await evalPage("document.querySelector('.graphics-preview-sync button').click();true");
- const mirrorStatus=await evalPage("document.querySelectorAll('.graphics-preview-scene')[2]?.textContent||''");
+ const mirrorStatus=await evalPage("document.querySelector('.graphics-preview-sync + .graphics-preview-scene')?.textContent||''");
  if(graphicsInitial.gl)assert.match(mirrorStatus,/Read-only game sample X [0-9]+, Y [0-9]+ · heading -?[0-9]+°/,
   'preview camera follows current game player coordinates and aiming heading only');
  else assert.match(mirrorStatus,/WebGL unavailable/);
@@ -138,7 +138,7 @@ try{
   'sampling the active player camera must not alter its save');
  await evalPage("document.querySelectorAll('.graphics-preview-sync button')[1].click();true");
  if(graphicsInitial.gl)assert.match(
-  await evalPage("document.querySelectorAll('.graphics-preview-scene')[2]?.textContent||''"),
+  await evalPage("document.querySelector('.graphics-preview-sync + .graphics-preview-scene')?.textContent||''"),
   /Independent demo avatar restored/);
  const sampledPose=await evalPage("(()=>{const G=window.CityGraphics;const scene={world:{x:4000,y:6000},buildings:[]};const p=G.samplePlayerCamera(scene,{x:4120,y:5880,room:null},{x:1,y:0});return {x:p?.x,z:p?.z,yaw:p?.yaw,interior:G.samplePlayerCamera(scene,{x:4120,y:5880,room:{id:'x'}},{x:1,y:0})};})()");
  assert.equal(sampledPose.x,1);assert.equal(sampledPose.z,1);
