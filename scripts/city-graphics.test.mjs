@@ -355,7 +355,7 @@ test('optional mirror UI samples game state but cannot drive the authoritative p
  assert.match(js,/Mirror current player position & aim/);
  assert.match(js,/Walking and firing remain controlled by the 2D game/);
  assert.match(source,/const pose=observed\|\|stage\.snapshot\(\)/);
- assert.match(source,/samplePlayerCamera\(sample,player,aim\)/);
+ assert.match(source,/samplePlayerCamera\(sample,player,aim,steps\)/);
  assert.doesNotMatch(source,/engine\.action|engine\.input|roomClient\.action|save\(|localStorage|sessionStorage/,
   'renderer must have no writable game or account APIs');
  const absent=G.createPreview({getContext:()=>null});
