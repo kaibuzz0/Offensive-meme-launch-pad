@@ -75,3 +75,44 @@ test('terrain adapter places aquatic wildlife below water surface only',()=>{
  assert.ok(fish.every(c=>c.species==='fish'&&c.y===104));
  assert.deepEqual(spawnChunkOnTerrain({...wet,surfaceAt:()=>({...wet.surfaceAt(),water:false})},0,0),[]);
 });
+
+
+test('ocean seabirds fly above water while fish stay submerged',()=>{
+ const world={seed:7,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:103,water:true,river:false,waterLevel:112,group:'ocean',biomeName:'Deep Ocean',slope:25
+ })};
+ let birds=0,fish=0;
+ for(let x=-4;x<=4;x++)for(let z=-4;z<=4;z++){
+  const placed=spawnChunkOnTerrain(world,x,z);
+  assert.deepEqual(spawnChunkOnTerrain(world,x,z),placed);
+  for(const animal of placed){
+   assert.ok(['fish','seabird'].includes(animal.species));
+   if(animal.species==='seabird'){birds++;assert.ok(animal.y>=116&&animal.y<=120);}
+   else {fish++;assert.ok(animal.y>103&&animal.y<112);}
+  }
+ }
+ assert.ok(birds>0&&fish>0,'seeded ocean includes both airborne seabirds and fish');
+});
+
+test('ground fauna stay off flooded or steep ground while aerial fauna can pass',()=>{
+ const base={seed:100,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:80,water:false,river:false,group:'forest',biomeName:'Forest',slope:30
+ })};
+ let birds=0;
+ for(let x=-3;x<=3;x++)for(let z=-3;z<=3;z++){
+  const placed=spawnChunkOnTerrain(base,x,z);
+  for(const a of placed){assert.equal(a.species,'songbird');assert.ok(a.y>=84);birds++;}
+ }
+ assert.ok(birds>0,'seeded forest supports birds on steep slopes');
+ const flooded={...base,surfaceAt:()=>({...base.surfaceAt(),water:true,waterLevel:112})};
+ for(let x=-2;x<=2;x++)for(let z=-2;z<=2;z++)
+  assert.ok(spawnChunkOnTerrain(flooded,x,z).every(a=>a.species==='songbird'&&a.y>=116));
+});
+
+test('fish require actual water depth rather than merely a water flag',()=>{
+ const dryBed={seed:7,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:112,water:true,waterLevel:112,river:false,group:'ocean',biomeName:'Ocean',slope:0
+ })};
+ for(let x=-2;x<=2;x++)for(let z=-2;z<=2;z++)
+  assert.ok(spawnChunkOnTerrain(dryBed,x,z).every(a=>a.species==='seabird'));
+});
