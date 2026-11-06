@@ -56,3 +56,20 @@ test('reject partial typed-array views without transferring backing allocation',
  assert.equal(w.messages[0].message.id,5);
  assert.equal(w.messages[0].transfer.length,0);
 });
+
+// Vertex metadata is used to size draw calls. A mismatch can read past the
+// transferred buffer or silently drop geometry, even under the byte cap.
+test('reject mesh vertex-count mismatches before transferring buffer',()=>{
+ const cases=[
+  {vertices:7,data:new Float32Array(54)}, // fewer floats than advertised
+  {vertices:5,data:new Float32Array(54)}, // excess floats
+  {vertices:6,data:new Float32Array(55)}  // malformed triangle layout
+ ];
+ for(const [index,mesh] of cases.entries()){
+  const w=worker(()=>({...mesh,tiles:1,plants:0}));
+  w.send({type:'mesh',id:10+index,cx:0,cz:0,stride:1});
+  assert.equal(w.messages[0].message.type,'error');
+  assert.equal(w.messages[0].message.id,10+index);
+  assert.equal(w.messages[0].transfer.length,0);
+ }
+});
