@@ -155,3 +155,23 @@ The estimates cover the explicitly agreed map-first scope, and will be revised a
 **Planning estimates after Round 6:** First-person map prototype **~84%**; realistic environmental graphics **~43%**; complete original sandbox/gameplay rebuild **~30%**. These are qualitative estimates, not measured completion.
 
 **Next priorities:** A licensed high-quality terrain material atlas (albedo/normal/roughness maps), real directional shadow maps under an Android-specific budget, biome-specialized foliage LOD, water shoreline/refraction improvements, and off-thread chunk mesh generation. Continue auditing cave collision and saving before adding block editing.
+## Milestone 7 — Off-thread terrain meshing and material relief (PR #42)
+
+**Main engineering change:** The first-person renderer can now use a same-origin **Web Worker** to generate 16×16 voxel geometry off the UI thread. It loads the same generator modules, seed and **original** 132 biome definitions as the foreground terrain, so biome assignments, cave geometry and material colors remain deterministic.
+
+**Implemented on the Round 7 branch:**
+- New static `city-voxel-mesh-worker.js` initializes an independent seeded world, handles bounded `mesh` requests, and transfers raw `Float32Array` buffers without copying. The renderer accepts up to two in-flight requests, validates returned seed/coordinates/LOD and buffer lengths, discards stale view results, and gracefully falls back to synchronous meshing if worker setup fails.
+- The existing 24 MiB GPU mesh-buffer cap is enforced at each asynchronous upload, not only at the next animation frame. LOD and distant-first eviction remain in use.
+- Deterministic ridge-height shadow sampling darkens valleys behind taller nearby terrain. This is **heightfield cast shading**, not a GPU dynamic shadow map or an occlusion solution for trees, NPCs or buildings.
+- Low-cost procedural fragment-level micro-normal relief adds texture-scale responses to directional sunlight on rock/earth/mineral geometry without downloading a third-party texture library.
+- WebGL context loss now stops the mesh worker as well as retiring stale GPU resources before recreating the renderer.
+- Same-origin static Pages assets, local browser QA server and syntax validation include the new worker file. The canonical first-person terrain mode supplies the original biome definitions to the renderer and exposes worker status and pending request counts.
+- Node tests check exact seed/biome parity and byte-for-byte worker vs synchronous triangle meshes (including signed coordinates), negative/cell boundaries, near/far LOD, invalid worker requests, and deterministic ridge-cast shading. Mobile-sized Chromium tests require an actual ready Web Worker, transferred GPU mesh upload, and at most two outstanding mesh jobs.
+
+**What remains:** This is not high-resolution PBR material texturing or full photorealism. Real scene-wide shadow mapping, albedo/normal/roughness texture atlases with licensing, screen-space occlusion, volumetric fog/lighting, true water physics/refraction, dense biome-native species and production-grade underground mining are unfinished. This is one classic worker, not a full multi-worker scheduler; no physical-device Android FPS, memory or thermal certification has been performed.
+
+**Estimates after Round 7 (subjective):** First-person terrain prototype **~87%**, realism-oriented environment quality **~46%**, complete original sandbox/gameplay rebuild **~32%**. Do not use these numbers as test coverage or release readiness.
+
+**Next:** Profile memory/FPS on real Android devices, add worker cancellation/priority scheduling and robust 3D cave collision, introduce verified-license texture atlases and baked/real-time directional shadow mapping under a phone GPU budget, then geology edits/mining with deterministic persistent saves.
+
+**Merge/deploy gate:** Never merge without exact-head Node and browser CI (legacy and first-person) and successful GitHub Pages deployment. Keep original game and saves intact.
