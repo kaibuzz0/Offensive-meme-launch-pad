@@ -10,14 +10,22 @@
  function createController(world,start){
   if(!world?.surfaceAt||!Number.isFinite(start?.x)||!Number.isFinite(start?.z))
    throw Error('Voxel world and finite player coordinates required');
-  function floorAt(x,z){
+  function floorAt(x,z,referenceY=Infinity){
    if(!Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>999900||Math.abs(z)>999900)return null;
    const samples=[[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]];
    let top=-Infinity;
    for(const [ox,oz] of samples){
-    const col=world.surfaceAt(Math.floor(x+ox),Math.floor(z+oz));
+    const bx=Math.floor(x+ox),bz=Math.floor(z+oz);
+    const col=world.surfaceAt(bx,bz);
     if(!col)return null;
-    top=Math.max(top,col.height+1);
+    let height=col.height+1;
+    // Caves share world coordinates with the terrain. The roof stays solid
+    // until the player reaches an open mouth or is already below the roof.
+    const gallery=world.caveRoomAt?.(bx,bz);
+    if(gallery&&(gallery.exposed||referenceY<=gallery.ceiling-1)){
+     height=gallery.floor;
+    }
+    top=Math.max(top,height);
    }
    return top;
   }
@@ -34,7 +42,7 @@
   function moveAxis(axis,delta){
    const nx=axis==='x'?state.x+delta:state.x;
    const nz=axis==='z'?state.z+delta:state.z;
-   const floor=floorAt(nx,nz);
+   const floor=floorAt(nx,nz,state.y);
    if(floor===null)return false;
    // Airborne travel may traverse a step only if the feet clear the surface.
    const climb=floor-state.y;
@@ -64,7 +72,7 @@
     state.vy=Math.max(-40,state.vy-GRAVITY*step);
     state.y+=state.vy*step;
    }
-   const floor=floorAt(state.x,state.z);
+   const floor=floorAt(state.x,state.z,state.y);
    if(floor!==null&&state.y<=floor){state.y=floor;state.vy=0;state.grounded=true;}
    else if(floor!==null&&state.y>floor+.01)state.grounded=false;
    return snapshot();
