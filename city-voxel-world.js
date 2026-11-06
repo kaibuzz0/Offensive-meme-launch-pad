@@ -41,7 +41,33 @@
         plantSeed=hash(seed,13,81),sinkSeed=hash(seed,14,82);
   // Store sampled columns only. A bounded cache keeps traversal safe on low-RAM phones.
   const cache=new Map(),CACHE_LIMIT=22528;
-  const quant=n=>Math.floor(n);
+  const MOUTH_CELL=112;
+  // Mouth centers always sit >=16 voxels inside their 112-voxel cell,
+  // so a single O(1) cell lookup replaces searching nine neighbors/tile.
+  function caveMouthAt(x,z){
+   if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z))return null;
+   const cx=Math.floor(x/MOUTH_CELL),cz=Math.floor(z/MOUTH_CELL);
+   if(random(sinkSeed^0x4caf,cx,cz,9)<.79)return null;
+   const mx=cx*MOUTH_CELL+16+Math.floor(random(sinkSeed,cx,cz,5)*(MOUTH_CELL-32));
+   const mz=cz*MOUTH_CELL+16+Math.floor(random(sinkSeed,cx,cz,6)*(MOUTH_CELL-32));
+   const radius=3+random(sinkSeed,cx,cz,7)*2.2;
+   const distance=Math.hypot(x+.5-mx,z+.5-mz);
+   if(distance>=radius+3)return null;
+   const cut=Math.round(23*Math.max(0,1-distance/(radius+2)));
+   return Object.freeze({id:cx+':'+cz,x:mx,z:mz,radius,cut,inside:distance<radius});
+  }
+  function surfaceMaterial(group,h,slope,wet){
+   if(wet&&h<=SEA_LEVEL+5)return 'shore';
+   if(h>SEA_LEVEL+410)return 'snow';
+   if(slope>9)return group==='volcanic'?'basalt':'cliff';
+   if(group==='volcanic')return 'basalt';
+   if(group==='alpine'||group==='crystal')return 'stone';
+   if(group==='tundra')return 'snow';
+   if(group==='desert'||group==='salt')return 'sand';
+   if(group==='wetland')return 'mud';
+   if(group==='fungal')return 'mycelium';
+   return 'soil';
+  }
   function rawColumn(x,z){
    const biome=atlas.biomeAt(x,z);
    const group=biome.group;
@@ -69,10 +95,20 @@
    const dist=Math.hypot(x-sx,z-sz);
    const sinkhole=sinkAllowed&&dist<6;
    if(sinkhole)height-=Math.max(0,6-dist)*6.5;
-   const h=clamp(Math.round(height),6,MAX_HEIGHT-8);
+   const mouth=caveMouthAt(x,z);
+   const cut=mouth?.cut||0;
+   const h=clamp(Math.round(height-cut),6,MAX_HEIGHT-8);
    const water=h<SEA_LEVEL;
+   // Lightweight slope cue calculated from coherent nearby noise only;
+   // this is not a recursive surfaceAt call.
+   const gradient=Math.abs(pebbles)*4+Math.abs(hills)*8+ridge*(group==='alpine'?17:5);
+   const wet=water||river||Math.abs(h-SEA_LEVEL)<=4;
+   const material=mouth?.inside?'cave-rock':surfaceMaterial(group,h,gradient,wet);
    return Object.freeze({x,z,height:h,water,river,waterLevel:water?SEA_LEVEL:null,
-    sinkhole,biomeId:biome.id,biomeName:biome.name,group,
+    sinkhole:sinkhole||!!mouth?.inside,mouth:!!mouth?.inside,
+    mouthId:mouth?.id||null,mouthDepth:cut,material,
+    slope:Math.round(gradient*10)/10,
+    biomeId:biome.id,biomeName:biome.name,group,
     hue:biome.hue,sat:biome.sat,light:biome.light,
     moisture:biome.moisture,temperature:biome.temperature});
   }
@@ -100,30 +136,51 @@
    if(caveAt(x,y,z))return Object.freeze({material:'air',solid:false,mineable:false,cave:true});
    const depth=col.height-y;
    const mineral=random(detailSeed,x,z,y);
-   let material=depth===0?col.group==='tundra'?'snow':col.group==='desert'||col.group==='salt'?'sand':
-       col.group==='alpine'||col.group==='volcanic'||col.group==='crystal'?'rock':'soil':
+   let material=depth===0?col.material:
        depth<5?'dirt':depth<48?'stone':'deepstone';
    if(depth>12&&mineral>.989)material='crystal-ore';
    else if(depth>20&&mineral>.974)material='iron-ore';
    return Object.freeze({material,solid:true,mineable:true});
   }
   function featureAt(x,z){
-   const c=surfaceAt(x,z);if(!c||c.water||c.river&&c.height<SEA_LEVEL+2)return null;
+   const c=surfaceAt(x,z);if(!c||c.water||c.mouth||c.slope>18||c.river&&c.height<SEA_LEVEL+2)return null;
    const r=random(plantSeed,x,z),r2=random(plantSeed^0x91a3,x,z);
    const g=c.group;
    const forest=g==='evergreen'||g==='tropical'||g==='fungal';
-   const treeRate=forest?(g==='tropical'?.045:.039):g==='grassland'?.014:g==='wetland'?.009:.003;
+   const treeRate=forest?(g==='tropical'?.085:g==='fungal'?.075:.080):g==='grassland'?.029:g==='wetland'?.024:.005;
    if(r<treeRate){
     const type=g==='desert'?'cactus':g==='fungal'?'mushroom':g==='tropical'?'palm':g==='tundra'||g==='evergreen'?'pine':'tree';
     return Object.freeze({type,height:7+Math.floor(r2*9),color:r2});
    }
-   if(r<treeRate+(g==='desert'?.014:.075)){
+   if(r<treeRate+(g==='desert'?.025:g==='grassland'?.23:forest?.19:.095)){
     const type=g==='crystal'?'crystal':g==='volcanic'||g==='alpine'?'rock':
       g==='desert'||g==='salt'?'shrub':g==='wetland'?'reed':
       g==='fungal'?'mushroom':r2<.21?'flower':'grass';
     return Object.freeze({type,height:1+Math.floor(r2*4),color:r2});
    }
    return null;
+  }
+  function spawnAt(){
+   const base=atlas.spawnAt();
+   // Find accessible footing close to the saved seed-specific starting area.
+   // Prevent first-person starts on steep cliffs, under water or in cave shafts.
+   function safe(x,z){
+    const mid=surfaceAt(x,z);
+    if(!mid||mid.water||mid.mouth||mid.slope>13)return false;
+    for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2]]){
+     const n=surfaceAt(x+dx,z+dz);
+     if(!n||n.water||n.mouth||Math.abs(n.height-mid.height)>2)return false;
+    }
+    return true;
+   }
+   for(let radius=0;radius<=80;radius+=2){
+    const pts=radius===0?[[base.x,base.y]]:
+     [[base.x+radius,base.y],[base.x,base.y+radius],
+      [base.x-radius,base.y],[base.x,base.y-radius]];
+    for(const [x,z] of pts)if(safe(x,z))return Object.freeze({x,z,y:surfaceAt(x,z).height+1});
+   }
+   const mid=surfaceAt(base.x,base.y);
+   return Object.freeze({x:base.x,z:base.y,y:mid.height+1});
   }
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
@@ -138,8 +195,8 @@
     structures:Object.freeze([]),npc:Object.freeze([]),roads:Object.freeze([])});
   }
   return Object.freeze({seed,atlas,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,MIN_HEIGHT,MAX_HEIGHT,
-   SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveAt,blockAt,featureAt,chunkAt,
-   cacheSize:()=>cache.size,spawnAt:atlas.spawnAt});
+   SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveAt,blockAt,featureAt,chunkAt,
+   cacheSize:()=>cache.size,spawnAt});
  }
  root.CityVoxelWorld=Object.freeze({createVoxelWorld,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,
   MIN_HEIGHT,MAX_HEIGHT,SEA_LEVEL,CHUNK_SIZE,noise2,noise3});

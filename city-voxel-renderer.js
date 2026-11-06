@@ -24,50 +24,101 @@
   quad(data,[x,y,z],[x1,y,z],[x1,y1,z],[x,y1,z],color,[0,0,-1]);
   quad(data,[x,y,z1],[x,y1,z1],[x1,y1,z1],[x1,y,z1],color,[0,0,1]);
  }
+ function triangle(data,a,b,c,color,normal){
+  for(const p of [a,b,c])
+   data.push(p[0],p[1],p[2],color[0],color[1],color[2],normal[0],normal[1],normal[2]);
+ }
+ // Eight-sided non-rectangular canopies, faceted leaf color and tapered crowns.
+ function canopy(data,x,y,z,rx,ry,rz,color,seed=0){
+  const slices=8;
+  for(let i=0;i<slices;i++){
+   const a=i*Math.PI*2/slices,b=(i+1)*Math.PI*2/slices;
+   const x1=x+Math.cos(a)*rx,z1=z+Math.sin(a)*rz;
+   const x2=x+Math.cos(b)*rx,z2=z+Math.sin(b)*rz;
+   const variation=.87+(((i*13+Math.floor(seed*100))%7)/35);
+   const tint=color.map(v=>Math.min(1,v*variation));
+   const n=[Math.cos((a+b)/2),.48,Math.sin((a+b)/2)];
+   triangle(data,[x,y+ry,z],[x1,y,z1],[x2,y,z2],tint,n);
+   triangle(data,[x,y-ry*.65,z],[x2,y,z2],[x1,y,z1],tint,[n[0],-.54,n[2]]);
+  }
+ }
  function foliage(data,feature){
-  const {x,y,z,type,height,color}=feature,rand=color;
-  const leaf=type==='pine'?[.17,.39,.26]:
-   type==='palm'?[.12,.55,.23]:type==='mushroom'?[.60,.26,.40]:[.18,.49,.25];
-  const stem=[.38,.27,.16];
-  if(type==='pine'||type==='tree'||type==='palm'){
-   box(data,x+.37,y,z+.37,.27,height,.27,stem);
-   if(type==='pine'){
-    for(let i=0;i<3;i++)box(data,x-1.15+i*.4,y+height-7+i*2,z-1.15+i*.4,
-      3.25-i*.8,2,3.25-i*.8,leaf);
-   }else{
-    box(data,x-1.1,y+height-3,z-1.1,3.2,3.2,3.2,leaf);
-    box(data,x-.5,y+height-.3,z-.5,2,1.4,2,leaf);
+  const {x,y,z,type,height,color}=feature,r=color;
+  const green=type==='pine'?[.15,.34,.24]:
+   type==='palm'?[.16,.43,.21]:type==='mushroom'?[.48,.23,.32]:
+   r>.55?[.18,.45,.20]:[.16,.38,.21];
+  const stem=[.33,.25,.15];
+  if(type==='pine'){
+   const tall=height+4;
+   box(data,x+.36,y,z+.36,.28,tall,.28,stem);
+   for(let i=0;i<4;i++){
+    const rad=2.6-i*.38;
+    canopy(data,x+.5,y+3+i*2.5,z+.5,rad,2.7,rad,green,r+i);
+   }
+  }else if(type==='tree'){
+   const tall=height+3;
+   box(data,x+.34,y,z+.34,.34,tall,.34,stem);
+   const leaf=green;
+   canopy(data,x+.5,y+tall,z+.5,3.3,2.8,2.9,leaf,r);
+   canopy(data,x-1,y+tall-1.4,z+.2,2.1,2.3,2.3,leaf.map(v=>v*.89),r+.1);
+   canopy(data,x+1.75,y+tall-.6,z+1,2,2.4,2,leaf.map(v=>v*1.07),r+.3);
+  }else if(type==='palm'){
+   const tall=height+5;
+   box(data,x+.38,y,z+.38,.24,tall,.24,stem);
+   for(let i=0;i<7;i++){
+    const a=i*Math.PI*2/7,dx=Math.cos(a),dz=Math.sin(a);
+    const top=[x+.5,y+tall+.2,z+.5],mid=[x+.5+dx*2.2,y+tall+.5,z+.5+dz*2.2];
+    const tip=[x+.5+dx*4.4,y+tall-1.4,z+.5+dz*4.4];
+    const orth=[-dz*.5,0,dx*.5],tint=green.map(v=>v*(.88+(i%3)*.09));
+    triangle(data,top,mid,[mid[0]+orth[0],mid[1],mid[2]+orth[2]],tint,[0,1,0]);
+    triangle(data,mid,tip,[mid[0]+orth[0],mid[1],mid[2]+orth[2]],tint,[0,1,0]);
    }
   }else if(type==='cactus'){
-   box(data,x+.28,y,z+.28,.48,height,.48,[.24,.48,.25]);
-   box(data,x-.42,y+height*.4,z+.30,.75,.35,.4,[.28,.54,.29]);
+   box(data,x+.28,y,z+.28,.42,height,.42,[.23,.44,.23]);
+   box(data,x-.3,y+height*.5,z+.30,.66,.3,.35,[.27,.49,.27]);
+   box(data,x-.3,y+height*.5,z+.30,.3,.85,.35,[.27,.49,.27]);
   }else if(type==='mushroom'){
-   box(data,x+.41,y,z+.41,.18,Math.max(1,height),.18,[.72,.70,.56]);
-   box(data,x-.45,y+height-.2,z-.45,1.9,.65,1.9,leaf);
+   const tall=Math.max(1,height);
+   box(data,x+.39,y,z+.39,.22,tall,.22,[.7,.67,.58]);
+   canopy(data,x+.5,y+tall-.1,z+.5,1.7,.66,1.7,green,r);
   }else if(type==='crystal'){
-   box(data,x+.2,y,z+.22,.55,height+1,.55,[.54,.62,.82]);
+   const blue=[.46,.61,.78];
+   canopy(data,x+.5,y+height*.72,z+.5,.7,height*.75,.7,blue,r);
   }else if(type==='rock'){
-   box(data,x+.16,y,z+.13,.8,.7+height*.15,.75,[.39,.40,.39]);
+   canopy(data,x+.5,y+.5,z+.5,.8,.6+.12*height,.7,[.37,.40,.39],r);
   }else{
-   const stemHeight=type==='reed'?2.8:type==='shrub'?1.9:type==='flower'?1.5:1;
-   const green=type==='shrub'?[.32,.42,.21]:type==='reed'?[.34,.58,.30]:[.25,.60,.26];
-   const a=[x+.15,y,z+.15],b=[x+.8,y+stemHeight,z+.8],c=[x+.8,y,z+.8],d=[x+.15,y+stemHeight,z+.15];
-   quad(data,a,c,b,d,green,[0,0,1]);
-   quad(data,[x+.8,y,z+.15],[x+.15,y,z+.8],[x+.15,y+stemHeight,z+.8],[x+.8,y+stemHeight,z+.15],green,[1,0,0]);
+   const h=type==='reed'?2.7:type==='shrub'?1.8:type==='flower'?1.45:1.2;
+   const grass=type==='reed'?[.31,.48,.27]:type==='shrub'?[.26,.41,.22]:[.27,.51,.22];
+   for(let blade=0;blade<3;blade++){
+    const ox=x+.15+blade*.24,oz=z+.14+((blade*3)%4)*.21;
+    const tip=[ox+.08*(blade-1),y+h*(.78+blade*.1),oz+.2];
+    triangle(data,[ox,y,oz],tip,[ox+.17,y,oz+.07],grass,[0,0,1]);
+    triangle(data,[ox,y,oz+.17],tip,[ox+.19,y,oz],grass,[1,0,0]);
+   }
    if(type==='flower'){
-    const petal=rand>.65?[.95,.85,.32]:rand>.32?[.95,.46,.56]:[.61,.50,.86];
-    box(data,x+.25,y+1.2,z+.25,.6,.28,.6,petal);
+    const petal=r>.65?[.96,.80,.35]:r>.33?[.92,.43,.52]:[.68,.51,.87];
+    canopy(data,x+.48,y+1.4,z+.5,.43,.23,.42,petal,r);
    }
   }
  }
  function baseColor(tile){
-  const {group,height,hue,sat,light}=tile;
-  if(height>=176)return rgb(207,15,89);
-  if(group==='alpine'||group==='volcanic')return rgb(hue,sat*.48,clamp(light+12,20,70));
-  if(group==='desert'||group==='salt')return rgb(hue,clamp(sat,15,75),clamp(light+7,22,79));
-  if(group==='tundra')return rgb(199,22,height>90?80:66);
-  if(group==='wetland')return rgb(96,30,37);
-  return rgb(hue,clamp(sat+8,20,85),clamp(light+5,18,74));
+  const {group,height,material,hue,sat,light}=tile;
+  const variation=((hue%17)-8)/280,bright=(v)=>clamp(v+variation,0,1);
+  if(material==='cave-rock')return [.10,.12,.14];
+  if(material==='snow')return [bright(.77),bright(.82),.85];
+  if(material==='shore')return [.67,.60,.43];
+  if(material==='sand')return [bright(.73),bright(.61),.39];
+  if(material==='basalt')return [bright(.27),.24,.24];
+  if(material==='cliff')return [bright(.39),bright(.39),.37];
+  if(material==='stone')return [bright(.45),bright(.46),.45];
+  if(material==='mud')return [bright(.28),bright(.30),.21];
+  if(material==='mycelium')return [bright(.35),.30,.38];
+  // Keep all 132 named color variations recognizable, within ecological palettes.
+  const hueShift=(hue%29)-14;
+  if(group==='tropical'||group==='evergreen')return rgb(115+hueShift*.55,40+sat*.12,25+light*.16);
+  if(group==='grassland')return rgb(88+hueShift*.6,42,35+light*.1);
+  if(group==='wetland')return rgb(103+hueShift*.4,31,28);
+  return rgb(92+hueShift,31,37);
  }
  function generateMesh(world,cx,cz,stride=1){
   if(stride!==1&&stride!==4)throw Error('Unsupported terrain LOD');
@@ -83,14 +134,16 @@
   const data=[];
   for(const tile of chunk.tiles){
    const {x,z,height:y}=tile,color=baseColor(tile);
-   quad(data,[x,y+1,z],[x+stride,y+1,z],[x+stride,y+1,z+stride],[x,y+1,z+stride],color,[0,1,0]);
+   const topShade=tile.slope>13?.86:tile.material==='shore'?.96:1;
+   const groundTint=color.map(v=>v*topShade);
+   quad(data,[x,y+1,z],[x+stride,y+1,z],[x+stride,y+1,z+stride],[x,y+1,z+stride],groundTint,[0,1,0]);
    const sides=[
     {n:world.surfaceAt(x-stride,z),axis:'left'},
     {n:world.surfaceAt(x+stride,z),axis:'right'},
     {n:world.surfaceAt(x,z-stride),axis:'front'},
     {n:world.surfaceAt(x,z+stride),axis:'back'}
    ];
-   const shade=color.map(v=>v*.79);
+   const shade=color.map(v=>v*(tile.material==='cave-rock'?.45:tile.material==='cliff'?.72:.79));
    for(const side of sides){
     const low=side.n?.height??y;
     if(low>=y)continue;
@@ -104,10 +157,25 @@
     const water=[.15,.45,.67];
     const yy=world.SEA_LEVEL+1.15;
     quad(data,[x,yy,z],[x+stride,yy,z],[x+stride,yy,z+stride],[x,yy,z+stride],water,[0,1,0]);
-    // Water surface is deliberately opaque for predictable mobile depth rendering.
+    // Narrow bright shore strips. A separate high-altitude foam surface
+    // avoids blending/sorting glitches on WebGL1 mobile GPUs.
+    if(stride===1){
+     const foam=[.60,.73,.69],fy=yy+.035,t=.17;
+     if(sides[0].n?.height>=world.SEA_LEVEL)quad(data,[x,fy,z],[x+t,fy,z],[x+t,fy,z+1],[x,fy,z+1],foam,[0,1,0]);
+     if(sides[1].n?.height>=world.SEA_LEVEL)quad(data,[x+1-t,fy,z],[x+1,fy,z],[x+1,fy,z+1],[x+1-t,fy,z+1],foam,[0,1,0]);
+     if(sides[2].n?.height>=world.SEA_LEVEL)quad(data,[x,fy,z],[x+1,fy,z],[x+1,fy,z+t],[x,fy,z+t],foam,[0,1,0]);
+     if(sides[3].n?.height>=world.SEA_LEVEL)quad(data,[x,fy,z+1-t],[x+1,fy,z+1-t],[x+1,fy,z+1],[x,fy,z+1],foam,[0,1,0]);
+    }
    }
   }
-  for(const plant of chunk.plants)foliage(data,plant);
+  for(const plant of chunk.plants){
+   if(['pine','palm','tree'].includes(plant.type)){
+    const {x,z,y}=plant,shadow=[.13,.19,.13];
+    quad(data,[x-.35,y+.012,z-.35],[x+1.35,y+.012,z-.35],
+      [x+1.35,y+.012,z+1.35],[x-.35,y+.012,z+1.35],shadow,[0,1,0]);
+   }
+   foliage(data,plant);
+  }
   return {data:new Float32Array(data),tiles:chunk.tiles.length,plants:chunk.plants.length,
    vertices:data.length/9};
  }

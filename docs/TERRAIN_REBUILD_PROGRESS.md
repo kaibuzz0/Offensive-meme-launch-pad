@@ -75,3 +75,25 @@ The estimates cover the explicitly agreed map-first scope, and will be revised a
 - Full Minecraft-like but original sandbox gameplay/world systems: **~20%**.
 
 **Merge gate:** No release without exact-head tests, local legacy/game regressions, GitHub Pages integrity and mobile-sized Chromium verification. Keep original public mode and saves intact until a separately approved cutover.
+
+## Milestone 3 — World realism foundation (PR #38)
+
+**Scope:** Keep the original `city.html` game untouched for default visitors. Improve its opt-in `?terrain=1` first-person wilderness only. All 132 existing named biomes remain seeded in the first world, with no streets, NPCs, buildings or wallet integration in the generated terrain.
+
+**Added:**
+- Deterministic cave-mouth depressions, steep exposed rock bands, mineral/soil/snow/mud/sand shore material families and increased biome-dependent plants. Cave mouths have seed-stable coordinates and dark rock interiors; full tunnel meshes and spelunking are **not** claimed.
+- Low-poly but more organic eight-sided tree canopies, layered conifers, palm fronds, 3D shrubs, rocks, mushrooms, flowers and grass clusters instead of only cube foliage; contact ground shadows and foam strips where open water meets land.
+- First-person **quarter-meter** step collision, gravity and jump arc with a mobile Jump button, keyboard Space and safe seed-derived spawn selection. This remains surface-heightfield physics: no true volumetric caves, arbitrary voxel collision, swimming, mining or multiplayer authority.
+- Terrain generation optimization: cave-mouth lookup is constant-time per sample rather than querying nine cells.
+- New regression tests for deterministic cave entrances, natural material variation, geometry, slope collision, gravity, safe landings and mobile browser control availability. All GitHub Pages/local-server asset manifests updated.
+
+**Graphics standard:** Goal remains realistic, original open-world environments. Current lighting is a shader approximation, not photoreal PBR. No licensed high-resolution albedo/normal/roughness atlases, dynamic shadow maps, ambient occlusion pass, physically simulated water or plant wind rigs are present.
+
+**Progress estimate after this milestone (subjective project tracking):**
+- First-person terrain prototype: **~72%**
+- Realism-quality environmental rendering: **~28%**
+- Full world/gameplay rebuild: **~23%**
+
+**Next priority:** Render fully excavated caves with three-dimensional surfaces, subterranean light and collision; create a material atlas with verified permissible textures, add dynamic directional shadows/normal maps, then worker meshing and physical Android thermal/FPS testing. Do not claim full realism, full caves, or performance readiness until each is verified.
+
+**Merge gate:** exact-head Node tests, static Pages integrity, legacy browser regression, first-person mobile-sized Chromium smoke; then incremental main merge, deployment check and preserve legacy saves.

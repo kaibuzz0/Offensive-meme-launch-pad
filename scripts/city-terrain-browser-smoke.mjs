@@ -64,6 +64,11 @@ try{
  const voxel=await evalPage('(()=>{const atlas=CityTerrainWorld.createTerrain(localStorage.getItem("meme-city-terrain-seed-v1"),CityFrontier.regions);const world=CityVoxelWorld.createVoxelWorld(atlas);const ground=world.surfaceAt(0,0);const mesh=CityVoxelRenderer.generateMesh(world,0,0);return {block:world.VOXEL_METERS,eye:world.EYE_HEIGHT,caves:typeof world.caveAt==="function",height:ground.height,vertices:mesh.vertices,plants:mesh.plants};})()');
  assert.equal(voxel.block,.25);
  assert.equal(voxel.eye,6.4);
+ const physicsAvailable=await evalPage('typeof CityVoxelPhysics?.createController==="function"');
+ assert.equal(physicsAvailable,true,'first-person physics must ship with the playable site');
+ const controls=await evalPage('(()=>{const b=document.getElementById("city-jump");return {exists:!!b,label:b?.getAttribute("aria-label")};})()');
+ assert.equal(controls.exists,true,'mobile jump button must be present');
+ assert.match(controls.label,/Jump/);
  assert.equal(voxel.caves,true);
  assert.ok(voxel.height>0&&voxel.vertices>1536);
  assert.equal(initial.sites,0);assert.equal(initial.structures,0);assert.equal(initial.roads,0);
@@ -74,6 +79,7 @@ try{
  assert.equal(view.exists,true);assert.equal(view.crosshair,true);
  if(view.gl){
   assert.equal(view.hidden,false,'first person is default when WebGL works');
+  assert.equal(await evalPage('document.getElementById("city-jump").hidden'),false,'mobile jump must be visible in first person');
   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.textContent.startsWith("3D ·")'),'3D chunk rendering',30000);
   const error=await evalPage('document.getElementById("city-voxel-canvas").getContext("webgl").getError()');
   assert.equal(error,0,'first-person 3D frame must not cause WebGL errors');

@@ -9,7 +9,7 @@
  const canvas=$('#city-canvas'),ctx=canvas?.getContext('2d');
  const intro=$('#city-intro'),start=$('#start-button');
  const engine=window.CityTerrainWorld,definitions=window.CityFrontier?.regions;
- const voxelApi=window.CityVoxelWorld,rendererApi=window.CityVoxelRenderer;
+ const voxelApi=window.CityVoxelWorld,rendererApi=window.CityVoxelRenderer,physicsApi=window.CityVoxelPhysics;
  if(!canvas||!ctx||!engine||!Array.isArray(definitions)){
   if(start){start.disabled=true;start.textContent='World generator unavailable';}
   return;
@@ -33,6 +33,8 @@
   .terrain-only-mode .game-bottom {z-index:3}
   .terrain-only-mode .world-hud {z-index:2}
   .terrain-only-mode .city-welcome {z-index:5}
+  .terrain-only-mode #city-jump {position:absolute;right:16px;bottom:20px;z-index:4;min-height:72px;min-width:72px;border-radius:50%;font:700 13px monospace;border:2px solid #c6efd6;color:#eff8f2;background:#20523dbf;touch-action:none;user-select:none;-webkit-user-select:none;box-shadow:0 4px 20px #0d261c9c}
+  .terrain-only-mode #city-voxel-status {max-width:calc(100% - 40px);text-shadow:0 1px 2px #000}
  `;
  document.head.append(style);
  $('.alpha-tag').textContent='VOXEL TERRAIN / FIRST-PERSON';
@@ -42,9 +44,9 @@
  $('#welcome-title').textContent='YOUR WORLD. YOUR SEED.';
  $('.welcome-lead').textContent='Explore a seeded 3D voxel wilderness with 132 named biomes, mountains, rivers, lakes, trees, grass, flowers, underwater valleys and underground cave data. Each small block is one-quarter of a meter, with a first-person camera. Buildings, streets, NPCs and quests remain disabled; legacy saves stay protected.';
  $('.welcome-steps').hidden=true;
- $('.welcome-goal').textContent='First-person, low-poly procedural terrain milestone. Water is not yet physically simulated and caves are currently generated as data, not fully explorable 3D tunnels. Photoreal materials, shadows, physics and mining require further development.';
+ $('.welcome-goal').textContent='Round 3 preview: richer woodland shapes, rocky escarpments, cave-mouth sinkholes, shorelines and basic step/jump/fall physics. Still missing photoreal surface textures, full cave interiors, shadows and water simulation.';
  start.textContent='Enter first-person wilderness →';
- $('.welcome-controls').textContent='WASD / arrow keys to move · Drag the scene to look · Mobile left thumbstick to move / swipe view to turn · Toggle Atlas or 2D map.';
+ $('.welcome-controls').textContent='WASD / arrows or mobile joystick · Swipe/drag to look · Space or Jump to leap · Steep rock walls block movement · Atlas and top-down view remain available.';
  const legacy=document.createElement('a');
  legacy.href='city.html?legacy=1';legacy.textContent='Open preserved legacy city →';
  legacy.style.cssText='display:inline-block;margin:1rem;color:#c4e7bb';
@@ -63,7 +65,7 @@
  let world=engine.createTerrain(seed,definitions);
  let voxel=voxelApi?.createVoxelWorld(world)||null;
  function restore(){
-  const initial=world.spawnAt();
+  const initial=voxel?.spawnAt()||world.spawnAt();
   try{
    const saved=JSON.parse(get(POS+seed));
    if(saved?.version===world.version&&saved.seed===seed&&
@@ -71,9 +73,11 @@
       Math.abs(saved.x)<1000000&&Math.abs(saved.y)<1000000)
     return {x:saved.x,y:saved.y,yaw:Number.isFinite(saved.yaw)?saved.yaw:0,pitch:Number.isFinite(saved.pitch)?Math.max(-1.3,Math.min(1.3,saved.pitch)):0};
   }catch{}
-  return {x:initial.x,y:initial.y,yaw:0,pitch:0};
+  return {x:initial.x,y:initial.z??initial.y,yaw:0,pitch:0};
  }
  let player=restore(),running=false,paused=false,atlas=false,zoom=20,last=0,lastSave=0;
+ let physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y})||null;
+ let jumpHeld=false,jumpQueued=false;
  const voxelCanvas=document.createElement('canvas');voxelCanvas.id='city-voxel-canvas';
  voxelCanvas.setAttribute('aria-label','First-person procedurally generated voxel wilderness. Drag to look around.');
  canvas.insertAdjacentElement('afterend',voxelCanvas);
@@ -81,18 +85,28 @@
  voxelCanvas.insertAdjacentElement('afterend',crosshair);
  const status=document.createElement('div');status.id='city-voxel-status';
  crosshair.insertAdjacentElement('afterend',status);
+ const jumpButton=document.createElement('button');
+ jumpButton.id='city-jump';jumpButton.type='button';jumpButton.textContent='JUMP';
+ jumpButton.setAttribute('aria-label','Jump over rocks and terrain steps');
+ status.insertAdjacentElement('afterend',jumpButton);
+ jumpButton.addEventListener('pointerdown',e=>{jumpHeld=true;jumpQueued=true;e.preventDefault();jumpButton.setPointerCapture?.(e.pointerId);});
+ for(const kind of ['pointerup','pointercancel','lostpointercapture'])
+  jumpButton.addEventListener(kind,()=>jumpHeld=false);
+ jumpButton.addEventListener('click',()=>{jumpQueued=true;});
  let perspective=null;
  try{if(voxel&&rendererApi)perspective=rendererApi.createRenderer(voxelCanvas,voxel);}catch(err){status.textContent='3D unavailable: '+String(err.message).slice(0,80);}
  let firstPerson=!!perspective;
  function syncView(){
   const threeD=!!perspective&&firstPerson&&!atlas;
-  voxelCanvas.hidden=!threeD;crosshair.hidden=!threeD;status.hidden=!threeD;
+  voxelCanvas.hidden=!threeD;crosshair.hidden=!threeD;status.hidden=!threeD;jumpButton.hidden=!threeD;
+  if(threeD&&physics)physics.teleport(player.x,player.y);
   canvas.style.visibility=threeD?'hidden':'visible';
   viewButton.textContent=threeD?'Switch to 2D map':'Switch to first person';
  }
  function resetVoxel(){
   if(perspective)perspective.dispose();
   voxel=voxelApi?.createVoxelWorld(world)||null;
+  physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y})||null;
   try{perspective=voxel&&rendererApi?rendererApi.createRenderer(voxelCanvas,voxel):null;}catch{perspective=null;}
   firstPerson=!!perspective;syncView();
  }
@@ -190,20 +204,26 @@
   if(running&&!paused){
    const move=movement();
    if(firstPerson&&perspective&&!atlas){
-    const rightX=Math.cos(player.yaw),rightY=-Math.sin(player.yaw);
-    const forwardX=Math.sin(player.yaw),forwardY=Math.cos(player.yaw);
-    const dx=(move.x*rightX-move.y*forwardX)*dt*15;
-    const dz=(move.x*rightY-move.y*forwardY)*dt*15;
-    const nx=player.x+dx,nz=player.y+dz;
-    if(Math.abs(nx)<999900&&Math.abs(nz)<999900){player.x=nx;player.y=nz;}
+    if(physics){
+     const position=physics.tick({right:move.x,forward:-move.y,yaw:player.yaw,
+      jump:keys.has(' ')||jumpHeld||jumpQueued},dt);
+     jumpQueued=false;
+     player.x=position.x;player.y=position.z;
+    }else{
+     const nx=player.x+move.x*dt*5,nz=player.y+move.y*dt*5;
+     if(Math.abs(nx)<999900&&Math.abs(nz)<999900){player.x=nx;player.y=nz;}
+    }
    }else{player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
    const size=resize();
    if(atlas)drawAtlas(size.w,size.h);
    else if(firstPerson&&perspective){
     const ground=voxel.surfaceAt(Math.floor(player.x),Math.floor(player.y));
     if(ground){
-     try{const metrics=perspective.render({x:player.x,z:player.y,y:ground.height+1,yaw:player.yaw,pitch:player.pitch});
-      status.textContent='3D · '+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks';
+     try{const cameraY=physics?.snapshot().y??ground.height+1;
+     const metrics=perspective.render({x:player.x,z:player.y,y:cameraY,yaw:player.yaw,pitch:player.pitch});
+      status.textContent='3D · '+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks · elevation '+Math.round(cameraY*voxel.VOXEL_METERS)+'m';
+      status.dataset.elevation=String(cameraY);
+      status.dataset.grounded=String(physics?.snapshot().grounded??true);
      }catch(err){status.textContent='3D rendering failed';perspective.dispose();perspective=null;firstPerson=false;syncView();}
     }
    }else drawWorld(size.w,size.h);
@@ -234,7 +254,7 @@
   keys.add(e.key.length===1?e.key.toLowerCase():e.key);
  });
  window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));
- window.addEventListener('blur',()=>{keys.clear();held.clear();stick.x=0;stick.y=0;savePosition();});
+ window.addEventListener('blur',()=>{keys.clear();held.clear();stick.x=0;stick.y=0;jumpHeld=false;jumpQueued=false;savePosition();});
  window.addEventListener('pagehide',savePosition);
  document.addEventListener('visibilitychange',()=>{if(document.hidden)savePosition();});
  for(const b of document.querySelectorAll('[data-move]')){
