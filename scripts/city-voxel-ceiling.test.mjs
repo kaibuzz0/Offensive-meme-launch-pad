@@ -11,15 +11,15 @@ function caveWorld() {
   return {
     PLAYER_HEIGHT: 7.2,
     SEA_LEVEL: -100,
-    surfaceAt: () => ({height: 10}),
-    caveRoomAt: () => ({floor: 2, ceiling: 8, exposed: false})
+    surfaceAt: () => ({height: 20}),
+    caveRoomAt: () => ({floor: 2, ceiling: 12, exposed: false})
   };
 }
 
 test('surface jump remains above underground gallery roof', () => {
   const player = createController(caveWorld(), {x: 0, z: 0});
   const after = player.tick({jump: true}, 0.05);
-  assert.ok(after.y > 11, 'surface jump must not be snapped inside cave');
+  assert.ok(after.y > 21, 'surface jump must not be snapped inside cave');
   assert.equal(after.grounded, false);
 });
 
@@ -27,7 +27,7 @@ test('underground jump is capped by solid gallery ceiling', () => {
   const player = createController(caveWorld(), {x: 0, z: 0, y: 0});
   assert.equal(player.snapshot().y, 2);
   const after = player.tick({jump: true}, 0.05);
-  assert.ok(after.y <= 8 - caveWorld().PLAYER_HEIGHT + 1e-9);
+  assert.ok(after.y <= 12 - caveWorld().PLAYER_HEIGHT + 1e-9);
   assert.equal(after.vy, 0);
 });
 
