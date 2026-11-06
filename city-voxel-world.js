@@ -87,7 +87,7 @@
   // existing world-space cuboid renderer/collision contract. Its western
   // doorway faces the road and stays open at player height.
   const lodge=Object.freeze({id:'starter-lodge:'+seed,x:x+13,z:gateZ+9,
-   y:heights[42]+1,doorX:x+13,doorZ:gateZ+6});
+   y:heights[42]+1,doorX:x+13,doorZ:gateZ+13});
   const lodgeWall=[.48,.34,.23],lodgeRoof=[.20,.29,.34],lodgeGlow=[1,.69,.24];
   function lodgePart(dx,dz,dy,w,h,d,color,solid=true){
    parts.push({x:lodge.x+dx,z:lodge.z+dz,y:lodge.y+dy,w,h,d,color,solid});
