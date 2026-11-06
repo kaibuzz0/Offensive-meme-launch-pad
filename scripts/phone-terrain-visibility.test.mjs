@@ -45,7 +45,7 @@ test('phone compatibility view draws actual seeded landscape colors and building
   'scene must contain differently colored sky, ground, road and structures');
  assert.ok(t.fills.some(x=>x.w>=t.canvas.width&&x.h>=t.canvas.height),
   'sky must paint the full game canvas');
- assert.ok(t.fills.some(x=>/^rgb\\(1(?:0[5-9]|1[0-7]),(?:9[5-9]|10[0-9]),(?:8[5-9]|9[0-9])\\)$/.test(String(x.color))),
+ assert.ok(t.fills.some(x=>/^rgb\(1(?:0[5-9]|1[0-7]),(?:9[5-9]|10[0-9]),(?:8[5-9]|9[0-9])\)$/.test(String(x.color))),
   'stone-colored road pixels should be drawn from generated terrain');
  assert.ok(r.vertices>500);
 });
