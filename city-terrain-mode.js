@@ -234,8 +234,7 @@
  function savePosition(){
   const feet=physics?.snapshot();
   const vertical=feet&&Math.hypot(feet.x-player.x,feet.z-player.y)<.1?feet.y:null;
-  const written=put(POS+seed,JSON.stringify({version:world.version,seed,x:player.x,y:player.y,yaw:player.yaw,pitch:player.pitch,vertical}));
-  status.dataset.writeOk=String(written);status.dataset.writeY=String(player.y);
+  put(POS+seed,JSON.stringify({version:world.version,seed,x:player.x,y:player.y,yaw:player.yaw,pitch:player.pitch,vertical}));
  }
  function spawnNewWorld(){
   savePosition();seed=randomSeed();put(KEY,seed);
