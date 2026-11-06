@@ -40,8 +40,12 @@ export function commandDrone(drone,command,{target}={}) {
   }
   throw new RangeError('unknown drone command');
 }
-export function stepDrone(drone,seconds) {
+// A terrain adapter supplies a pure game-world occupancy predicate. Sample at
+// quarter-meter intervals to avoid tunneling through thin voxel obstacles.
+// The caller owns terrain lookup and must treat unloaded chunks as blocked.
+export function stepDrone(drone,seconds,{canTraverse}={}) {
   assertDrone(drone);
+  if (canTraverse !== undefined && typeof canTraverse !== 'function') throw new TypeError('invalid terrain predicate');
   if (!finite(seconds) || seconds<=0 || seconds>1) throw new RangeError('fixed step must be (0,1] seconds');
   if (drone.mode==='docked') return {...drone,battery:Math.min(drone.capacity,drone.battery+seconds*3)};
   // Movement consumes battery in simulated seconds: a depleted drone cannot
@@ -52,7 +56,23 @@ export function stepDrone(drone,seconds) {
   const reserve=distance(drone.position,drone.home)/drone.speed+2;
   const returning=drone.mode==='returning' || battery<=reserve;
   const target=returning?drone.home:drone.target;
-  const position=approach(drone.position,target,drone.speed*poweredSeconds);
+  const intended=approach(drone.position,target,drone.speed*poweredSeconds);
+  let position=intended;
+  if (canTraverse) {
+    const travel=distance(drone.position,intended);
+    const samples=Math.max(1,Math.ceil(travel/0.25));
+    let last=clone(drone.position);
+    for (let i=1;i<=samples;i++) {
+      const t=i/samples;
+      const candidate={x:drone.position.x+(intended.x-drone.position.x)*t,
+        y:drone.position.y+(intended.y-drone.position.y)*t,
+        z:drone.position.z+(intended.z-drone.position.z)*t};
+      // A missing/unloaded or invalid sample is not permission to fly through it.
+      if (canTraverse(clone(candidate)) !== true) break;
+      last=candidate;
+    }
+    position=last;
+  }
   const docked=returning && distance(position,drone.home)<1e-8;
   return {...drone,position,battery,mode:docked?'docked':returning?'returning':'scouting',
     target:clone(target),camera:!returning && drone.camera};
