@@ -168,6 +168,43 @@
     }
    }
   }
+  // Actual enclosed gallery geometry lives *below* the external heightfield.
+  // Build it only for high-detail nearby chunks, not the distant 4x LOD.
+  // Same x/y/z as outside: entering a shaft never switches to another world.
+  if(stride===1&&typeof world.caveRoomAt==='function'){
+   for(const tile of chunk.tiles){
+    const r=world.caveRoomAt(tile.x,tile.z);
+    if(!r)continue;
+    const x=tile.x,z=tile.z,floor=r.floor,ceil=r.ceiling;
+    const rock=[.21,.24,.27],base=[.30,.32,.30],vault=[.16,.18,.23];
+    if(!r.exposed||floor<tile.height+.85){
+     quad(data,[x,floor,z],[x+1,floor,z],[x+1,floor,z+1],[x,floor,z+1],base,[0,1,0]);
+    }
+    // Cave roof is hollow below the solid world. At entrance the roof is
+    // deliberately omitted so the opening is visible from the surface.
+    if(!r.exposed){
+     quad(data,[x,ceil,z+1],[x+1,ceil,z+1],[x+1,ceil,z],[x,ceil,z],vault,[0,-1,0]);
+    }
+    const side=[
+     {dx:-1,dz:0,n:[1,0,0]},
+     {dx:1,dz:0,n:[-1,0,0]},
+     {dx:0,dz:-1,n:[0,0,1]},
+     {dx:0,dz:1,n:[0,0,-1]}
+    ];
+    for(const face of side){
+     const n=world.caveRoomAt(x+face.dx,z+face.dz);
+     if(n&&n.floor<=ceil-2&&n.ceiling>=floor+2)continue;
+     if(face.dx===-1)quad(data,[x,floor,z],[x,floor,z+1],[x,ceil,z+1],[x,ceil,z],rock,face.n);
+     if(face.dx===1)quad(data,[x+1,floor,z+1],[x+1,floor,z],[x+1,ceil,z],[x+1,ceil,z+1],rock,face.n);
+     if(face.dz===-1)quad(data,[x+1,floor,z],[x,floor,z],[x,ceil,z],[x+1,ceil,z],rock,face.n);
+     if(face.dz===1)quad(data,[x,floor,z+1],[x+1,floor,z+1],[x+1,ceil,z+1],[x,ceil,z+1],rock,face.n);
+    }
+    if(!r.exposed&&r.t>6&&((x*7+z*11)&15)===0){
+     const height=1.6+((x^z)&3),tint=((x*3+z*5)&3)===0?[.36,.56,.65]:[.31,.34,.36];
+     canopy(data,x+.5,ceil-.3,z+.5,.37,height,.37,tint,.2);
+    }
+   }
+  }
   for(const plant of chunk.plants){
    if(['pine','palm','tree'].includes(plant.type)){
     const {x,z,y}=plant,shadow=[.13,.19,.13];
