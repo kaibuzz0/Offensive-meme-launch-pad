@@ -93,6 +93,12 @@ try{
   assert.equal(worldDetails.height,2048);
   const viewDistance=await evalPage('Number(document.getElementById("city-voxel-status").dataset.viewRadius)');
   assert.ok(viewDistance>=5&&viewDistance<=7,'adaptive view radius stays in mobile-safe range');
+  const scale=await evalPage('Number(document.getElementById("city-voxel-status").dataset.renderScale)');
+  assert.ok(scale>=.75&&scale<=1,'adaptive Android backing-buffer quality remains within 76–100% range');
+  const surfaceLighting=await evalPage('(()=>{const tile={height:100},flat=Array.from({length:4},()=>({height:100})),hill=[{height:105},{height:120},{height:103},{height:115}];return {flat:CityVoxelRenderer.surfaceLight(tile,flat),shadow:CityVoxelRenderer.surfaceLight(tile,hill),waterShallow:CityVoxelRenderer.waterColor(0)[1],waterDeep:CityVoxelRenderer.waterColor(75)[1]};})()');
+  assert.equal(surfaceLighting.flat,1);
+  assert.ok(surfaceLighting.shadow<surfaceLighting.flat);
+  assert.ok(surfaceLighting.waterShallow>surfaceLighting.waterDeep);
  }
 
  await waitFor(()=>evalPage('(()=>{const c=document.getElementById("city-canvas");return c.width>100&&c.height>100&&!!localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"));})()'),'paint and save world');
