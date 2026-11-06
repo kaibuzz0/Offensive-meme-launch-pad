@@ -66,3 +66,13 @@ test('craft save failures and unplaced forged torch do not unlock crafting',()=>
  assert.equal(b.craftTorch(player,site),false);
  assert.equal(b.crafted,false);
 });
+
+test('crafting uses saved bench location rather than nearby supply cache',()=>{
+ const a=api(),store=storage(),b=a.create('bench-proximity',store);
+ assert.equal(b.place(true,player,site),true);
+ // Near supply cache but 14 blocks from the actual placed workbench.
+ assert.equal(b.craftTorch({x:1,z:20},site),false);
+ // Outside cache radius but within the bench interaction radius.
+ assert.equal(b.craftTorch({x:24,z:24},site),true);
+ assert.equal(a.create('bench-proximity',store).crafted,true);
+});
