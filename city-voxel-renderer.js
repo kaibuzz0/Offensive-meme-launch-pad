@@ -343,7 +343,7 @@
   const skyPos=gl.getAttribLocation(skyProgram,'aXY'),skyLook=gl.getUniformLocation(skyProgram,'uLook');
   const timeUniform=gl.getUniformLocation(program,'uTime');
   const chunks=new Map(),MAX_CHUNKS=176,MAX_GPU_BYTES=24*1024*1024,RADIUS=7,NEAR_RADIUS=3;
-  let adaptiveRadius=RADIUS,frameAverage=16.7,lastFrameTime=null,slowFrames=0,fastFrames=0;
+  let adaptiveRadius=RADIUS,frameAverage=16.7,lastFrameTime=null,slowFrames=0,fastFrames=0,renderScale=1;
   let allocated=0;
   gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);
   function release(key){
@@ -366,12 +366,12 @@
     if(frameAverage>33){slowFrames++;fastFrames=0;}
     else if(frameAverage<20){fastFrames++;slowFrames=0;}
     else{slowFrames=0;fastFrames=0;}
-    if(slowFrames>90){adaptiveRadius=5;slowFrames=0;}
-    if(fastFrames>210){adaptiveRadius=RADIUS;fastFrames=0;}
+    if(slowFrames>90){adaptiveRadius=5;renderScale=.76;slowFrames=0;}
+    if(fastFrames>210){adaptiveRadius=RADIUS;renderScale=1;fastFrames=0;}
    }
    lastFrameTime=clock;
    const rect=canvas.getBoundingClientRect();
-   const dpr=Math.min(window.devicePixelRatio||1,1.5);
+   const dpr=Math.min(window.devicePixelRatio||1,1.5)*renderScale;
    const width=Math.max(2,Math.round(rect.width*dpr)),height=Math.max(2,Math.round(rect.height*dpr));
    if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
    gl.viewport(0,0,width,height);
@@ -435,7 +435,7 @@
     gl.drawArrays(gl.TRIANGLES,0,c.vertices);
     verts+=c.vertices;bytes+=c.bytes;
    }
-   return {loaded:chunks.size,wanted:wanted.length,vertices:verts,bytes,gpuBytes:allocated,viewRadius:adaptiveRadius,frameAverage,underground,glError:gl.getError()};
+   return {loaded:chunks.size,wanted:wanted.length,vertices:verts,bytes,gpuBytes:allocated,viewRadius:adaptiveRadius,renderScale,frameAverage,underground,glError:gl.getError()};
   }
   return Object.freeze({gl,render,dispose,chunkCount:()=>chunks.size,meshAt:(cx,cz)=>generateMesh(world,cx,cz)});
  }
