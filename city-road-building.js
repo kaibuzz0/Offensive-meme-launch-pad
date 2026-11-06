@@ -20,9 +20,10 @@
   return Object.freeze({
    get crafted(){return crafted;},
    craftTorch(position,site){
-    if(!saved||crafted||!position||!site||!Number.isFinite(position.x)||!Number.isFinite(position.z)||
-       !Number.isFinite(site.x)||!Number.isFinite(site.z)||
-       Math.hypot(position.x-site.x,position.z-site.z)>=10)return false;
+    // Crafting happens at the actual saved workbench, not the supply cache.
+    // This matters when the cache and workbench are several voxels apart.
+    if(!saved||crafted||!position||!Number.isFinite(position.x)||!Number.isFinite(position.z)||
+       Math.hypot(position.x-saved.x,position.z-saved.z)>=10)return false;
     try{
      storage.setItem(CRAFT_KEY+seed,'torch-1');
      if(storage.getItem(CRAFT_KEY+seed)!=='torch-1')return false;
