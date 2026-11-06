@@ -8,7 +8,7 @@
       "issue": 43,
       "slug": "roadmap",
       "name": "Roadmap & Integration",
-      "search": "project management games milestone roadmap javascript",
+      "search": "game development roadmap",
       "owner": "docs/ROADMAP.md",
       "priority": "P0",
       "dependsOn": []
@@ -17,7 +17,7 @@
       "issue": 44,
       "slug": "libraries",
       "name": "Library & License Research",
-      "search": "webgl javascript game engine modular library",
+      "search": "webgl game engine",
       "owner": "docs/LIBRARY_EVALUATIONS.md",
       "priority": "P0",
       "dependsOn": []
@@ -26,7 +26,7 @@
       "issue": 45,
       "slug": "worldgen",
       "name": "Biomes & World Generation",
-      "search": "procedural voxel terrain erosion biome generator",
+      "search": "voxel terrain",
       "owner": "city-voxel-world.js",
       "priority": "P1",
       "dependsOn": [
@@ -37,7 +37,7 @@
       "issue": 46,
       "slug": "graphics",
       "name": "PBR Graphics & Terrain",
-      "search": "webgl terrain shader pbr material rendering",
+      "search": "pbr terrain",
       "owner": "city-voxel-renderer.js",
       "priority": "P1",
       "dependsOn": [
@@ -49,7 +49,7 @@
       "issue": 47,
       "slug": "performance",
       "name": "Android GPU & Workers",
-      "search": "voxel meshing greedy mesh webgl worker",
+      "search": "voxel meshing",
       "owner": "city-voxel-mesh-worker.js",
       "priority": "P0",
       "dependsOn": [
@@ -60,7 +60,7 @@
       "issue": 48,
       "slug": "mining",
       "name": "Mining Crafting Building",
-      "search": "voxel editing crafting inventory sandbox game",
+      "search": "voxel crafting",
       "owner": "city-sandbox-mining.js",
       "priority": "P1",
       "dependsOn": [
@@ -72,7 +72,7 @@
       "issue": 49,
       "slug": "locomotion",
       "name": "3D Movement Physics",
-      "search": "javascript rapier capsule character controller",
+      "search": "character controller",
       "owner": "city-voxel-physics.js",
       "priority": "P0",
       "dependsOn": [
@@ -83,7 +83,7 @@
       "issue": 50,
       "slug": "melee",
       "name": "Melee & Hand-to-Hand",
-      "search": "javascript melee game hitbox animation combat",
+      "search": "melee combat",
       "owner": "city-sandbox-melee.js",
       "priority": "P2",
       "dependsOn": [
@@ -94,7 +94,7 @@
       "issue": 51,
       "slug": "ranged",
       "name": "Guns & Explosions Gameplay",
-      "search": "javascript game projectile collision raycasting",
+      "search": "projectile collision",
       "owner": "city-sandbox-ranged.js",
       "priority": "P2",
       "dependsOn": [
@@ -106,7 +106,7 @@
       "issue": 52,
       "slug": "cars",
       "name": "Cars & Land Vehicles",
-      "search": "javascript car vehicle suspension physics engine",
+      "search": "vehicle physics",
       "owner": "city-sandbox-vehicles.js",
       "priority": "P2",
       "dependsOn": [
@@ -117,7 +117,7 @@
       "issue": 53,
       "slug": "aircraft",
       "name": "Airplanes & Flight",
-      "search": "javascript browser airplane flight simulation",
+      "search": "flight simulator",
       "owner": "city-sandbox-flight.js",
       "priority": "P2",
       "dependsOn": [
@@ -128,7 +128,7 @@
       "issue": 54,
       "slug": "drones",
       "name": "Gameplay Drones",
-      "search": "javascript quadcopter simulation drone game",
+      "search": "quadcopter simulation",
       "owner": "city-sandbox-drones.js",
       "priority": "P2",
       "dependsOn": [
@@ -139,7 +139,7 @@
       "issue": 55,
       "slug": "wildlife",
       "name": "Birds & Wildlife Ecology",
-      "search": "javascript boids flocking steering wildlife game",
+      "search": "boids flocking",
       "owner": "city-sandbox-wildlife.js",
       "priority": "P2",
       "dependsOn": [
@@ -150,7 +150,7 @@
       "issue": 56,
       "slug": "npc-stealth",
       "name": "NPC AI Factions & Stealth",
-      "search": "javascript game AI navmesh pathfinding behavior tree",
+      "search": "game ai pathfinding",
       "owner": "city-sandbox-ai.js",
       "priority": "P1",
       "dependsOn": [
@@ -162,7 +162,7 @@
       "issue": 57,
       "slug": "network-qa",
       "name": "Multiplayer Security & QA",
-      "search": "javascript realtime multiplayer game snapshot interpolation",
+      "search": "multiplayer game networking",
       "owner": "server/city-rooms.mjs",
       "priority": "P0",
       "dependsOn": [
