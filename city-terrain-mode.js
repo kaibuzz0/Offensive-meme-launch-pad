@@ -95,18 +95,23 @@
   jumpButton.addEventListener(kind,()=>jumpHeld=false);
  jumpButton.addEventListener('click',()=>{jumpQueued=true;});
  let perspective=null;
- try{if(voxel&&rendererApi)perspective=rendererApi.createRenderer(voxelCanvas,voxel);}catch(err){status.textContent='3D unavailable: '+String(err.message).slice(0,80);}
+ try{if(voxel&&rendererApi)perspective=rendererApi.createRenderer(voxelCanvas,voxel,definitions);}catch(err){status.textContent='3D unavailable: '+String(err.message).slice(0,80);}
  let firstPerson=!!perspective,contextInterrupted=false;
  // Android browsers can temporarily discard the WebGL context during app
  // switching or memory pressure. Keep the seed and physics alive in the 2D
  // fallback, then recreate only GPU resources after the context returns.
  voxelCanvas.addEventListener('webglcontextlost',event=>{
   event.preventDefault();
-  contextInterrupted=true;perspective=null;firstPerson=false;syncView();
+  contextInterrupted=true;
+  const abandoned=perspective;
+  perspective=null;firstPerson=false;syncView();
+  // Stops outstanding mesh requests and retires resources associated with a
+  // dead GL context; the restored context gets a fresh worker and GPU cache.
+  try{abandoned?.dispose();}catch{}
  });
  voxelCanvas.addEventListener('webglcontextrestored',()=>{
   if(!contextInterrupted)return;
-  try{perspective=voxel&&rendererApi?.createRenderer(voxelCanvas,voxel)||null;}
+  try{perspective=voxel&&rendererApi?.createRenderer(voxelCanvas,voxel,definitions)||null;}
   catch{perspective=null;}
   contextInterrupted=false;
   firstPerson=!!perspective;syncView();
@@ -128,7 +133,7 @@
   if(perspective)perspective.dispose();
   voxel=voxelApi?.createVoxelWorld(world)||null;
   physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y,y:player.vertical})||null;
-  try{perspective=voxel&&rendererApi?rendererApi.createRenderer(voxelCanvas,voxel):null;}catch{perspective=null;}
+  try{perspective=voxel&&rendererApi?rendererApi.createRenderer(voxelCanvas,voxel,definitions):null;}catch{perspective=null;}
   firstPerson=!!perspective;syncView();
  }
  const keys=new Set(),held=new Set();
@@ -254,6 +259,8 @@
       status.dataset.grounded=String(physics?.snapshot().grounded??true);
       status.dataset.underground=String(subterranean);
       status.dataset.gpuBytes=String(metrics.gpuBytes);
+      status.dataset.meshWorker=metrics.workerStatus;
+      status.dataset.meshPending=String(metrics.pendingMeshes);
      }catch(err){status.textContent='3D rendering failed';perspective.dispose();perspective=null;firstPerson=false;syncView();}
     }
    }else drawWorld(size.w,size.h);

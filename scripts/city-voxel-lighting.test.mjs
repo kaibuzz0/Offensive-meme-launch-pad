@@ -6,7 +6,7 @@ import {readFileSync} from 'node:fs';
 const context={};
 for(const name of ['city-voxel-renderer.js'])
  vm.runInNewContext(readFileSync(new URL('../'+name,import.meta.url),'utf8'),context,{filename:name});
-const {surfaceLight,waterColor,generateMesh}=context.CityVoxelRenderer;
+const {surfaceLight,terrainCastShade,waterColor,generateMesh}=context.CityVoxelRenderer;
 const plain=value=>JSON.parse(JSON.stringify(value));
 
 test('terrain contact shadows respond to neighboring cliffs without any additional voxel sampling',()=>{
@@ -17,6 +17,16 @@ test('terrain contact shadows respond to neighboring cliffs without any addition
  assert.ok(surfaceLight(tile,shaded)>=.30,'ambient shading has a legible minimum');
  assert.ok(surfaceLight(tile,[null,null,null,null])<=1);
  assert.deepEqual(surfaceLight(tile,shaded),surfaceLight(tile,shaded));
+});
+
+test('ridges cast deterministic heightfield shadows into adjacent valleys',()=>{
+ const flat={surfaceAt:()=>({height:100})};
+ const highRidge={surfaceAt:(x)=>({height:x>=2&&x<=9?170:100})};
+ assert.equal(terrainCastShade(flat,0,0,100),1);
+ assert.ok(terrainCastShade(highRidge,0,0,100)<.80,'distant ridges darken an unobstructed valley');
+ assert.ok(terrainCastShade(highRidge,0,0,100)>=.58,'shadows keep a legible ambient floor');
+ assert.equal(terrainCastShade(highRidge,0,0,100),terrainCastShade(highRidge,0,0,100));
+ assert.equal(terrainCastShade({surfaceAt:()=>null},0,0,90),1);
 });
 
 test('water tint transitions from pale shallows to deep blue independently of biome palettes',()=>{

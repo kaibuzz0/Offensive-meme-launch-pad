@@ -131,6 +131,22 @@
   const directional=clamp(1-(delta[1]*.035+delta[3]*.020),.54,1);
   return clamp(ambient*directional,.30,1);
  }
+ // Deterministic baked relief shadow: trace a few heightfield samples
+ // toward the fixed simulated sun. Unlike contact AO, a ridge may shade a
+ // distant valley cell; no extra WebGL depth framebuffer is allocated.
+ function terrainCastShade(world,x,z,height,stride=1){
+  if(!world?.surfaceAt)return 1;
+  let occlusion=0;
+  for(let step=1;step<=5;step++){
+   const dx=step*stride*2,dz=step*stride;
+   const ahead=world.surfaceAt(x+dx,z+dz);
+   if(!ahead)continue;
+   const ray=height+step*stride*4.0;
+   const barrier=ahead.height-ray;
+   if(barrier>0)occlusion=Math.max(occlusion,Math.min(1,barrier/22));
+  }
+  return 1-occlusion*.42;
+ }
  function waterColor(depth){
   const t=clamp(depth/45,0,1);
   return [.08-.035*t,.48-.16*t,.64-.12*t];
@@ -155,7 +171,7 @@
     {n:world.surfaceAt(x,z-stride),axis:'front'},
     {n:world.surfaceAt(x,z+stride),axis:'back'}
    ];
-   const topShade=(tile.slope>13?.86:tile.material==='shore'?.96:1)*surfaceLight(tile,sides.map(s=>s.n));
+   const topShade=(tile.slope>13?.86:tile.material==='shore'?.96:1)*surfaceLight(tile,sides.map(s=>s.n))*terrainCastShade(world,x,z,y,stride);
    const groundTint=color.map(v=>v*topShade);
    quad(data,[x,y+1,z],[x+stride,y+1,z],[x+stride,y+1,z+stride],[x,y+1,z+stride],groundTint,[0,1,0]);
    const shade=color.map(v=>v*(tile.material==='cave-rock'?.45:tile.material==='cliff'?.72:.79));
@@ -271,9 +287,13 @@
   'void main(){vec3 unitNormal=vWater>.5?vec3(0.0,1.0,0.0):normalize(vNormal);'+
   'vec3 n=abs(unitNormal);'+
   'vec2 uv=n.y>.5?vPosition.xz:(n.x>n.z?vPosition.zy:vPosition.xy);'+
-  'float sunDiffuse=max(0.0,dot(unitNormal,normalize(vec3(.40,.87,.22))));'+
-  'vec3 color=vColor*(.30+.65*sunDiffuse);'+
   'float fine=gravel(uv*2.6),coarse=gravel(uv*.45);'+
+  'vec2 relief=vec2(sin(uv.x*9.4+coarse*3.0),cos(uv.y*8.1+fine*4.0))*.075;'+
+  'vec3 tangent=n.y>.5?vec3(relief.x,0.0,relief.y):'+
+  '(n.x>n.z?vec3(0.0,relief.x,relief.y):vec3(relief.x,relief.y,0.0));'+
+  'vec3 litNormal=normalize(unitNormal+(vWater>.5?vec3(0.0):tangent));'+
+  'float sunDiffuse=max(0.0,dot(litNormal,normalize(vec3(.40,.87,.22))));'+
+  'vec3 color=vColor*(.30+.65*sunDiffuse);'+
   'float seams=sin(vPosition.y*.51+coarse*3.1)*.045;'+
   'float mineral=(fine-.5)*.24+(coarse-.5)*.16+seams;'+
   'color*=clamp(1.0+mineral,.68,1.2);'+
@@ -330,7 +350,7 @@
    for(let k=0;k<4;k++)o[col*4+row]+=a[k*4+row]*b[col*4+k];
   return o;
  }
- function createRenderer(canvas,world){
+ function createRenderer(canvas,world,biomeDefinitions){
   const gl=canvas.getContext('webgl',{antialias:false,alpha:false,depth:true,
     preserveDrawingBuffer:false,powerPreference:'low-power'});
   if(!gl)return null;
@@ -359,19 +379,97 @@
   const timeUniform=gl.getUniformLocation(program,'uTime');
   const chunks=new Map(),MAX_CHUNKS=176,MAX_GPU_BYTES=24*1024*1024,RADIUS=7,NEAR_RADIUS=3;
   let adaptiveRadius=RADIUS,frameAverage=16.7,lastFrameTime=null,slowFrames=0,fastFrames=0,renderScale=1;
-  let allocated=0;
+  let allocated=0,disposed=false,worker=null,workerReady=false,workerStatus='unavailable';
+  const inFlight=new Map(),MAX_IN_FLIGHT=2;
+  let nextRequestId=1,viewCX=0,viewCZ=0;
+  function disableWorker(){
+   if(worker){worker.onmessage=null;worker.onerror=null;worker.terminate();worker=null;}
+   workerReady=false;inFlight.clear();workerStatus='fallback';
+  }
+  // Terrain is generated in the worker from the SAME original biome catalog
+  // and world seed; never send shuffled anchors or independently mutate maps.
+  if(typeof Worker==='function'&&Array.isArray(biomeDefinitions)&&biomeDefinitions.length===132){
+   try{
+    worker=new Worker('city-voxel-mesh-worker.js',{name:'meme-city-voxel-mesher'});
+    workerStatus='starting';
+    worker.onmessage=(event)=>{
+     if(disposed)return;
+     const m=event?.data||{};
+     if(m.type==='ready'){
+      if(m.seedHash!==world.seed||m.biomeCount!==132){disableWorker();return;}
+      workerReady=true;workerStatus='ready';return;
+     }
+     if(m.type==='error'){disableWorker();return;}
+     if(m.type!=='mesh')return;
+     const req=inFlight.get(m.id);
+     if(!req)return;
+     inFlight.delete(m.id);
+     if(m.cx!==req.cx||m.cz!==req.cz||m.stride!==req.stride||
+        m.seedHash!==world.seed||!(m.buffer instanceof ArrayBuffer)){
+      disableWorker();return;
+     }
+     const distance=(m.cx-viewCX)**2+(m.cz-viewCZ)**2;
+     if(distance>(adaptiveRadius+1)**2+1)return; // stale view
+     if(!Number.isSafeInteger(m.vertices)||m.vertices<0||
+        m.buffer.byteLength!==m.vertices*36||m.buffer.byteLength>MAX_GPU_BYTES){
+      disableWorker();return;
+     }
+     const key=m.cx+':'+m.cz,existing=chunks.get(key);
+     if(existing&&existing.stride<=m.stride)return;
+     if(existing)release(key);
+     upload(m.cx,m.cz,m.stride,new Float32Array(m.buffer),m.vertices);
+    };
+    worker.onerror=()=>disableWorker();
+    const definitions=biomeDefinitions.map(b=>({id:b.id,name:b.name,group:b.group,
+     material:b.material,hue:b.hue,sat:b.sat,light:b.light}));
+    worker.postMessage({type:'init',seed:world.atlas.seed,definitions});
+   }catch{disableWorker();}
+  }
   gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);
   function release(key){
    const c=chunks.get(key);if(c){gl.deleteBuffer(c.buffer);allocated=Math.max(0,allocated-c.bytes);chunks.delete(key);}
   }
-  function dispose(){for(const key of chunks.keys())release(key);gl.deleteBuffer(skyBuffer);gl.deleteProgram(skyProgram);gl.deleteProgram(program);}
+  function dispose(){
+   disposed=true;disableWorker();
+   for(const key of chunks.keys())release(key);
+   gl.deleteBuffer(skyBuffer);gl.deleteProgram(skyProgram);gl.deleteProgram(program);
+  }
+  function upload(cx,cz,stride,data,vertices){
+   if(disposed||data.byteLength>MAX_GPU_BYTES)return;
+   const key=cx+':'+cz;
+   // Hard cap even between animation frames: an asynchronous worker callback
+   // cannot briefly oversubscribe the GPU memory budget.
+   while(allocated+data.byteLength>MAX_GPU_BYTES&&chunks.size){
+    let victim=null,farthest=-1;
+    for(const [id,c] of chunks){
+     const distance=(c.cx-viewCX)**2+(c.cz-viewCZ)**2;
+     if(distance>farthest){farthest=distance;victim=id;}
+    }
+    if(victim===null)break;
+    release(victim);
+   }
+   const buffer=gl.createBuffer();if(!buffer)return;
+   gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+   gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);
+   chunks.set(key,{cx,cz,stride,buffer,vertices,bytes:data.byteLength});
+   allocated+=data.byteLength;
+  }
   function load(cx,cz,stride){
-   const key=cx+':'+cz;if(chunks.has(key))return;
-   const mesh=generateMesh(world,cx,cz,stride);if(!mesh||mesh.data.byteLength>MAX_GPU_BYTES)return;
-   const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
-   gl.bufferData(gl.ARRAY_BUFFER,mesh.data,gl.STATIC_DRAW);
-   chunks.set(key,{cx,cz,stride,buffer,vertices:mesh.vertices,bytes:mesh.data.byteLength});
-   allocated+=mesh.data.byteLength;
+   const key=cx+':'+cz;
+   const existing=chunks.get(key);if(existing&&existing.stride<=stride)return;
+   if(workerReady){
+    if(inFlight.size>=MAX_IN_FLIGHT||[...inFlight.values()].some(r=>r.cx===cx&&r.cz===cz))return;
+    const id=nextRequestId++;
+    inFlight.set(id,{cx,cz,stride});
+    try{worker.postMessage({type:'mesh',id,cx,cz,stride});}
+    catch{disableWorker();}
+    return;
+   }
+   if(worker){return;} // Worker initializing: no blocking terrain generation.
+   const mesh=generateMesh(world,cx,cz,stride);
+   if(!mesh||mesh.data.byteLength>MAX_GPU_BYTES)return;
+   if(existing)release(key);
+   upload(cx,cz,stride,mesh.data,mesh.vertices);
   }
   function render(player){
    const clock=typeof performance!=='undefined'?performance.now():null;
@@ -413,13 +511,11 @@
    // remains interactive even when new mountain chunks enter the viewport.
    const missing=wanted.find(c=>{
     const existing=chunks.get(c.cx+':'+c.cz);
-    return !existing||existing.stride>c.stride;
+    if(existing&&existing.stride<=c.stride)return false;
+    return ![...inFlight.values()].some(req=>req.cx===c.cx&&req.cz===c.cz);
    });
-   if(missing){
-    const key=missing.cx+':'+missing.cz;
-    if(chunks.has(key))release(key);
-    load(missing.cx,missing.cz,missing.stride);
-   }
+   viewCX=px;viewCZ=pz;
+   if(missing)load(missing.cx,missing.cz,missing.stride);
    while(chunks.size>MAX_CHUNKS||allocated>MAX_GPU_BYTES){
     // Evict the farthest rather than the oldest, so near caves and trees
     // stay loaded while a phone is moving through a high-detail valley.
@@ -451,10 +547,13 @@
     gl.drawArrays(gl.TRIANGLES,0,c.vertices);
     verts+=c.vertices;bytes+=c.bytes;
    }
-   return {loaded:chunks.size,wanted:wanted.length,vertices:verts,bytes,gpuBytes:allocated,viewRadius:adaptiveRadius,renderScale,frameAverage,underground,glError:gl.getError()};
+   return {loaded:chunks.size,wanted:wanted.length,vertices:verts,bytes,gpuBytes:allocated,
+    viewRadius:adaptiveRadius,renderScale,frameAverage,underground,
+    workerStatus,pendingMeshes:inFlight.size,glError:gl.getError()};
   }
-  return Object.freeze({gl,render,dispose,chunkCount:()=>chunks.size,meshAt:(cx,cz)=>generateMesh(world,cx,cz)});
+  return Object.freeze({gl,render,dispose,chunkCount:()=>chunks.size,
+   meshAt:(cx,cz)=>generateMesh(world,cx,cz),workerStatus:()=>workerStatus});
  }
- root.CityVoxelRenderer=Object.freeze({createRenderer,generateMesh,rgb,surfaceLight,waterColor,
+ root.CityVoxelRenderer=Object.freeze({createRenderer,generateMesh,rgb,surfaceLight,terrainCastShade,waterColor,
   VOXEL_METERS:.25,MAX_GPU_CHUNKS:176,MAX_GPU_BYTES:24*1024*1024});
 })(typeof window==='undefined'?globalThis:window);
