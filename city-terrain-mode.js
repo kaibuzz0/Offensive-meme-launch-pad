@@ -102,7 +102,12 @@
  // fallback, then recreate only GPU resources after the context returns.
  voxelCanvas.addEventListener('webglcontextlost',event=>{
   event.preventDefault();
-  contextInterrupted=true;perspective=null;firstPerson=false;syncView();
+  contextInterrupted=true;
+  const abandoned=perspective;
+  perspective=null;firstPerson=false;syncView();
+  // Stops outstanding mesh requests and retires resources associated with a
+  // dead GL context; the restored context gets a fresh worker and GPU cache.
+  try{abandoned?.dispose();}catch{}
  });
  voxelCanvas.addEventListener('webglcontextrestored',()=>{
   if(!contextInterrupted)return;
