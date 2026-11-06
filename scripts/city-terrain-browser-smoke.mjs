@@ -90,9 +90,14 @@ try{
   const workerMetrics=await evalPage('(()=>{const el=document.getElementById("city-voxel-status");return {status:el.dataset.meshWorker,pending:Number(el.dataset.meshPending),gpuBytes:Number(el.dataset.gpuBytes)};})()');
   assert.equal(workerMetrics.status,'ready','first-person browser uses off-thread deterministic mesher');
   assert.ok(workerMetrics.pending>=0&&workerMetrics.pending<=2,'mesh request backpressure is bounded');
-  // Exercise normal forward input on the seeded road until the gate action appears.
+  // Exercise an actual first-person resource pickup on mobile-size Chromium.
+  // Never collect by writing the storage key directly: this is the public UI.
+  assert.equal(await evalPage('document.getElementById("city-road-supplies")?.hidden'),true);
   await request('Input.dispatchKeyEvent',{type:'keyDown',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
   try{
+   await waitFor(()=>evalPage('!document.getElementById("city-road-supplies").hidden'),'walk to the roadside supply cache',90000);
+   await evalPage('document.getElementById("city-road-supplies").click();true');
+   assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
    await waitFor(()=>evalPage('!document.getElementById("city-gate-seal").hidden'),'walk under the fortress arch',90000);
   }finally{
    await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
@@ -123,17 +128,20 @@ try{
  if(view.gl){
   await evalPage('Array.from(document.querySelectorAll("button")).find(b=>b.textContent==="Start at Fortress Road").click();true');
  }
- const start=await evalPage('JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).x');
- await request('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
- await delay(900);
- await request('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
- await waitFor(()=>evalPage('JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).x>'+start),'movement persists to local save');
+ const start=await evalPage('JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).y');
+ await request('Input.dispatchKeyEvent',{type:'keyDown',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
+ await delay(1550);
+ await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
+ const motion=await evalPage('(()=>({liveZ:Number(document.getElementById("city-voxel-status").dataset.worldZ),mode:document.getElementById("city-voxel-status").dataset.playerMode,seed:localStorage.getItem("meme-city-terrain-seed-v1"),savedZ:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).y}))()');
+ console.log('Road movement probe',JSON.stringify({start,...motion}));
+ await waitFor(()=>evalPage('JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).y>'+start),'movement persists to local save');
  await request('Page.reload',{ignoreCache:true});
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'reload terrain mode');
  const stored=await evalPage('(()=>({seed:localStorage.getItem("meme-city-terrain-seed-v1"),saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))),original:localStorage.getItem("offensive-meme-city-v1-center")}))()');
  assert.equal(stored.seed,initial.seed);
- assert.ok(stored.saved.x>start);
+ assert.ok(stored.saved.y>start);
  if(view.gl)assert.equal(await evalPage('localStorage.getItem("meme-city-gate-seal-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
+ assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1','roadside supplies persist across reload');
  assert.equal(stored.original,null);
  // Force WebGL initialization failure in this isolated browser session.
  await request('Page.addScriptToEvaluateOnNewDocument',{source:`
