@@ -79,6 +79,7 @@ try{
  await evalPage('document.getElementById("start-button").click();true');
  await waitFor(()=>evalPage('document.getElementById("city-intro").hidden===true'),'enter terrain');
  const view=await evalPage('(()=>{const canvas=document.getElementById("city-voxel-canvas");const gl=canvas?.getContext("webgl");return {exists:!!canvas,gl:!!gl,hidden:canvas?.hidden,crosshair:!!document.getElementById("city-voxel-crosshair")};})()');
+ assert.equal(view.gl,true,'release CI must exercise WebGL gameplay');
  assert.equal(view.exists,true);assert.equal(view.crosshair,true);
  if(view.gl){
   assert.equal(view.hidden,false,'first person is default when WebGL works');

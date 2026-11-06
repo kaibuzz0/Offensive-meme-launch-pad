@@ -6,7 +6,7 @@ const source = readFileSync(new URL('../city-voxel-renderer.js', import.meta.url
 const wave = (x, z, t) => .025 * Math.sin(x * .81 + t * .8) * Math.sin(z * .62 - t * .7);
 
 test('water-only vertex displacement shares phase and amplitude with fragment normal', () => {
-  assert.match(source, /uniform mat4 uMatrix;uniform vec3 uEye;uniform float uTime/);
+  assert.match(source, /uniform mat4 uMatrix;uniform vec3 uEye;uniform mediump float uTime/);
   assert.match(source, /vWater=aNormal\.y< -1\.5\?1\.0:0\.0/);
   assert.match(source, /sin\(aPos\.x\*\.81\+uTime\*\.8\)\*sin\(aPos\.z\*\.62-uTime\*\.7\)/);
   assert.match(source, /vec3 surface=aPos\+vec3\(0\.0,vWater\*\.025\*wave,0\.0\)/);

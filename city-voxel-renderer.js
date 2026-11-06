@@ -278,7 +278,7 @@
  // Small-scale rock grain, strata, crevice shading and water highlights are
  // generated in WebGL1, avoiding large downloaded textures for low-data phones.
  const vertexSource='attribute vec3 aPos;attribute vec3 aColor;attribute vec3 aNormal;'+
-  'uniform mat4 uMatrix;uniform vec3 uEye;uniform float uTime;'+
+  'uniform mat4 uMatrix;uniform vec3 uEye;uniform mediump float uTime;'+
   'varying vec3 vColor;varying float vDist;'+
   'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;'+
   'void main(){vWater=aNormal.y< -1.5?1.0:0.0;'+
