@@ -1,8 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-const require=createRequire(import.meta.url);
-const {spawnChunk,spawnChunkOnTerrain,habitatFor,cappedFlockStep,MAX_PER_CHUNK}=require('../city-sandbox-wildlife.js');
+import vm from 'node:vm';
+import { readFileSync } from 'node:fs';
+// The repository is ESM ("type": "module"), while wildlife is a classic
+// browser script exposing CitySandboxWildlife. Load it exactly as the browser
+// does rather than require()ing an ESM-classified .js file as CommonJS.
+const context={};
+vm.runInNewContext(readFileSync(new URL('../city-sandbox-wildlife.js',import.meta.url),'utf8'),context,{filename:'city-sandbox-wildlife.js'});
+const {spawnChunk,spawnChunkOnTerrain,habitatFor,cappedFlockStep,MAX_PER_CHUNK}=context.CitySandboxWildlife;
 
 test('seed and chunk coordinates yield stable wildlife independent of call order',()=>{
  const a=spawnChunk(741,12,-4,'forest');
