@@ -57,7 +57,10 @@ try{
  await request('Page.enable');await request('Runtime.enable');
  await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
  const url='http://127.0.0.1:'+server.address().port+'/city.html?terrain=1';
- await request('Page.navigate',{url});
+ await request('Page.navigate',{url:new URL('index.html',url).href});
+ await waitFor(()=>evalPage('!!document.querySelector(".game-direct-play")'),'homepage Play action');
+ assert.equal(await evalPage('document.querySelector(".game-direct-play").href'),url);
+ await evalPage('document.querySelector(".game-direct-play").click();true');
  await waitFor(()=>evalPage('!!window.CityTerrainWorld?.createTerrain && document.body.classList.contains("terrain-only-mode")'),'terrain script boot');
  const initial=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");const w=CityTerrainWorld.createTerrain(seed,CityFrontier.regions);const c=w.chunkAt(0,0);return {seed,count:w.anchors.length,types:new Set(w.anchors.map(a=>w.biomeAt(Math.round(a.x),Math.round(a.y)).id)).size,sites:c.sites.length,structures:c.structures.length,roads:c.tiles.filter(t=>t.road).length,legacy:localStorage.getItem("offensive-meme-city-v1-center")};})()');
  assert.equal(initial.count,132);assert.equal(initial.types,132);
@@ -76,6 +79,7 @@ try{
  await evalPage('document.getElementById("start-button").click();true');
  await waitFor(()=>evalPage('document.getElementById("city-intro").hidden===true'),'enter terrain');
  const view=await evalPage('(()=>{const canvas=document.getElementById("city-voxel-canvas");const gl=canvas?.getContext("webgl");return {exists:!!canvas,gl:!!gl,hidden:canvas?.hidden,crosshair:!!document.getElementById("city-voxel-crosshair")};})()');
+ assert.equal(view.gl,true,'release CI must exercise WebGL gameplay');
  assert.equal(view.exists,true);assert.equal(view.crosshair,true);
  if(view.gl){
   assert.equal(view.hidden,false,'first person is default when WebGL works');
@@ -86,6 +90,15 @@ try{
   const workerMetrics=await evalPage('(()=>{const el=document.getElementById("city-voxel-status");return {status:el.dataset.meshWorker,pending:Number(el.dataset.meshPending),gpuBytes:Number(el.dataset.gpuBytes)};})()');
   assert.equal(workerMetrics.status,'ready','first-person browser uses off-thread deterministic mesher');
   assert.ok(workerMetrics.pending>=0&&workerMetrics.pending<=2,'mesh request backpressure is bounded');
+  // Exercise normal forward input on the seeded road until the gate action appears.
+  await request('Input.dispatchKeyEvent',{type:'keyDown',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
+  try{
+   await waitFor(()=>evalPage('!document.getElementById("city-gate-seal").hidden'),'walk under the fortress arch',90000);
+  }finally{
+   await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
+  }
+  await evalPage('document.getElementById("city-gate-seal").click();true');
+  assert.equal(await evalPage('localStorage.getItem("meme-city-gate-seal-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
   const error=await evalPage('document.getElementById("city-voxel-canvas").getContext("webgl").getError()');
   assert.equal(error,0,'first-person 3D frame must not cause WebGL errors');
   const metrics=await evalPage('(()=>{const el=document.getElementById("city-voxel-status");return {gpuBytes:Number(el.dataset.gpuBytes),underground:el.dataset.underground,hasGallery:typeof CityVoxelWorld.createVoxelWorld(CityTerrainWorld.createTerrain(localStorage.getItem("meme-city-terrain-seed-v1"),CityFrontier.regions)).caveRoomAt==="function"};})()');
@@ -107,6 +120,9 @@ try{
  }
 
  await waitFor(()=>evalPage('(()=>{const c=document.getElementById("city-canvas");return c.width>100&&c.height>100&&!!localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"));})()'),'paint and save world');
+ if(view.gl){
+  await evalPage('Array.from(document.querySelectorAll("button")).find(b=>b.textContent==="Start at Fortress Road").click();true');
+ }
  const start=await evalPage('JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).x');
  await request('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
  await delay(900);
@@ -117,9 +133,10 @@ try{
  const stored=await evalPage('(()=>({seed:localStorage.getItem("meme-city-terrain-seed-v1"),saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))),original:localStorage.getItem("offensive-meme-city-v1-center")}))()');
  assert.equal(stored.seed,initial.seed);
  assert.ok(stored.saved.x>start);
+ if(view.gl)assert.equal(await evalPage('localStorage.getItem("meme-city-gate-seal-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
  assert.equal(stored.original,null);
  assert.deepEqual(exceptions,[],'no uncaught JS exceptions in terrain-mode browser entry');
- console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, no streets/NPCs, movement and seed restoration');
+ console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
 }finally{
  for(const x of pending.values())x.reject(Error('Browser closed'));
  if(ws){try{ws.close();}catch{}}

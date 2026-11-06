@@ -89,7 +89,7 @@ test('surface and cave generation remain identical across independent worlds wit
   assert.deepEqual(plain(one.surfaceAt(x,z)),plain(two.surfaceAt(x,z)));
   assert.deepEqual(plain(one.caveRoomAt(x,z)),plain(two.caveRoomAt(x,z)));
  }
- assert.equal(one.chunkAt(0,0).roads.length,0);
+ assert.deepEqual(plain(one.chunkAt(0,0).roads),plain(two.chunkAt(0,0).roads));
  assert.equal(one.chunkAt(0,0).npc.length,0);
  assert.equal(one.chunkAt(0,0).structures.length,0);
 });

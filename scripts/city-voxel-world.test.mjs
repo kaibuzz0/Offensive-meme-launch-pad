@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
 const ctx={};
-for(const file of ['city-worldgen.js','city-terrain-world.js','city-voxel-world.js','city-voxel-renderer.js'])
+for(const file of ['city-worldgen.js','city-terrain-world.js','city-voxel-world.js','city-voxel-physics.js','city-voxel-renderer.js'])
  vm.runInNewContext(readFileSync(new URL('../'+file,import.meta.url),'utf8'),ctx,{filename:file});
 const catalog=Array.from({length:132},(_,i)=>({
  id:'terrain-'+i,name:'Biome '+i,group:['evergreen','desert','tundra','wetland','volcanic','alpine','tropical','grassland','salt','crystal','fungal','ruins'][Math.floor(i/11)],
@@ -119,5 +119,25 @@ test('controller samples the same water cells as generated blocks', () => {
  assert.ok(floor < world.SEA_LEVEL-4);
  for(const y of [floor,floor+1,world.SEA_LEVEL,world.SEA_LEVEL+1]){
   assert.equal(world.isWaterAt(x+.75,y+.5,z+.25),world.blockAt(x,y,z).material==='water');
+ }
+});
+
+test('the seeded approach is walkable through the arch and both tower walls stop the player',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const world=create(seed),spawn=world.spawnAt(),gate=world.gateRoad;
+  const player=ctx.CityVoxelPhysics.createController(world,spawn);
+  for(let i=0;i<58;i++)player.tick({forward:1},.05);
+  const inside=player.snapshot();
+  assert.ok(inside.z>=gate.gateZ+3 && inside.z<=gate.gateZ+12,seed);
+  assert.equal(inside.y,gate.base);
+  for(const direction of [-1,1]){
+   player.teleport(gate.x,gate.gateZ+4);
+   for(let i=0;i<24;i++)player.tick({right:direction},.05);
+   assert.ok(Math.abs(player.snapshot().x-gate.x)<=5,seed);
+  }
+  const samples=world.chunkAt(Math.floor(spawn.x/16),Math.floor(spawn.z/16));
+  assert.ok(samples.roads.length>0);
+  const second=create(seed);
+  assert.deepEqual(plain(second.gateRoad.parts),plain(gate.parts));
  }
 });

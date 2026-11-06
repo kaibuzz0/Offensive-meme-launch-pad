@@ -22,7 +22,7 @@
     // Caves share world coordinates with the terrain. The roof stays solid
     // until the player reaches an open mouth or is already below the roof.
     const gallery=world.caveRoomAt?.(bx,bz);
-    if(gallery&&(gallery.exposed||referenceY<=gallery.ceiling-1)){
+    if(gallery&&(gallery.exposed||referenceY<gallery.ceiling)){
      height=gallery.floor;
     }
     top=Math.max(top,height);
@@ -50,7 +50,7 @@
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
-    if(floor===null)break;
+    if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
@@ -96,6 +96,9 @@
    // controlled ascent, reduced gravity and terminal sinking velocity.
    // This avoids changing legacy below-sea-level terrain behavior.
    const swimming=water&&typeof world.isWaterAt==='function';
+   // Remember the starting feet height for swept roof collision. Testing
+   // only the destination can miss a thin ceiling during a fast ascent.
+   const previousY=state.y;
    if(swimming){
     state.grounded=false;
     state.vy=clamp(state.vy+(input?.jump?14:-4)*step,-3,5);
@@ -113,9 +116,15 @@
     let ceiling=Infinity;
     for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
      const gallery=world.caveRoomAt(Math.floor(state.x+ox),Math.floor(state.z+oz));
-     if(gallery&&!gallery.exposed&&Number.isFinite(gallery.ceiling)
-       &&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
-      ceiling=Math.min(ceiling,gallery.ceiling);
+     if(gallery&&!gallery.exposed&&Number.isFinite(gallery.ceiling)){
+      const roof=gallery.ceiling;
+      const crossedFromBelow=previousY<roof
+       &&previousY+world.PLAYER_HEIGHT<=roof
+       &&state.y+world.PLAYER_HEIGHT>roof;
+      const overlappingFromBelow=previousY<roof
+       &&state.y<roof&&state.y+world.PLAYER_HEIGHT>roof;
+      if(crossedFromBelow||overlappingFromBelow)
+       ceiling=Math.min(ceiling,roof);
      }
     }
     if(ceiling<Infinity){state.y=ceiling-world.PLAYER_HEIGHT;state.vy=0;}

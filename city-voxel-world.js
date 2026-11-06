@@ -33,6 +33,60 @@
   for(let i=0;i<octaves;i++){sum+=noise2(seed+i*13007,x,z)*amp;total+=amp; amp*=.5;x*=2;z*=2;}
   return sum/total;
  }
+ // One graded approach and a gatehouse in the existing seeded landscape.
+ function buildGateRoad(spawn,column,seed){
+  const {x,z}=spawn;
+  const heights=[];
+  const bend=(seed&1)?3:-3;
+  function center(t){return x+Math.round(bend*Math.sin(Math.PI*clamp(t,0,46)/46));}
+  let grade=Math.max(SEA_LEVEL+1,spawn.y-1);
+  for(let t=-4;t<=54;t++){
+   if(t>0&&t<31)grade=Math.max(SEA_LEVEL+1,grade+clamp(column(center(t),z+t).height-grade,-1,1));
+   heights[t+4]=grade;
+  }
+  const stone=[.39,.46,.53],trim=[.58,.64,.68],slate=[.15,.23,.32];
+  const bronze=[.56,.29,.13],amber=[1,.73,.27],cloth=[.68,.12,.16];
+  const parts=[];
+  const gateZ=z+36,base=heights[40]+1;
+  function part(dx,dz,dy,w,h,d,color,solid=true){
+   parts.push({x:x+dx,z:gateZ+dz,y:base+dy,w,h,d,color,solid});
+  }
+  for(const side of [-1,1]){
+   const tower=side<0?-14:5;
+   part(tower,-1,-2,9,25,10,stone);
+   part(tower-.5,-1.5,20,10,2,11,trim);
+   part(tower-1,-2,23,11,2,12,slate);
+   for(const dx of [0,3,7]){
+    part(tower+dx,-1,25,2,3,2,trim);
+    part(tower+dx,7,25,2,3,2,trim);
+   }
+   for(const dy of [6,15])part(tower+3,-1.2,dy,2,3,.3,amber,false);
+   part(tower+1,-1.4,11,2,7,.3,cloth,false);
+   // Low outer walls frame the taller gate towers.
+   part(side<0?-23:14,3,-2,9,12,4,stone);
+   for(let j=0;j<3;j++)part((side<0?-23:14)+3*j,3,10,2,3,3,trim);
+  }
+  part(-5,0,12,10,4,7,stone);
+  part(-5,-.4,15,10,1,8,trim);
+  part(-2,-.6,12,4,3,.4,cloth,false);
+  for(const dx of [-5,4]){
+   part(dx,-2,0,1,7,1,bronze);
+   part(dx-.4,-2.4,7,1.8,2,1.8,amber);
+  }
+  function foundation(px,pz){
+   const t=pz-z;
+   if(t< -4||t>54)return null;
+   const distance=Math.abs(px-center(t));
+   if(distance>(t>=31&&t<=47?24:6))return null;
+   return {height:heights[t+4],road:distance<=4,edge:distance===4};
+  }
+  function obstructs(px,py,pz,height,radius){
+   if(Math.abs(px-x)>25||Math.abs(pz-gateZ)>12)return false;
+   return parts.some(p=>p.solid&&px+radius>p.x&&px-radius<p.x+p.w&&
+    pz+radius>p.z&&pz-radius<p.z+p.d&&py+height>p.y&&py<p.y+p.h);
+  }
+  return {x,z,gateX:x,gateZ,base,parts,foundation,obstructs};
+ }
  function createVoxelWorld(atlas){
   if(!atlas?.seedHash||typeof atlas.biomeAt!=='function')throw Error('Seeded 132-biome atlas required');
   const seed=atlas.seedHash;
@@ -112,11 +166,14 @@
     hue:biome.hue,sat:biome.sat,light:biome.light,
     moisture:biome.moisture,temperature:biome.temperature});
   }
+  let gateRoad=null;
   function surfaceAt(x,z){
    if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z)||Math.abs(x)>1000000||Math.abs(z)>1000000)return null;
    const key=x+','+z;
    if(cache.has(key)){const value=cache.get(key);cache.delete(key);cache.set(key,value);return value;}
-   const value=rawColumn(x,z);
+   const natural=rawColumn(x,z),pad=gateRoad?.foundation(x,z);
+   const value=pad?Object.freeze({...natural,height:pad.height,water:false,waterLevel:null,
+    river:false,mouth:false,mouthDepth:0,mouthId:null,sinkhole:false,slope:1,road:pad.road,curb:pad.edge}):natural;
    cache.set(key,value);if(cache.size>CACHE_LIMIT)cache.delete(cache.keys().next().value);
    return value;
   }
@@ -177,6 +234,7 @@
    const floor=m.mouthHeight-Math.floor(span*.23);
    const ceiling=floor+height;
    const outer=surfaceAt(x,z);
+   if(gateRoad?.foundation(x,z)&&ceiling>=outer.height)return null;
    const exposed=!!outer.mouth&&outer.height+1<=ceiling;
    return Object.freeze({id:m.id,kind,x,z,t,side,width:kind==='gallery'?2.3:kind==='connector'?3.1:kind==='approach'?2.7:kind==='chamber-a'?m.ar:m.br,
     floor,ceiling,exposed,mouthX:m.mx,mouthZ:m.mz,angle:m.angle});
@@ -214,6 +272,14 @@
    return Object.freeze({material,solid:true,mineable:true});
   }
   function featureAt(x,z){
+   if(gateRoad){
+    const t=z-gateRoad.z;
+    if(t>=4&&t<=28&&(t-4)%8===0&&Math.abs(x-gateRoad.x)===8){
+     const ground=surfaceAt(x,z);
+     if(!ground.water&&!ground.mouth)return {type:'pine',height:13+(t%5),color:.4};
+    }
+    if(gateRoad.foundation(x,z))return null;
+   }
    const c=surfaceAt(x,z);if(!c||c.water||c.mouth||c.slope>18||c.river&&c.height<SEA_LEVEL+2)return null;
    const r=random(plantSeed,x,z),r2=random(plantSeed^0x91a3,x,z);
    const g=c.group;
@@ -255,19 +321,26 @@
   }
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
-   const tiles=[],plants=[];
+   const tiles=[],plants=[],roads=[];
    for(let z=cz*CHUNK_SIZE;z<(cz+1)*CHUNK_SIZE;z++)
     for(let x=cx*CHUNK_SIZE;x<(cx+1)*CHUNK_SIZE;x++){
      const tile=surfaceAt(x,z),plant=featureAt(x,z);
      tiles.push(tile);
+     if(tile.road)roads.push(tile);
      if(plant)plants.push(Object.freeze({x,z,y:tile.height+1,...plant}));
     }
    return Object.freeze({cx,cz,seed,tiles:Object.freeze(tiles),plants:Object.freeze(plants),
-    structures:Object.freeze([]),npc:Object.freeze([]),roads:Object.freeze([])});
+    structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze([]),roads:Object.freeze(roads)});
   }
-  return Object.freeze({seed,atlas,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,MIN_HEIGHT,MAX_HEIGHT,
+  const naturalSpawn=spawnAt();
+  gateRoad=buildGateRoad(naturalSpawn,rawColumn,seed);
+  cache.clear();
+  function gateParts(cx,cz){
+   return gateRoad.parts.filter(p=>Math.floor(p.x/CHUNK_SIZE)===cx&&Math.floor(p.z/CHUNK_SIZE)===cz);
+  }
+  return Object.freeze({seed,atlas,gateRoad,gateParts,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,MIN_HEIGHT,MAX_HEIGHT,
    SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,isWaterAt,featureAt,chunkAt,
-   cacheSize:()=>cache.size,caveCacheSize:()=>caveCells.size,spawnAt});
+   cacheSize:()=>cache.size,caveCacheSize:()=>caveCells.size,spawnAt:()=>({...naturalSpawn,y:surfaceAt(naturalSpawn.x,naturalSpawn.z).height+1})});
  }
  root.CityVoxelWorld=Object.freeze({createVoxelWorld,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,
   MIN_HEIGHT,MAX_HEIGHT,SEA_LEVEL,CHUNK_SIZE,noise2,noise3});

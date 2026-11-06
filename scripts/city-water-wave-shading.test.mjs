@@ -6,8 +6,8 @@ const source = readFileSync(new URL('../city-voxel-renderer.js', import.meta.url
 test('water wave normal and highlights use the same animated phases', () => {
   assert.match(source, /phaseX=vPosition\.x\*\.81\+uTime\*\.8/);
   assert.match(source, /phaseZ=vPosition\.z\*\.62-uTime\*\.7/);
-  assert.match(source, /slopeX=\.065\*\.81\*cos\(phaseX\)\*sin\(phaseZ\)/);
-  assert.match(source, /slopeZ=\.065\*\.62\*sin\(phaseX\)\*cos\(phaseZ\)/);
+  assert.match(source, /slopeX=\.025\*\.81\*cos\(phaseX\)\*sin\(phaseZ\)/);
+  assert.match(source, /slopeZ=\.025\*\.62\*sin\(phaseX\)\*cos\(phaseZ\)/);
   assert.match(source, /waterNormal=normalize\(vec3\(-slopeX,1\.0,-slopeZ\)\)/);
 });
 
@@ -22,8 +22,8 @@ test('analytic water perturbation remains bounded and finite over a full wave pe
   for (let i = 0; i <= 256; i++) {
     const x = i * Math.PI * 2 / 256;
     const z = (i * 7 % 257) * Math.PI * 2 / 257;
-    const dx = .065 * .81 * Math.cos(x) * Math.sin(z);
-    const dz = .065 * .62 * Math.sin(x) * Math.cos(z);
+    const dx = .025 * .81 * Math.cos(x) * Math.sin(z);
+    const dz = .025 * .62 * Math.sin(x) * Math.cos(z);
     const length = Math.hypot(dx, 1, dz);
     assert.ok(Number.isFinite(length) && length >= 1 && length < 1.003);
     assert.ok(1 / length > .997);
