@@ -43,3 +43,29 @@ test('nonfinite controls cannot poison state', () => {
   const s = stepAircraft(createAircraftState(), { throttle: Infinity, pitch: NaN, roll: Infinity }, 1);
   assert.ok(Object.values(s.position).every(Number.isFinite));
 });
+
+test('aircraft taxi follows destination runway elevation', () => {
+  const terrainHeightAt = (x, z) => z >= 1 ? 2 : 0;
+  const start = createAircraftState({ speed: 15, grounded: true });
+  const end = stepAircraft(start, { throttle: 1 }, 1 / 6, { terrainHeightAt });
+  assert.ok(end.position.z > 1);
+  assert.equal(end.position.y, 2);
+  assert.equal(end.grounded, true);
+  assert.equal(start.position.y, 0, 'input state must remain unchanged');
+});
+
+test('descending aircraft lands on elevated terrain without penetrating it', () => {
+  const start = createAircraftState({
+    position: { x: 0, y: 12, z: 0 }, speed: 0, verticalSpeed: -20, grounded: false,
+  });
+  const end = stepAircraft(start, {}, 1, { terrainHeightAt: () => 8 });
+  assert.equal(end.position.y, 8);
+  assert.equal(end.verticalSpeed, 0);
+  assert.equal(end.grounded, true);
+});
+
+test('terrain callback validates finite elevation and configuration', () => {
+  assert.throws(() => stepAircraft(createAircraftState(), {}, 1 / 60, { terrainHeightAt: () => NaN }), /terrain elevation/);
+  assert.throws(() => stepAircraft(createAircraftState(), {}, 1 / 60, { terrainHeightAt: 2 }), /terrainHeightAt/);
+  assert.throws(() => stepAircraft(createAircraftState(), {}, 1 / 60, { terrainHeightAt: () => 3000 }), /terrain elevation/);
+});
