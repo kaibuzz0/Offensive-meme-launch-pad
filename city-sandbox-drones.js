@@ -39,12 +39,15 @@ export function stepDrone(drone,seconds) {
   assertDrone(drone);
   if (!finite(seconds) || seconds<=0 || seconds>1) throw new RangeError('fixed step must be (0,1] seconds');
   if (drone.mode==='docked') return {...drone,battery:Math.min(drone.capacity,drone.battery+seconds*3)};
-  const battery=Math.max(0,drone.battery-seconds);
+  // Movement consumes battery in simulated seconds: a depleted drone cannot
+  // travel for free during the final fixed step (or after restoring a zero-charge save).
+  const poweredSeconds=Math.min(seconds,drone.battery);
+  const battery=Math.max(0,drone.battery-poweredSeconds);
   // Reserve enough charge to return from the current position; no magic battery refill.
   const reserve=distance(drone.position,drone.home)/drone.speed+2;
   const returning=drone.mode==='returning' || battery<=reserve;
   const target=returning?drone.home:drone.target;
-  const position=approach(drone.position,target,drone.speed*seconds);
+  const position=approach(drone.position,target,drone.speed*poweredSeconds);
   const docked=returning && distance(position,drone.home)<1e-8;
   return {...drone,position,battery,mode:docked?'docked':returning?'returning':'scouting',
     target:clone(target),camera:!returning && drone.camera};
