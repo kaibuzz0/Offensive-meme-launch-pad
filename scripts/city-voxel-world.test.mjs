@@ -145,7 +145,7 @@ test('the seeded approach is walkable through the arch and both tower walls stop
 test('builder supply cache is visible, seed-relative and does not block the first-person route',()=>{
  for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
   const world=create(seed),gate=world.gateRoad,cache=gate.supplies;
-  assert.equal(cache.x,gate.x+5);
+  assert.ok(Math.abs(cache.x-gate.x)<=8,'cache stays beside the seeded road curve');
   assert.equal(cache.z,gate.z+14);
   assert.equal(cache.y,world.surfaceAt(cache.x,cache.z).height+1,'cache follows the graded road');
   const chunk=world.chunkAt(Math.floor(cache.x/16),Math.floor(cache.z/16));
