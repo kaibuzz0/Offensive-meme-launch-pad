@@ -33,7 +33,7 @@
    if(!mesh||!Number.isSafeInteger(mesh.vertices)||mesh.vertices<0||mesh.vertices>650000||
       !(mesh.data instanceof Float32Array)||mesh.data.byteLength>24*1024*1024||
       mesh.data.byteOffset!==0||mesh.data.byteLength!==mesh.data.buffer.byteLength||
-      mesh.data.length%3!==0)throw Error('Mesh exceeds safe bounds');
+      mesh.data.length!==mesh.vertices*9)throw Error('Mesh vertex count does not match transferable buffer');
    reply({type:'mesh',id,cx,cz,stride,seedHash:world.seed,
     vertices:mesh.vertices,tiles:mesh.tiles,plants:mesh.plants,
     durationMs,byteLength:mesh.data.byteLength,
