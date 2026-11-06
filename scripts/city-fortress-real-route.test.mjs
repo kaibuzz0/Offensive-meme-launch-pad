@@ -32,3 +32,22 @@ test('real seeded fortress approach stays grounded and reaches gate without tele
   assert.ok(entered,'walking from real spawn must pass through the real gate for seed '+seed);
  }
 });
+
+// Validate the collision contract against actual generated tower meshes, not
+// an invented obstacle: the road opening must be traversable, while the
+// adjacent solid gate towers must block the same player capsule.
+test('seeded fortress has a real passable gate between collidable towers',()=>{
+ for(const seed of [12345,98765]){
+  const world=worldFor(seed),gate=world.gateRoad;
+  const gateY=gate.base+1;
+  assert.equal(gate.obstructs(gate.gateX,gateY,gate.gateZ,world.PLAYER_HEIGHT,.27),false,
+   'central opening must remain passable');
+  const towers=gate.parts.filter(p=>p.solid&&p.h>=20&&p.d>=9);
+  assert.ok(towers.length>=2,'both fortress towers must exist');
+  for(const tower of towers){
+   const x=tower.x+tower.w/2,z=tower.z+tower.d/2;
+   assert.equal(gate.obstructs(x,gateY,z,world.PLAYER_HEIGHT,.27),true,
+    'tower collision must block a player-height capsule');
+  }
+ }
+});
