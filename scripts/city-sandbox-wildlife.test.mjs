@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 const source=readFileSync(new URL('../city-sandbox-wildlife.js',import.meta.url),'utf8');
 const {default: wildlife}=await import('data:text/javascript;base64,'+
  Buffer.from(source+'\nexport default globalThis.CitySandboxWildlife;').toString('base64'));
-const {spawnChunk,spawnChunkOnTerrain,habitatFor,cappedFlockStep,MAX_PER_CHUNK}=wildlife;
+const {spawnChunk,spawnChunkOnTerrain,habitatFor,cappedFlockStep,createChunkWildlifeManager,MAX_PER_CHUNK}=wildlife;
 
 test('seed and chunk coordinates yield stable wildlife independent of call order',()=>{
  const a=spawnChunk(741,12,-4,'forest');
@@ -53,7 +53,8 @@ test('terrain adapter samples voxel height and preserves seed-stable placements'
  const first=spawnChunkOnTerrain(world,2,-3);
  assert.deepEqual(spawnChunkOnTerrain(world,2,-3),first);
  assert.ok(Object.isFrozen(first));
- assert.ok(first.every(c=>c.y===51+Math.floor(c.x)%3&&c.habitat==='forest'));
+ assert.ok(first.every(c=>c.habitat==='forest'&&(
+  c.species==='songbird'?c.y>=54+Math.floor(c.x)%3:c.y===51+Math.floor(c.x)%3)));
  assert.deepEqual(first.map(({id,x,z,heading})=>({id,x,z,heading})),
   spawnChunk(world.seed,2,-3,{group:'evergreen',name:'Ancient Forest'}).map(({id,x,z,heading})=>({id,x,z,heading})));
 });
@@ -61,17 +62,82 @@ test('terrain adapter rejects incompatible chunk dimensions and unsafe ground',(
  const world={seed:22,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
   height:60,group:'grassland',biomeName:'Prairie',water:true,river:false,slope:0
  })};
- assert.deepEqual(spawnChunkOnTerrain(world,0,0),[]);
+ assert.ok(spawnChunkOnTerrain(world,0,0).every(a=>a.species==='songbird'&&a.y>=116));
  assert.throws(()=>spawnChunkOnTerrain({...world,CHUNK_SIZE:32},0,0),RangeError);
  assert.throws(()=>spawnChunkOnTerrain({...world,seed:'bad'},0,0),TypeError);
  const steep={...world,surfaceAt:()=>({height:60,group:'grassland',water:false,river:false,slope:25})};
- assert.deepEqual(spawnChunkOnTerrain(steep,0,0),[]);
+ assert.ok(spawnChunkOnTerrain(steep,0,0).every(a=>a.species==='songbird'&&a.y>=64));
 });
 test('terrain adapter places aquatic wildlife below water surface only',()=>{
  const wet={seed:7,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
   height:103,water:true,river:false,waterLevel:112,group:'ocean',biomeName:'Deep Ocean',slope:0
  })};
  const fish=spawnChunkOnTerrain(wet,0,0);
- assert.ok(fish.every(c=>c.species==='fish'&&c.y===104));
- assert.deepEqual(spawnChunkOnTerrain({...wet,surfaceAt:()=>({...wet.surfaceAt(),water:false})},0,0),[]);
+ assert.ok(fish.every(c=>c.species==='fish'?c.y===104:c.species==='seabird'&&c.y>=116));
+ assert.ok(spawnChunkOnTerrain({...wet,surfaceAt:()=>({...wet.surfaceAt(),water:false})},0,0).every(c=>c.species==='seabird'));
+});
+
+
+test('ocean seabirds fly above water while fish stay submerged',()=>{
+ const world={seed:7,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:103,water:true,river:false,waterLevel:112,group:'ocean',biomeName:'Deep Ocean',slope:25
+ })};
+ let birds=0,fish=0;
+ for(let x=-4;x<=4;x++)for(let z=-4;z<=4;z++){
+  const placed=spawnChunkOnTerrain(world,x,z);
+  assert.deepEqual(spawnChunkOnTerrain(world,x,z),placed);
+  for(const animal of placed){
+   assert.ok(['fish','seabird'].includes(animal.species));
+   if(animal.species==='seabird'){birds++;assert.ok(animal.y>=116&&animal.y<=120);}
+   else {fish++;assert.ok(animal.y>103&&animal.y<112);}
+  }
+ }
+ assert.ok(birds>0&&fish>0,'seeded ocean includes both airborne seabirds and fish');
+});
+
+test('ground fauna stay off flooded or steep ground while aerial fauna can pass',()=>{
+ const base={seed:100,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:80,water:false,river:false,group:'forest',biomeName:'Forest',slope:30
+ })};
+ let birds=0;
+ for(let x=-3;x<=3;x++)for(let z=-3;z<=3;z++){
+  const placed=spawnChunkOnTerrain(base,x,z);
+  for(const a of placed){assert.equal(a.species,'songbird');assert.ok(a.y>=84);birds++;}
+ }
+ assert.ok(birds>0,'seeded forest supports birds on steep slopes');
+ const flooded={...base,surfaceAt:()=>({...base.surfaceAt(),water:true,waterLevel:112})};
+ for(let x=-2;x<=2;x++)for(let z=-2;z<=2;z++)
+  assert.ok(spawnChunkOnTerrain(flooded,x,z).every(a=>a.species==='songbird'&&a.y>=116));
+});
+
+test('fish require actual water depth rather than merely a water flag',()=>{
+ const dryBed={seed:7,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:112,water:true,waterLevel:112,river:false,group:'ocean',biomeName:'Ocean',slope:0
+ })};
+ for(let x=-2;x<=2;x++)for(let z=-2;z<=2;z++)
+  assert.ok(spawnChunkOnTerrain(dryBed,x,z).every(a=>a.species==='seabird'));
+});
+
+test('chunk lifecycle has deterministic bounded entries, eviction and removal',()=>{
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0
+ })};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ const first=manager.enter(-1,0);
+ assert.strictEqual(manager.enter(-1,0),first);
+ manager.enter(0,0);
+ assert.equal(manager.activeChunks(),2);
+ const snap=manager.sync([[0,0],[1,0]]);
+ assert.ok(Object.isFrozen(snap));
+ assert.equal(manager.activeChunks(),2);
+ assert.ok(snap.length<=12);
+ assert.deepEqual(manager.enter(-1,0),first);
+ assert.equal(manager.activeChunks(),2);
+ assert.ok(manager.leave(-1,0));
+ assert.equal(manager.activeChunks(),1);
+ manager.clear();
+ assert.deepEqual(manager.snapshot(),[]);
+ assert.throws(()=>manager.sync([[0,0],[0,0]]),/Duplicate/);
+ assert.throws(()=>manager.sync([[0,0],[1,0],[2,0]]),RangeError);
+ assert.throws(()=>manager.enter(0.5,0),TypeError);
 });

@@ -111,3 +111,13 @@ test('first-person chunk geometry is bounded, finite and uses native cached mesh
  assert.equal(far.plants,0);
  assert.ok(far.vertices<mesh.vertices,'far-distance LOD must use fewer vertices than full detail');
 });
+
+test('controller samples the same water cells as generated blocks', () => {
+ const world=create('plants-001');
+ const x=-651,z=-613;
+ const floor=world.surfaceAt(x,z).height;
+ assert.ok(floor < world.SEA_LEVEL-4);
+ for(const y of [floor,floor+1,world.SEA_LEVEL,world.SEA_LEVEL+1]){
+  assert.equal(world.isWaterAt(x+.75,y+.5,z+.25),world.blockAt(x,y,z).material==='water');
+ }
+});

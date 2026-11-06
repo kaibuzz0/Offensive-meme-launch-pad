@@ -58,7 +58,7 @@ test('rejects stale revisions and malicious or inconsistent snapshots', () => {
   const snapshot = journal.snapshot();
   assert.throws(() => createVoxelEditJournal('another-seed', snapshot), /incompatible/);
   assert.throws(() => createVoxelEditJournal('seed', { ...snapshot, revision: 0 }), /inconsistent/);
-  assert.throws(() => createVoxelEditJournal('seed', { ...snapshot, edits: [...snapshot.edits, snapshot.edits[0]] }), /duplicate/);
+  assert.throws(() => createVoxelEditJournal('seed', { ...snapshot, revision: 2, edits: [...snapshot.edits, snapshot.edits[0]] }), /duplicate/);
   assert.throws(() => createVoxelEditJournal('seed', { ...snapshot, edits: new Array(MAX_EDITS + 1) }), /incompatible/);
 });
 
@@ -69,4 +69,16 @@ test('snapshot output is detached from mutable journal state', () => {
   save.edits[0].block = 'sand';
   assert.equal(journal.get(1, 2, 3), 'stone');
   assert.equal(journal.revision, 1);
+});
+
+test('exhausted revision refuses mutations atomically and permits idempotent retries', () => {
+  const edit = { x: 1, y: 2, z: 3, block: 'stone' };
+  const snapshot = { version: JOURNAL_VERSION, worldSeed: 'seed', voxelMetres: VOXEL_METRES,
+    revision: Number.MAX_SAFE_INTEGER, edits: [edit] };
+  const journal = createVoxelEditJournal('seed', snapshot);
+  assert.throws(() => journal.apply({ ...edit, block: null }), RangeError);
+  assert.throws(() => journal.reset(1, 2, 3), RangeError);
+  assert.equal(journal.apply(edit).changed, false);
+  assert.equal(journal.reset(4, 5, 6).changed, false);
+  assert.deepEqual(journal.snapshot(), snapshot);
 });
