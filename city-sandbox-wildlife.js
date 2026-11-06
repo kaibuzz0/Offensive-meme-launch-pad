@@ -57,6 +57,7 @@
  // Terrain adapter: reads existing voxel surface columns without changing seeds,
  // cave layouts, chunk caches, saves, or rendering. Coordinates stay in voxels.
  const AQUATIC=new Set(['fish']);
+ const AERIAL=new Set(['songbird','hawk','owl','eagle','duck','seabird','bat']);
  function spawnChunkOnTerrain(world,chunkX,chunkZ,options={}){
   if(!world||typeof world.surfaceAt!=='function'||!Number.isSafeInteger(world.seed))
    throw TypeError('Seeded voxel world with surfaceAt required');
@@ -76,8 +77,14 @@
    // Do not place land animals underwater, fish on dry land, or ground
    // creatures on near-vertical slopes.
    const wet=!!col.water||!!col.river;
-   if(aquatic?!wet:wet||col.slope>18)continue;
-   const y=aquatic?Math.min(col.height+1,Number.isFinite(col.waterLevel)?col.waterLevel:world.SEA_LEVEL):col.height+1;
+   const aerial=AERIAL.has(animal.species);
+   // Flying species can traverse water and steep terrain; ground species
+   // cannot. Fish require actual water and a finite water surface above bed.
+   if(aquatic?!wet:!aerial&&(wet||col.slope>18))continue;
+   const waterTop=Number.isFinite(col.waterLevel)?col.waterLevel:world.SEA_LEVEL;
+   if(aquatic&&(!Number.isFinite(waterTop)||waterTop<=col.height))continue;
+   const y=aquatic?Math.min(col.height+1,waterTop-0.5):
+    aerial?Math.max(col.height,wet?waterTop:col.height)+4+(hash(world.seed,x,z,511)%5):col.height+1;
    if(!Number.isFinite(y))continue;
    placed.push(Object.freeze({...animal,y}));
   }
