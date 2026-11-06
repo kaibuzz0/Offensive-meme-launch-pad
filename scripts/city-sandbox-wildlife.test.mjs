@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require=createRequire(import.meta.url);
-const {spawnChunk,habitatFor,cappedFlockStep,MAX_PER_CHUNK}=require('../city-sandbox-wildlife.js');
+const {spawnChunk,spawnChunkOnTerrain,habitatFor,cappedFlockStep,MAX_PER_CHUNK}=require('../city-sandbox-wildlife.js');
 
 test('seed and chunk coordinates yield stable wildlife independent of call order',()=>{
  const a=spawnChunk(741,12,-4,'forest');
@@ -37,4 +37,35 @@ test('flock step is deterministic, bounded and does not mutate input',()=>{
  assert.ok(a.every(c=>Math.hypot(c.vx,c.vz)<=3+1e-9));
  assert.throws(()=>cappedFlockStep(flock,0.5),RangeError);
  assert.throws(()=>cappedFlockStep(Array(65).fill(flock[0]),0.01),RangeError);
+});
+
+test('terrain adapter samples voxel height and preserves seed-stable placements',()=>{
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:(x,z)=>({
+  height:50+x%3,group:'evergreen',biomeName:'Ancient Forest',water:false,river:false,
+  slope:2,mouth:false,sinkhole:false
+ })};
+ const first=spawnChunkOnTerrain(world,2,-3);
+ assert.deepEqual(spawnChunkOnTerrain(world,2,-3),first);
+ assert.ok(Object.isFrozen(first));
+ assert.ok(first.every(c=>c.y===51+Math.floor(c.x)%3&&c.habitat==='forest'));
+ assert.deepEqual(first.map(({id,x,z,heading})=>({id,x,z,heading})),
+  spawnChunk(world.seed,2,-3,{group:'evergreen',name:'Ancient Forest'}).map(({id,x,z,heading})=>({id,x,z,heading})));
+});
+test('terrain adapter rejects incompatible chunk dimensions and unsafe ground',()=>{
+ const world={seed:22,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:60,group:'grassland',biomeName:'Prairie',water:true,river:false,slope:0
+ })};
+ assert.deepEqual(spawnChunkOnTerrain(world,0,0),[]);
+ assert.throws(()=>spawnChunkOnTerrain({...world,CHUNK_SIZE:32},0,0),RangeError);
+ assert.throws(()=>spawnChunkOnTerrain({...world,seed:'bad'},0,0),TypeError);
+ const steep={...world,surfaceAt:()=>({height:60,group:'grassland',water:false,river:false,slope:25})};
+ assert.deepEqual(spawnChunkOnTerrain(steep,0,0),[]);
+});
+test('terrain adapter places aquatic wildlife below water surface only',()=>{
+ const wet={seed:7,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:103,water:true,river:false,waterLevel:112,group:'ocean',biomeName:'Deep Ocean',slope:0
+ })};
+ const fish=spawnChunkOnTerrain(wet,0,0);
+ assert.ok(fish.every(c=>c.species==='fish'&&c.y===104));
+ assert.deepEqual(spawnChunkOnTerrain({...wet,surfaceAt:()=>({...wet.surfaceAt(),water:false})},0,0),[]);
 });
