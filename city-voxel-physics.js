@@ -41,16 +41,34 @@
    return true;
   }
   function moveAxis(axis,delta){
-   const nx=axis==='x'?state.x+delta:state.x;
-   const nz=axis==='z'?state.z+delta:state.z;
-   const floor=floorAt(nx,nz,state.y);
-   if(floor===null)return false;
-   // Airborne travel may traverse a step only if the feet clear the surface.
-   const climb=floor-state.y;
-   if(climb>(state.grounded?MAX_STEP:.18))return false;
-   if(axis==='x')state.x=nx;else state.z=nz;
-   if(state.grounded&&climb>0){state.y=floor;}
-   return true;
+   // Sweep in quarter-voxel increments so a fast mobile frame cannot tunnel
+   // through a one-cell wall or cave boundary between endpoint samples.
+   const segments=Math.max(1,Math.ceil(Math.abs(delta)/.25));
+   const part=delta/segments;
+   let moved=false;
+   for(let i=0;i<segments;i++){
+    const nx=axis==='x'?state.x+part:state.x;
+    const nz=axis==='z'?state.z+part:state.z;
+    const floor=floorAt(nx,nz,state.y);
+    if(floor===null)break;
+    const climb=floor-state.y;
+    if(climb>(state.grounded?MAX_STEP:.18))break;
+    // Sample the player's radius, not just the center. A gallery with a
+    // solid roof must fit the entire player before entering it laterally.
+    const samples=[[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]];
+    let blocked=false;
+    for(const [ox,oz] of samples){
+     const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
+     if(gallery&&!gallery.exposed&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+      blocked=true;break;
+     }
+    }
+    if(blocked)break;
+    if(axis==='x')state.x=nx;else state.z=nz;
+    if(state.grounded&&climb>0)state.y=floor;
+    moved=true;
+   }
+   return moved;
   }
   function tick(input,dt){
    if(!Number.isFinite(dt)||dt<0)throw Error('Invalid time step');
