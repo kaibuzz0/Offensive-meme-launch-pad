@@ -173,9 +173,13 @@ test('seed-relative starter lodge is rendered in real chunks and its doorway is 
   const chunk=world.chunkAt(Math.floor(lodge.x/16),Math.floor(lodge.z/16));
   assert.ok(chunk.structures.some(s=>s.x===lodge.x&&s.z===lodge.z),'walls are included in playable mesh');
   const py=lodge.y+1;
+  assert.equal(lodge.doorZ,lodge.z+4,'entrance waypoint matches the open west-wall gap');
+  assert.equal(lodge.doorX,lodge.x,'entrance waypoint is on the west wall');
   assert.equal(road.obstructs(lodge.x+.2,py,lodge.doorZ+.2,world.PLAYER_HEIGHT,.25),false,'open west doorway admits player capsule');
-  // Verify the whole approach from the road side, not just the door cell.
-  for(const step of [0,.5,1,1.5,2])assert.equal(road.obstructs(lodge.x-step,py,lodge.doorZ+.2,world.PLAYER_HEIGHT,.25),false,'door approach stays clear of fortress wall');
+  // Verify the approach AND interior, not a mistakenly placed waypoint outside.
+  for(const step of [-3,-2,-1,0,.5,1,1.5,2,3])assert.equal(
+   road.obstructs(lodge.x+step,py,lodge.doorZ+.2,world.PLAYER_HEIGHT,.25),false,
+   'door approach and interior corridor remain clear');
   assert.equal(road.obstructs(lodge.x+.2,py,lodge.z+.4,world.PLAYER_HEIGHT,.25),true,'solid walls block player');
   assert.equal(road.obstructs(lodge.x+8.4,py,lodge.doorZ+.2,world.PLAYER_HEIGHT,.25),true,'back wall blocks player');
   assert.ok(road.parts.some(p=>!p.solid&&p.color[0]===1&&p.color[1]===.69),'lit doorway uses existing renderer contract');
