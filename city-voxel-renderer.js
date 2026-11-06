@@ -291,8 +291,13 @@
   'vec2 relief=vec2(sin(uv.x*9.4+coarse*3.0),cos(uv.y*8.1+fine*4.0))*.075;'+
   'vec3 tangent=n.y>.5?vec3(relief.x,0.0,relief.y):'+
   '(n.x>n.z?vec3(0.0,relief.x,relief.y):vec3(relief.x,relief.y,0.0));'+
-  'vec3 litNormal=normalize(unitNormal+(vWater>.5?vec3(0.0):tangent));'+
-  'float sunDiffuse=max(0.0,dot(litNormal,normalize(vec3(.40,.87,.22))));'+
+  'float phaseX=vPosition.x*.81+uTime*.8,phaseZ=vPosition.z*.62-uTime*.7;'+
+  'float slopeX=.065*.81*cos(phaseX)*sin(phaseZ);'+
+  'float slopeZ=.065*.62*sin(phaseX)*cos(phaseZ);'+
+  'vec3 waterNormal=normalize(vec3(-slopeX,1.0,-slopeZ));'+
+  'vec3 litNormal=normalize(unitNormal+(vWater>.5?waterNormal-unitNormal:tangent));'+
+  'vec3 sunDir=normalize(vec3(.40,.87,.22));'+
+  'float sunDiffuse=max(0.0,dot(litNormal,sunDir));'+
   'vec3 color=vColor*(.30+.65*sunDiffuse);'+
   'float seams=sin(vPosition.y*.51+coarse*3.1)*.045;'+
   'float mineral=(fine-.5)*.24+(coarse-.5)*.16+seams;'+
@@ -300,9 +305,10 @@
   'color+=vec3(.035,.047,.036)*pow(max(0.0,coarse-.68),2.0)*3.5;'+
   'if(vWater>.5){float wave=sin(vPosition.x*.81+uTime*.8)*sin(vPosition.z*.62-uTime*.7);'+
   'float gleam=pow(max(0.0,sin((vPosition.x+vPosition.z)*1.7+uTime*1.5)),16.0);'+
-  'vec3 toEye=normalize(uLampEye-vPosition);'+
+  'vec3 toEye=normalize(uLampEye-vPosition+vec3(0.0001));'+
+  'float sunGlint=pow(max(0.0,dot(reflect(-sunDir,litNormal),toEye)),24.0);'+
   'float fresnel=pow(1.0-clamp(dot(toEye,vec3(0.0,1.0,0.0)),0.0,1.0),3.0);'+
-  'color=vColor*(.62+.18*wave)+vec3(.18,.22,.23)*gleam+vec3(.07,.13,.16)*fresnel;}'+
+  'color=vColor*(.62+.18*wave)+vec3(.18,.22,.23)*gleam+vec3(.07,.13,.16)*fresnel+vec3(.22,.20,.16)*sunGlint;}'+
   'float torch=1.0/(1.0+.009*pow(distance(vPosition,uLampEye),2.0));'+
   'vec3 cavern=color*(.10+.84*torch)+vec3(.22,.145,.075)*torch;'+
   'color=mix(color,cavern,uUnderground);'+
