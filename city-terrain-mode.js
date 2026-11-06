@@ -353,6 +353,9 @@
      if(Math.abs(nx)<999900&&Math.abs(nz)<999900){player.x=nx;player.y=nz;}
     }
    }else{player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
+   // Persist before rendering: a slow mobile raster/mesh frame must never
+   // prevent a completed movement tick from reaching the local save.
+   if(t-lastSave>1000){lastSave=t;savePosition();updateHud();}
    status.dataset.worldX=String(player.x);status.dataset.worldZ=String(player.y);
    status.dataset.inputForward=String(move.y);status.dataset.keyCount=String(keys.size);
    status.dataset.physicsZ=String(physics?.snapshot().z);
@@ -399,7 +402,6 @@
      }
     }
    }else drawWorld(size.w,size.h);
-   if(t-lastSave>1100){lastSave=t;savePosition();updateHud();}
   }
   requestAnimationFrame(frame);
  }
