@@ -3,6 +3,7 @@
 (function(root){
  const VERSION=1;
  const KEY='meme-city-road-build-v1:';
+ const CRAFT_KEY='meme-city-road-craft-v1:';
  function create(seed,storage){
   if(typeof seed!=='string'||!seed||seed.length>128)throw new TypeError('invalid seed');
   if(!storage||typeof storage.getItem!=='function'||typeof storage.setItem!=='function')throw new TypeError('storage required');
@@ -14,7 +15,20 @@
       Number.isSafeInteger(raw.x)&&Number.isSafeInteger(raw.z)&&
       Math.abs(raw.x)<1000000&&Math.abs(raw.z)<1000000)saved=Object.freeze({...raw});
   }catch{}
+  let crafted=false;
+  try { crafted=storage.getItem(CRAFT_KEY+seed)==='torch-1' && !!saved; } catch {}
   return Object.freeze({
+   get crafted(){return crafted;},
+   craftTorch(position,site){
+    if(!saved||crafted||!position||!site||!Number.isFinite(position.x)||!Number.isFinite(position.z)||
+       !Number.isFinite(site.x)||!Number.isFinite(site.z)||
+       Math.hypot(position.x-site.x,position.z-site.z)>=10)return false;
+    try{
+     storage.setItem(CRAFT_KEY+seed,'torch-1');
+     if(storage.getItem(CRAFT_KEY+seed)!=='torch-1')return false;
+    }catch{return false;}
+    crafted=true;return true;
+   },
    get placed(){return saved;},
    canPlace(suppliesClaimed,position,site){
     return !saved&&suppliesClaimed&&position&&site&&
@@ -33,5 +47,5 @@
    }
   });
  }
- root.CityRoadBuilding=Object.freeze({create,VERSION,KEY});
+ root.CityRoadBuilding=Object.freeze({create,VERSION,KEY,CRAFT_KEY});
 })(typeof window==='undefined'?globalThis:window);
