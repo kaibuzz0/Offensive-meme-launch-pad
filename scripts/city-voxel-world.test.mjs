@@ -141,3 +141,23 @@ test('the seeded approach is walkable through the arch and both tower walls stop
   assert.deepEqual(plain(second.gateRoad.parts),plain(gate.parts));
  }
 });
+
+test('builder supply cache is visible, seed-relative and does not block the first-person route',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const world=create(seed),gate=world.gateRoad,cache=gate.supplies;
+  assert.equal(cache.x,gate.x+5);
+  assert.equal(cache.z,gate.z+14);
+  assert.equal(cache.y,world.surfaceAt(cache.x,cache.z).height+1,'cache follows the graded road');
+  const chunk=world.chunkAt(Math.floor(cache.x/16),Math.floor(cache.z/16));
+  assert.ok(chunk.structures.some(s=>s.x===cache.x&&s.z===cache.z),'supply crate draws in the actual world mesh');
+  assert.equal(gate.obstructs(cache.x+1,cache.y,cache.z+1,world.PLAYER_HEIGHT,.65),false,'players can pass the crate');
+  assert.deepEqual(plain(create(seed).gateRoad.supplies),plain(cache),'same seed restores same cache');
+  const player=ctx.CityVoxelPhysics.createController(world,world.spawnAt());
+  let approached=false;
+  for(let i=0;i<38;i++){
+   const p=player.tick({forward:1},.05);
+   if(Math.hypot(p.x-cache.x,p.z-cache.z)<10&&Math.abs(p.y-cache.y)<5){approached=true;break;}
+  }
+  assert.ok(approached,seed+' players should be able to reach and collect supplies on foot');
+ }
+});
