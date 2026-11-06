@@ -148,10 +148,22 @@
     const low=side.n?.height??y;
     if(low>=y)continue;
     const a=low+1,b=y+1;
-    if(side.axis==='left')quad(data,[x,a,z],[x,b,z],[x,b,z+stride],[x,a,z+stride],shade,[-1,0,0]);
-    if(side.axis==='right')quad(data,[x+stride,a,z],[x+stride,a,z+stride],[x+stride,b,z+stride],[x+stride,b,z],shade,[1,0,0]);
-    if(side.axis==='front')quad(data,[x,a,z],[x+stride,a,z],[x+stride,b,z],[x,b,z],shade,[0,0,-1]);
-    if(side.axis==='back')quad(data,[x,a,z+stride],[x,b,z+stride],[x+stride,b,z+stride],[x+stride,a,z+stride],shade,[0,0,1]);
+    // The taller external heightfield normally draws one continuous cliff
+    // face against its lower neighbor. Remove the gallery-height portion of
+    // that face at a cave entrance so a real passage is visible and traversable.
+    const neighbor=side.axis==='left'?[x-1,z]:
+     side.axis==='right'?[x+1,z]:
+     side.axis==='front'?[x,z-1]:[x,z+1];
+    const opening=stride===1?world.caveRoomAt?.(...neighbor):null;
+    const spans=opening&&opening.floor<b&&opening.ceiling>a?
+      [[a,Math.min(b,opening.floor)],[Math.max(a,opening.ceiling),b]]:[[a,b]];
+    for(const [bottom,top] of spans){
+     if(top-bottom<.01)continue;
+     if(side.axis==='left')quad(data,[x,bottom,z],[x,top,z],[x,top,z+stride],[x,bottom,z+stride],shade,[-1,0,0]);
+     if(side.axis==='right')quad(data,[x+stride,bottom,z],[x+stride,bottom,z+stride],[x+stride,top,z+stride],[x+stride,top,z],shade,[1,0,0]);
+     if(side.axis==='front')quad(data,[x,bottom,z],[x+stride,bottom,z],[x+stride,top,z],[x,top,z],shade,[0,0,-1]);
+     if(side.axis==='back')quad(data,[x,bottom,z+stride],[x,top,z+stride],[x+stride,top,z+stride],[x+stride,bottom,z+stride],shade,[0,0,1]);
+    }
    }
    if(tile.water){
     const water=[.15,.45,.67];
