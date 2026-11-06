@@ -91,5 +91,5 @@ test('surface and cave generation remain identical across independent worlds wit
  }
  assert.deepEqual(plain(one.chunkAt(0,0).roads),plain(two.chunkAt(0,0).roads));
  assert.equal(one.chunkAt(0,0).npc.length,0);
- assert.equal(one.chunkAt(0,0).structures.length,0);
+ assert.deepEqual(plain(one.chunkAt(0,0).structures),plain(two.chunkAt(0,0).structures),'seeded roadside structures are deterministic');
 });
