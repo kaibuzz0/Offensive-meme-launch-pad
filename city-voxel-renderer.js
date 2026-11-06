@@ -134,14 +134,16 @@
   const data=[];
   for(const tile of chunk.tiles){
    const {x,z,height:y}=tile,color=baseColor(tile);
-   quad(data,[x,y+1,z],[x+stride,y+1,z],[x+stride,y+1,z+stride],[x,y+1,z+stride],color,[0,1,0]);
+   const topShade=tile.slope>13?.86:tile.material==='shore'?.96:1;
+   const groundTint=color.map(v=>v*topShade);
+   quad(data,[x,y+1,z],[x+stride,y+1,z],[x+stride,y+1,z+stride],[x,y+1,z+stride],groundTint,[0,1,0]);
    const sides=[
     {n:world.surfaceAt(x-stride,z),axis:'left'},
     {n:world.surfaceAt(x+stride,z),axis:'right'},
     {n:world.surfaceAt(x,z-stride),axis:'front'},
     {n:world.surfaceAt(x,z+stride),axis:'back'}
    ];
-   const shade=color.map(v=>v*.79);
+   const shade=color.map(v=>v*(tile.material==='cave-rock'?.45:tile.material==='cliff'?.72:.79));
    for(const side of sides){
     const low=side.n?.height??y;
     if(low>=y)continue;
@@ -155,10 +157,25 @@
     const water=[.15,.45,.67];
     const yy=world.SEA_LEVEL+1.15;
     quad(data,[x,yy,z],[x+stride,yy,z],[x+stride,yy,z+stride],[x,yy,z+stride],water,[0,1,0]);
-    // Water surface is deliberately opaque for predictable mobile depth rendering.
+    // Narrow bright shore strips. A separate high-altitude foam surface
+    // avoids blending/sorting glitches on WebGL1 mobile GPUs.
+    if(stride===1){
+     const foam=[.60,.73,.69],fy=yy+.035,t=.17;
+     if(sides[0].n?.height>=world.SEA_LEVEL)quad(data,[x,fy,z],[x+t,fy,z],[x+t,fy,z+1],[x,fy,z+1],foam,[0,1,0]);
+     if(sides[1].n?.height>=world.SEA_LEVEL)quad(data,[x+1-t,fy,z],[x+1,fy,z],[x+1,fy,z+1],[x+1-t,fy,z+1],foam,[0,1,0]);
+     if(sides[2].n?.height>=world.SEA_LEVEL)quad(data,[x,fy,z],[x+1,fy,z],[x+1,fy,z+t],[x,fy,z+t],foam,[0,1,0]);
+     if(sides[3].n?.height>=world.SEA_LEVEL)quad(data,[x,fy,z+1-t],[x+1,fy,z+1-t],[x+1,fy,z+1],[x,fy,z+1],foam,[0,1,0]);
+    }
    }
   }
-  for(const plant of chunk.plants)foliage(data,plant);
+  for(const plant of chunk.plants){
+   if(['pine','palm','tree'].includes(plant.type)){
+    const {x,z,y}=plant,shadow=[.13,.19,.13];
+    quad(data,[x-.35,y+.012,z-.35],[x+1.35,y+.012,z-.35],
+      [x+1.35,y+.012,z+1.35],[x-.35,y+.012,z+1.35],shadow,[0,1,0]);
+   }
+   foliage(data,plant);
+  }
   return {data:new Float32Array(data),tiles:chunk.tiles.length,plants:chunk.plants.length,
    vertices:data.length/9};
  }
