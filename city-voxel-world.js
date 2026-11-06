@@ -42,22 +42,19 @@
   // Store sampled columns only. A bounded cache keeps traversal safe on low-RAM phones.
   const cache=new Map(),CACHE_LIMIT=22528;
   const MOUTH_CELL=112;
+  // Mouth centers always sit >=16 voxels inside their 112-voxel cell,
+  // so a single O(1) cell lookup replaces searching nine neighbors/tile.
   function caveMouthAt(x,z){
    if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z))return null;
-   const gx=Math.floor(x/MOUTH_CELL),gz=Math.floor(z/MOUTH_CELL);
-   let nearest=null;
-   for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
-    const cx=gx+dx,cz=gz+dz;
-    if(random(sinkSeed^0x4caf,cx,cz,9)<.79)continue;
-    const mx=cx*MOUTH_CELL+16+Math.floor(random(sinkSeed,cx,cz,5)*(MOUTH_CELL-32));
-    const mz=cz*MOUTH_CELL+16+Math.floor(random(sinkSeed,cx,cz,6)*(MOUTH_CELL-32));
-    const radius=3+random(sinkSeed,cx,cz,7)*2.2;
-    const distance=Math.hypot(x+.5-mx,z+.5-mz);
-    if(distance>=radius+3)continue;
-    const cut=Math.round(23*Math.max(0,1-distance/(radius+2)));
-    if(!nearest||cut>nearest.cut)nearest={id:cx+':'+cz,x:mx,z:mz,radius,cut,inside:distance<radius};
-   }
-   return nearest?Object.freeze(nearest):null;
+   const cx=Math.floor(x/MOUTH_CELL),cz=Math.floor(z/MOUTH_CELL);
+   if(random(sinkSeed^0x4caf,cx,cz,9)<.79)return null;
+   const mx=cx*MOUTH_CELL+16+Math.floor(random(sinkSeed,cx,cz,5)*(MOUTH_CELL-32));
+   const mz=cz*MOUTH_CELL+16+Math.floor(random(sinkSeed,cx,cz,6)*(MOUTH_CELL-32));
+   const radius=3+random(sinkSeed,cx,cz,7)*2.2;
+   const distance=Math.hypot(x+.5-mx,z+.5-mz);
+   if(distance>=radius+3)return null;
+   const cut=Math.round(23*Math.max(0,1-distance/(radius+2)));
+   return Object.freeze({id:cx+':'+cz,x:mx,z:mz,radius,cut,inside:distance<radius});
   }
   function surfaceMaterial(group,h,slope,wet){
    if(wet&&h<=SEA_LEVEL+5)return 'shore';
@@ -150,7 +147,7 @@
    const r=random(plantSeed,x,z),r2=random(plantSeed^0x91a3,x,z);
    const g=c.group;
    const forest=g==='evergreen'||g==='tropical'||g==='fungal';
-   const treeRate=forest?(g==='tropical'?.11:g==='fungal'?.085:.095):g==='grassland'?.034:g==='wetland'?.025:.005;
+   const treeRate=forest?(g==='tropical'?.085:g==='fungal'?.075:.080):g==='grassland'?.029:g==='wetland'?.024:.005;
    if(r<treeRate){
     const type=g==='desert'?'cactus':g==='fungal'?'mushroom':g==='tropical'?'palm':g==='tundra'||g==='evergreen'?'pine':'tree';
     return Object.freeze({type,height:7+Math.floor(r2*9),color:r2});
