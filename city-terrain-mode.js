@@ -27,7 +27,7 @@
   .terrain-only-mode #city-canvas {touch-action:none; background:#142321}
   .terrain-only-mode .world-hud {pointer-events:none}
   .terrain-only-mode .city-welcome[hidden] {display:none!important}
-  .terrain-only-mode #city-voxel-canvas {position:absolute;inset:0;width:100%;height:100%;touch-action:none;background:radial-gradient(ellipse at 74% 18%,#ffecc0 0%,#b0cfed 23%,#8cb9da 62%,#5c83a7 100%)}
+  .terrain-only-mode #city-voxel-canvas,.terrain-only-mode #city-road-canvas {position:absolute;inset:0;width:100%;height:100%;touch-action:none;background:radial-gradient(ellipse at 74% 18%,#ffecc0 0%,#b0cfed 23%,#8cb9da 62%,#5c83a7 100%)}
   .terrain-only-mode #city-voxel-crosshair {position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font:26px monospace;color:#f2f6eccc;text-shadow:0 1px 4px #142f3b;pointer-events:none;z-index:2}
   .terrain-only-mode #city-voxel-status {position:absolute;top:64px;left:20px;z-index:2;background:#0f2535c9;padding:6px 10px;font:11px monospace;pointer-events:none}
   .terrain-only-mode .game-bottom {z-index:3}
@@ -39,7 +39,7 @@
  document.head.append(style);
  $('.alpha-tag').textContent='FORTRESS ROAD / FIRST PERSON';
  $('.solo-restore-label').textContent='SEPARATE TERRAIN SAVE';
- $('#population').textContent='No NPCs, streets or buildings';
+ $('#population').textContent='Fortress Road · local progress';
  $('#room-mode').textContent='SEEDED SOLO WORLD';
  $('#welcome-title').textContent='FORTRESS ROAD';
  $('.welcome-lead').textContent='Follow the stone road between the red banners. Pass under the watchtower arch and collect the gate seal for this world.';
@@ -82,6 +82,10 @@
  const voxelCanvas=document.createElement('canvas');voxelCanvas.id='city-voxel-canvas';
  voxelCanvas.setAttribute('aria-label','First-person procedurally generated voxel wilderness. Drag to look around.');
  canvas.insertAdjacentElement('afterend',voxelCanvas);
+ const softwareCanvas=document.createElement('canvas');
+ softwareCanvas.id='city-road-canvas';softwareCanvas.hidden=true;
+ softwareCanvas.setAttribute('aria-label','Fortress Road first-person view. Drag to look around.');
+ voxelCanvas.insertAdjacentElement('afterend',softwareCanvas);
  const crosshair=document.createElement('div');crosshair.id='city-voxel-crosshair';crosshair.textContent='+';
  voxelCanvas.insertAdjacentElement('afterend',crosshair);
  const status=document.createElement('div');status.id='city-voxel-status';
@@ -94,8 +98,15 @@
  for(const kind of ['pointerup','pointercancel','lostpointercapture'])
   jumpButton.addEventListener(kind,()=>jumpHeld=false);
  jumpButton.addEventListener('click',()=>{jumpQueued=true;});
- let perspective=null;
- try{if(voxel&&rendererApi)perspective=rendererApi.createRenderer(voxelCanvas,voxel,definitions);}catch(err){status.textContent='3D unavailable: '+String(err.message).slice(0,80);}
+ function openPerspective(){
+  if(!voxel||!rendererApi)return null;
+  try{
+   const accelerated=rendererApi.createRenderer(voxelCanvas,voxel,definitions);
+   if(accelerated)return accelerated;
+  }catch{}
+  return rendererApi.createCanvasRenderer(softwareCanvas,voxel);
+ }
+ let perspective=openPerspective();
  let firstPerson=!!perspective,contextInterrupted=false;
  // Android browsers can temporarily discard the WebGL context during app
  // switching or memory pressure. Keep the seed and physics alive in the 2D
@@ -104,21 +115,21 @@
   event.preventDefault();
   contextInterrupted=true;
   const abandoned=perspective;
-  perspective=null;firstPerson=false;syncView();
+  perspective=rendererApi.createCanvasRenderer(softwareCanvas,voxel);firstPerson=!!perspective;syncView();
   // Stops outstanding mesh requests and retires resources associated with a
   // dead GL context; the restored context gets a fresh worker and GPU cache.
   try{abandoned?.dispose();}catch{}
  });
  voxelCanvas.addEventListener('webglcontextrestored',()=>{
   if(!contextInterrupted)return;
-  try{perspective=voxel&&rendererApi?.createRenderer(voxelCanvas,voxel,definitions)||null;}
-  catch{perspective=null;}
+  perspective?.dispose();perspective=openPerspective();
   contextInterrupted=false;
   firstPerson=!!perspective;syncView();
  });
  function syncView(){
   const threeD=!!perspective&&firstPerson&&!atlas;
-  voxelCanvas.hidden=!threeD;crosshair.hidden=!threeD;status.hidden=!threeD;jumpButton.hidden=!threeD;
+  softwareCanvas.hidden=!threeD||!perspective?.software;
+  voxelCanvas.hidden=!threeD||!!perspective?.software;crosshair.hidden=!threeD;status.hidden=!threeD;jumpButton.hidden=!threeD;
   if(threeD&&physics){
    const position=physics.snapshot();
    // Switching from first-person to the biome atlas must never snap an
@@ -132,7 +143,7 @@
  function resetVoxel(){
   if(perspective)perspective.dispose();
   physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y,y:player.vertical})||null;
-  try{perspective=voxel&&rendererApi?rendererApi.createRenderer(voxelCanvas,voxel,definitions):null;}catch{perspective=null;}
+  perspective=openPerspective();
   firstPerson=!!perspective;syncView();
  }
  const gateButton=document.createElement('button');
@@ -286,7 +297,7 @@
      const metrics=perspective.render({x:player.x,z:player.y,y:cameraY,yaw:player.yaw,pitch:player.pitch});
       const gallery=voxel.caveRoomAt?.(Math.floor(player.x),Math.floor(player.y));
       const subterranean=!!gallery&&!gallery.exposed&&cameraY+voxel.EYE_HEIGHT<voxel.surfaceAt(Math.floor(player.x),Math.floor(player.y)).height+1;
-      status.textContent='3D · '+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks · elevation '+Math.round(cameraY*voxel.VOXEL_METERS)+'m'+(subterranean?' · CAVERN':'')+' · ~'+Math.round(1000/Math.max(1,metrics.frameAverage))+' fps'+' · '+Math.round(metrics.renderScale*100)+'% render';
+      status.textContent=(perspective.software?'3D · compatibility · ':'3D · ')+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks · elevation '+Math.round(cameraY*voxel.VOXEL_METERS)+'m'+(subterranean?' · CAVERN':'')+' · ~'+Math.round(1000/Math.max(1,metrics.frameAverage))+' fps'+' · '+Math.round(metrics.renderScale*100)+'% render';
       status.dataset.renderScale=String(metrics.renderScale);
       status.dataset.viewRadius=String(metrics.viewRadius);
       status.dataset.cavern=String(subterranean);
@@ -308,7 +319,7 @@
  $('#zoom-toggle').addEventListener('click',()=>{zoom=zoom===20?28:zoom===28?14:20;});
  // Pointer drag or desktop pointer-lock changes first-person camera aim.
  let lookPointer=null,lastLookX=0,lastLookY=0;
- voxelCanvas.addEventListener('pointerdown',e=>{lookPointer=e.pointerId;lastLookX=e.clientX;lastLookY=e.clientY;voxelCanvas.setPointerCapture?.(e.pointerId);});
+ for(const lookCanvas of [voxelCanvas,softwareCanvas])lookCanvas.addEventListener('pointerdown',e=>{lookPointer=e.pointerId;lastLookX=e.clientX;lastLookY=e.clientY;lookCanvas.setPointerCapture?.(e.pointerId);});
  window.addEventListener('pointermove',e=>{
   if(!firstPerson||!running||paused)return;
   if(e.pointerId!==lookPointer&&document.pointerLockElement!==voxelCanvas)return;
@@ -317,7 +328,7 @@
   lastLookX=e.clientX;lastLookY=e.clientY;
   player.yaw+=dx*.0042;player.pitch=Math.max(-1.32,Math.min(1.32,player.pitch-dy*.0035));
  });
- for(const type of ['pointerup','pointercancel','lostpointercapture'])voxelCanvas.addEventListener(type,e=>{if(e.pointerId===lookPointer)lookPointer=null;});
+ for(const type of ['pointerup','pointercancel','lostpointercapture'])window.addEventListener(type,e=>{if(e.pointerId===lookPointer)lookPointer=null;});
  voxelCanvas.addEventListener('dblclick',()=>voxelCanvas.requestPointerLock?.());
  $('#fullscreen-toggle').addEventListener('click',()=>{$('.game-shell').requestFullscreen?.();});
  $('#fullscreen-exit').addEventListener('click',()=>{document.exitFullscreen?.();});
