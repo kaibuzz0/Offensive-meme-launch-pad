@@ -142,6 +142,8 @@ try{
   await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
  }
  await evalPage('window.dispatchEvent(new Event("pagehide"));true');
+ const storeDiagnostics=await evalPage('(()=>{const x=document.getElementById("city-voxel-status"),seed=localStorage.getItem("meme-city-terrain-seed-v1"),key="meme-city-terrain-position-v1:"+seed;let testWrite=false;try{localStorage.setItem("meme-city-ci-probe","ok");testWrite=localStorage.getItem("meme-city-ci-probe")==="ok";localStorage.removeItem("meme-city-ci-probe");}catch{}return {liveZ:x.dataset.worldZ,writeOk:x.dataset.writeOk,attemptY:x.dataset.writeY,saved:JSON.parse(localStorage.getItem(key)),testWrite};})()');
+ console.log('STORE DIAGNOSTICS',JSON.stringify(storeDiagnostics));
  await waitFor(()=>evalPage('JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).y>'+start),
   'page-exit save persists real movement',5000);
  const motion=await evalPage('(()=>({liveZ:Number(document.getElementById("city-voxel-status").dataset.worldZ),mode:document.getElementById("city-voxel-status").dataset.playerMode,seed:localStorage.getItem("meme-city-terrain-seed-v1"),savedZ:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).y}))()');
