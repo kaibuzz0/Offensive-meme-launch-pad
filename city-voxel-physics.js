@@ -80,14 +80,27 @@
    const rightX=Math.cos(yaw),rightZ=-Math.sin(yaw);
    const forwardX=Math.sin(yaw),forwardZ=Math.cos(yaw);
    const feet=world.surfaceAt(Math.floor(state.x),Math.floor(state.z));
-   const water=feet&&state.y<world.SEA_LEVEL;
+   // Optional water-volume query allows submerged cave pools without
+   // treating dry terrain below sea level as water. Legacy worlds without
+   // this query retain the previous sea-level behavior.
+   const water=typeof world.isWaterAt==='function'
+    ? !!world.isWaterAt(state.x,state.y+world.PLAYER_HEIGHT*.5,state.z)
+    : !!feet&&state.y<world.SEA_LEVEL;
    const speed=SPEED*(water?.62:1);
    const dx=(vx*rightX+vz*forwardX)*speed*step;
    const dz=(vx*rightZ+vz*forwardZ)*speed*step;
    // Two-axis sweep permits sliding along terrain walls.
    moveAxis('x',dx);moveAxis('z',dz);
    if(input?.jump&&state.grounded){state.grounded=false;state.vy=JUMP_SPEED;}
-   if(!state.grounded){
+   // Swimming is deliberately opt-in: an explicit water-volume query enables
+   // controlled ascent, reduced gravity and terminal sinking velocity.
+   // This avoids changing legacy below-sea-level terrain behavior.
+   const swimming=water&&typeof world.isWaterAt==='function';
+   if(swimming){
+    state.grounded=false;
+    state.vy=clamp(state.vy+(input?.jump?14:-4)*step,-3,5);
+    state.y+=state.vy*step;
+   }else if(!state.grounded){
     state.vy=Math.max(-40,state.vy-GRAVITY*step);
     state.y+=state.vy*step;
    }
