@@ -35,6 +35,8 @@
   .terrain-only-mode .city-welcome {z-index:5}
   .terrain-only-mode #city-jump {position:absolute;right:16px;bottom:20px;z-index:4;min-height:72px;min-width:72px;border-radius:50%;font:700 13px monospace;border:2px solid #c6efd6;color:#eff8f2;background:#20523dbf;touch-action:none;user-select:none;-webkit-user-select:none;box-shadow:0 4px 20px #0d261c9c}
   .terrain-only-mode #city-voxel-status {max-width:calc(100% - 40px);text-shadow:0 1px 2px #000}
+  .terrain-only-mode #city-compatibility-toggle {position:absolute;top:12px;right:12px;z-index:4;min-height:46px;border:1px solid #b8e2c4;border-radius:6px;background:#0b2934e8;color:#e8ffeb;padding:8px 11px;font:700 11px monospace;touch-action:manipulation}
+  .terrain-only-mode #city-render-hint {position:absolute;top:49%;left:50%;z-index:2;transform:translate(-50%,-50%);background:#102532e8;color:#f5ffd5;border:1px solid #b5d29b;border-radius:8px;max-width:80%;padding:12px 16px;font:700 12px/1.5 monospace;text-align:center;pointer-events:none}
  `;
  document.head.append(style);
  $('.alpha-tag').textContent='FORTRESS ROAD / FIRST PERSON';
@@ -47,6 +49,11 @@
  $('.welcome-goal').textContent='Beyond the gate, explore the mountains, forests and caves of your seeded world.';
  start.textContent='Enter first person →';
  $('.welcome-controls').textContent='WASD / arrows or mobile joystick · Swipe/drag to look · E or on-screen COLLECT for supplies and the gate seal · Space or Jump · Atlas and 2D view available.';
+ const compatLink=document.createElement('a');
+ compatLink.href='city.html?terrain=1&render=canvas';
+ compatLink.textContent='Low graphics first-person mode →';
+ compatLink.style.cssText='display:inline-block;margin:.5rem 1rem .9rem 0;color:#d2f9b3';
+ start.insertAdjacentElement('afterend',compatLink);
  const legacy=document.createElement('a');
  legacy.href='city.html?legacy=1';legacy.textContent='Open preserved legacy city →';
  legacy.style.cssText='display:inline-block;margin:1rem;color:#c4e7bb';
@@ -98,13 +105,25 @@
  for(const kind of ['pointerup','pointercancel','lostpointercapture'])
   jumpButton.addEventListener(kind,()=>jumpHeld=false);
  jumpButton.addEventListener('click',()=>{jumpQueued=true;});
+ const modeButton=document.createElement('button');
+ modeButton.id='city-compatibility-toggle';modeButton.type='button';
+ modeButton.setAttribute('aria-label','Toggle low graphics first-person renderer');
+ status.insertAdjacentElement('afterend',modeButton);
+ const renderHint=document.createElement('div');
+ renderHint.id='city-render-hint';renderHint.textContent='Loading the 3D world…';
+ modeButton.insertAdjacentElement('afterend',renderHint);
+ let forceCanvas=new URLSearchParams(window.location.search).get('render')==='canvas';
+ let blankSince=0;
  function openPerspective(){
   if(!voxel||!rendererApi)return null;
-  try{
-   const accelerated=rendererApi.createRenderer(voxelCanvas,voxel,definitions);
-   if(accelerated)return accelerated;
-  }catch{}
-  return rendererApi.createCanvasRenderer(softwareCanvas,voxel);
+  if(!forceCanvas){
+   try{
+    const accelerated=rendererApi.createRenderer(voxelCanvas,voxel,definitions);
+    if(accelerated)return accelerated;
+   }catch(err){status.dataset.rendererError=String(err?.message||err).slice(0,120);}
+  }
+  try{return rendererApi.createCanvasRenderer(softwareCanvas,voxel);}
+  catch(err){status.dataset.rendererError=String(err?.message||err).slice(0,120);return null;}
  }
  let perspective=openPerspective();
  let firstPerson=!!perspective,contextInterrupted=false;
@@ -139,7 +158,28 @@
   }
   canvas.style.visibility=threeD?'hidden':'visible';
   viewButton.textContent=threeD?'Switch to 2D map':'Switch to first person';
+  modeButton.textContent=perspective?.software?'TRY WEBGL 3D':'LOW GRAPHICS';
+  renderHint.hidden=!running||!threeD;
+  if(!perspective&&running)status.textContent='3D unavailable · use Switch to 2D map';
  }
+ function useLowGraphics(reason){
+  forceCanvas=true;
+  const previous=perspective;
+  try{previous?.dispose();}catch{}
+  perspective=openPerspective();firstPerson=!!perspective;blankSince=0;
+  syncView();
+  status.textContent=perspective?'Compatibility 3D: '+reason:'3D unavailable · switch to 2D map';
+ }
+ modeButton.addEventListener('click',()=>{
+  if(forceCanvas){
+   forceCanvas=false;
+   const previous=perspective;
+   try{previous?.dispose();}catch{}
+   perspective=openPerspective();firstPerson=!!perspective;blankSince=0;
+   syncView();
+   if(perspective?.software)status.textContent='WebGL unavailable · compatibility mode';
+  }else useLowGraphics('selected by player');
+ });
  function resetVoxel(){
   if(perspective)perspective.dispose();
   physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y,y:player.vertical})||null;
@@ -312,6 +352,9 @@
     }
    }else{player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
    status.dataset.worldX=String(player.x);status.dataset.worldZ=String(player.y);
+   status.dataset.inputForward=String(move.y);status.dataset.keyCount=String(keys.size);
+   status.dataset.physicsZ=String(physics?.snapshot().z);
+   status.dataset.renderer=perspective?.software?'canvas':perspective?'webgl':'none';
    status.dataset.playerMode=firstPerson&&!atlas?'first-person':'atlas';
    gateButton.hidden=!firstPerson||atlas||!atGate();
    supplyButton.hidden=!firstPerson||atlas||suppliesClaimed||!atSupplies();
@@ -324,6 +367,14 @@
     if(ground){
      try{const cameraY=physics?.snapshot().y??ground.height+1;
      const metrics=perspective.render({x:player.x,z:player.y,y:cameraY,yaw:player.yaw,pitch:player.pitch});
+      // Context creation can succeed yet produce no terrain on Android.
+      if(metrics.loaded>0){blankSince=0;renderHint.hidden=true;}
+      else{
+       if(!blankSince)blankSince=t;
+       renderHint.hidden=false;
+       renderHint.textContent=perspective.software?'Loading the low-graphics world…':'Generating your 3D landscape…';
+       if(!perspective.software&&t-blankSince>9000)useLowGraphics('terrain loading stalled');
+      }
       const gallery=voxel.caveRoomAt?.(Math.floor(player.x),Math.floor(player.y));
       const subterranean=!!gallery&&!gallery.exposed&&cameraY+voxel.EYE_HEIGHT<voxel.surfaceAt(Math.floor(player.x),Math.floor(player.y)).height+1;
       status.textContent=(perspective.software?'3D · compatibility · ':'3D · ')+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks · elevation '+Math.round(cameraY*voxel.VOXEL_METERS)+'m'+(subterranean?' · CAVERN':'')+' · ~'+Math.round(1000/Math.max(1,metrics.frameAverage))+' fps'+' · '+Math.round(metrics.renderScale*100)+'% render'+' · supplies '+(suppliesClaimed?'8':'0')+'/8';
@@ -339,13 +390,10 @@
      }catch(err){
       // WebGL may initialize but fail during terrain mesh upload or draw.
       // Keep the existing player and seed in a usable first-person view.
-      const failed=perspective;
-      try{failed?.dispose();}catch{}
-      try{perspective=failed?.software?null:rendererApi.createCanvasRenderer(softwareCanvas,voxel);}
-      catch{perspective=null;}
-      firstPerson=!!perspective;syncView();
       status.dataset.rendererError=String(err?.message||err).slice(0,120);
-      status.textContent=perspective?'3D · compatibility renderer recovered':'3D unavailable · switch to 2D map';
+      if(!perspective?.software)useLowGraphics('renderer error');
+      else {perspective=null;firstPerson=false;syncView();}
+      renderHint.textContent=perspective?'Compatibility view active':'Use the 2D map control';
      }
     }
    }else drawWorld(size.w,size.h);
