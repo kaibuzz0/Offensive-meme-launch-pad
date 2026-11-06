@@ -141,7 +141,7 @@ try{
   try{
    await waitFor(()=>evalPage('JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).y>'+start),'movement persists to local save',14000);
   }catch(err){
-   const debug=await evalPage('(()=>{const x=document.getElementById("city-voxel-status");const seed=localStorage.getItem("meme-city-terrain-seed-v1");return {introHidden:document.getElementById("city-intro")?.hidden,renderer:x.dataset.renderer,status:x.textContent,worldZ:x.dataset.worldZ,physicsZ:x.dataset.physicsZ,inputForward:x.dataset.inputForward,keys:x.dataset.keyCount,saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+seed)),frameTime:x.dataset.frameTime,lastSaveTime:x.dataset.lastSaveTime,positionWrite:x.dataset.positionWrite,attemptZ:x.dataset.positionAttemptZ,canvasHidden:document.getElementById("city-voxel-canvas")?.hidden,roadHidden:document.getElementById("city-road-canvas")?.hidden};})()');
+   const debug=await evalPage('(()=>{const x=document.getElementById("city-voxel-status");const seed=localStorage.getItem("meme-city-terrain-seed-v1");return {introHidden:document.getElementById("city-intro")?.hidden,renderer:x.dataset.renderer,status:x.textContent,worldZ:x.dataset.worldZ,physicsZ:x.dataset.physicsZ,inputForward:x.dataset.inputForward,keys:x.dataset.keyCount,saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+seed)),canvasHidden:document.getElementById("city-voxel-canvas")?.hidden,roadHidden:document.getElementById("city-road-canvas")?.hidden};})()');
    console.error('MOVEMENT DEBUG',JSON.stringify({start,...debug}));
    throw err;
   }
@@ -174,18 +174,18 @@ try{
  await waitFor(()=>evalPage('document.getElementById("city-render-hint")?.hidden===true'),'compatibility scene becomes visible',30000);
  assert.equal(await evalPage('!!document.querySelector("a[href*=\\\"render=canvas\\\"]")'),true,'there is an escape route to low graphics before starting');
  assert.equal(await evalPage('document.querySelector("#city-road-canvas").getContext("2d").getImageData(1,1,1,1).data[3]'),255);
- const actualColors=await evalPage(`(()=>{
+ const colorCount=await evalPage(`(()=>{
   const c=document.querySelector("#city-road-canvas"),ctx=c.getContext("2d");
-  const data=ctx.getImageData(0,0,c.width,c.height).data;
-  const unique=new Set();
+  const pixels=ctx.getImageData(0,0,c.width,c.height).data;
+  const distinct=new Set();
   for(let row=0;row<10;row++)for(let col=0;col<8;col++){
    const y=Math.floor((row+.5)*c.height/10),x=Math.floor((col+.5)*c.width/8);
    const i=(y*c.width+x)*4;
-   unique.add([data[i],data[i+1],data[i+2]].join(","));
+   distinct.add([pixels[i],pixels[i+1],pixels[i+2]].join(","));
   }
-  return unique.size;
+  return distinct.size;
  })()`);
- assert.ok(actualColors>=8,'compatibility scene must paint visibly different terrain and sky colors, not a uniform black or gray canvas');
+ assert.ok(colorCount>=8,'compatibility renderer must paint actual scene pixels, not a black/gray viewport');
  assert.deepEqual(exceptions,[],'no uncaught JS exceptions in terrain-mode browser entry');
  console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
 }finally{
