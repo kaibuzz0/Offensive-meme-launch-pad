@@ -6,6 +6,13 @@ on:
   schedule:
     - cron: '7,27,47 * * * *'
   workflow_dispatch:
+  # Run immediately when this council is first merged or its policies change.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/meme-city-council.yml'
+      - 'docs/DEVELOPMENT_COUNCIL.*'
+      - 'scripts/meme-city-council*'
 
 permissions:
   contents: read
