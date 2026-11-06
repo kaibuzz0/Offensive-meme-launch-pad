@@ -57,3 +57,9 @@ test('failed WebGL restoration does not crash and allows another loss cycle',()=
  assert.equal(h.context.firstPerson,false);
  assert.match(h.status.dataset.rendererError,/WebGL unavailable/);
 });
+
+// Input-release persistence is essential on mobile/background-throttled browsers:
+// the player must not lose the last movement segment while waiting for RAF.
+test('movement key release saves position immediately, independently of the frame timer',()=>{
+ assert.match(source,/window\.addEventListener\('keyup',e=>\{[\s\S]*?if\(keys\.delete\(key\)\)savePosition\(\);[\s\S]*?\}\);/);
+});
