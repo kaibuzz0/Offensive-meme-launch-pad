@@ -41,3 +41,28 @@ test('storage failure does not claim a placed workbench',()=>{
  assert.equal(b.place(true,player,site),false);
  assert.equal(b.placed,null);
 });
+
+test('crafting requires placed workbench and saves exactly once per seed',()=>{
+ const store=storage(),a=api(),b=a.create('craft-seed',store);
+ assert.equal(b.craftTorch(player,site),false);
+ assert.equal(b.place(true,player,site),true);
+ assert.equal(b.craftTorch({x:99,z:99},site),false);
+ assert.equal(b.craftTorch(player,site),true);
+ assert.equal(b.crafted,true);
+ assert.equal(b.craftTorch(player,site),false);
+ assert.equal(a.create('craft-seed',store).crafted,true);
+ assert.equal(a.create('other-seed',store).crafted,false);
+});
+test('craft save failures and unplaced forged torch do not unlock crafting',()=>{
+ const a=api(),store=storage();
+ store.setItem(a.CRAFT_KEY+'seed','torch-1');
+ assert.equal(a.create('seed',store).crafted,false);
+ const failed={getItem:k=>store.getItem(k),setItem:(k,v)=>{
+  if(k.startsWith(a.CRAFT_KEY))throw Error('quota');
+  store.setItem(k,v);
+ }};
+ const b=a.create('seed',failed);
+ assert.equal(b.place(true,player,site),true);
+ assert.equal(b.craftTorch(player,site),false);
+ assert.equal(b.crafted,false);
+});
