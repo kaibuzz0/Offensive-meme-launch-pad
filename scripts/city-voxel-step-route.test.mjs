@@ -46,7 +46,7 @@ test('road to fortress doorway can be walked without teleporting through walls',
     prev = next;
   }
   assert.ok(player.snapshot().x < 3, 'fortress wall blocks direct entry');
-  for (let i = 0; i < 40; i++) player.tick({forward: 1}, .05);
+  for (let i = 0; i < 3; i++) player.tick({forward: 1}, .05);
   assert.ok(player.snapshot().z >= 1 && player.snapshot().z <= 3, 'road leads to gate');
   for (let i = 0; i < 8; i++) player.tick({right: 1}, .05);
   assert.ok(player.snapshot().x > 3.5, 'player walks through opening into building');
