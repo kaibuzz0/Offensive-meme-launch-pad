@@ -42,11 +42,11 @@
  $('#population').textContent='Fortress Road · local progress';
  $('#room-mode').textContent='SEEDED SOLO WORLD';
  $('#welcome-title').textContent='FORTRESS ROAD';
- $('.welcome-lead').textContent='Follow the stone road between the red banners. Pass under the watchtower arch and collect the gate seal for this world.';
+ $('.welcome-lead').textContent='Walk the stone road, recover roadside builder supplies, then pass through the twin watchtowers and collect your persistent gate seal.';
  $('.welcome-steps').hidden=true;
  $('.welcome-goal').textContent='Beyond the gate, explore the mountains, forests and caves of your seeded world.';
  start.textContent='Enter first person →';
- $('.welcome-controls').textContent='WASD / arrows or mobile joystick · Swipe/drag to look · Space or Jump to leap · Steep rock walls block movement · Atlas and top-down view remain available.';
+ $('.welcome-controls').textContent='WASD / arrows or mobile joystick · Swipe/drag to look · E or on-screen COLLECT for supplies and the gate seal · Space or Jump · Atlas and 2D view available.';
  const legacy=document.createElement('a');
  legacy.href='city.html?legacy=1';legacy.textContent='Open preserved legacy city →';
  legacy.style.cssText='display:inline-block;margin:1rem;color:#c4e7bb';
@@ -164,6 +164,30 @@
  }
  gateButton.textContent='Claim gate seal';
  gateButton.addEventListener('click',claimSeal);
+ // First usable scavenging interaction is tied to the same seeded road.
+ // It cannot touch original Solo credits, wallet or existing city saves.
+ const supplyButton=document.createElement('button');
+ supplyButton.type='button';supplyButton.id='city-road-supplies';supplyButton.hidden=true;
+ supplyButton.textContent='Collect 8 builder supplies';
+ supplyButton.setAttribute('aria-label','Collect roadside builder supplies');
+ supplyButton.style.cssText='position:absolute;right:16px;bottom:104px;z-index:4;padding:12px 16px;background:#31462a;color:#f2ffcb;border:1px solid #b9d46c;border-radius:6px;min-height:48px';
+ gateButton.insertAdjacentElement('afterend',supplyButton);
+ const supplyKey=()=> 'meme-city-road-supplies-v1:'+seed;
+ let suppliesClaimed=get(supplyKey())==='1';
+ function atSupplies(){
+  const cache=voxel?.gateRoad?.supplies;
+  const feet=physics?.snapshot();
+  return !!cache&&!!feet&&Math.hypot(player.x-cache.x,player.y-cache.z)<10
+   &&Math.abs(feet.y-cache.y)<5;
+ }
+ function claimSupplies(){
+  if(!running||paused||!firstPerson||atlas||!atSupplies()||suppliesClaimed)return;
+  suppliesClaimed=put(supplyKey(),'1');
+  supplyButton.textContent=suppliesClaimed?'8 supplies recovered':'Save unavailable · retry';
+  updateHud();
+ }
+ supplyButton.addEventListener('click',claimSupplies);
+ function interactRoad(){if(atGate()&&!sealClaimed)claimSeal();else claimSupplies();}
  const keys=new Set(),held=new Set();
  const stick={x:0,y:0};
  function savePosition(){
@@ -178,6 +202,7 @@
   player=restore();
   resetVoxel();
   sealClaimed=get(sealKey())==='1';gateButton.textContent=sealClaimed?'Gate seal collected':'Claim gate seal';
+  suppliesClaimed=get(supplyKey())==='1';supplyButton.textContent=suppliesClaimed?'8 supplies recovered':'Collect 8 builder supplies';
   lastSave=0;atlas=false;updateHud();
  }
  const button=document.createElement('button');
@@ -210,7 +235,8 @@
   const road=voxel?.gateRoad;
   const distance=road?Math.hypot(road.gateX-player.x,road.gateZ-player.y):Infinity;
   $('#district').textContent=distance<65?(sealClaimed?'FORTRESS ROAD · SEAL COLLECTED':'FORTRESS GATE · '+Math.round(distance*.25)+' m'):current?.name?.toUpperCase()||'GENERATING';
-  $('#save-state').textContent='Terrain world seed '+seed.slice(0,12)+'… · persistent local save';
+  $('#save-state').textContent='Terrain world seed '+seed.slice(0,12)+'… · gate '+(sealClaimed?'claimed':'open')+' · builder supplies '+(suppliesClaimed?'8':'0')+'/8 · local save';
+  $('#population').textContent='Fortress Road · '+(suppliesClaimed?'8 supplies saved':'roadside supplies ahead');
  }
  function resize(){
   const rect=canvas.getBoundingClientRect();
@@ -286,6 +312,7 @@
     }
    }else{player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
    gateButton.hidden=!firstPerson||atlas||!atGate();
+   supplyButton.hidden=!firstPerson||atlas||suppliesClaimed||!atSupplies();
    gateButton.disabled=sealClaimed;
    if(sealClaimed)gateButton.textContent='Gate seal collected';
    const size=resize();
@@ -297,7 +324,7 @@
      const metrics=perspective.render({x:player.x,z:player.y,y:cameraY,yaw:player.yaw,pitch:player.pitch});
       const gallery=voxel.caveRoomAt?.(Math.floor(player.x),Math.floor(player.y));
       const subterranean=!!gallery&&!gallery.exposed&&cameraY+voxel.EYE_HEIGHT<voxel.surfaceAt(Math.floor(player.x),Math.floor(player.y)).height+1;
-      status.textContent=(perspective.software?'3D · compatibility · ':'3D · ')+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks · elevation '+Math.round(cameraY*voxel.VOXEL_METERS)+'m'+(subterranean?' · CAVERN':'')+' · ~'+Math.round(1000/Math.max(1,metrics.frameAverage))+' fps'+' · '+Math.round(metrics.renderScale*100)+'% render';
+      status.textContent=(perspective.software?'3D · compatibility · ':'3D · ')+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks · elevation '+Math.round(cameraY*voxel.VOXEL_METERS)+'m'+(subterranean?' · CAVERN':'')+' · ~'+Math.round(1000/Math.max(1,metrics.frameAverage))+' fps'+' · '+Math.round(metrics.renderScale*100)+'% render'+' · supplies '+(suppliesClaimed?'8':'0')+'/8';
       status.dataset.renderScale=String(metrics.renderScale);
       status.dataset.viewRadius=String(metrics.viewRadius);
       status.dataset.cavern=String(subterranean);
@@ -307,7 +334,17 @@
       status.dataset.gpuBytes=String(metrics.gpuBytes);
       status.dataset.meshWorker=metrics.workerStatus;
       status.dataset.meshPending=String(metrics.pendingMeshes);
-     }catch(err){status.textContent='3D rendering failed';perspective.dispose();perspective=null;firstPerson=false;syncView();}
+     }catch(err){
+      // WebGL may initialize but fail during terrain mesh upload or draw.
+      // Keep the existing player and seed in a usable first-person view.
+      const failed=perspective;
+      try{failed?.dispose();}catch{}
+      try{perspective=failed?.software?null:rendererApi.createCanvasRenderer(softwareCanvas,voxel);}
+      catch{perspective=null;}
+      firstPerson=!!perspective;syncView();
+      status.dataset.rendererError=String(err?.message||err).slice(0,120);
+      status.textContent=perspective?'3D · compatibility renderer recovered':'3D unavailable · switch to 2D map';
+     }
     }
    }else drawWorld(size.w,size.h);
    if(t-lastSave>1100){lastSave=t;savePosition();updateHud();}
@@ -334,7 +371,7 @@
  $('#fullscreen-exit').addEventListener('click',()=>{document.exitFullscreen?.();});
  window.addEventListener('keydown',e=>{
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))e.preventDefault();
-  if(e.key.toLowerCase()==='e')claimSeal();
+  if(e.key.toLowerCase()==='e')interactRoad();
   keys.add(e.key.length===1?e.key.toLowerCase():e.key);
  });
  window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));
