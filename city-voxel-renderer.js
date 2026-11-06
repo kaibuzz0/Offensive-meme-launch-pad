@@ -204,7 +204,10 @@
     const r=world.caveRoomAt(tile.x,tile.z);
     if(!r)continue;
     const x=tile.x,z=tile.z,floor=r.floor,ceil=r.ceiling;
-    const rock=[.21,.24,.27],base=[.30,.32,.30],vault=[.16,.18,.23];
+    const chamber=r.kind==='chamber-a'||r.kind==='chamber-b';
+    const rock=chamber?[.25,.28,.30]:[.21,.24,.27];
+    const base=chamber?[.30,.30,.29]:[.27,.29,.29];
+    const vault=chamber?[.19,.21,.23]:[.16,.18,.23];
     if(!r.exposed||floor<tile.height+.85){
      quad(data,[x,floor,z],[x+1,floor,z],[x+1,floor,z+1],[x,floor,z+1],base,[0,1,0]);
     }
@@ -230,6 +233,12 @@
     if(!r.exposed&&r.t>6&&((x*7+z*11)&15)===0){
      const height=1.6+((x^z)&3),tint=((x*3+z*5)&3)===0?[.36,.56,.65]:[.31,.34,.36];
      canopy(data,x+.5,ceil-.3,z+.5,.37,height,.37,tint,.2);
+    }
+    // Small subterranean mineral clusters give chambers a readable
+    // silhouette at lantern range without requiring bulky texture assets.
+    if(chamber&&!r.exposed&&((x*31+z*17)&31)===0){
+     const pale=((x^z)&3)===0?[.40,.56,.62]:[.29,.42,.48];
+     canopy(data,x+.5,floor+.45,z+.5,.28,.65,.28,pale,.6);
     }
    }
   }
