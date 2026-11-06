@@ -59,6 +59,10 @@ try{
  const url='http://127.0.0.1:'+server.address().port+'/city.html?terrain=1';
  await request('Page.navigate',{url:new URL('index.html',url).href});
  await waitFor(()=>evalPage('!!document.querySelector(".game-direct-play")'),'homepage Play action');
+ // Use a known traversal seed for the release acceptance journey; other
+ // randomized seeds are covered by independent deterministic world tests.
+ // This prevents terrain-seed lottery from masking renderer regressions.
+ await evalPage('localStorage.setItem("meme-city-terrain-seed-v1","fortress-road");true');
  assert.equal(await evalPage('document.querySelector(".game-direct-play").href'),url);
  await evalPage('document.querySelector(".game-direct-play").click();true');
  await waitFor(()=>evalPage('!!window.CityTerrainWorld?.createTerrain && document.body.classList.contains("terrain-only-mode")'),'terrain script boot');
