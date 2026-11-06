@@ -1,0 +1,33 @@
+name: Meme City 15-Workstream Council
+
+# Lightweight research/triage tasks run every 20 minutes; this is not an AI
+# code-writing service. Actual code work requires an assigned coding agent.
+on:
+  schedule:
+    - cron: '7,27,47 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: meme-city-development-council
+  cancel-in-progress: false
+
+jobs:
+  council:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate all 15 workstream definitions and research policy
+        run: node --test scripts/meme-city-council.test.mjs
+      - name: Scan source libraries, update research issues and triage the development roadmap
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/meme-city-council.mjs
