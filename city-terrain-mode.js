@@ -111,20 +111,31 @@
  // Android browsers can temporarily discard the WebGL context during app
  // switching or memory pressure. Keep the seed and physics alive in the 2D
  // fallback, then recreate only GPU resources after the context returns.
+ // A mobile WebGL context may be lost while the page is backgrounded.
+ // Recovery must not throw out of a browser event listener: Canvas2D can
+ // itself be unavailable (or its constructor can throw on a low-memory device).
+ function recoverPerspective(factory){
+  let replacement=null;
+  try{replacement=factory();}catch(err){
+   status.dataset.rendererError=String(err?.message||err).slice(0,120);
+  }
+  const previous=perspective;
+  perspective=replacement;
+  firstPerson=!!replacement;
+  try{previous?.dispose();}catch{}
+  syncView();
+  if(!replacement)status.textContent='3D unavailable · switch to 2D map';
+  return !!replacement;
+ }
  voxelCanvas.addEventListener('webglcontextlost',event=>{
   event.preventDefault();
   contextInterrupted=true;
-  const abandoned=perspective;
-  perspective=rendererApi.createCanvasRenderer(softwareCanvas,voxel);firstPerson=!!perspective;syncView();
-  // Stops outstanding mesh requests and retires resources associated with a
-  // dead GL context; the restored context gets a fresh worker and GPU cache.
-  try{abandoned?.dispose();}catch{}
+  recoverPerspective(()=>rendererApi.createCanvasRenderer(softwareCanvas,voxel));
  });
  voxelCanvas.addEventListener('webglcontextrestored',()=>{
   if(!contextInterrupted)return;
-  perspective?.dispose();perspective=openPerspective();
   contextInterrupted=false;
-  firstPerson=!!perspective;syncView();
+  recoverPerspective(openPerspective);
  });
  function syncView(){
   const threeD=!!perspective&&firstPerson&&!atlas;
