@@ -120,33 +120,66 @@
    cache.set(key,value);if(cache.size>CACHE_LIMIT)cache.delete(cache.keys().next().value);
    return value;
   }
-  // Underground starter gallery shares one coordinate system with the open
-  // landscape. Each selected cave entrance opens into a 4.5m branching pocket,
-  // carved below the untouched surface; it is not a separate teleport scene.
-  // Entrances stay >=24 voxels from 112-voxel cell boundaries so the gallery
-  // does not require generating an entire neighboring cell to find its owner.
+  // A single seeded cave complex has an entrance, a sloped approach and
+  // TWO joined chambers; all lie within the same finite region and share the
+  // exact surface X/Z and block Y coordinate system (no teleport scene).
+  // Keep the original 112-cell entrances/18.5-voxel galleries stable for saves.
+  const caveCells=new Map(),CAVE_CELL_LIMIT=256;
+  function caveCell(cx,cz){
+   const key=cx+':'+cz;
+   if(caveCells.has(key))return caveCells.get(key);
+   let result=null;
+   if(random(sinkSeed^0x4caf,cx,cz,9)>=.79){
+    const mx=cx*MOUTH_CELL+24+Math.floor(random(sinkSeed,cx,cz,5)*(MOUTH_CELL-48));
+    const mz=cz*MOUTH_CELL+24+Math.floor(random(sinkSeed,cx,cz,6)*(MOUTH_CELL-48));
+    const angle=random(sinkSeed^0x1dad,cx,cz,11)*Math.PI*2;
+    const dx=Math.cos(angle),dz=Math.sin(angle);
+    const ax=clamp(mx+dx*29,cx*MOUTH_CELL+15,(cx+1)*MOUTH_CELL-16);
+    const az=clamp(mz+dz*29,cz*MOUTH_CELL+15,(cz+1)*MOUTH_CELL-16);
+    const side=(random(sinkSeed,cx,cz,12)>.5?1:-1);
+    const bx=clamp(ax-dz*side*16+dx*7,cx*MOUTH_CELL+14,(cx+1)*MOUTH_CELL-15);
+    const bz=clamp(az+dx*side*16+dz*7,cz*MOUTH_CELL+14,(cz+1)*MOUTH_CELL-15);
+    const ar=7.2+random(sinkSeed,cx,cz,13)*2.5;
+    const br=6.5+random(sinkSeed,cx,cz,14)*2.5;
+    result=Object.freeze({id:key,cx,cz,mx,mz,dx,dz,angle,
+     ax,az,bx,bz,ar,br,
+     mouthHeight:surfaceAt(mx,mz).height+1});
+   }
+   caveCells.set(key,result);
+   if(caveCells.size>CAVE_CELL_LIMIT)caveCells.delete(caveCells.keys().next().value);
+   return result;
+  }
+  function segmentDistance(x,z,x0,z0,x1,z1){
+   const dx=x1-x0,dz=z1-z0,size=dx*dx+dz*dz||1;
+   const t=clamp(((x-x0)*dx+(z-z0)*dz)/size,0,1);
+   const bx=x0+t*dx,bz=z0+t*dz;
+   return {distance:Math.hypot(x-bx,z-bz),t};
+  }
   function caveRoomAt(x,z){
    if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z))return null;
    const cx=Math.floor(x/MOUTH_CELL),cz=Math.floor(z/MOUTH_CELL);
-   if(random(sinkSeed^0x4caf,cx,cz,9)<.79)return null;
-   const mx=cx*MOUTH_CELL+24+Math.floor(random(sinkSeed,cx,cz,5)*(MOUTH_CELL-48));
-   const mz=cz*MOUTH_CELL+24+Math.floor(random(sinkSeed,cx,cz,6)*(MOUTH_CELL-48));
-   const angle=random(sinkSeed^0x1dad,cx,cz,11)*Math.PI*2;
-   const dx=Math.cos(angle),dz=Math.sin(angle);
-   const ox=x+.5-mx,oz=z+.5-mz;
-   const t=ox*dx+oz*dz,side=Math.abs(ox*-dz+oz*dx);
-   if(t<-.8||t>18.5)return null;
-   const width=2.3+Math.min(3.1,Math.max(0,t-9)*.40);
-   if(side>width)return null;
-   const mouth=surfaceAt(mx,mz);
-   const floor=mouth.height+1-Math.floor(Math.max(0,t)*.25);
-   const ceiling=floor+8+Math.floor(Math.max(0,t)*.22);
+   const m=caveCell(cx,cz);if(!m)return null;
+   const ox=x+.5-m.mx,oz=z+.5-m.mz;
+   const t=ox*m.dx+oz*m.dz,side=Math.abs(ox*-m.dz+oz*m.dx);
+   const main=t>=-.8&&t<=18.5&&side<=2.3+Math.min(3.1,Math.max(0,t-9)*.4);
+   const approach=segmentDistance(x+.5,z+.5,m.mx+m.dx*12,m.mz+m.dz*12,m.ax,m.az);
+   const connector=segmentDistance(x+.5,z+.5,m.ax,m.az,m.bx,m.bz);
+   const distA=Math.hypot(x+.5-m.ax,z+.5-m.az),distB=Math.hypot(x+.5-m.bx,z+.5-m.bz);
+   const inA=distA<=m.ar,inB=distB<=m.br;
+   const inApproach=approach.distance<=2.7;
+   const inConnector=connector.distance<=3.1;
+   if(!(main||inA||inB||inApproach||inConnector))return null;
+   let kind='gallery',span=Math.max(0,t),height=8+Math.floor(Math.max(0,t)*.22);
+   if(inB){kind='chamber-b';span=Math.max(0,Math.hypot(m.ax-m.mx,m.az-m.mz)+connector.t*7);height=17;}
+   else if(inA){kind='chamber-a';span=Math.max(0,Math.hypot(m.ax-m.mx,m.az-m.mz));height=15;}
+   else if(inConnector){kind='connector';span=Math.max(0,Math.hypot(m.ax-m.mx,m.az-m.mz)+connector.t*7);height=11;}
+   else if(inApproach&&!main){kind='approach';span=Math.max(12,t);height=10;}
+   const floor=m.mouthHeight-Math.floor(span*.23);
+   const ceiling=floor+height;
    const outer=surfaceAt(x,z);
-   // A depressed rock bowl is the roofless portal; past the first few
-   // meters the original landscape stays overhead above the gallery roof.
    const exposed=!!outer.mouth&&outer.height+1<=ceiling;
-   return Object.freeze({id:cx+':'+cz,x,z,t,side,width,floor,ceiling,
-    exposed,mouthX:mx,mouthZ:mz,angle});
+   return Object.freeze({id:m.id,kind,x,z,t,side,width:kind==='gallery'?2.3:kind==='connector'?3.1:kind==='approach'?2.7:kind==='chamber-a'?m.ar:m.br,
+    floor,ceiling,exposed,mouthX:m.mx,mouthZ:m.mz,angle:m.angle});
   }
   function caveAt(x,y,z){
    if(!Number.isInteger(y)||y<MIN_HEIGHT||y>MAX_HEIGHT)return false;
@@ -227,7 +260,7 @@
   }
   return Object.freeze({seed,atlas,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,MIN_HEIGHT,MAX_HEIGHT,
    SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,featureAt,chunkAt,
-   cacheSize:()=>cache.size,spawnAt});
+   cacheSize:()=>cache.size,caveCacheSize:()=>caveCells.size,spawnAt});
  }
  root.CityVoxelWorld=Object.freeze({createVoxelWorld,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,
   MIN_HEIGHT,MAX_HEIGHT,SEA_LEVEL,CHUNK_SIZE,noise2,noise3});
