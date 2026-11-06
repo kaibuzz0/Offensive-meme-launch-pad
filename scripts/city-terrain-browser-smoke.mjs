@@ -129,9 +129,11 @@ try{
   await evalPage('Array.from(document.querySelectorAll("button")).find(b=>b.textContent==="Start at Fortress Road").click();true');
  }
  const start=await evalPage('JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).y');
- await request('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowUp',code:'ArrowUp',windowsVirtualKeyCode:38});
- await delay(900);
- await request('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowUp',code:'ArrowUp',windowsVirtualKeyCode:38});
+ await request('Input.dispatchKeyEvent',{type:'keyDown',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
+ await delay(1550);
+ await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
+ const motion=await evalPage('(()=>({liveZ:Number(document.getElementById("city-voxel-status").dataset.worldZ),mode:document.getElementById("city-voxel-status").dataset.playerMode,seed:localStorage.getItem("meme-city-terrain-seed-v1"),savedZ:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).y}))()');
+ console.log('Road movement probe',JSON.stringify({start,...motion}));
  await waitFor(()=>evalPage('JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).y>'+start),'movement persists to local save');
  await request('Page.reload',{ignoreCache:true});
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'reload terrain mode');
