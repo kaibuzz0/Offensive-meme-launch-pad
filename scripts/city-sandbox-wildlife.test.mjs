@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 const source=readFileSync(new URL('../city-sandbox-wildlife.js',import.meta.url),'utf8');
 const {default: wildlife}=await import('data:text/javascript;base64,'+
  Buffer.from(source+'\nexport default globalThis.CitySandboxWildlife;').toString('base64'));
-const {spawnChunk,spawnChunkOnTerrain,habitatFor,cappedFlockStep,MAX_PER_CHUNK}=wildlife;
+const {spawnChunk,spawnChunkOnTerrain,habitatFor,cappedFlockStep,createChunkWildlifeManager,MAX_PER_CHUNK}=wildlife;
 
 test('seed and chunk coordinates yield stable wildlife independent of call order',()=>{
  const a=spawnChunk(741,12,-4,'forest');
@@ -53,7 +53,8 @@ test('terrain adapter samples voxel height and preserves seed-stable placements'
  const first=spawnChunkOnTerrain(world,2,-3);
  assert.deepEqual(spawnChunkOnTerrain(world,2,-3),first);
  assert.ok(Object.isFrozen(first));
- assert.ok(first.every(c=>c.y===51+Math.floor(c.x)%3&&c.habitat==='forest'));
+ assert.ok(first.every(c=>c.habitat==='forest'&&(
+  c.species==='songbird'?c.y>=54+Math.floor(c.x)%3:c.y===51+Math.floor(c.x)%3)));
  assert.deepEqual(first.map(({id,x,z,heading})=>({id,x,z,heading})),
   spawnChunk(world.seed,2,-3,{group:'evergreen',name:'Ancient Forest'}).map(({id,x,z,heading})=>({id,x,z,heading})));
 });
@@ -115,4 +116,28 @@ test('fish require actual water depth rather than merely a water flag',()=>{
  })};
  for(let x=-2;x<=2;x++)for(let z=-2;z<=2;z++)
   assert.ok(spawnChunkOnTerrain(dryBed,x,z).every(a=>a.species==='seabird'));
+});
+
+test('chunk lifecycle has deterministic bounded entries, eviction and removal',()=>{
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0
+ })};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ const first=manager.enter(-1,0);
+ assert.strictEqual(manager.enter(-1,0),first);
+ manager.enter(0,0);
+ assert.equal(manager.activeChunks(),2);
+ const snap=manager.sync([[0,0],[1,0]]);
+ assert.ok(Object.isFrozen(snap));
+ assert.equal(manager.activeChunks(),2);
+ assert.ok(snap.length<=12);
+ assert.deepEqual(manager.enter(-1,0),first);
+ assert.equal(manager.activeChunks(),2);
+ assert.ok(manager.leave(-1,0));
+ assert.equal(manager.activeChunks(),1);
+ manager.clear();
+ assert.deepEqual(manager.snapshot(),[]);
+ assert.throws(()=>manager.sync([[0,0],[0,0]]),/Duplicate/);
+ assert.throws(()=>manager.sync([[0,0],[1,0],[2,0]]),RangeError);
+ assert.throws(()=>manager.enter(0.5,0),TypeError);
 });
