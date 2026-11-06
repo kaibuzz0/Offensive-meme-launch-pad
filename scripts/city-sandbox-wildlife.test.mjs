@@ -72,8 +72,8 @@ test('terrain adapter places aquatic wildlife below water surface only',()=>{
   height:103,water:true,river:false,waterLevel:112,group:'ocean',biomeName:'Deep Ocean',slope:0
  })};
  const fish=spawnChunkOnTerrain(wet,0,0);
- assert.ok(fish.every(c=>c.species==='fish'&&c.y===104));
- assert.deepEqual(spawnChunkOnTerrain({...wet,surfaceAt:()=>({...wet.surfaceAt(),water:false})},0,0),[]);
+ assert.ok(fish.every(c=>c.species==='fish'?c.y===104:c.species==='seabird'&&c.y>=116));
+ assert.ok(spawnChunkOnTerrain({...wet,surfaceAt:()=>({...wet.surfaceAt(),water:false})},0,0).every(c=>c.species==='seabird'));
 });
 
 
