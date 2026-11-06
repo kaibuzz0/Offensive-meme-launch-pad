@@ -251,26 +251,29 @@
   'uniform mat4 uMatrix;uniform vec3 uEye;varying vec3 vColor;varying float vDist;'+
   'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;'+
   'void main(){gl_Position=uMatrix*vec4(aPos,1.0);'+
-  'float lit=.38+.56*max(0.0,dot(normalize(aNormal),normalize(vec3(.40,.87,.22))));'+
-  'vColor=aColor*lit;vDist=distance(aPos,uEye);vPosition=aPos;vNormal=aNormal;'+
-  'vWater=(aColor.r<.20&&aColor.g>.40&&aColor.g<.49&&aColor.b>.64)?1.0:0.0;}';
+  'vColor=aColor;vDist=distance(aPos,uEye);vPosition=aPos;vNormal=aNormal;'+
+  'vWater=aNormal.y< -1.5?1.0:0.0;}';
  const fragmentSource='precision mediump float;varying vec3 vColor;varying float vDist;'+
   'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;uniform float uTime;'+
   'uniform vec3 uLampEye;uniform float uUnderground;'+
   'float grit(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}'+
   'float gravel(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);'+
   'return mix(mix(grit(i),grit(i+vec2(1,0)),f.x),mix(grit(i+vec2(0,1)),grit(i+vec2(1,1)),f.x),f.y);}'+
-  'void main(){vec3 color=vColor;'+
-  'vec3 n=abs(normalize(vNormal));'+
+  'void main(){vec3 unitNormal=vWater>.5?vec3(0.0,1.0,0.0):normalize(vNormal);'+
+  'vec3 n=abs(unitNormal);'+
   'vec2 uv=n.y>.5?vPosition.xz:(n.x>n.z?vPosition.zy:vPosition.xy);'+
+  'float sunDiffuse=max(0.0,dot(unitNormal,normalize(vec3(.40,.87,.22))));'+
+  'vec3 color=vColor*(.30+.65*sunDiffuse);'+
   'float fine=gravel(uv*2.6),coarse=gravel(uv*.45);'+
   'float seams=sin(vPosition.y*.51+coarse*3.1)*.045;'+
   'float mineral=(fine-.5)*.24+(coarse-.5)*.16+seams;'+
-  'color*=clamp(1.0+mineral,.69,1.2);'+
+  'color*=clamp(1.0+mineral,.68,1.2);'+
   'color+=vec3(.035,.047,.036)*pow(max(0.0,coarse-.68),2.0)*3.5;'+
   'if(vWater>.5){float wave=sin(vPosition.x*.81+uTime*.8)*sin(vPosition.z*.62-uTime*.7);'+
   'float gleam=pow(max(0.0,sin((vPosition.x+vPosition.z)*1.7+uTime*1.5)),16.0);'+
-  'color=vec3(.055,.26,.42)+vec3(.025,.080,.11)*wave+vec3(.17,.19,.19)*gleam;}'+
+  'vec3 toEye=normalize(uLampEye-vPosition);'+
+  'float fresnel=pow(1.0-clamp(dot(toEye,vec3(0.0,1.0,0.0)),0.0,1.0),3.0);'+
+  'color=vColor*(.62+.18*wave)+vec3(.18,.22,.23)*gleam+vec3(.07,.13,.16)*fresnel;}'+
   'float torch=1.0/(1.0+.009*pow(distance(vPosition,uLampEye),2.0));'+
   'vec3 cavern=color*(.10+.84*torch)+vec3(.22,.145,.075)*torch;'+
   'color=mix(color,cavern,uUnderground);'+
