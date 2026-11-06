@@ -32,7 +32,7 @@
   if(/desert|dune|arid|badland/.test(name))return 'desert';
   if(/tundra|snow|ice|glacier|polar/.test(name))return 'tundra';
   if(/mountain|alpine|highland|peak/.test(name))return 'mountain';
-  if(/forest|jungle|wood|grove|taiga/.test(name))return 'forest';
+  if(/forest|jungle|wood|grove|taiga|evergreen|tropical|fungal/.test(name))return 'forest';
   return 'plains';
  }
  function spawnChunk(seed,chunkX,chunkZ,biome,options={}){
