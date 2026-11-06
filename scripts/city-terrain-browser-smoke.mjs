@@ -81,6 +81,11 @@ try{
   assert.equal(view.hidden,false,'first person is default when WebGL works');
   assert.equal(await evalPage('document.getElementById("city-jump").hidden'),false,'mobile jump must be visible in first person');
   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.textContent.startsWith("3D ·")'),'3D chunk rendering',30000);
+  await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.dataset.meshWorker==="ready"'),'Web Worker terrain mesher initializes',30000);
+  await waitFor(()=>evalPage('Number(document.getElementById("city-voxel-status")?.dataset.gpuBytes)>0'),'transferred worker geometry draws in WebGL',30000);
+  const workerMetrics=await evalPage('(()=>{const el=document.getElementById("city-voxel-status");return {status:el.dataset.meshWorker,pending:Number(el.dataset.meshPending),gpuBytes:Number(el.dataset.gpuBytes)};})()');
+  assert.equal(workerMetrics.status,'ready','first-person browser uses off-thread deterministic mesher');
+  assert.ok(workerMetrics.pending>=0&&workerMetrics.pending<=2,'mesh request backpressure is bounded');
   const error=await evalPage('document.getElementById("city-voxel-canvas").getContext("webgl").getError()');
   assert.equal(error,0,'first-person 3D frame must not cause WebGL errors');
   const metrics=await evalPage('(()=>{const el=document.getElementById("city-voxel-status");return {gpuBytes:Number(el.dataset.gpuBytes),underground:el.dataset.underground,hasGallery:typeof CityVoxelWorld.createVoxelWorld(CityTerrainWorld.createTerrain(localStorage.getItem("meme-city-terrain-seed-v1"),CityFrontier.regions)).caveRoomAt==="function"};})()');
