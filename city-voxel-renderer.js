@@ -278,8 +278,10 @@
   'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;'+
   'void main(){vWater=aNormal.y< -1.5?1.0:0.0;'+
   // World-space coordinates guarantee identical displacement on shared chunk edges.
+  // 0.025 max amplitude stays below the 0.035 raised shoreline foam strips,
+  // avoiding water/foam depth fighting on WebGL1 mobile renderers.
   'float wave=sin(aPos.x*.81+uTime*.8)*sin(aPos.z*.62-uTime*.7);'+
-  'vec3 surface=aPos+vec3(0.0,vWater*.065*wave,0.0);'+
+  'vec3 surface=aPos+vec3(0.0,vWater*.025*wave,0.0);'+
   'gl_Position=uMatrix*vec4(surface,1.0);'+
   'vColor=aColor;vDist=distance(surface,uEye);vPosition=surface;vNormal=aNormal;}';
  const fragmentSource='precision mediump float;varying vec3 vColor;varying float vDist;'+
@@ -305,8 +307,8 @@
   'color+=vec3(.035,.047,.036)*pow(max(0.0,coarse-.68),2.0)*3.5;'+
   'if(vWater>.5){'+
   'float phaseX=vPosition.x*.81+uTime*.8,phaseZ=vPosition.z*.62-uTime*.7;'+
-  'float slopeX=.065*.81*cos(phaseX)*sin(phaseZ);'+
-  'float slopeZ=.065*.62*sin(phaseX)*cos(phaseZ);'+
+  'float slopeX=.025*.81*cos(phaseX)*sin(phaseZ);'+
+  'float slopeZ=.025*.62*sin(phaseX)*cos(phaseZ);'+
   'vec3 waterNormal=normalize(vec3(-slopeX,1.0,-slopeZ));'+
   'float wave=sin(phaseX)*sin(phaseZ);'+
   'float gleam=pow(max(0.0,sin((vPosition.x+vPosition.z)*1.7+uTime*1.5)),16.0);'+
