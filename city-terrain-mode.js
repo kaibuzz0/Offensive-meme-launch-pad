@@ -112,7 +112,9 @@
  const renderHint=document.createElement('div');
  renderHint.id='city-render-hint';renderHint.textContent='Loading the 3D world…';
  modeButton.insertAdjacentElement('afterend',renderHint);
- let forceCanvas=new URLSearchParams(window.location.search).get('render')==='canvas';
+ // Default Android to the independently drawn landscape until the native
+ // WebGL path passes real-device visual verification; players may opt back in.
+ let forceCanvas=new URLSearchParams(window.location.search).get('render')==='canvas'||/Android/i.test(window.navigator?.userAgent||'');
  let blankSince=0;
  function openPerspective(){
   if(!voxel||!rendererApi)return null;
