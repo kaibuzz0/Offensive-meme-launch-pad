@@ -27,6 +27,11 @@ export function commandDrone(drone,command,{target}={}) {
   if (command === 'return') return {...drone,mode:drone.mode==='docked'?'docked':'returning',camera:false,target:clone(drone.home)};
   if (command === 'scout') {
     if (drone.mode !== 'scouting' || !point(target) || distance(drone.home,target)>drone.range) throw new RangeError('scout target unavailable');
+    // Reserve enough simulated flight time for the commanded outbound leg,
+    // the trip back to home, and the same two-second emergency margin used
+    // by stepDrone. Reject unreachable targets instead of stranding a drone.
+    const required = (distance(drone.position,target)+distance(target,drone.home))/drone.speed+2;
+    if (drone.battery < required) throw new RangeError('insufficient battery for scout and return');
     return {...drone,target:clone(target)};
   }
   if (command === 'camera') {
