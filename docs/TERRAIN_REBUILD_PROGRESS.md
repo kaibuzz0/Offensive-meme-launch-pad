@@ -120,3 +120,20 @@ The estimates cover the explicitly agreed map-first scope, and will be revised a
 **Project-progress engineering estimates after round 4:** first-person terrain prototype **~78%**, realism-grade environment visuals **~34%**, full original sandbox **~26%**. These are subjective scope estimates rather than verified completion metrics.
 
 **Next round:** Expand from short seed-stable galleries to connected underground chambers and caves with robust collision/navigation, profile on Android, and adopt vetted realistic material atlases with license notices and reduced-memory LOD textures.
+## Milestone 5 — Connected cavern pockets and adaptive graphics (PR #40)
+
+**Completed in code (verification required):**
+- Existing seeded 112-voxel cave-mouth placements and saved world seeds are retained. Each eligible cave region contains the original entrance gallery, an approach passage, two deterministic underground chamber regions and a connector. This is a **small cave complex** rather than a world-spanning tunnel system.
+- Surface, cave floors/roofs, air blocks and first-person movement all remain in one X/Y/Z coordinate system. A new metadata cache is capped at 256 cave cells.
+- The current player-relative foot elevation is saved as an optional `vertical` attribute in the existing terrain-specific local save. Earlier saves lacking this attribute remain readable. Existing World V1 saves are untouched.
+- Underground camera position drives a local warm lantern-style lighting approximation, darker fog and nearby cave illumination via WebGL1. This is **not** full global illumination, volumetric light, physically-based shading or dynamic cast shadows.
+- Browser rendering uses an adaptive chunk view radius of 5–7, based on sustained frame delay; frame-time estimates are surfaced in the HUD. The preexisting 24 MiB resident GPU buffer cap and detailed-near/coarse-far mesh system stay in effect.
+- New deterministic tests check chamber-to-chamber traversable floor topology, geometry consistency, seed variations, bounded caching and restoring vertical depth; the browser test covers 132 biomes, cave API, view radius and mobile-sized WebGL startup.
+
+**Remaining limitations:** Neither all underground caves nor the full random geology field is yet represented as enterable mesh. Only authored pocket complexes are rendered. Many caves remain unexplorable noise-field data. Player collision is still heightfield-plus-gallery, not a fully robust swept 3D capsule. The lighting is an artistic approximation. Realistic licensed material maps, occlusion/shadows, detailed biome vegetation models, transparent water, background chunk workers and measured physical-Android FPS remain unfinished.
+
+**Estimates after Round 5 (engineering judgment, not measured):** first-person landscape **82%**, realistic environmental rendering **38%**, full sandbox/world gameplay **29%**.
+
+**Next suggested milestone:** Expand underground routing into larger multi-elevation cave systems, robust player collision, and worker-based chunk mesh production. Follow with licensed PBR texture maps and cast shadows (budgeted for Android), accurate water and shoreline transitions, and physics/navigation/browser regression across multiple saved seeds.
+
+**Release criteria:** exact-head Node tests, static asset/Pages validation, legacy World V1 Chromium and terrain-mode Chromium must all pass before incremental merge. Confirm successful deployment and preserve legacy saves.

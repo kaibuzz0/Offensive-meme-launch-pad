@@ -29,12 +29,13 @@
    }
    return top;
   }
-  const initial=floorAt(start.x,start.z);
+  const requestedY=Number.isFinite(start.y)?start.y:Infinity;
+  const initial=floorAt(start.x,start.z,requestedY);
   if(initial===null)throw Error('Spawn outside supported world');
   const state={x:start.x,z:start.z,y:initial,vy:0,grounded:true};
   function snapshot(){return Object.freeze({...state});}
-  function teleport(x,z){
-   const floor=floorAt(x,z);
+  function teleport(x,z,referenceY=Infinity){
+   const floor=floorAt(x,z,referenceY);
    if(floor===null)return false;
    state.x=x;state.z=z;state.y=floor;state.vy=0;state.grounded=true;
    return true;

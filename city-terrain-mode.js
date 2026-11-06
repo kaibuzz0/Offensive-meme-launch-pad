@@ -44,7 +44,7 @@
  $('#welcome-title').textContent='YOUR WORLD. YOUR SEED.';
  $('.welcome-lead').textContent='Explore a seeded 3D voxel wilderness with 132 named biomes, mountains, rivers, lakes, trees, grass, flowers, underwater valleys and underground cave data. Each small block is one-quarter of a meter, with a first-person camera. Buildings, streets, NPCs and quests remain disabled; legacy saves stay protected.';
  $('.welcome-steps').hidden=true;
- $('.welcome-goal').textContent='Round 3 preview: richer woodland shapes, rocky escarpments, cave-mouth sinkholes, shorelines and basic step/jump/fall physics. Still missing photoreal surface textures, full cave interiors, shadows and water simulation.';
+ $('.welcome-goal').textContent='Round 5 preview: seed-linked cave entrances, passages and two joined underground chambers per eligible cave region, with close-range lantern lighting. True photoreal textures, mining, extensive cave networks, shadows and water physics remain unfinished.';
  start.textContent='Enter first-person wilderness →';
  $('.welcome-controls').textContent='WASD / arrows or mobile joystick · Swipe/drag to look · Space or Jump to leap · Steep rock walls block movement · Atlas and top-down view remain available.';
  const legacy=document.createElement('a');
@@ -71,12 +71,13 @@
    if(saved?.version===world.version&&saved.seed===seed&&
       Number.isFinite(saved.x)&&Number.isFinite(saved.y)&&
       Math.abs(saved.x)<1000000&&Math.abs(saved.y)<1000000)
-    return {x:saved.x,y:saved.y,yaw:Number.isFinite(saved.yaw)?saved.yaw:0,pitch:Number.isFinite(saved.pitch)?Math.max(-1.3,Math.min(1.3,saved.pitch)):0};
+    return {x:saved.x,y:saved.y,yaw:Number.isFinite(saved.yaw)?saved.yaw:0,pitch:Number.isFinite(saved.pitch)?Math.max(-1.3,Math.min(1.3,saved.pitch)):0,
+     vertical:Number.isFinite(saved.vertical)&&saved.vertical>=voxel?.MIN_HEIGHT&&saved.vertical<=voxel?.MAX_HEIGHT?saved.vertical:undefined};
   }catch{}
   return {x:initial.x,y:initial.z??initial.y,yaw:0,pitch:0};
  }
  let player=restore(),running=false,paused=false,atlas=false,zoom=20,last=0,lastSave=0;
- let physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y})||null;
+ let physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y,y:player.vertical})||null;
  let jumpHeld=false,jumpQueued=false;
  const voxelCanvas=document.createElement('canvas');voxelCanvas.id='city-voxel-canvas';
  voxelCanvas.setAttribute('aria-label','First-person procedurally generated voxel wilderness. Drag to look around.');
@@ -112,14 +113,16 @@
  function resetVoxel(){
   if(perspective)perspective.dispose();
   voxel=voxelApi?.createVoxelWorld(world)||null;
-  physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y})||null;
+  physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y,y:player.vertical})||null;
   try{perspective=voxel&&rendererApi?rendererApi.createRenderer(voxelCanvas,voxel):null;}catch{perspective=null;}
   firstPerson=!!perspective;syncView();
  }
  const keys=new Set(),held=new Set();
  const stick={x:0,y:0};
  function savePosition(){
-  put(POS+seed,JSON.stringify({version:world.version,seed,x:player.x,y:player.y,yaw:player.yaw,pitch:player.pitch}));
+  const feet=physics?.snapshot();
+  const vertical=feet&&Math.hypot(feet.x-player.x,feet.z-player.y)<.1?feet.y:null;
+  put(POS+seed,JSON.stringify({version:world.version,seed,x:player.x,y:player.y,yaw:player.yaw,pitch:player.pitch,vertical}));
  }
  function spawnNewWorld(){
   savePosition();seed=randomSeed();put(KEY,seed);
@@ -229,7 +232,9 @@
      const metrics=perspective.render({x:player.x,z:player.y,y:cameraY,yaw:player.yaw,pitch:player.pitch});
       const gallery=voxel.caveRoomAt?.(Math.floor(player.x),Math.floor(player.y));
       const subterranean=!!gallery&&!gallery.exposed&&cameraY+voxel.EYE_HEIGHT<voxel.surfaceAt(Math.floor(player.x),Math.floor(player.y)).height+1;
-      status.textContent='3D · '+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks · elevation '+Math.round(cameraY*voxel.VOXEL_METERS)+'m'+(subterranean?' · UNDERGROUND':'');
+      status.textContent='3D · '+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks · elevation '+Math.round(cameraY*voxel.VOXEL_METERS)+'m'+(subterranean?' · CAVERN':'')+' · ~'+Math.round(1000/Math.max(1,metrics.frameAverage))+' fps';
+      status.dataset.viewRadius=String(metrics.viewRadius);
+      status.dataset.cavern=String(subterranean);
       status.dataset.elevation=String(cameraY);
       status.dataset.grounded=String(physics?.snapshot().grounded??true);
       status.dataset.underground=String(subterranean);

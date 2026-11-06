@@ -240,6 +240,7 @@
   'vWater=(aColor.r<.20&&aColor.g>.40&&aColor.g<.49&&aColor.b>.64)?1.0:0.0;}';
  const fragmentSource='precision mediump float;varying vec3 vColor;varying float vDist;'+
   'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;uniform float uTime;'+
+  'uniform vec3 uLampEye;uniform float uUnderground;'+
   'float grit(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}'+
   'float gravel(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);'+
   'return mix(mix(grit(i),grit(i+vec2(1,0)),f.x),mix(grit(i+vec2(0,1)),grit(i+vec2(1,1)),f.x),f.y);}'+
@@ -254,8 +255,12 @@
   'if(vWater>.5){float wave=sin(vPosition.x*.81+uTime*.8)*sin(vPosition.z*.62-uTime*.7);'+
   'float gleam=pow(max(0.0,sin((vPosition.x+vPosition.z)*1.7+uTime*1.5)),16.0);'+
   'color=vec3(.055,.26,.42)+vec3(.025,.080,.11)*wave+vec3(.17,.19,.19)*gleam;}'+
-  'float fog=smoothstep(55.0,235.0,vDist);'+
-  'gl_FragColor=vec4(mix(color,vec3(.63,.77,.88),fog),1.0);}';
+  'float torch=1.0/(1.0+.009*pow(distance(vPosition,uLampEye),2.0));'+
+  'vec3 cavern=color*(.10+.84*torch)+vec3(.22,.145,.075)*torch;'+
+  'color=mix(color,cavern,uUnderground);'+
+  'float fog=mix(smoothstep(55.0,235.0,vDist),smoothstep(24.0,75.0,vDist),uUnderground);'+
+  'vec3 haze=mix(vec3(.63,.77,.88),vec3(.017,.025,.030),uUnderground);'+
+  'gl_FragColor=vec4(mix(color,haze,fog),1.0);}';
  const skyVertex='attribute vec2 aXY;varying vec2 vUV;'+
   'void main(){gl_Position=vec4(aXY,0.9999,1.0);vUV=aXY*.5+.5;}';
  const skyFragment='precision mediump float;varying vec2 vUV;uniform vec2 uLook;'+
@@ -304,7 +309,9 @@
   const loc={
    pos:gl.getAttribLocation(program,'aPos'),color:gl.getAttribLocation(program,'aColor'),
    normal:gl.getAttribLocation(program,'aNormal'),matrix:gl.getUniformLocation(program,'uMatrix'),
-   eye:gl.getUniformLocation(program,'uEye')
+   eye:gl.getUniformLocation(program,'uEye'),
+   lampEye:gl.getUniformLocation(program,'uLampEye'),
+   underground:gl.getUniformLocation(program,'uUnderground')
   };
   const skyProgram=gl.createProgram();
   gl.attachShader(skyProgram,shader(gl,gl.VERTEX_SHADER,skyVertex));
@@ -317,6 +324,7 @@
   const skyPos=gl.getAttribLocation(skyProgram,'aXY'),skyLook=gl.getUniformLocation(skyProgram,'uLook');
   const timeUniform=gl.getUniformLocation(program,'uTime');
   const chunks=new Map(),MAX_CHUNKS=176,MAX_GPU_BYTES=24*1024*1024,RADIUS=7,NEAR_RADIUS=3;
+  let adaptiveRadius=RADIUS,frameAverage=16.7,lastFrameTime=null,slowFrames=0,fastFrames=0;
   let allocated=0;
   gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);
   function release(key){
@@ -332,6 +340,17 @@
    allocated+=mesh.data.byteLength;
   }
   function render(player){
+   const clock=typeof performance!=='undefined'?performance.now():null;
+   if(clock!==null&&lastFrameTime!==null){
+    const elapsed=Math.min(120,Math.max(1,clock-lastFrameTime));
+    frameAverage=frameAverage*.95+elapsed*.05;
+    if(frameAverage>33){slowFrames++;fastFrames=0;}
+    else if(frameAverage<20){fastFrames++;slowFrames=0;}
+    else{slowFrames=0;fastFrames=0;}
+    if(slowFrames>90){adaptiveRadius=5;slowFrames=0;}
+    if(fastFrames>210){adaptiveRadius=RADIUS;fastFrames=0;}
+   }
+   lastFrameTime=clock;
    const rect=canvas.getBoundingClientRect();
    const dpr=Math.min(window.devicePixelRatio||1,1.5);
    const width=Math.max(2,Math.round(rect.width*dpr)),height=Math.max(2,Math.round(rect.height*dpr));
@@ -348,8 +367,8 @@
    gl.disableVertexAttribArray(skyPos);
    gl.clear(gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);
    const px=Math.floor(player.x/16),pz=Math.floor(player.z/16),wanted=[];
-   for(let dz=-RADIUS;dz<=RADIUS;dz++)for(let dx=-RADIUS;dx<=RADIUS;dx++){
-    if(dx*dx+dz*dz>RADIUS*RADIUS+1)continue;
+   for(let dz=-adaptiveRadius;dz<=adaptiveRadius;dz++)for(let dx=-adaptiveRadius;dx<=adaptiveRadius;dx++){
+    if(dx*dx+dz*dz>adaptiveRadius*adaptiveRadius+1)continue;
     wanted.push({cx:px+dx,cz:pz+dz,d:dx*dx+dz*dz,stride:dx*dx+dz*dz<=NEAR_RADIUS*NEAR_RADIUS+1?1:4});
    }
    wanted.sort((a,b)=>a.d-b.d);
@@ -382,6 +401,11 @@
    gl.uniform1f(timeUniform,(typeof performance!=='undefined'?performance.now():0)/1000);
    gl.uniformMatrix4fv(loc.matrix,false,multiply(perspective(width/height),view(eye,player.yaw,player.pitch)));
    gl.uniform3fv(loc.eye,eye);
+   const surface=world.surfaceAt(Math.floor(player.x),Math.floor(player.z));
+   const chamber=world.caveRoomAt?.(Math.floor(player.x),Math.floor(player.z));
+   const underground=!!chamber&&!chamber.exposed&&!!surface&&eye[1]<surface.height+1;
+   gl.uniform3fv(loc.lampEye,eye);
+   gl.uniform1f(loc.underground,underground?1:0);
    gl.enableVertexAttribArray(loc.pos);gl.enableVertexAttribArray(loc.color);gl.enableVertexAttribArray(loc.normal);
    let verts=0,bytes=0;
    for(const c of chunks.values()){
@@ -392,7 +416,7 @@
     gl.drawArrays(gl.TRIANGLES,0,c.vertices);
     verts+=c.vertices;bytes+=c.bytes;
    }
-   return {loaded:chunks.size,wanted:wanted.length,vertices:verts,bytes,gpuBytes:allocated,glError:gl.getError()};
+   return {loaded:chunks.size,wanted:wanted.length,vertices:verts,bytes,gpuBytes:allocated,viewRadius:adaptiveRadius,frameAverage,underground,glError:gl.getError()};
   }
   return Object.freeze({gl,render,dispose,chunkCount:()=>chunks.size,meshAt:(cx,cz)=>generateMesh(world,cx,cz)});
  }
