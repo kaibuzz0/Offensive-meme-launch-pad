@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "repository": "kaibuzz0/Offensive-meme-launch-pad",
+  "scheduledBy": ".github/workflows/meme-city-council.yml",
+  "reviewRules": "research does not authorize library installation, merging or code changes",
+  "roles": [
+    {
+      "issue": 43,
+      "slug": "roadmap",
+      "name": "Roadmap & Integration",
+      "search": "project management games milestone roadmap javascript",
+      "owner": "docs/ROADMAP.md",
+      "priority": "P0",
+      "dependsOn": []
+    },
+    {
+      "issue": 44,
+      "slug": "libraries",
+      "name": "Library & License Research",
+      "search": "webgl javascript game engine modular library",
+      "owner": "docs/LIBRARY_EVALUATIONS.md",
+      "priority": "P0",
+      "dependsOn": []
+    },
+    {
+      "issue": 45,
+      "slug": "worldgen",
+      "name": "Biomes & World Generation",
+      "search": "procedural voxel terrain erosion biome generator",
+      "owner": "city-voxel-world.js",
+      "priority": "P1",
+      "dependsOn": [
+        43
+      ]
+    },
+    {
+      "issue": 46,
+      "slug": "graphics",
+      "name": "PBR Graphics & Terrain",
+      "search": "webgl terrain shader pbr material rendering",
+      "owner": "city-voxel-renderer.js",
+      "priority": "P1",
+      "dependsOn": [
+        44,
+        45
+      ]
+    },
+    {
+      "issue": 47,
+      "slug": "performance",
+      "name": "Android GPU & Workers",
+      "search": "voxel meshing greedy mesh webgl worker",
+      "owner": "city-voxel-mesh-worker.js",
+      "priority": "P0",
+      "dependsOn": [
+        43
+      ]
+    },
+    {
+      "issue": 48,
+      "slug": "mining",
+      "name": "Mining Crafting Building",
+      "search": "voxel editing crafting inventory sandbox game",
+      "owner": "city-sandbox-mining.js",
+      "priority": "P1",
+      "dependsOn": [
+        45,
+        49
+      ]
+    },
+    {
+      "issue": 49,
+      "slug": "locomotion",
+      "name": "3D Movement Physics",
+      "search": "javascript rapier capsule character controller",
+      "owner": "city-voxel-physics.js",
+      "priority": "P0",
+      "dependsOn": [
+        43
+      ]
+    },
+    {
+      "issue": 50,
+      "slug": "melee",
+      "name": "Melee & Hand-to-Hand",
+      "search": "javascript melee game hitbox animation combat",
+      "owner": "city-sandbox-melee.js",
+      "priority": "P2",
+      "dependsOn": [
+        49
+      ]
+    },
+    {
+      "issue": 51,
+      "slug": "ranged",
+      "name": "Guns & Explosions Gameplay",
+      "search": "javascript game projectile collision raycasting",
+      "owner": "city-sandbox-ranged.js",
+      "priority": "P2",
+      "dependsOn": [
+        49,
+        57
+      ]
+    },
+    {
+      "issue": 52,
+      "slug": "cars",
+      "name": "Cars & Land Vehicles",
+      "search": "javascript car vehicle suspension physics engine",
+      "owner": "city-sandbox-vehicles.js",
+      "priority": "P2",
+      "dependsOn": [
+        49
+      ]
+    },
+    {
+      "issue": 53,
+      "slug": "aircraft",
+      "name": "Airplanes & Flight",
+      "search": "javascript browser airplane flight simulation",
+      "owner": "city-sandbox-flight.js",
+      "priority": "P2",
+      "dependsOn": [
+        49
+      ]
+    },
+    {
+      "issue": 54,
+      "slug": "drones",
+      "name": "Gameplay Drones",
+      "search": "javascript quadcopter simulation drone game",
+      "owner": "city-sandbox-drones.js",
+      "priority": "P2",
+      "dependsOn": [
+        53
+      ]
+    },
+    {
+      "issue": 55,
+      "slug": "wildlife",
+      "name": "Birds & Wildlife Ecology",
+      "search": "javascript boids flocking steering wildlife game",
+      "owner": "city-sandbox-wildlife.js",
+      "priority": "P2",
+      "dependsOn": [
+        45
+      ]
+    },
+    {
+      "issue": 56,
+      "slug": "npc-stealth",
+      "name": "NPC AI Factions & Stealth",
+      "search": "javascript game AI navmesh pathfinding behavior tree",
+      "owner": "city-sandbox-ai.js",
+      "priority": "P1",
+      "dependsOn": [
+        49,
+        57
+      ]
+    },
+    {
+      "issue": 57,
+      "slug": "network-qa",
+      "name": "Multiplayer Security & QA",
+      "search": "javascript realtime multiplayer game snapshot interpolation",
+      "owner": "server/city-rooms.mjs",
+      "priority": "P0",
+      "dependsOn": [
+        43
+      ]
+    }
+  ]
+}
