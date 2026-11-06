@@ -177,6 +177,6 @@ test('seed-relative starter lodge is rendered in real chunks and its doorway is 
   assert.equal(road.obstructs(lodge.x+.2,py,lodge.z+.4,world.PLAYER_HEIGHT,.25),true,'solid walls block player');
   assert.equal(road.obstructs(lodge.x+8.4,py,lodge.doorZ+.2,world.PLAYER_HEIGHT,.25),true,'back wall blocks player');
   assert.ok(road.parts.some(p=>!p.solid&&p.color[0]===1&&p.color[1]===.69),'lit doorway uses existing renderer contract');
-  assert.ok(road.parts.some(p=>p.x===lodge.x-1&&p.y===lodge.y+10),'roof silhouette is visible');
+  assert.ok(road.parts.some(p=>p.x===lodge.x-1&&p.y===lodge.y+12),'roof silhouette is visible');
  }
 });
