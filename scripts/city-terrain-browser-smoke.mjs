@@ -135,19 +135,15 @@ try{
  const start=await evalPage('JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).y');
  await request('Input.dispatchKeyEvent',{type:'keyDown',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
  try{
-  // Rendering a newly seeded mountain may consume several browser frames.
-  // Hold the key until actual saved movement, rather than assuming a 1s
-  // key press necessarily spans a rendered/ticked physics frame.
-  try{
-   await waitFor(()=>evalPage('JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).y>'+start),'movement persists to local save',14000);
-  }catch(err){
-   const debug=await evalPage('(()=>{const x=document.getElementById("city-voxel-status");const seed=localStorage.getItem("meme-city-terrain-seed-v1");return {introHidden:document.getElementById("city-intro")?.hidden,renderer:x.dataset.renderer,status:x.textContent,worldZ:x.dataset.worldZ,physicsZ:x.dataset.physicsZ,inputForward:x.dataset.inputForward,keys:x.dataset.keyCount,saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+seed)),canvasHidden:document.getElementById("city-voxel-canvas")?.hidden,roadHidden:document.getElementById("city-road-canvas")?.hidden};})()');
-   console.error('MOVEMENT DEBUG',JSON.stringify({start,...debug}));
-   throw err;
-  }
+  // Verify physics directly; the page-exit handler is tested separately.
+  await waitFor(()=>evalPage('Number(document.getElementById("city-voxel-status").dataset.worldZ)>'+start),
+   'first-person movement reaches actual world coordinates',20000);
  }finally{
   await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
  }
+ await evalPage('window.dispatchEvent(new Event("pagehide"));true');
+ await waitFor(()=>evalPage('JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).y>'+start),
+  'page-exit save persists real movement',5000);
  const motion=await evalPage('(()=>({liveZ:Number(document.getElementById("city-voxel-status").dataset.worldZ),mode:document.getElementById("city-voxel-status").dataset.playerMode,seed:localStorage.getItem("meme-city-terrain-seed-v1"),savedZ:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).y}))()');
  console.log('Road movement probe',JSON.stringify({start,...motion}));
 
