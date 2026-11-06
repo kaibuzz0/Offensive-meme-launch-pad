@@ -192,6 +192,13 @@
    const narrow=noise3(caveSeed^0x4441,x/13,y/17,z/13);
    return large>.25&&narrow>-.22;
   }
+  // Sample the occupied cell at the controller's continuous world position.
+  function isWaterAt(x,y,z){
+   const cellY=Math.floor(y);
+   if(!Number.isFinite(cellY)||cellY<MIN_HEIGHT||cellY>SEA_LEVEL)return false;
+   const column=surfaceAt(Math.floor(x),Math.floor(z));
+   return !!column?.water && cellY>column.height;
+  }
   function blockAt(x,y,z){
    if(!Number.isSafeInteger(x)||!Number.isSafeInteger(y)||!Number.isSafeInteger(z)||y<MIN_HEIGHT||y>MAX_HEIGHT)return null;
    const col=surfaceAt(x,z);if(!col)return null;
@@ -259,7 +266,7 @@
     structures:Object.freeze([]),npc:Object.freeze([]),roads:Object.freeze([])});
   }
   return Object.freeze({seed,atlas,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,MIN_HEIGHT,MAX_HEIGHT,
-   SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,featureAt,chunkAt,
+   SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,isWaterAt,featureAt,chunkAt,
    cacheSize:()=>cache.size,caveCacheSize:()=>caveCells.size,spawnAt});
  }
  root.CityVoxelWorld=Object.freeze({createVoxelWorld,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,

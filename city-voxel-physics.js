@@ -41,16 +41,34 @@
    return true;
   }
   function moveAxis(axis,delta){
-   const nx=axis==='x'?state.x+delta:state.x;
-   const nz=axis==='z'?state.z+delta:state.z;
-   const floor=floorAt(nx,nz,state.y);
-   if(floor===null)return false;
-   // Airborne travel may traverse a step only if the feet clear the surface.
-   const climb=floor-state.y;
-   if(climb>(state.grounded?MAX_STEP:.18))return false;
-   if(axis==='x')state.x=nx;else state.z=nz;
-   if(state.grounded&&climb>0){state.y=floor;}
-   return true;
+   // Sweep in quarter-voxel increments so a fast mobile frame cannot tunnel
+   // through a one-cell wall or cave boundary between endpoint samples.
+   const segments=Math.max(1,Math.ceil(Math.abs(delta)/.25));
+   const part=delta/segments;
+   let moved=false;
+   for(let i=0;i<segments;i++){
+    const nx=axis==='x'?state.x+part:state.x;
+    const nz=axis==='z'?state.z+part:state.z;
+    const floor=floorAt(nx,nz,state.y);
+    if(floor===null)break;
+    const climb=floor-state.y;
+    if(climb>(state.grounded?MAX_STEP:.18))break;
+    // Sample the player's radius, not just the center. A gallery with a
+    // solid roof must fit the entire player before entering it laterally.
+    const samples=[[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]];
+    let blocked=false;
+    for(const [ox,oz] of samples){
+     const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
+     if(gallery&&!gallery.exposed&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+      blocked=true;break;
+     }
+    }
+    if(blocked)break;
+    if(axis==='x')state.x=nx;else state.z=nz;
+    if(state.grounded&&climb>0)state.y=floor;
+    moved=true;
+   }
+   return moved;
   }
   function tick(input,dt){
    if(!Number.isFinite(dt)||dt<0)throw Error('Invalid time step');
@@ -62,23 +80,45 @@
    const rightX=Math.cos(yaw),rightZ=-Math.sin(yaw);
    const forwardX=Math.sin(yaw),forwardZ=Math.cos(yaw);
    const feet=world.surfaceAt(Math.floor(state.x),Math.floor(state.z));
-   const water=feet&&state.y<world.SEA_LEVEL;
+   // Optional water-volume query allows submerged cave pools without
+   // treating dry terrain below sea level as water. Legacy worlds without
+   // this query retain the previous sea-level behavior.
+   const water=typeof world.isWaterAt==='function'
+    ? !!world.isWaterAt(state.x,state.y+world.PLAYER_HEIGHT*.5,state.z)
+    : !!feet&&state.y<world.SEA_LEVEL;
    const speed=SPEED*(water?.62:1);
    const dx=(vx*rightX+vz*forwardX)*speed*step;
    const dz=(vx*rightZ+vz*forwardZ)*speed*step;
    // Two-axis sweep permits sliding along terrain walls.
    moveAxis('x',dx);moveAxis('z',dz);
    if(input?.jump&&state.grounded){state.grounded=false;state.vy=JUMP_SPEED;}
-   if(!state.grounded){
+   // Swimming is deliberately opt-in: an explicit water-volume query enables
+   // controlled ascent, reduced gravity and terminal sinking velocity.
+   // This avoids changing legacy below-sea-level terrain behavior.
+   const swimming=water&&typeof world.isWaterAt==='function';
+   if(swimming){
+    state.grounded=false;
+    state.vy=clamp(state.vy+(input?.jump?14:-4)*step,-3,5);
+    state.y+=state.vy*step;
+   }else if(!state.grounded){
     state.vy=Math.max(-40,state.vy-GRAVITY*step);
     state.y+=state.vy*step;
    }
    // A solid underground roof cannot be jumped through. Leave roofless
    // mouth tiles open so the transition is continuous with the outside.
-   const gallery=world.caveRoomAt?.(Math.floor(state.x),Math.floor(state.z));
-   if(gallery&&!gallery.exposed&&state.vy>0&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
-    state.y=gallery.ceiling-world.PLAYER_HEIGHT;
-    state.vy=0;
+   // Check all capsule footprint corners when rising beneath a cave roof.
+   // The center alone can miss an adjacent lower roof while the head clips
+   // through it. Do not constrain a player already standing on the surface.
+   if(state.vy>0&&typeof world.caveRoomAt==='function'){
+    let ceiling=Infinity;
+    for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
+     const gallery=world.caveRoomAt(Math.floor(state.x+ox),Math.floor(state.z+oz));
+     if(gallery&&!gallery.exposed&&Number.isFinite(gallery.ceiling)
+       &&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+      ceiling=Math.min(ceiling,gallery.ceiling);
+     }
+    }
+    if(ceiling<Infinity){state.y=ceiling-world.PLAYER_HEIGHT;state.vy=0;}
    }
    const floor=floorAt(state.x,state.z,state.y);
    if(floor!==null&&state.y<=floor){state.y=floor;state.vy=0;state.grounded=true;}

@@ -76,17 +76,21 @@ export function createVoxelEditJournal(worldSeed, snapshot) {
       if (!changes.has(key) && changes.size >= MAX_EDITS) throw new RangeError('voxel journal capacity reached');
       const previous = changes.get(key)?.block;
       if (changes.has(key) && previous === next.block) return { changed: false, revision, previous };
+      const nextRevision = assertRevision(revision + 1);
       changes.set(key, next);
-      revision += 1;
+      revision = nextRevision;
       return { changed: true, revision, previous };
     },
     // Revert to procedural terrain without interpreting air as an unedited voxel.
     reset(x, y, z, expectedRevision = revision) {
       assertRevision(expectedRevision);
       if (expectedRevision !== revision) throw new Error('stale voxel edit revision');
-      const changed = changes.delete(voxelKey(x, y, z));
-      if (changed) revision += 1;
-      return { changed, revision };
+      const key = voxelKey(x, y, z);
+      if (!changes.has(key)) return { changed: false, revision };
+      const nextRevision = assertRevision(revision + 1);
+      changes.delete(key);
+      revision = nextRevision;
+      return { changed: true, revision };
     },
     snapshot() {
       return {

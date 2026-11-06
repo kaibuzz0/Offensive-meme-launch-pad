@@ -30,10 +30,12 @@
    const started=now();
    const mesh=root.CityVoxelRenderer.generateMesh(world,cx,cz,stride);
    const durationMs=Math.max(0,now()-started);
-   if(!mesh||!Number.isSafeInteger(mesh.vertices)||mesh.vertices<0||mesh.vertices>650000||
+   if(!mesh||!Number.isSafeInteger(mesh.vertices)||mesh.vertices<0||mesh.vertices>650000||mesh.vertices%3!==0||
       !(mesh.data instanceof Float32Array)||mesh.data.byteLength>24*1024*1024||
       mesh.data.byteOffset!==0||mesh.data.byteLength!==mesh.data.buffer.byteLength||
-      mesh.data.length%3!==0)throw Error('Mesh exceeds safe bounds');
+      mesh.data.length!==mesh.vertices*9||
+      !Number.isSafeInteger(mesh.tiles)||mesh.tiles<0||
+      !Number.isSafeInteger(mesh.plants)||mesh.plants<0)throw Error('Invalid mesh geometry or metadata');
    reply({type:'mesh',id,cx,cz,stride,seedHash:world.seed,
     vertices:mesh.vertices,tiles:mesh.tiles,plants:mesh.plants,
     durationMs,byteLength:mesh.data.byteLength,
