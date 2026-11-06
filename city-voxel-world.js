@@ -160,6 +160,28 @@
    }
    return null;
   }
+  function spawnAt(){
+   const base=atlas.spawnAt();
+   // Find accessible footing close to the saved seed-specific starting area.
+   // Prevent first-person starts on steep cliffs, under water or in cave shafts.
+   function safe(x,z){
+    const mid=surfaceAt(x,z);
+    if(!mid||mid.water||mid.mouth||mid.slope>13)return false;
+    for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2]]){
+     const n=surfaceAt(x+dx,z+dz);
+     if(!n||n.water||n.mouth||Math.abs(n.height-mid.height)>2)return false;
+    }
+    return true;
+   }
+   for(let radius=0;radius<=80;radius+=2){
+    const pts=radius===0?[[base.x,base.y]]:
+     [[base.x+radius,base.y],[base.x,base.y+radius],
+      [base.x-radius,base.y],[base.x,base.y-radius]];
+    for(const [x,z] of pts)if(safe(x,z))return Object.freeze({x,z,y:surfaceAt(x,z).height+1});
+   }
+   const mid=surfaceAt(base.x,base.y);
+   return Object.freeze({x:base.x,z:base.y,y:mid.height+1});
+  }
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
    const tiles=[],plants=[];
@@ -174,7 +196,7 @@
   }
   return Object.freeze({seed,atlas,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,MIN_HEIGHT,MAX_HEIGHT,
    SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveAt,blockAt,featureAt,chunkAt,
-   cacheSize:()=>cache.size,spawnAt:atlas.spawnAt});
+   cacheSize:()=>cache.size,spawnAt});
  }
  root.CityVoxelWorld=Object.freeze({createVoxelWorld,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,
   MIN_HEIGHT,MAX_HEIGHT,SEA_LEVEL,CHUNK_SIZE,noise2,noise3});
