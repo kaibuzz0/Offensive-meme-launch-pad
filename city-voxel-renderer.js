@@ -304,18 +304,20 @@
   gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
   const skyPos=gl.getAttribLocation(skyProgram,'aXY'),skyLook=gl.getUniformLocation(skyProgram,'uLook');
   const timeUniform=gl.getUniformLocation(program,'uTime');
-  const chunks=new Map(),MAX_CHUNKS=176,RADIUS=7,NEAR_RADIUS=3;
+  const chunks=new Map(),MAX_CHUNKS=176,MAX_GPU_BYTES=24*1024*1024,RADIUS=7,NEAR_RADIUS=3;
+  let allocated=0;
   gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);
   function release(key){
-   const c=chunks.get(key);if(c){gl.deleteBuffer(c.buffer);chunks.delete(key);}
+   const c=chunks.get(key);if(c){gl.deleteBuffer(c.buffer);allocated=Math.max(0,allocated-c.bytes);chunks.delete(key);}
   }
   function dispose(){for(const key of chunks.keys())release(key);gl.deleteBuffer(skyBuffer);gl.deleteProgram(skyProgram);gl.deleteProgram(program);}
   function load(cx,cz,stride){
    const key=cx+':'+cz;if(chunks.has(key))return;
-   const mesh=generateMesh(world,cx,cz,stride);if(!mesh)return;
+   const mesh=generateMesh(world,cx,cz,stride);if(!mesh||mesh.data.byteLength>MAX_GPU_BYTES)return;
    const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
    gl.bufferData(gl.ARRAY_BUFFER,mesh.data,gl.STATIC_DRAW);
    chunks.set(key,{cx,cz,stride,buffer,vertices:mesh.vertices,bytes:mesh.data.byteLength});
+   allocated+=mesh.data.byteLength;
   }
   function render(player){
    const rect=canvas.getBoundingClientRect();
@@ -352,7 +354,17 @@
     if(chunks.has(key))release(key);
     load(missing.cx,missing.cz,missing.stride);
    }
-   while(chunks.size>MAX_CHUNKS)release(chunks.keys().next().value);
+   while(chunks.size>MAX_CHUNKS||allocated>MAX_GPU_BYTES){
+    // Evict the farthest rather than the oldest, so near caves and trees
+    // stay loaded while a phone is moving through a high-detail valley.
+    let victim=null,dist=-1;
+    for(const [key,c] of chunks){
+     const d=(c.cx-px)**2+(c.cz-pz)**2;
+     if(d>dist){dist=d;victim=key;}
+    }
+    if(!victim)break;
+    release(victim);
+   }
    const eye=[player.x,player.y+world.EYE_HEIGHT,player.z];
    gl.useProgram(program);
    gl.uniform1f(timeUniform,(typeof performance!=='undefined'?performance.now():0)/1000);
@@ -368,10 +380,10 @@
     gl.drawArrays(gl.TRIANGLES,0,c.vertices);
     verts+=c.vertices;bytes+=c.bytes;
    }
-   return {loaded:chunks.size,wanted:wanted.length,vertices:verts,bytes,glError:gl.getError()};
+   return {loaded:chunks.size,wanted:wanted.length,vertices:verts,bytes,gpuBytes:allocated,glError:gl.getError()};
   }
   return Object.freeze({gl,render,dispose,chunkCount:()=>chunks.size,meshAt:(cx,cz)=>generateMesh(world,cx,cz)});
  }
  root.CityVoxelRenderer=Object.freeze({createRenderer,generateMesh,rgb,
-  VOXEL_METERS:.25,MAX_GPU_CHUNKS:176});
+  VOXEL_METERS:.25,MAX_GPU_CHUNKS:176,MAX_GPU_BYTES:24*1024*1024});
 })(typeof window==='undefined'?globalThis:window);
