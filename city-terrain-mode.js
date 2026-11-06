@@ -71,12 +71,13 @@
    if(saved?.version===world.version&&saved.seed===seed&&
       Number.isFinite(saved.x)&&Number.isFinite(saved.y)&&
       Math.abs(saved.x)<1000000&&Math.abs(saved.y)<1000000)
-    return {x:saved.x,y:saved.y,yaw:Number.isFinite(saved.yaw)?saved.yaw:0,pitch:Number.isFinite(saved.pitch)?Math.max(-1.3,Math.min(1.3,saved.pitch)):0};
+    return {x:saved.x,y:saved.y,yaw:Number.isFinite(saved.yaw)?saved.yaw:0,pitch:Number.isFinite(saved.pitch)?Math.max(-1.3,Math.min(1.3,saved.pitch)):0,
+     vertical:Number.isFinite(saved.vertical)&&saved.vertical>=voxel?.MIN_HEIGHT&&saved.vertical<=voxel?.MAX_HEIGHT?saved.vertical:undefined};
   }catch{}
   return {x:initial.x,y:initial.z??initial.y,yaw:0,pitch:0};
  }
  let player=restore(),running=false,paused=false,atlas=false,zoom=20,last=0,lastSave=0;
- let physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y})||null;
+ let physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y,y:player.vertical})||null;
  let jumpHeld=false,jumpQueued=false;
  const voxelCanvas=document.createElement('canvas');voxelCanvas.id='city-voxel-canvas';
  voxelCanvas.setAttribute('aria-label','First-person procedurally generated voxel wilderness. Drag to look around.');
@@ -112,14 +113,16 @@
  function resetVoxel(){
   if(perspective)perspective.dispose();
   voxel=voxelApi?.createVoxelWorld(world)||null;
-  physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y})||null;
+  physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y,y:player.vertical})||null;
   try{perspective=voxel&&rendererApi?rendererApi.createRenderer(voxelCanvas,voxel):null;}catch{perspective=null;}
   firstPerson=!!perspective;syncView();
  }
  const keys=new Set(),held=new Set();
  const stick={x:0,y:0};
  function savePosition(){
-  put(POS+seed,JSON.stringify({version:world.version,seed,x:player.x,y:player.y,yaw:player.yaw,pitch:player.pitch}));
+  const feet=physics?.snapshot();
+  const vertical=feet&&Math.hypot(feet.x-player.x,feet.z-player.y)<.1?feet.y:null;
+  put(POS+seed,JSON.stringify({version:world.version,seed,x:player.x,y:player.y,yaw:player.yaw,pitch:player.pitch,vertical}));
  }
  function spawnNewWorld(){
   savePosition();seed=randomSeed();put(KEY,seed);
