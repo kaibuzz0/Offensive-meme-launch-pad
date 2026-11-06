@@ -81,10 +81,12 @@
   parts.push({x:supplies.x-.15,z:supplies.z-.15,y:supplies.y+2,w:3.3,h:.5,d:3.3,color:trim,solid:false});
   parts.push({x:supplies.x+1.3,z:supplies.z+1.1,y:supplies.y+2.5,w:.35,h:8,d:.35,color:stone,solid:false});
   parts.push({x:supplies.x+1.6,z:supplies.z+1.1,y:supplies.y+7,w:4,h:2.8,d:.22,color:amber,solid:false});
+  // Keep the lodge beyond the east curtain wall (which occupies z+3..7);
+  // the door must not intersect fortress collision geometry.
   // The first clan-district building shares the fortress's graded pad and
   // existing world-space cuboid renderer/collision contract. Its western
   // doorway faces the road and stays open at player height.
-  const lodge=Object.freeze({id:'starter-lodge:'+seed,x:x+13,z:gateZ+2,
+  const lodge=Object.freeze({id:'starter-lodge:'+seed,x:x+13,z:gateZ+9,
    y:heights[42]+1,doorX:x+13,doorZ:gateZ+6});
   const lodgeWall=[.48,.34,.23],lodgeRoof=[.20,.29,.34],lodgeGlow=[1,.69,.24];
   function lodgePart(dx,dz,dy,w,h,d,color,solid=true){
@@ -106,11 +108,11 @@
    const t=pz-z;
    if(t< -4||t>54)return null;
    const distance=Math.abs(px-center(t));
-   if(distance>(t>=31&&t<=47?24:6))return null;
+   if(distance>(t>=31&&t<=54?24:6))return null;
    return {height:heights[t+4],road:distance<=4,edge:distance===4};
   }
   function obstructs(px,py,pz,height,radius){
-   if(Math.abs(px-x)>25||Math.abs(pz-gateZ)>12)return false;
+   if(Math.abs(px-x)>25||Math.abs(pz-gateZ)>20)return false;
    return parts.some(p=>p.solid&&px+radius>p.x&&px-radius<p.x+p.w&&
     pz+radius>p.z&&pz-radius<p.z+p.d&&py+height>p.y&&py<p.y+p.h);
   }
