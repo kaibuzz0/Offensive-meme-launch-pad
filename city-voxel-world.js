@@ -76,7 +76,7 @@
   // A reachable roadside supply crate is the first playable salvage stop.
   // Use the same graded road height and seed-relative coordinates as the gate.
   // Keep it nonblocking so desktop and touch players can walk past it.
-  const supplies=Object.freeze({x:x+5,z:z+14,y:heights[18]+1});
+  const supplies=Object.freeze({x:center(14)+5,z:z+14,y:heights[18]+1});
   parts.push({x:supplies.x,z:supplies.z,y:supplies.y,w:3,h:2,d:3,color:[.43,.26,.13],solid:false});
   parts.push({x:supplies.x-.15,z:supplies.z-.15,y:supplies.y+2,w:3.3,h:.5,d:3.3,color:trim,solid:false});
   parts.push({x:supplies.x+1.3,z:supplies.z+1.1,y:supplies.y+2.5,w:.35,h:8,d:.35,color:stone,solid:false});
