@@ -64,3 +64,20 @@ test('zero-charge restored drone cannot move or recharge away from dock',()=>{
   assert.deepEqual(stepDrone(d,0.5).position,d.position);
   assert.equal(stepDrone(d,0.5).battery,0);
 });
+
+test('scout refuses routes that cannot return on remaining charge',()=>{
+  let d=commandDrone(createDrone({id:'scout-reserve',home,capacity:5,speed:8,range:80}),'launch');
+  assert.throws(()=>commandDrone(d,'scout',{target:{x:16,y:10,z:0}}),/insufficient battery/);
+  assert.deepEqual(d.target,home);
+  assert.equal(d.battery,5);
+  const accepted=commandDrone(d,'scout',{target:{x:8,y:10,z:0}});
+  assert.deepEqual(accepted.target,{x:8,y:10,z:0});
+});
+test('return reserve accounts for current location rather than just home distance',()=>{
+  let d=commandDrone(createDrone({id:'scout-midroute',home,capacity:5,speed:8,range:80}),'launch');
+  d={...d,position:{x:8,y:10,z:0},battery:3};
+  // Flying back through home to the opposite side would require 3 flight
+  // seconds plus the emergency reserve, not just the target's home distance.
+  assert.throws(()=>commandDrone(d,'scout',{target:{x:-8,y:10,z:0}}),/insufficient battery/);
+  assert.deepEqual(d.position,{x:8,y:10,z:0});
+});
