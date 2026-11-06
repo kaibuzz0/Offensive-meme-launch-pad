@@ -417,6 +417,17 @@
   function upload(cx,cz,stride,data,vertices){
    if(disposed||data.byteLength>MAX_GPU_BYTES)return;
    const key=cx+':'+cz;
+   // Hard cap even between animation frames: an asynchronous worker callback
+   // cannot briefly oversubscribe the GPU memory budget.
+   while(allocated+data.byteLength>MAX_GPU_BYTES&&chunks.size){
+    let victim=null,farthest=-1;
+    for(const [id,c] of chunks){
+     const distance=(c.cx-viewCX)**2+(c.cz-viewCZ)**2;
+     if(distance>farthest){farthest=distance;victim=id;}
+    }
+    if(victim===null)break;
+    release(victim);
+   }
    const buffer=gl.createBuffer();if(!buffer)return;
    gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
    gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);
@@ -480,7 +491,8 @@
    // remains interactive even when new mountain chunks enter the viewport.
    const missing=wanted.find(c=>{
     const existing=chunks.get(c.cx+':'+c.cz);
-    return !existing||existing.stride>c.stride;
+    if(existing&&existing.stride<=c.stride)return false;
+    return ![...inFlight.values()].some(req=>req.cx===c.cx&&req.cz===c.cz);
    });
    viewCX=px;viewCZ=pz;
    if(missing)load(missing.cx,missing.cz,missing.stride);
