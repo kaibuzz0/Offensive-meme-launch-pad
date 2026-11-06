@@ -95,7 +95,7 @@
   jumpButton.addEventListener(kind,()=>jumpHeld=false);
  jumpButton.addEventListener('click',()=>{jumpQueued=true;});
  let perspective=null;
- try{if(voxel&&rendererApi)perspective=rendererApi.createRenderer(voxelCanvas,voxel);}catch(err){status.textContent='3D unavailable: '+String(err.message).slice(0,80);}
+ try{if(voxel&&rendererApi)perspective=rendererApi.createRenderer(voxelCanvas,voxel,definitions);}catch(err){status.textContent='3D unavailable: '+String(err.message).slice(0,80);}
  let firstPerson=!!perspective,contextInterrupted=false;
  // Android browsers can temporarily discard the WebGL context during app
  // switching or memory pressure. Keep the seed and physics alive in the 2D
@@ -128,7 +128,7 @@
   if(perspective)perspective.dispose();
   voxel=voxelApi?.createVoxelWorld(world)||null;
   physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y,y:player.vertical})||null;
-  try{perspective=voxel&&rendererApi?rendererApi.createRenderer(voxelCanvas,voxel):null;}catch{perspective=null;}
+  try{perspective=voxel&&rendererApi?rendererApi.createRenderer(voxelCanvas,voxel,definitions):null;}catch{perspective=null;}
   firstPerson=!!perspective;syncView();
  }
  const keys=new Set(),held=new Set();
@@ -254,6 +254,8 @@
       status.dataset.grounded=String(physics?.snapshot().grounded??true);
       status.dataset.underground=String(subterranean);
       status.dataset.gpuBytes=String(metrics.gpuBytes);
+      status.dataset.meshWorker=metrics.workerStatus;
+      status.dataset.meshPending=String(metrics.pendingMeshes);
      }catch(err){status.textContent='3D rendering failed';perspective.dispose();perspective=null;firstPerson=false;syncView();}
     }
    }else drawWorld(size.w,size.h);
