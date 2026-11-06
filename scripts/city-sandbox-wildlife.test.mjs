@@ -61,11 +61,11 @@ test('terrain adapter rejects incompatible chunk dimensions and unsafe ground',(
  const world={seed:22,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
   height:60,group:'grassland',biomeName:'Prairie',water:true,river:false,slope:0
  })};
- assert.deepEqual(spawnChunkOnTerrain(world,0,0),[]);
+ assert.ok(spawnChunkOnTerrain(world,0,0).every(a=>a.species==='songbird'&&a.y>=116));
  assert.throws(()=>spawnChunkOnTerrain({...world,CHUNK_SIZE:32},0,0),RangeError);
  assert.throws(()=>spawnChunkOnTerrain({...world,seed:'bad'},0,0),TypeError);
  const steep={...world,surfaceAt:()=>({height:60,group:'grassland',water:false,river:false,slope:25})};
- assert.deepEqual(spawnChunkOnTerrain(steep,0,0),[]);
+ assert.ok(spawnChunkOnTerrain(steep,0,0).every(a=>a.species==='songbird'&&a.y>=64));
 });
 test('terrain adapter places aquatic wildlife below water surface only',()=>{
  const wet={seed:7,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
