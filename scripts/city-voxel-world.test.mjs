@@ -167,13 +167,15 @@ test('seed-relative starter lodge is rendered in real chunks and its doorway is 
   const world=create(seed),road=world.gateRoad,lodge=road.lodge;
   assert.equal(lodge.id,'starter-lodge:'+world.atlas.seedHash);
   assert.ok(lodge.x>road.x+8&&lodge.x<road.x+25,'lodge is beside, not on, the road');
-  assert.ok(lodge.z>=road.gateZ&&lodge.z<=road.gateZ+12);
+  assert.ok(lodge.z>=road.gateZ+8&&lodge.z<=road.gateZ+12);
   assert.equal(lodge.y,world.surfaceAt(lodge.x,lodge.z).height+1,'lodge uses the existing graded pad');
   assert.deepEqual(plain(create(seed).gateRoad.lodge),plain(lodge),'identity and placement survive reload');
   const chunk=world.chunkAt(Math.floor(lodge.x/16),Math.floor(lodge.z/16));
   assert.ok(chunk.structures.some(s=>s.x===lodge.x&&s.z===lodge.z),'walls are included in playable mesh');
   const py=lodge.y+1;
   assert.equal(road.obstructs(lodge.x+.2,py,lodge.doorZ+.2,world.PLAYER_HEIGHT,.25),false,'open west doorway admits player capsule');
+  // Verify the whole approach from the road side, not just the door cell.
+  for(const step of [0,.5,1,1.5,2])assert.equal(road.obstructs(lodge.x-step,py,lodge.doorZ+.2,world.PLAYER_HEIGHT,.25),false,'door approach stays clear of fortress wall');
   assert.equal(road.obstructs(lodge.x+.2,py,lodge.z+.4,world.PLAYER_HEIGHT,.25),true,'solid walls block player');
   assert.equal(road.obstructs(lodge.x+8.4,py,lodge.doorZ+.2,world.PLAYER_HEIGHT,.25),true,'back wall blocks player');
   assert.ok(road.parts.some(p=>!p.solid&&p.color[0]===1&&p.color[1]===.69),'lit doorway uses existing renderer contract');
