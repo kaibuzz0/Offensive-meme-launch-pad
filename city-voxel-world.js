@@ -91,13 +91,13 @@
    parts.push({x:lodge.x+dx,z:lodge.z+dz,y:lodge.y+dy,w,h,d,color,solid});
   }
   // 9x8 shell; west wall has a 3-voxel doorway from z+3 to z+6.
-  lodgePart(0,0,0,9,10,1,lodgeWall);
-  lodgePart(0,7,0,9,10,1,lodgeWall);
-  lodgePart(8,1,0,1,10,6,lodgeWall);
-  lodgePart(0,1,0,1,10,2,lodgeWall);
-  lodgePart(0,6,0,1,10,1,lodgeWall);
-  lodgePart(0,3,8,1,2,3,lodgeWall); // lintel, clear below
-  lodgePart(-1,-1,10,11,2,10,lodgeRoof);
+  lodgePart(0,0,0,9,12,1,lodgeWall);
+  lodgePart(0,7,0,9,12,1,lodgeWall);
+  lodgePart(8,1,0,1,12,6,lodgeWall);
+  lodgePart(0,1,0,1,12,2,lodgeWall);
+  lodgePart(0,6,0,1,12,1,lodgeWall);
+  lodgePart(0,3,9,1,3,3,lodgeWall); // lintel, clear below
+  lodgePart(-1,-1,12,11,2,10,lodgeRoof);
   lodgePart(2,2,0,2,1,2,stone); // visible interior workbench
   lodgePart(-.25,3,6,.3,2,3,lodgeGlow,false); // lit door frame
   lodgePart(0,2,5,.3,1,1,amber,false);
