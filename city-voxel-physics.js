@@ -72,6 +72,13 @@
     state.vy=Math.max(-40,state.vy-GRAVITY*step);
     state.y+=state.vy*step;
    }
+   // A solid underground roof cannot be jumped through. Leave roofless
+   // mouth tiles open so the transition is continuous with the outside.
+   const gallery=world.caveRoomAt?.(Math.floor(state.x),Math.floor(state.z));
+   if(gallery&&!gallery.exposed&&state.vy>0&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+    state.y=gallery.ceiling-world.PLAYER_HEIGHT;
+    state.vy=0;
+   }
    const floor=floorAt(state.x,state.z,state.y);
    if(floor!==null&&state.y<=floor){state.y=floor;state.vy=0;state.grounded=true;}
    else if(floor!==null&&state.y>floor+.01)state.grounded=false;
