@@ -574,89 +574,107 @@
  }
  // Small Canvas2D perspective renderer for browsers without a WebGL context.
  // Reuse the same bounded chunk meshes, including the gate's actual geometry.
+ // Lightweight first-person terrain renderer for Android/WebGL fallback.
+ // Do not reuse GPU triangles: a real Samsung recording showed 236k WebGL
+ // vertices and Canvas triangle meshes loaded, yet both screens stayed blank.
+ // Raycast height columns from the SAME seeded surfaceAt world, then project
+ // gatehouse/roadside structure silhouettes. No WebGL or mesh worker required.
  function createCanvasRenderer(canvas,world){
   const ctx=canvas.getContext('2d',{alpha:false});
   if(!ctx)return null;
-  const cache=new Map(),radius=4;
-  let lastFrame=-Infinity,lastPose='',modelsPending=true;
-  let metrics={loaded:0,wanted:0,vertices:0,frameAverage:100,renderScale:1,viewRadius:radius,
-   gpuBytes:0,workerStatus:'canvas',pendingMeshes:0};
+  const far=88,FOV=77*Math.PI/180;
+  let lastFrame=-Infinity,lastPose='',metrics={
+   loaded:0,wanted:1,vertices:0,frameAverage:100,renderScale:1,
+   viewRadius:5,gpuBytes:0,workerStatus:'canvas',pendingMeshes:0
+  };
+  function shade(col,dist){
+   const fade=Math.max(.58,1-dist/210);
+   const rgb=col.road?(col.curb?[154,138,105]:[117,110,101]):
+    col.water?[37,116,157]:
+    col.material==='snow'?[209,220,227]:
+    col.material==='stone'||col.material==='cliff'?[118,121,114]:
+    col.material==='basalt'?[77,75,81]:
+    col.material==='shore'||col.material==='sand'?[185,169,116]:
+    col.material==='mud'?[91,97,72]:
+    col.group==='tropical'||col.group==='evergreen'?[72,123,69]:
+    col.group==='alpine'?[133,132,118]:
+    col.group==='wetland'?[76,113,81]:[112,147,81];
+   return 'rgb('+rgb.map(n=>Math.round(n*fade)).join(',')+')';
+  }
   function render(player){
-   const now=performance.now(),yaw=player.yaw,pitch=player.pitch;
-   const w=Math.min(700,Math.max(160,Math.round(canvas.clientWidth))),h=Math.max(90,Math.round(w*canvas.clientHeight/Math.max(1,canvas.clientWidth)));
-   const pose=[w,h,player.x,player.y,player.z,yaw,pitch].join(',');
-   if(now-lastFrame<65||(!modelsPending&&lastPose===pose))return metrics;
+   const now=performance.now();
+   const cssW=Math.max(1,canvas.clientWidth),cssH=Math.max(1,canvas.clientHeight);
+   const w=Math.min(560,Math.max(160,Math.round(cssW)));
+   const h=Math.min(900,Math.max(100,Math.round(w*cssH/cssW)));
+   const pose=[w,h,player.x,player.y,player.z,player.yaw,player.pitch].join(',');
+   if(now-lastFrame<100||lastPose===pose)return metrics;
    lastFrame=now;lastPose=pose;
    if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
    const sky=ctx.createLinearGradient(0,0,0,h);
-   sky.addColorStop(0,'#5579a0');sky.addColorStop(.55,'#bed9d7');sky.addColorStop(1,'#687f6b');
+   sky.addColorStop(0,'#497fb2');sky.addColorStop(.58,'#b9d9e6');
+   sky.addColorStop(.8,'#d9d8ba');sky.addColorStop(1,'#667c62');
    ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
-   const cx=Math.floor(player.x/16),cz=Math.floor(player.z/16);
-   const sy=Math.sin(yaw),cy=Math.cos(yaw),sp=Math.sin(pitch),cp=Math.cos(pitch);
-   const eye=player.y+world.EYE_HEIGHT,focal=h*.84;
-   const visible=[];
-   for(let dz=-radius;dz<=radius;dz++)for(let dx=-radius;dx<=radius;dx++){
-    if(dx*dx+dz*dz>radius*radius||dx*sy+dz*cy< -1.6)continue;
-    visible.push({x:cx+dx,z:cz+dz,d:dx*dx+dz*dz});
-   }
-   visible.sort((a,b)=>a.d-b.d);
-   const wanted=new Set(visible.map(p=>p.x+','+p.z));
-   for(const key of cache.keys())if(!wanted.has(key))cache.delete(key);
-   const faces=[];
-   let built=0,vertices=0;
-   for(const chunk of visible){
-    const key=chunk.x+','+chunk.z;
-    if(!cache.has(key)){
-     if(built>=3)continue;
-     const mesh=generateMesh(world,chunk.x,chunk.z,4);
-     const plants=[];
-     for(let z=chunk.z*16;z<chunk.z*16+16;z++)for(let x=chunk.x*16;x<chunk.x*16+16;x++){
-      const f=world.featureAt(x,z);
-      if(f&&['tree','pine','palm'].includes(f.type)&&((x+z)%4===0||Math.abs(x-world.gateRoad.x)===8))
-       foliage(plants,{...f,x,z,y:world.surfaceAt(x,z).height+1});
-     }
-     cache.set(key,[mesh.data,new Float32Array(plants)]);built++;
-    }
-    for(const data of cache.get(key)){
-     vertices+=data.length/9;
-     for(let i=0;i<data.length;i+=27){
-      const points=[];
-      for(let j=i;j<i+27;j+=9){
-       const dx=data[j]-player.x,dy=data[j+1]-eye,dz=data[j+2]-player.z;
-       const forward=dx*sy+dz*cy;
-       points.push([dx*cy-dz*sy,dy*cp-forward*sp,forward*cp+dy*sp]);
-      }
-      if(points.every(p=>p[2]<.35))continue;
-      // Clip triangles crossing the near plane before dividing by depth.
-      const projected=[];
-      for(let k=0;k<3;k++){
-       const a=points[k],b=points[(k+1)%3];
-       if(a[2]>=.35)projected.push(a);
-       if((a[2]>=.35)!==(b[2]>=.35)){
-        const t=(.35-a[2])/(b[2]-a[2]);
-        projected.push([lerpPoint(a[0],b[0],t),lerpPoint(a[1],b[1],t),.35]);
-       }
-      }
-      const xy=projected.map(p=>[w/2+focal*p[0]/p[2],h/2-focal*p[1]/p[2]]);
-      if(xy.every(p=>p[0]<0)||xy.every(p=>p[0]>w)||xy.every(p=>p[1]<0)||xy.every(p=>p[1]>h))continue;
-      const light=.64+.36*Math.max(0,data[i+6]*.4+Math.abs(data[i+7])*.85+data[i+8]*.2);
-      const color=[3,4,5].map(n=>Math.round(255*clamp(data[i+n]*light,0,1)));
-      faces.push({xy,depth:points.reduce((a,b)=>a+b[2],0)/3,color:'rgb('+color.join(',')+')'});
-     }
+   const eye=player.y+world.EYE_HEIGHT;
+   const focal=w/(2*Math.tan(FOV/2)),horizon=h*.5+player.pitch*focal;
+   const rays=Math.max(46,Math.min(98,Math.round(w/5)));
+   const columnWidth=Math.ceil(w/rays)+1;
+   let samples=0;
+   // Paint distant ground first; nearer columns naturally occlude it.
+   for(let column=0;column<rays;column++){
+    const theta=Math.atan(((column+.5)/rays*2-1)*Math.tan(FOV/2));
+    const dx=Math.sin(player.yaw+theta),dz=Math.cos(player.yaw+theta);
+    const screenX=Math.floor(column*w/rays);
+    for(let distance=far;distance>=.9;distance-=distance>30?2.6:distance>10?1.3:.65){
+     const tile=world.surfaceAt(Math.floor(player.x+dx*distance),
+      Math.floor(player.z+dz*distance));
+     if(!tile||!Number.isFinite(tile.height))continue;
+     samples++;
+     const depth=Math.max(.25,distance*Math.cos(theta));
+     const projected=horizon+(eye-tile.height-1)*focal/depth;
+     if(projected>=h)continue;
+     const top=Math.max(0,Math.round(projected));
+     ctx.fillStyle=shade(tile,distance);
+     ctx.fillRect(screenX,top,columnWidth,h-top);
     }
    }
-   faces.sort((a,b)=>b.depth-a.depth);
-   for(const {xy,color} of faces){
-    ctx.beginPath();ctx.moveTo(...xy[0]);
-    for(let i=1;i<xy.length;i++)ctx.lineTo(...xy[i]);
-    ctx.closePath();ctx.fillStyle=color;ctx.fill();
+   // The original generated gate, watchtowers, banners and starter supplies
+   // are still the canonical geometry; render their projected silhouettes.
+   const parts=world.gateRoad?.parts||[];
+   const forwardX=Math.sin(player.yaw),forwardZ=Math.cos(player.yaw);
+   const rightX=Math.cos(player.yaw),rightZ=-Math.sin(player.yaw);
+   const projected=[];
+   for(const part of parts){
+    const dx=part.x+part.w/2-player.x,dz=part.z+part.d/2-player.z;
+    const depth=dx*forwardX+dz*forwardZ,side=dx*rightX+dz*rightZ;
+    if(depth<=1||depth>far||Math.abs(side)>depth*1.8+18)continue;
+    const center=w*.5+side*focal/depth;
+    const width=Math.max(2,Math.min(w*2,Math.max(part.w,part.d)*focal/depth));
+    const top=horizon+(eye-part.y-part.h)*focal/depth;
+    const bottom=horizon+(eye-part.y)*focal/depth;
+    if(bottom<=0||top>=h)continue;
+    projected.push({depth,x:center-width/2,top,width,height:bottom-top,color:part.color});
    }
-   modelsPending=cache.size<wanted.size;
-   metrics={...metrics,loaded:cache.size,wanted:wanted.size,vertices,frameAverage:Math.max(65,performance.now()-now)};
+   projected.sort((a,b)=>b.depth-a.depth);
+   for(const p of projected){
+    const tint=clamp(.9-p.depth/370,.48,.92);
+    ctx.fillStyle='rgb('+p.color.map(v=>Math.round(clamp(v*tint,0,1)*255)).join(',')+')';
+    ctx.fillRect(p.x,p.top,p.width,p.height);
+   }
+   // Subtle near-foreground road guide, so a player can tell at a glance
+   // that the camera is oriented toward the traversable first-person route.
+   const road=world.gateRoad;
+   if(road&&player.z<road.z+45&&player.z>road.z-10&&Math.abs(player.x-road.x)<12){
+    const guideDist=Math.max(3,road.gateZ-player.z);
+    const guideX=w/2+(road.gateX-player.x)*focal/guideDist;
+    const guideY=Math.min(h-15,horizon+world.EYE_HEIGHT*focal/guideDist);
+    ctx.strokeStyle='#f6d482';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(guideX-8,guideY);ctx.lineTo(guideX+8,guideY);ctx.stroke();
+   }
+   metrics={...metrics,loaded:1,wanted:1,vertices:samples*6+projected.length*6,
+    frameAverage:Math.max(100,performance.now()-now)};
    return metrics;
   }
-  function lerpPoint(a,b,t){return a+(b-a)*t;}
-  return {render,software:true,dispose:()=>cache.clear()};
+  return {render,software:true,dispose:()=>{lastPose='';}};
  }
  root.CityVoxelRenderer=Object.freeze({createRenderer,createCanvasRenderer,generateMesh,rgb,surfaceLight,terrainCastShade,waterColor,
   VOXEL_METERS:.25,MAX_GPU_CHUNKS:176,MAX_GPU_BYTES:24*1024*1024});

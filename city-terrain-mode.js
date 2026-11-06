@@ -112,7 +112,8 @@
  const renderHint=document.createElement('div');
  renderHint.id='city-render-hint';renderHint.textContent='Loading the 3D world…';
  modeButton.insertAdjacentElement('afterend',renderHint);
- let forceCanvas=new URLSearchParams(window.location.search).get('render')==='canvas';
+ // Use an independent visible fallback on Android until native GPU rendering is visually verified.
+ let forceCanvas=new URLSearchParams(window.location.search).get('render')==='canvas'||/Android/i.test(window.navigator?.userAgent||'');
  let blankSince=0;
  function openPerspective(){
   if(!voxel||!rendererApi)return null;
