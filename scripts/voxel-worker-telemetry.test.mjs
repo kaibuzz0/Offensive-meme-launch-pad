@@ -43,3 +43,14 @@ test('reject malformed mesh data and invalid request coordinates',()=>{
  w.send({type:'mesh',id:4,cx:62501,cz:0,stride:1});
  assert.deepEqual(w.messages.map(x=>x.message.type),['error','error']);
 });
+
+// A transferable ArrayBuffer exposes the entire allocation, not just the view.
+// Reject partial views so unrelated bytes are never sent to the parent thread.
+test('reject partial typed-array views without transferring backing allocation',()=>{
+ const backing=new Float32Array(90);
+ const w=worker(()=>({vertices:6,tiles:1,plants:0,data:backing.subarray(9,63)}));
+ w.send({type:'mesh',id:5,cx:0,cz:0,stride:1});
+ assert.equal(w.messages[0].message.type,'error');
+ assert.equal(w.messages[0].message.id,5);
+ assert.equal(w.messages[0].transfer.length,0);
+});
