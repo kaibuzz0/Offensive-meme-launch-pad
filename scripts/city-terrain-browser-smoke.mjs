@@ -83,6 +83,10 @@ try{
   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.textContent.startsWith("3D ·")'),'3D chunk rendering',30000);
   const error=await evalPage('document.getElementById("city-voxel-canvas").getContext("webgl").getError()');
   assert.equal(error,0,'first-person 3D frame must not cause WebGL errors');
+  const metrics=await evalPage('(()=>{const el=document.getElementById("city-voxel-status");return {gpuBytes:Number(el.dataset.gpuBytes),underground:el.dataset.underground,hasGallery:typeof CityVoxelWorld.createVoxelWorld(CityTerrainWorld.createTerrain(localStorage.getItem("meme-city-terrain-seed-v1"),CityFrontier.regions)).caveRoomAt==="function"};})()');
+  assert.ok(metrics.gpuBytes>0&&metrics.gpuBytes<=24*1024*1024,'rendered GPU terrain remains inside 24MiB budget');
+  assert.ok(['true','false'].includes(metrics.underground),'camera HUD tracks cave state');
+  assert.equal(metrics.hasGallery,true,'underground gallery topology available in deployed game');
  }
 
  await waitFor(()=>evalPage('(()=>{const c=document.getElementById("city-canvas");return c.width>100&&c.height>100&&!!localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"));})()'),'paint and save world');
