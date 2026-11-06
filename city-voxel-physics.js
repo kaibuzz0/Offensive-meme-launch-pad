@@ -76,7 +76,10 @@
    // A solid underground roof cannot be jumped through. Leave roofless
    // mouth tiles open so the transition is continuous with the outside.
    const gallery=world.caveRoomAt?.(Math.floor(state.x),Math.floor(state.z));
-   if(gallery&&!gallery.exposed&&state.vy>0&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+   // Only collide with an underground ceiling while the player's feet are
+   // inside that gallery. Surface players stand ABOVE the same cave roof;
+   // applying its ceiling to them teleports them into the cave on jump.
+   if(gallery&&!gallery.exposed&&state.vy>0&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
     state.y=gallery.ceiling-world.PLAYER_HEIGHT;
     state.vy=0;
    }
