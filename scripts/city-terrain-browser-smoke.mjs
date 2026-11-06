@@ -87,6 +87,12 @@ try{
   assert.ok(metrics.gpuBytes>0&&metrics.gpuBytes<=24*1024*1024,'rendered GPU terrain remains inside 24MiB budget');
   assert.ok(['true','false'].includes(metrics.underground),'camera HUD tracks cave state');
   assert.equal(metrics.hasGallery,true,'underground gallery topology available in deployed game');
+  const worldDetails=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");const w=CityVoxelWorld.createVoxelWorld(CityTerrainWorld.createTerrain(seed,CityFrontier.regions));return {types:w.atlas.biomes.length,hasCaverns:typeof w.caveRoomAt==="function",caveCache:w.caveCacheSize(),height:w.MAX_HEIGHT};})()');
+  assert.equal(worldDetails.types,132);
+  assert.equal(worldDetails.hasCaverns,true);
+  assert.equal(worldDetails.height,2048);
+  const viewDistance=await evalPage('Number(document.getElementById("city-voxel-status").dataset.viewRadius)');
+  assert.ok(viewDistance>=5&&viewDistance<=7,'adaptive view radius stays in mobile-safe range');
  }
 
  await waitFor(()=>evalPage('(()=>{const c=document.getElementById("city-canvas");return c.width>100&&c.height>100&&!!localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"));})()'),'paint and save world');
