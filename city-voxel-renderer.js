@@ -273,11 +273,15 @@
  // Small-scale rock grain, strata, crevice shading and water highlights are
  // generated in WebGL1, avoiding large downloaded textures for low-data phones.
  const vertexSource='attribute vec3 aPos;attribute vec3 aColor;attribute vec3 aNormal;'+
-  'uniform mat4 uMatrix;uniform vec3 uEye;varying vec3 vColor;varying float vDist;'+
+  'uniform mat4 uMatrix;uniform vec3 uEye;uniform float uTime;'+
+  'varying vec3 vColor;varying float vDist;'+
   'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;'+
-  'void main(){gl_Position=uMatrix*vec4(aPos,1.0);'+
-  'vColor=aColor;vDist=distance(aPos,uEye);vPosition=aPos;vNormal=aNormal;'+
-  'vWater=aNormal.y< -1.5?1.0:0.0;}';
+  'void main(){vWater=aNormal.y< -1.5?1.0:0.0;'+
+  // World-space coordinates guarantee identical displacement on shared chunk edges.
+  'float wave=sin(aPos.x*.81+uTime*.8)*sin(aPos.z*.62-uTime*.7);'+
+  'vec3 surface=aPos+vec3(0.0,vWater*.065*wave,0.0);'+
+  'gl_Position=uMatrix*vec4(surface,1.0);'+
+  'vColor=aColor;vDist=distance(surface,uEye);vPosition=surface;vNormal=aNormal;}';
  const fragmentSource='precision mediump float;varying vec3 vColor;varying float vDist;'+
   'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;uniform float uTime;'+
   'uniform vec3 uLampEye;uniform float uUnderground;'+
