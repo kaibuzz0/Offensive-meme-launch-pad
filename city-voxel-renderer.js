@@ -131,6 +131,22 @@
   const directional=clamp(1-(delta[1]*.035+delta[3]*.020),.54,1);
   return clamp(ambient*directional,.30,1);
  }
+ // Deterministic baked relief shadow: trace a few heightfield samples
+ // toward the fixed simulated sun. Unlike contact AO, a ridge may shade a
+ // distant valley cell; no extra WebGL depth framebuffer is allocated.
+ function terrainCastShade(world,x,z,height,stride=1){
+  if(!world?.surfaceAt)return 1;
+  let occlusion=0;
+  for(let step=1;step<=5;step++){
+   const dx=step*stride*2,dz=step*stride;
+   const ahead=world.surfaceAt(x+dx,z+dz);
+   if(!ahead)continue;
+   const ray=height+step*stride*4.0;
+   const barrier=ahead.height-ray;
+   if(barrier>0)occlusion=Math.max(occlusion,Math.min(1,barrier/22));
+  }
+  return 1-occlusion*.42;
+ }
  function waterColor(depth){
   const t=clamp(depth/45,0,1);
   return [.08-.035*t,.48-.16*t,.64-.12*t];
@@ -155,7 +171,7 @@
     {n:world.surfaceAt(x,z-stride),axis:'front'},
     {n:world.surfaceAt(x,z+stride),axis:'back'}
    ];
-   const topShade=(tile.slope>13?.86:tile.material==='shore'?.96:1)*surfaceLight(tile,sides.map(s=>s.n));
+   const topShade=(tile.slope>13?.86:tile.material==='shore'?.96:1)*surfaceLight(tile,sides.map(s=>s.n))*terrainCastShade(world,x,z,y,stride);
    const groundTint=color.map(v=>v*topShade);
    quad(data,[x,y+1,z],[x+stride,y+1,z],[x+stride,y+1,z+stride],[x,y+1,z+stride],groundTint,[0,1,0]);
    const shade=color.map(v=>v*(tile.material==='cave-rock'?.45:tile.material==='cliff'?.72:.79));
@@ -534,6 +550,6 @@
   return Object.freeze({gl,render,dispose,chunkCount:()=>chunks.size,
    meshAt:(cx,cz)=>generateMesh(world,cx,cz),workerStatus:()=>workerStatus});
  }
- root.CityVoxelRenderer=Object.freeze({createRenderer,generateMesh,rgb,surfaceLight,waterColor,
+ root.CityVoxelRenderer=Object.freeze({createRenderer,generateMesh,rgb,surfaceLight,terrainCastShade,waterColor,
   VOXEL_METERS:.25,MAX_GPU_CHUNKS:176,MAX_GPU_BYTES:24*1024*1024});
 })(typeof window==='undefined'?globalThis:window);
