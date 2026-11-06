@@ -44,7 +44,7 @@
  $('#welcome-title').textContent='YOUR WORLD. YOUR SEED.';
  $('.welcome-lead').textContent='Explore a seeded 3D voxel wilderness with 132 named biomes, mountains, rivers, lakes, trees, grass, flowers, underwater valleys and underground cave data. Each small block is one-quarter of a meter, with a first-person camera. Buildings, streets, NPCs and quests remain disabled; legacy saves stay protected.';
  $('.welcome-steps').hidden=true;
- $('.welcome-goal').textContent='Round 3 preview: richer woodland shapes, rocky escarpments, cave-mouth sinkholes, shorelines and basic step/jump/fall physics. Still missing photoreal surface textures, full cave interiors, shadows and water simulation.';
+ $('.welcome-goal').textContent='Round 5 preview: seed-linked cave entrances, passages and two joined underground chambers per eligible cave region, with close-range lantern lighting. True photoreal textures, mining, extensive cave networks, shadows and water physics remain unfinished.';
  start.textContent='Enter first-person wilderness →';
  $('.welcome-controls').textContent='WASD / arrows or mobile joystick · Swipe/drag to look · Space or Jump to leap · Steep rock walls block movement · Atlas and top-down view remain available.';
  const legacy=document.createElement('a');
