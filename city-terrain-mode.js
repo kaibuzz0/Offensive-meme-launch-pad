@@ -227,9 +227,13 @@
     if(ground){
      try{const cameraY=physics?.snapshot().y??ground.height+1;
      const metrics=perspective.render({x:player.x,z:player.y,y:cameraY,yaw:player.yaw,pitch:player.pitch});
-      status.textContent='3D · '+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks · elevation '+Math.round(cameraY*voxel.VOXEL_METERS)+'m';
+      const gallery=voxel.caveRoomAt?.(Math.floor(player.x),Math.floor(player.y));
+      const subterranean=!!gallery&&!gallery.exposed&&cameraY+voxel.EYE_HEIGHT<voxel.surfaceAt(Math.floor(player.x),Math.floor(player.y)).height+1;
+      status.textContent='3D · '+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks · elevation '+Math.round(cameraY*voxel.VOXEL_METERS)+'m'+(subterranean?' · UNDERGROUND':'');
       status.dataset.elevation=String(cameraY);
       status.dataset.grounded=String(physics?.snapshot().grounded??true);
+      status.dataset.underground=String(subterranean);
+      status.dataset.gpuBytes=String(metrics.gpuBytes);
      }catch(err){status.textContent='3D rendering failed';perspective.dispose();perspective=null;firstPerson=false;syncView();}
     }
    }else drawWorld(size.w,size.h);
