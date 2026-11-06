@@ -291,9 +291,14 @@
   'gl_FragColor=vec4(mix(color,haze,fog),1.0);}';
  const skyVertex='attribute vec2 aXY;varying vec2 vUV;'+
   'void main(){gl_Position=vec4(aXY,0.9999,1.0);vUV=aXY*.5+.5;}';
- const skyFragment='precision mediump float;varying vec2 vUV;uniform vec2 uLook;'+
+ const skyFragment='precision mediump float;varying vec2 vUV;uniform vec2 uLook;uniform float uTime;'+
   'void main(){float y=clamp(vUV.y,0.0,1.0);'+
   'vec3 sky=mix(vec3(.75,.83,.85),vec3(.12,.35,.63),smoothstep(.1,1.0,y));'+
+  'float drift=uTime*.003+uLook.x*.22;'+
+  'float structure=sin((vUV.x+drift)*26.0+sin(vUV.y*39.0)*1.6)*.34+'+
+  'sin((vUV.x+drift)*43.0-vUV.y*18.0)*.20;'+
+  'float clouds=smoothstep(.17,.52,structure)*smoothstep(.40,.62,y)*(1.0-smoothstep(.88,.98,y));'+
+  'sky=mix(sky,vec3(.89,.91,.91),clouds*.58);'+
   'vec2 sun=vec2(.5+.5*sin(1.3-uLook.x),.68-.45*sin(uLook.y));'+
   'float halo=exp(-pow(distance(vUV,sun)*6.0,2.0));'+
   'float disc=1.0-smoothstep(.027,.049,distance(vUV,sun));'+
@@ -349,7 +354,8 @@
   const skyBuffer=gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER,skyBuffer);
   gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
-  const skyPos=gl.getAttribLocation(skyProgram,'aXY'),skyLook=gl.getUniformLocation(skyProgram,'uLook');
+  const skyPos=gl.getAttribLocation(skyProgram,'aXY'),skyLook=gl.getUniformLocation(skyProgram,'uLook'),
+   skyTime=gl.getUniformLocation(skyProgram,'uTime');
   const timeUniform=gl.getUniformLocation(program,'uTime');
   const chunks=new Map(),MAX_CHUNKS=176,MAX_GPU_BYTES=24*1024*1024,RADIUS=7,NEAR_RADIUS=3;
   let adaptiveRadius=RADIUS,frameAverage=16.7,lastFrameTime=null,slowFrames=0,fastFrames=0,renderScale=1;
@@ -388,6 +394,7 @@
    gl.disable(gl.DEPTH_TEST);
    gl.useProgram(skyProgram);
    gl.uniform2f(skyLook,player.yaw,player.pitch);
+   gl.uniform1f(skyTime,(typeof performance!=='undefined'?performance.now():0)/1000);
    gl.bindBuffer(gl.ARRAY_BUFFER,skyBuffer);
    gl.enableVertexAttribArray(skyPos);
    gl.vertexAttribPointer(skyPos,2,gl.FLOAT,false,0,0);
