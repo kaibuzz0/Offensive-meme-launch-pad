@@ -81,6 +81,27 @@
   parts.push({x:supplies.x-.15,z:supplies.z-.15,y:supplies.y+2,w:3.3,h:.5,d:3.3,color:trim,solid:false});
   parts.push({x:supplies.x+1.3,z:supplies.z+1.1,y:supplies.y+2.5,w:.35,h:8,d:.35,color:stone,solid:false});
   parts.push({x:supplies.x+1.6,z:supplies.z+1.1,y:supplies.y+7,w:4,h:2.8,d:.22,color:amber,solid:false});
+  // The first clan-district building shares the fortress's graded pad and
+  // existing world-space cuboid renderer/collision contract. Its western
+  // doorway faces the road and stays open at player height.
+  const lodge=Object.freeze({id:'starter-lodge:'+seed,x:x+13,z:gateZ+2,
+   y:heights[42]+1,doorX:x+13,doorZ:gateZ+6});
+  const lodgeWall=[.48,.34,.23],lodgeRoof=[.20,.29,.34],lodgeGlow=[1,.69,.24];
+  function lodgePart(dx,dz,dy,w,h,d,color,solid=true){
+   parts.push({x:lodge.x+dx,z:lodge.z+dz,y:lodge.y+dy,w,h,d,color,solid});
+  }
+  // 9x8 shell; west wall has a 3-voxel doorway from z+3 to z+6.
+  lodgePart(0,0,0,9,10,1,lodgeWall);
+  lodgePart(0,7,0,9,10,1,lodgeWall);
+  lodgePart(8,1,0,1,10,6,lodgeWall);
+  lodgePart(0,1,0,1,10,2,lodgeWall);
+  lodgePart(0,6,0,1,10,1,lodgeWall);
+  lodgePart(0,3,8,1,2,3,lodgeWall); // lintel, clear below
+  lodgePart(-1,-1,10,11,2,10,lodgeRoof);
+  lodgePart(2,2,0,2,1,2,stone); // visible interior workbench
+  lodgePart(-.25,3,6,.3,2,3,lodgeGlow,false); // lit door frame
+  lodgePart(0,2,5,.3,1,1,amber,false);
+  lodgePart(0,6,5,.3,1,1,amber,false);
   function foundation(px,pz){
    const t=pz-z;
    if(t< -4||t>54)return null;
@@ -93,7 +114,7 @@
    return parts.some(p=>p.solid&&px+radius>p.x&&px-radius<p.x+p.w&&
     pz+radius>p.z&&pz-radius<p.z+p.d&&py+height>p.y&&py<p.y+p.h);
   }
-  return {x,z,gateX:x,gateZ,base,parts,foundation,obstructs,supplies};
+  return {x,z,gateX:x,gateZ,base,parts,foundation,obstructs,supplies,lodge};
  }
  function createVoxelWorld(atlas){
   if(!atlas?.seedHash||typeof atlas.biomeAt!=='function')throw Error('Seeded 132-biome atlas required');
