@@ -141,3 +141,23 @@ test('chunk lifecycle has deterministic bounded entries, eviction and removal',(
  assert.throws(()=>manager.sync([[0,0],[1,0],[2,0]]),RangeError);
  assert.throws(()=>manager.enter(0.5,0),TypeError);
 });
+
+test('failed terrain sampling does not partially evict visible wildlife',()=>{
+ let fail=false;
+ const world={seed:88,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:(x,z)=>{
+  if(fail&&x>=32)throw Error('terrain unavailable');
+  return {height:70,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ manager.sync([[0,0],[1,0]]);
+ const before=manager.snapshot();
+ fail=true;
+ assert.throws(()=>manager.sync([[1,0],[2,0]]),/terrain unavailable/);
+ assert.deepEqual(manager.snapshot(),before);
+ assert.equal(manager.activeChunks(),2);
+ fail=false;
+ const next=manager.sync([[1,0],[2,0]]);
+ assert.equal(manager.activeChunks(),2);
+ assert.ok(next.every(a=>!a.id.startsWith('88:0:0:')));
+ assert.deepEqual(manager.sync([[1,0],[2,0]]),next);
+});

@@ -164,7 +164,9 @@
   if(!chunk)return null;
   const data=[];
   for(const tile of chunk.tiles){
-   const {x,z,height:y}=tile,color=baseColor(tile);
+   const {x,z,height:y}=tile;
+   const stoneTint=((x*17+z*7)&3)*.025;
+   const color=tile.road?(tile.curb?[.58,.53,.44]:[.39+stoneTint,.36+stoneTint,.30+stoneTint]):baseColor(tile);
    const sides=[
     {n:world.surfaceAt(x-stride,z),axis:'left'},
     {n:world.surfaceAt(x+stride,z),axis:'right'},
@@ -258,6 +260,9 @@
     }
    }
   }
+  for(const p of chunk.structures||world.gateParts?.(cx,cz)||[]){
+   box(data,p.x,p.y,p.z,p.w,p.h,p.d,p.color);
+  }
   for(const plant of chunk.plants){
    if(['pine','palm','tree'].includes(plant.type)){
     const {x,z,y}=plant,shadow=[.13,.19,.13];
@@ -273,11 +278,17 @@
  // Small-scale rock grain, strata, crevice shading and water highlights are
  // generated in WebGL1, avoiding large downloaded textures for low-data phones.
  const vertexSource='attribute vec3 aPos;attribute vec3 aColor;attribute vec3 aNormal;'+
-  'uniform mat4 uMatrix;uniform vec3 uEye;varying vec3 vColor;varying float vDist;'+
+  'uniform mat4 uMatrix;uniform vec3 uEye;uniform float uTime;'+
+  'varying vec3 vColor;varying float vDist;'+
   'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;'+
-  'void main(){gl_Position=uMatrix*vec4(aPos,1.0);'+
-  'vColor=aColor;vDist=distance(aPos,uEye);vPosition=aPos;vNormal=aNormal;'+
-  'vWater=aNormal.y< -1.5?1.0:0.0;}';
+  'void main(){vWater=aNormal.y< -1.5?1.0:0.0;'+
+  // World-space coordinates guarantee identical displacement on shared chunk edges.
+  // 0.025 max amplitude stays below the 0.035 raised shoreline foam strips,
+  // avoiding water/foam depth fighting on WebGL1 mobile renderers.
+  'float wave=sin(aPos.x*.81+uTime*.8)*sin(aPos.z*.62-uTime*.7);'+
+  'vec3 surface=aPos+vec3(0.0,vWater*.025*wave,0.0);'+
+  'gl_Position=uMatrix*vec4(surface,1.0);'+
+  'vColor=aColor;vDist=distance(surface,uEye);vPosition=surface;vNormal=aNormal;}';
  const fragmentSource='precision mediump float;varying vec3 vColor;varying float vDist;'+
   'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;uniform float uTime;'+
   'uniform vec3 uLampEye;uniform float uUnderground;'+
@@ -301,8 +312,8 @@
   'color+=vec3(.035,.047,.036)*pow(max(0.0,coarse-.68),2.0)*3.5;'+
   'if(vWater>.5){'+
   'float phaseX=vPosition.x*.81+uTime*.8,phaseZ=vPosition.z*.62-uTime*.7;'+
-  'float slopeX=.065*.81*cos(phaseX)*sin(phaseZ);'+
-  'float slopeZ=.065*.62*sin(phaseX)*cos(phaseZ);'+
+  'float slopeX=.025*.81*cos(phaseX)*sin(phaseZ);'+
+  'float slopeZ=.025*.62*sin(phaseX)*cos(phaseZ);'+
   'vec3 waterNormal=normalize(vec3(-slopeX,1.0,-slopeZ));'+
   'float wave=sin(phaseX)*sin(phaseZ);'+
   'float gleam=pow(max(0.0,sin((vPosition.x+vPosition.z)*1.7+uTime*1.5)),16.0);'+

@@ -135,3 +135,30 @@ test('surface jump over adjacent buried gallery remains unrestricted', () => {
   const after = player.tick({jump: true}, 0.05);
   assert.ok(after.y > 21, 'surface must not snap into corner cave roof');
 });
+
+test('swept cave ceiling stops a full roof crossing in one tick', () => {
+  // Small test capsule exposes the fast-ascent tunneling case that an
+  // endpoint-only roof check misses; gameplay capsule uses the same sweep.
+  const world = {
+    PLAYER_HEIGHT: 0.1, SEA_LEVEL: -100,
+    surfaceAt: () => ({height: 20}),
+    caveRoomAt: () => ({floor: 2, ceiling: 2.4, exposed: false})
+  };
+  const player = createController(world, {x: 0, z: 0, y: 2});
+  const after = player.tick({jump: true}, 0.05);
+  assert.ok(after.y <= 2.4 - world.PLAYER_HEIGHT + 1e-9,
+    'feet must not tunnel above a roof in a single frame');
+  assert.equal(after.vy, 0);
+});
+
+test('swept roof guard still permits jumps on the surface', () => {
+  const world = {
+    PLAYER_HEIGHT: 0.1, SEA_LEVEL: -100,
+    surfaceAt: () => ({height: 20}),
+    caveRoomAt: () => ({floor: 2, ceiling: 2.4, exposed: false})
+  };
+  const player = createController(world, {x: 0, z: 0});
+  const after = player.tick({jump: true}, 0.05);
+  assert.ok(after.y > 21);
+  assert.ok(after.vy > 0);
+});

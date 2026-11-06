@@ -1,6 +1,6 @@
 /* Terrain-only integration milestone for Meme City's existing city.html.
  * The legacy gameplay is available at city.html (without ?terrain=1).
- * This intentionally contains no shops, NPCs, roads, combat or economy.
+ * The starter road and gate share the terrain seed and player controller.
  */
 'use strict';
 (() => {
@@ -37,15 +37,15 @@
   .terrain-only-mode #city-voxel-status {max-width:calc(100% - 40px);text-shadow:0 1px 2px #000}
  `;
  document.head.append(style);
- $('.alpha-tag').textContent='VOXEL TERRAIN / FIRST-PERSON';
+ $('.alpha-tag').textContent='FORTRESS ROAD / FIRST PERSON';
  $('.solo-restore-label').textContent='SEPARATE TERRAIN SAVE';
  $('#population').textContent='No NPCs, streets or buildings';
  $('#room-mode').textContent='SEEDED SOLO WORLD';
- $('#welcome-title').textContent='YOUR WORLD. YOUR SEED.';
- $('.welcome-lead').textContent='Explore a seeded 3D voxel wilderness with 132 named biomes, mountains, rivers, lakes, trees, grass, flowers, underwater valleys and underground cave data. Each small block is one-quarter of a meter, with a first-person camera. Buildings, streets, NPCs and quests remain disabled; legacy saves stay protected.';
+ $('#welcome-title').textContent='FORTRESS ROAD';
+ $('.welcome-lead').textContent='Follow the stone road between the red banners. Pass under the watchtower arch and collect the gate seal for this world.';
  $('.welcome-steps').hidden=true;
- $('.welcome-goal').textContent='Round 5 preview: seed-linked cave entrances, passages and two joined underground chambers per eligible cave region, with close-range lantern lighting. True photoreal textures, mining, extensive cave networks, shadows and water physics remain unfinished.';
- start.textContent='Enter first-person wilderness →';
+ $('.welcome-goal').textContent='Beyond the gate, explore the mountains, forests and caves of your seeded world.';
+ start.textContent='Enter first person →';
  $('.welcome-controls').textContent='WASD / arrows or mobile joystick · Swipe/drag to look · Space or Jump to leap · Steep rock walls block movement · Atlas and top-down view remain available.';
  const legacy=document.createElement('a');
  legacy.href='city.html?legacy=1';legacy.textContent='Open preserved legacy city →';
@@ -131,11 +131,28 @@
  }
  function resetVoxel(){
   if(perspective)perspective.dispose();
-  voxel=voxelApi?.createVoxelWorld(world)||null;
   physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y,y:player.vertical})||null;
   try{perspective=voxel&&rendererApi?rendererApi.createRenderer(voxelCanvas,voxel,definitions):null;}catch{perspective=null;}
   firstPerson=!!perspective;syncView();
  }
+ const gateButton=document.createElement('button');
+ gateButton.type='button';gateButton.id='city-gate-seal';gateButton.hidden=true;
+ gateButton.style.cssText='position:absolute;right:16px;bottom:104px;z-index:4;padding:12px 16px;background:#402721;color:#fff1cc;border:1px solid #dbac63;border-radius:6px';
+ status.insertAdjacentElement('afterend',gateButton);
+ const sealKey=()=> 'meme-city-gate-seal-v1:'+seed;
+ let sealClaimed=get(sealKey())==='1';
+ function atGate(){
+  const road=voxel?.gateRoad;
+  return road&&Math.abs(player.x-road.gateX)<4.5&&player.y>=road.gateZ+3&&player.y<=road.gateZ+14
+   &&Math.abs((physics?.snapshot().y??Infinity)-road.base)<2;
+ }
+ function claimSeal(){
+  if(!running||paused||!firstPerson||atlas||!atGate()||sealClaimed)return;
+  sealClaimed=put(sealKey(),'1');
+  gateButton.textContent=sealClaimed?'Gate seal collected':'Save unavailable · retry';
+ }
+ gateButton.textContent='Claim gate seal';
+ gateButton.addEventListener('click',claimSeal);
  const keys=new Set(),held=new Set();
  const stick={x:0,y:0};
  function savePosition(){
@@ -145,7 +162,11 @@
  }
  function spawnNewWorld(){
   savePosition();seed=randomSeed();put(KEY,seed);
-  world=engine.createTerrain(seed,definitions);player=restore();resetVoxel();
+  world=engine.createTerrain(seed,definitions);
+  voxel=voxelApi?.createVoxelWorld(world)||null;
+  player=restore();
+  resetVoxel();
+  sealClaimed=get(sealKey())==='1';gateButton.textContent=sealClaimed?'Gate seal collected':'Claim gate seal';
   lastSave=0;atlas=false;updateHud();
  }
  const button=document.createElement('button');
@@ -155,6 +176,15 @@
   if(window.confirm('Create a new random terrain world? Your previous world save will remain stored.'))spawnNewWorld();
  });
  start.insertAdjacentElement('afterend',button);
+ const returnButton=document.createElement('button');
+ returnButton.type='button';returnButton.textContent='Start at Fortress Road';
+ returnButton.addEventListener('click',()=>{
+  const spawn=voxel?.spawnAt();
+  if(!spawn||!physics?.teleport(spawn.x,spawn.z))return;
+  player.x=spawn.x;player.y=spawn.z;player.yaw=0;player.pitch=0;
+  savePosition();start.click();
+ });
+ start.insertAdjacentElement('afterend',returnButton);
  const atlasButton=document.createElement('button');
  atlasButton.type='button';atlasButton.textContent='Biome atlas';
  atlasButton.setAttribute('aria-pressed','false');
@@ -166,7 +196,9 @@
  syncView();
  function updateHud(){
   const current=world.biomeAt(Math.round(player.x),Math.round(player.y));
-  $('#district').textContent=current?.name?.toUpperCase()||'GENERATING';
+  const road=voxel?.gateRoad;
+  const distance=road?Math.hypot(road.gateX-player.x,road.gateZ-player.y):Infinity;
+  $('#district').textContent=distance<65?(sealClaimed?'FORTRESS ROAD · SEAL COLLECTED':'FORTRESS GATE · '+Math.round(distance*.25)+' m'):current?.name?.toUpperCase()||'GENERATING';
   $('#save-state').textContent='Terrain world seed '+seed.slice(0,12)+'… · persistent local save';
  }
  function resize(){
@@ -242,6 +274,9 @@
      if(Math.abs(nx)<999900&&Math.abs(nz)<999900){player.x=nx;player.y=nz;}
     }
    }else{player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
+   gateButton.hidden=!firstPerson||atlas||!atGate();
+   gateButton.disabled=sealClaimed;
+   if(sealClaimed)gateButton.textContent='Gate seal collected';
    const size=resize();
    if(atlas)drawAtlas(size.w,size.h);
    else if(firstPerson&&perspective){
@@ -288,6 +323,7 @@
  $('#fullscreen-exit').addEventListener('click',()=>{document.exitFullscreen?.();});
  window.addEventListener('keydown',e=>{
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))e.preventDefault();
+  if(e.key.toLowerCase()==='e')claimSeal();
   keys.add(e.key.length===1?e.key.toLowerCase():e.key);
  });
  window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));

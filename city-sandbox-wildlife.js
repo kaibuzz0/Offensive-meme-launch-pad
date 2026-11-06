@@ -122,8 +122,15 @@
     if(wanted.has(k))throw RangeError('Duplicate visible chunk');
     wanted.add(k);
    }
-   for(const k of active.keys())if(!wanted.has(k))active.delete(k);
-   for(const [cx,cz] of chunks)enter(cx,cz);
+   // Stage new chunks before changing the active set. If surfaceAt throws,
+   // the previous visible wildlife stays intact instead of partially unloading.
+   const staged=new Map();
+   for(const [cx,cz] of chunks){
+    const k=key(cx,cz);
+    staged.set(k,active.has(k)?active.get(k):spawnChunkOnTerrain(world,cx,cz,options));
+   }
+   active.clear();
+   for(const [k,creatures] of staged)active.set(k,creatures);
    return snapshot();
   }
   function snapshot(){

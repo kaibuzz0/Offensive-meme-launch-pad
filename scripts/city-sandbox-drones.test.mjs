@@ -81,3 +81,28 @@ test('return reserve accounts for current location rather than just home distanc
   assert.throws(()=>commandDrone(d,'scout',{target:{x:-8,y:10,z:0}}),/insufficient battery/);
   assert.deepEqual(d.position,{x:8,y:10,z:0});
 });
+
+test('drone stops before a quarter-meter voxel obstruction without tunneling',()=>{
+  let d=commandDrone(createDrone({id:'obstacle',home,capacity:30,speed:8}),'launch');
+  d=commandDrone(d,'scout',{target:{x:8,y:10,z:0}});
+  const next=stepDrone(d,1,{canTraverse:p=>p.x<3});
+  assert.deepEqual(next.position,{x:2.75,y:10,z:0});
+  assert.equal(next.battery,29);
+  assert.equal(next.mode,'scouting');
+});
+test('unloaded chunks fail closed, and original no-adapter movement remains unchanged',()=>{
+  let d=commandDrone(createDrone({id:'unloaded',home}),'launch');
+  d=commandDrone(d,'scout',{target:{x:8,y:10,z:0}});
+  assert.deepEqual(stepDrone(d,1,{canTraverse:()=>undefined}).position,home);
+  assert.deepEqual(stepDrone(d,1).position,{x:8,y:10,z:0});
+  assert.throws(()=>stepDrone(d,1,{canTraverse:true}),TypeError);
+});
+test('return-to-home also respects voxel obstacles and never docks through a wall',()=>{
+  let d=commandDrone(createDrone({id:'return-blocked',home}),'launch');
+  d={...d,position:{x:8,y:10,z:0}};
+  d=commandDrone(d,'return');
+  const next=stepDrone(d,1,{canTraverse:p=>p.x>=4});
+  assert.deepEqual(next.position,{x:4,y:10,z:0});
+  assert.equal(next.mode,'returning');
+  assert.equal(next.camera,false);
+});
