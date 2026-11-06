@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
-// The repository is ESM ("type": "module"), while wildlife is a classic
-// browser script exposing CitySandboxWildlife. Load it exactly as the browser
-// does rather than require()ing an ESM-classified .js file as CommonJS.
-const context={};
-vm.runInNewContext(readFileSync(new URL('../city-sandbox-wildlife.js',import.meta.url),'utf8'),context,{filename:'city-sandbox-wildlife.js'});
-const {spawnChunk,spawnChunkOnTerrain,habitatFor,cappedFlockStep,MAX_PER_CHUNK}=context.CitySandboxWildlife;
+// This package is ESM, but wildlife is a classic browser script exposing a
+// global API. Evaluate its unmodified source in an ESM data module and export
+// that browser API for tests. This keeps objects in Node's native realm, so
+// assert.deepStrictEqual compares them without cross-VM prototype mismatch.
+const source=readFileSync(new URL('../city-sandbox-wildlife.js',import.meta.url),'utf8');
+const {default: wildlife}=await import('data:text/javascript;base64,'+
+ Buffer.from(source+'\nexport default globalThis.CitySandboxWildlife;').toString('base64'));
+const {spawnChunk,spawnChunkOnTerrain,habitatFor,cappedFlockStep,MAX_PER_CHUNK}=wildlife;
 
 test('seed and chunk coordinates yield stable wildlife independent of call order',()=>{
  const a=spawnChunk(741,12,-4,'forest');
