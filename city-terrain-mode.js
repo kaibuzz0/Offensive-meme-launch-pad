@@ -99,7 +99,13 @@
  function syncView(){
   const threeD=!!perspective&&firstPerson&&!atlas;
   voxelCanvas.hidden=!threeD;crosshair.hidden=!threeD;status.hidden=!threeD;jumpButton.hidden=!threeD;
-  if(threeD&&physics)physics.teleport(player.x,player.y);
+  if(threeD&&physics){
+   const position=physics.snapshot();
+   // Switching from first-person to the biome atlas must never snap an
+   // underground player back onto the roof of their current cave.
+   if(Math.hypot(position.x-player.x,position.z-player.y)>.1)
+    physics.teleport(player.x,player.y);
+  }
   canvas.style.visibility=threeD?'hidden':'visible';
   viewButton.textContent=threeD?'Switch to 2D map':'Switch to first person';
  }
