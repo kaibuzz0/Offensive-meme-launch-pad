@@ -137,3 +137,21 @@ The estimates cover the explicitly agreed map-first scope, and will be revised a
 **Next suggested milestone:** Expand underground routing into larger multi-elevation cave systems, robust player collision, and worker-based chunk mesh production. Follow with licensed PBR texture maps and cast shadows (budgeted for Android), accurate water and shoreline transitions, and physics/navigation/browser regression across multiple saved seeds.
 
 **Release criteria:** exact-head Node tests, static asset/Pages validation, legacy World V1 Chromium and terrain-mode Chromium must all pass before incremental merge. Confirm successful deployment and preserve legacy saves.
+## Milestone 6 — Terrain illumination, water depth, sky atmosphere and Android recovery (PR #41)
+
+**Scope:** Non-destructive visual improvement of the existing optional `city.html?terrain=1` world. World V1 remains the default; the 132 seeded biome catalog, 0.25m voxels, short seeded cave complexes, solo saves and player controls are preserved.
+
+**Implemented on branch (subject to CI):**
+- Heightfield-based contact occlusion and simplified directional shade from existing neighboring surface-column heights, with no additional terrain sampling during meshing. Valleys and cliff bases receive more readable dark-to-light relief.
+- Distinct deterministic **water material tag** packed in the existing normal attribute, rather than a fragile RGB-based detection heuristic; material color varies from turquoise shallows to deeper water. A low-cost Fresnel-like edge highlight, wave variation, and existing shoreline foam remain.
+- Procedural high-frequency ground material detail is lit at fragment level with existing directional sun approximation. Small procedural drifting cloud bands add depth to the sky without third-party image assets.
+- More recognizable gray rock and mineral clusters in underground chambers.
+- After sustained frame lag, the renderer reduces **backing-buffer resolution to 76%** and uses the existing reduced view radius; sustained recovery raises the render scale back to 100%. No extra GPU textures or separate rendering engine added.
+- Android-style WebGL context loss switches to the 2D map without losing the seed/physics, then rebuilds GPU resources when a context-restored event arrives. The HUD exposes current resolution scale.
+- Unit regression tests check slope shadowing, shallow/deep material colors, water tags in low/high LOD meshes, finite geometry and memory limits. Mobile-sized Chromium test checks the first-person renderer, shader compilation, and scale telemetry.
+
+**Quality limits:** This is improved stylized/organic procedural graphics, **not photorealism**. No physically based licensed material maps, actual shadow-map depth pass, screen-space ambient occlusion, accurate water refraction/reflections/physics, complete plant species assets, background mesh workers or physical-device Android performance certification. The cave network is still composed of limited seed-based pocket complexes.
+
+**Planning estimates after Round 6:** First-person map prototype **~84%**; realistic environmental graphics **~43%**; complete original sandbox/gameplay rebuild **~30%**. These are qualitative estimates, not measured completion.
+
+**Next priorities:** A licensed high-quality terrain material atlas (albedo/normal/roughness maps), real directional shadow maps under an Android-specific budget, biome-specialized foliage LOD, water shoreline/refraction improvements, and off-thread chunk mesh generation. Continue auditing cave collision and saving before adding block editing.
