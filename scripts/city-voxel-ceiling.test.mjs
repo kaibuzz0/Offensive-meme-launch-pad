@@ -109,11 +109,11 @@ test('underground jump checks adjacent roof under capsule corner', () => {
   const world = {
     PLAYER_HEIGHT: 7.2, SEA_LEVEL: -100,
     surfaceAt: () => ({height: 20}),
-    caveRoomAt: (x) => ({floor: 2, ceiling: x === 1 ? 9 : 12, exposed: false})
+    caveRoomAt: (x) => ({floor: 2, ceiling: x === 1 ? 9.5 : 12, exposed: false})
   };
   const player = createController(world, {x: 0.8, z: 0, y: 2});
   const after = player.tick({jump: true}, 0.05);
-  assert.ok(after.y <= 9 - world.PLAYER_HEIGHT + 1e-9,
+  assert.ok(after.y <= 9.5 - world.PLAYER_HEIGHT + 1e-9,
     'neighboring low cave roof must stop head before penetration');
   assert.equal(after.vy, 0);
 });
@@ -122,7 +122,7 @@ test('surface jump over adjacent buried gallery remains unrestricted', () => {
   const world = {
     PLAYER_HEIGHT: 7.2, SEA_LEVEL: -100,
     surfaceAt: () => ({height: 20}),
-    caveRoomAt: (x) => ({floor: 2, ceiling: x === 1 ? 9 : 12, exposed: false})
+    caveRoomAt: (x) => ({floor: 2, ceiling: x === 1 ? 9.5 : 12, exposed: false})
   };
   const player = createController(world, {x: 0.8, z: 0});
   const after = player.tick({jump: true}, 0.05);
