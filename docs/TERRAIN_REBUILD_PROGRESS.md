@@ -97,3 +97,26 @@ The estimates cover the explicitly agreed map-first scope, and will be revised a
 **Next priority:** Render fully excavated caves with three-dimensional surfaces, subterranean light and collision; create a material atlas with verified permissible textures, add dynamic directional shadows/normal maps, then worker meshing and physical Android thermal/FPS testing. Do not claim full realism, full caves, or performance readiness until each is verified.
 
 **Merge gate:** exact-head Node tests, static Pages integrity, legacy browser regression, first-person mobile-sized Chromium smoke; then incremental main merge, deployment check and preserve legacy saves.
+
+## Milestone 4 — First underground galleries and bounded GPU material rendering (PR #39)
+
+**Round 4 release scope:** Incremental `city.html?terrain=1` work. Keep World V1 as default and protect the pre-existing local seed and legacy saves. Preserve all 132 biome variants, without adding streets, NPCs or buildings.
+
+**Underground world integration:**
+- Seed-derived cave entrances now continue into short underground galleries in the **same** X/Y/Z coordinate system. The tunnels have carved 3D `blockAt` air occupancy and near-chunk floor, vaulted ceiling, wall and occasional mineral geometry.
+- The terrain renderer cuts cave openings in the taller exterior cliff mesh so the gallery entrance is not hidden by an opaque terrain wall. A player descending through the mouth can follow an underground floor. The first-person physics controller prevents jumping through a solid roof.
+- Geology and galleries remain deterministic across reloads, with bedrock and existing non-gallery cave sampling intact.
+- These are **short starter tunnels**, not interconnected cave systems, vertical shafts, comprehensive underground lighting, destructible cave blocks, mining, flood simulation or fully audited 3D capsule collision. Some steep entrances may still require tuning; never claim full cave exploration finished.
+
+**Rendering and memory:**
+- WebGL1 procedural multiscale rock, soil and mineral variation adds fine gravel, larger rock pattern, strata and simplified water sheen without fetching third-party textures.
+- Progressive near/far chunk meshing remains in effect. GPU residency now enforces a 24 MiB mesh buffer budget with farthest-first eviction; this bounds **mesh buffers**, not the browser's total memory, shader textures, framebuffers or JS heap.
+- In-game status indicates underground camera state and exports current GPU buffer bytes for automated browser QA.
+
+**Verification:** Add targeted deterministic gallery topology, rendered mesh, same-world controller/roof collision and save-isolation tests, plus the exact-head full GitHub regression suite and mobile-sized Chromium WebGL checks.
+
+**Not accomplished:** Production photorealism, physically based texture/normal/roughness material atlases, cast shadow maps, realistic water transparency/reflection, diverse biome species models, background-worker geometry generation, full nonlinear cave networks, persistent mining/terrain edits or physical Android battery/thermal/FPS measurements.
+
+**Project-progress engineering estimates after round 4:** first-person terrain prototype **~78%**, realism-grade environment visuals **~34%**, full original sandbox **~26%**. These are subjective scope estimates rather than verified completion metrics.
+
+**Next round:** Expand from short seed-stable galleries to connected underground chambers and caves with robust collision/navigation, profile on Android, and adopt vetted realistic material atlases with license notices and reduced-memory LOD textures.

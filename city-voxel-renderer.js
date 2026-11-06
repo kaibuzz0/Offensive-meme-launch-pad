@@ -148,10 +148,22 @@
     const low=side.n?.height??y;
     if(low>=y)continue;
     const a=low+1,b=y+1;
-    if(side.axis==='left')quad(data,[x,a,z],[x,b,z],[x,b,z+stride],[x,a,z+stride],shade,[-1,0,0]);
-    if(side.axis==='right')quad(data,[x+stride,a,z],[x+stride,a,z+stride],[x+stride,b,z+stride],[x+stride,b,z],shade,[1,0,0]);
-    if(side.axis==='front')quad(data,[x,a,z],[x+stride,a,z],[x+stride,b,z],[x,b,z],shade,[0,0,-1]);
-    if(side.axis==='back')quad(data,[x,a,z+stride],[x,b,z+stride],[x+stride,b,z+stride],[x+stride,a,z+stride],shade,[0,0,1]);
+    // The taller external heightfield normally draws one continuous cliff
+    // face against its lower neighbor. Remove the gallery-height portion of
+    // that face at a cave entrance so a real passage is visible and traversable.
+    const neighbor=side.axis==='left'?[x-1,z]:
+     side.axis==='right'?[x+1,z]:
+     side.axis==='front'?[x,z-1]:[x,z+1];
+    const opening=stride===1?world.caveRoomAt?.(...neighbor):null;
+    const spans=opening&&opening.floor<b&&opening.ceiling>a?
+      [[a,Math.min(b,opening.floor)],[Math.max(a,opening.ceiling),b]]:[[a,b]];
+    for(const [bottom,top] of spans){
+     if(top-bottom<.01)continue;
+     if(side.axis==='left')quad(data,[x,bottom,z],[x,top,z],[x,top,z+stride],[x,bottom,z+stride],shade,[-1,0,0]);
+     if(side.axis==='right')quad(data,[x+stride,bottom,z],[x+stride,bottom,z+stride],[x+stride,top,z+stride],[x+stride,top,z],shade,[1,0,0]);
+     if(side.axis==='front')quad(data,[x,bottom,z],[x+stride,bottom,z],[x+stride,top,z],[x,top,z],shade,[0,0,-1]);
+     if(side.axis==='back')quad(data,[x,bottom,z+stride],[x,top,z+stride],[x+stride,top,z+stride],[x+stride,bottom,z+stride],shade,[0,0,1]);
+    }
    }
    if(tile.water){
     const water=[.15,.45,.67];
@@ -168,6 +180,43 @@
     }
    }
   }
+  // Actual enclosed gallery geometry lives *below* the external heightfield.
+  // Build it only for high-detail nearby chunks, not the distant 4x LOD.
+  // Same x/y/z as outside: entering a shaft never switches to another world.
+  if(stride===1&&typeof world.caveRoomAt==='function'){
+   for(const tile of chunk.tiles){
+    const r=world.caveRoomAt(tile.x,tile.z);
+    if(!r)continue;
+    const x=tile.x,z=tile.z,floor=r.floor,ceil=r.ceiling;
+    const rock=[.21,.24,.27],base=[.30,.32,.30],vault=[.16,.18,.23];
+    if(!r.exposed||floor<tile.height+.85){
+     quad(data,[x,floor,z],[x+1,floor,z],[x+1,floor,z+1],[x,floor,z+1],base,[0,1,0]);
+    }
+    // Cave roof is hollow below the solid world. At entrance the roof is
+    // deliberately omitted so the opening is visible from the surface.
+    if(!r.exposed){
+     quad(data,[x,ceil,z+1],[x+1,ceil,z+1],[x+1,ceil,z],[x,ceil,z],vault,[0,-1,0]);
+    }
+    const side=[
+     {dx:-1,dz:0,n:[1,0,0]},
+     {dx:1,dz:0,n:[-1,0,0]},
+     {dx:0,dz:-1,n:[0,0,1]},
+     {dx:0,dz:1,n:[0,0,-1]}
+    ];
+    for(const face of side){
+     const n=world.caveRoomAt(x+face.dx,z+face.dz);
+     if(n&&n.floor<=ceil-2&&n.ceiling>=floor+2)continue;
+     if(face.dx===-1)quad(data,[x,floor,z],[x,floor,z+1],[x,ceil,z+1],[x,ceil,z],rock,face.n);
+     if(face.dx===1)quad(data,[x+1,floor,z+1],[x+1,floor,z],[x+1,ceil,z],[x+1,ceil,z+1],rock,face.n);
+     if(face.dz===-1)quad(data,[x+1,floor,z],[x,floor,z],[x,ceil,z],[x+1,ceil,z],rock,face.n);
+     if(face.dz===1)quad(data,[x,floor,z+1],[x+1,floor,z+1],[x+1,ceil,z+1],[x,ceil,z+1],rock,face.n);
+    }
+    if(!r.exposed&&r.t>6&&((x*7+z*11)&15)===0){
+     const height=1.6+((x^z)&3),tint=((x*3+z*5)&3)===0?[.36,.56,.65]:[.31,.34,.36];
+     canopy(data,x+.5,ceil-.3,z+.5,.37,height,.37,tint,.2);
+    }
+   }
+  }
   for(const plant of chunk.plants){
    if(['pine','palm','tree'].includes(plant.type)){
     const {x,z,y}=plant,shadow=[.13,.19,.13];
@@ -180,23 +229,31 @@
    vertices:data.length/9};
  }
  // Procedural material grain, atmosphere and water. No external textures.
+ // Small-scale rock grain, strata, crevice shading and water highlights are
+ // generated in WebGL1, avoiding large downloaded textures for low-data phones.
  const vertexSource='attribute vec3 aPos;attribute vec3 aColor;attribute vec3 aNormal;'+
   'uniform mat4 uMatrix;uniform vec3 uEye;varying vec3 vColor;varying float vDist;'+
-  'varying vec3 vPosition;varying float vWater;'+
+  'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;'+
   'void main(){gl_Position=uMatrix*vec4(aPos,1.0);'+
-  'float lit=.47+.50*max(0.0,dot(normalize(aNormal),normalize(vec3(.40,.87,.22))));'+
-  'vColor=aColor*lit;vDist=distance(aPos,uEye);vPosition=aPos;'+
+  'float lit=.38+.56*max(0.0,dot(normalize(aNormal),normalize(vec3(.40,.87,.22))));'+
+  'vColor=aColor*lit;vDist=distance(aPos,uEye);vPosition=aPos;vNormal=aNormal;'+
   'vWater=(aColor.r<.20&&aColor.g>.40&&aColor.g<.49&&aColor.b>.64)?1.0:0.0;}';
  const fragmentSource='precision mediump float;varying vec3 vColor;varying float vDist;'+
-  'varying vec3 vPosition;varying float vWater;uniform float uTime;'+
-  'float grain(vec3 p){return fract(sin(dot(floor(p),vec3(19.17,53.41,7.63)))*43758.5453);}'+
-  'void main(){'+
-  'float micro=grain(vPosition*3.0)*.13-.055;'+
-  'float strata=sin(vPosition.y*.53+vPosition.x*.11)*.027;'+
-  'vec3 color=vColor*(1.0+micro+strata);'+
+  'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;uniform float uTime;'+
+  'float grit(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}'+
+  'float gravel(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);'+
+  'return mix(mix(grit(i),grit(i+vec2(1,0)),f.x),mix(grit(i+vec2(0,1)),grit(i+vec2(1,1)),f.x),f.y);}'+
+  'void main(){vec3 color=vColor;'+
+  'vec3 n=abs(normalize(vNormal));'+
+  'vec2 uv=n.y>.5?vPosition.xz:(n.x>n.z?vPosition.zy:vPosition.xy);'+
+  'float fine=gravel(uv*2.6),coarse=gravel(uv*.45);'+
+  'float seams=sin(vPosition.y*.51+coarse*3.1)*.045;'+
+  'float mineral=(fine-.5)*.24+(coarse-.5)*.16+seams;'+
+  'color*=clamp(1.0+mineral,.69,1.2);'+
+  'color+=vec3(.035,.047,.036)*pow(max(0.0,coarse-.68),2.0)*3.5;'+
   'if(vWater>.5){float wave=sin(vPosition.x*.81+uTime*.8)*sin(vPosition.z*.62-uTime*.7);'+
-  'float sheen=pow(.5+.5*sin((vPosition.x+vPosition.z)*1.5+uTime*1.5),12.0);'+
-  'color=vec3(.055,.26,.42)+vec3(.022,.087,.115)*wave+vec3(.10,.15,.15)*sheen;}'+
+  'float gleam=pow(max(0.0,sin((vPosition.x+vPosition.z)*1.7+uTime*1.5)),16.0);'+
+  'color=vec3(.055,.26,.42)+vec3(.025,.080,.11)*wave+vec3(.17,.19,.19)*gleam;}'+
   'float fog=smoothstep(55.0,235.0,vDist);'+
   'gl_FragColor=vec4(mix(color,vec3(.63,.77,.88),fog),1.0);}';
  const skyVertex='attribute vec2 aXY;varying vec2 vUV;'+
@@ -259,18 +316,20 @@
   gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
   const skyPos=gl.getAttribLocation(skyProgram,'aXY'),skyLook=gl.getUniformLocation(skyProgram,'uLook');
   const timeUniform=gl.getUniformLocation(program,'uTime');
-  const chunks=new Map(),MAX_CHUNKS=176,RADIUS=7,NEAR_RADIUS=3;
+  const chunks=new Map(),MAX_CHUNKS=176,MAX_GPU_BYTES=24*1024*1024,RADIUS=7,NEAR_RADIUS=3;
+  let allocated=0;
   gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);
   function release(key){
-   const c=chunks.get(key);if(c){gl.deleteBuffer(c.buffer);chunks.delete(key);}
+   const c=chunks.get(key);if(c){gl.deleteBuffer(c.buffer);allocated=Math.max(0,allocated-c.bytes);chunks.delete(key);}
   }
   function dispose(){for(const key of chunks.keys())release(key);gl.deleteBuffer(skyBuffer);gl.deleteProgram(skyProgram);gl.deleteProgram(program);}
   function load(cx,cz,stride){
    const key=cx+':'+cz;if(chunks.has(key))return;
-   const mesh=generateMesh(world,cx,cz,stride);if(!mesh)return;
+   const mesh=generateMesh(world,cx,cz,stride);if(!mesh||mesh.data.byteLength>MAX_GPU_BYTES)return;
    const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
    gl.bufferData(gl.ARRAY_BUFFER,mesh.data,gl.STATIC_DRAW);
    chunks.set(key,{cx,cz,stride,buffer,vertices:mesh.vertices,bytes:mesh.data.byteLength});
+   allocated+=mesh.data.byteLength;
   }
   function render(player){
    const rect=canvas.getBoundingClientRect();
@@ -307,7 +366,17 @@
     if(chunks.has(key))release(key);
     load(missing.cx,missing.cz,missing.stride);
    }
-   while(chunks.size>MAX_CHUNKS)release(chunks.keys().next().value);
+   while(chunks.size>MAX_CHUNKS||allocated>MAX_GPU_BYTES){
+    // Evict the farthest rather than the oldest, so near caves and trees
+    // stay loaded while a phone is moving through a high-detail valley.
+    let victim=null,dist=-1;
+    for(const [key,c] of chunks){
+     const d=(c.cx-px)**2+(c.cz-pz)**2;
+     if(d>dist){dist=d;victim=key;}
+    }
+    if(!victim)break;
+    release(victim);
+   }
    const eye=[player.x,player.y+world.EYE_HEIGHT,player.z];
    gl.useProgram(program);
    gl.uniform1f(timeUniform,(typeof performance!=='undefined'?performance.now():0)/1000);
@@ -323,10 +392,10 @@
     gl.drawArrays(gl.TRIANGLES,0,c.vertices);
     verts+=c.vertices;bytes+=c.bytes;
    }
-   return {loaded:chunks.size,wanted:wanted.length,vertices:verts,bytes,glError:gl.getError()};
+   return {loaded:chunks.size,wanted:wanted.length,vertices:verts,bytes,gpuBytes:allocated,glError:gl.getError()};
   }
   return Object.freeze({gl,render,dispose,chunkCount:()=>chunks.size,meshAt:(cx,cz)=>generateMesh(world,cx,cz)});
  }
  root.CityVoxelRenderer=Object.freeze({createRenderer,generateMesh,rgb,
-  VOXEL_METERS:.25,MAX_GPU_CHUNKS:176});
+  VOXEL_METERS:.25,MAX_GPU_CHUNKS:176,MAX_GPU_BYTES:24*1024*1024});
 })(typeof window==='undefined'?globalThis:window);
