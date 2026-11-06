@@ -111,7 +111,7 @@
  });
  voxelCanvas.addEventListener('webglcontextrestored',()=>{
   if(!contextInterrupted)return;
-  try{perspective=voxel&&rendererApi?.createRenderer(voxelCanvas,voxel)||null;}
+  try{perspective=voxel&&rendererApi?.createRenderer(voxelCanvas,voxel,definitions)||null;}
   catch{perspective=null;}
   contextInterrupted=false;
   firstPerson=!!perspective;syncView();
