@@ -177,7 +177,7 @@
  function atSupplies(){
   const cache=voxel?.gateRoad?.supplies;
   const feet=physics?.snapshot();
-  return !!cache&&!!feet&&Math.hypot(player.x-cache.x,player.y-cache.z)<8
+  return !!cache&&!!feet&&Math.hypot(player.x-cache.x,player.y-cache.z)<10
    &&Math.abs(feet.y-cache.y)<5;
  }
  function claimSupplies(){
