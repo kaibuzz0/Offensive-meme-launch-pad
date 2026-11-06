@@ -23,6 +23,7 @@ export function createAircraftState(overrides = {}) {
   };
 }
 /** Controls: throttle/brake [0,1], pitch/yaw/roll [-1,1].
+ * Optional terrainHeightAt(x,z) samples ground elevation in the same metre units.
  * The returned state is new; the caller's state is never mutated.
  */
 export function stepAircraft(state, controls = {}, dt = 1 / 60, options = {}) {
@@ -36,6 +37,13 @@ export function stepAircraft(state, controls = {}, dt = 1 / 60, options = {}) {
     yaw: clamp(finite(controls.yaw), -1, 1),
     roll: clamp(finite(controls.roll), -1, 1),
     brake: clamp(finite(controls.brake), 0, 1),
+  };
+  if (options.terrainHeightAt != null && typeof options.terrainHeightAt !== 'function')
+    throw new TypeError('terrainHeightAt must be a function');
+  const groundAt = (x, z) => {
+    const y = options.terrainHeightAt ? options.terrainHeightAt(x, z) : cfg.groundY;
+    if (!Number.isFinite(y) || y >= cfg.ceilingY) throw new RangeError('invalid terrain elevation');
+    return y;
   };
   const next = createAircraftState(state);
   let remaining = dt;
@@ -61,12 +69,8 @@ export function stepAircraft(state, controls = {}, dt = 1 / 60, options = {}) {
       next.verticalSpeed = clamp(next.verticalSpeed + (lift / cfg.mass - cfg.gravity) * h, -65, 65);
       next.position.y += next.verticalSpeed * h;
     }
-    if (next.grounded) { next.verticalSpeed = 0; next.position.y = cfg.groundY; }
-    if (next.position.y <= cfg.groundY) {
-      next.position.y = cfg.groundY;
-      next.verticalSpeed = 0;
-      next.grounded = true;
-    }
+    // Resolve ground contact after horizontal motion: hills and runways
+    // must use the aircraft's destination position, not its previous cell.
     if (next.position.y >= cfg.ceilingY) {
       next.position.y = cfg.ceilingY;
       next.verticalSpeed = Math.min(0, next.verticalSpeed);
@@ -74,6 +78,12 @@ export function stepAircraft(state, controls = {}, dt = 1 / 60, options = {}) {
     const horizontal = next.speed * Math.cos(next.pitch) * h;
     next.position.x += Math.sin(next.heading) * horizontal;
     next.position.z += Math.cos(next.heading) * horizontal;
+    const ground = groundAt(next.position.x, next.position.z);
+    if (next.grounded || next.position.y <= ground) {
+      next.position.y = ground;
+      next.verticalSpeed = 0;
+      next.grounded = true;
+    }
     next.elapsed += h;
   }
   return next;
