@@ -73,3 +73,20 @@ test('reject mesh vertex-count mismatches before transferring buffer',()=>{
   assert.equal(w.messages[0].transfer.length,0);
  }
 });
+
+test('reject noninteger or negative tile and plant metadata before transfer',()=>{
+ const cases=[
+  {vertices:6,tiles:-1,plants:0},
+  {vertices:6,tiles:1.5,plants:0},
+  {vertices:6,tiles:1,plants:NaN},
+  {vertices:6,tiles:1,plants:-2},
+  {vertices:6,tiles:undefined,plants:0}
+ ];
+ for(const [index,metadata] of cases.entries()){
+  const w=worker(()=>({...metadata,data:new Float32Array(54)}));
+  w.send({type:'mesh',id:20+index,cx:0,cz:0,stride:1});
+  assert.equal(w.messages[0].message.type,'error');
+  assert.equal(w.messages[0].message.id,20+index);
+  assert.equal(w.messages[0].transfer.length,0);
+ }
+});
