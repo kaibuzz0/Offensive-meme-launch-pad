@@ -120,6 +120,21 @@
   if(group==='wetland')return rgb(103+hueShift*.4,31,28);
   return rgb(92+hueShift,31,37);
  }
+ // AO-like local terrain occlusion and a sun-facing heightfield shadow cue.
+ // Reuses already-sampled neighbor columns; no new sampling or GPU pass.
+ function surfaceLight(tile,neighbors){
+  const h=tile.height;
+  const delta=neighbors.map(n=>Math.max(0,(n?.height??h)-h));
+  const ambient=clamp(1-(delta[0]+delta[1]+delta[2]+delta[3])*.018,.46,1);
+  // Sun direction has positive X and Z components: raised neighbors in
+  // these directions darken the lower ground's top face.
+  const directional=clamp(1-(delta[1]*.035+delta[3]*.020),.54,1);
+  return clamp(ambient*directional,.30,1);
+ }
+ function waterColor(depth){
+  const t=clamp(depth/45,0,1);
+  return [.08-.035*t,.48-.16*t,.64-.12*t];
+ }
  function generateMesh(world,cx,cz,stride=1){
   if(stride!==1&&stride!==4)throw Error('Unsupported terrain LOD');
   let chunk;
@@ -134,15 +149,15 @@
   const data=[];
   for(const tile of chunk.tiles){
    const {x,z,height:y}=tile,color=baseColor(tile);
-   const topShade=tile.slope>13?.86:tile.material==='shore'?.96:1;
-   const groundTint=color.map(v=>v*topShade);
-   quad(data,[x,y+1,z],[x+stride,y+1,z],[x+stride,y+1,z+stride],[x,y+1,z+stride],groundTint,[0,1,0]);
    const sides=[
     {n:world.surfaceAt(x-stride,z),axis:'left'},
     {n:world.surfaceAt(x+stride,z),axis:'right'},
     {n:world.surfaceAt(x,z-stride),axis:'front'},
     {n:world.surfaceAt(x,z+stride),axis:'back'}
    ];
+   const topShade=(tile.slope>13?.86:tile.material==='shore'?.96:1)*surfaceLight(tile,sides.map(s=>s.n));
+   const groundTint=color.map(v=>v*topShade);
+   quad(data,[x,y+1,z],[x+stride,y+1,z],[x+stride,y+1,z+stride],[x,y+1,z+stride],groundTint,[0,1,0]);
    const shade=color.map(v=>v*(tile.material==='cave-rock'?.45:tile.material==='cliff'?.72:.79));
    for(const side of sides){
     const low=side.n?.height??y;
@@ -166,9 +181,10 @@
     }
    }
    if(tile.water){
-    const water=[.15,.45,.67];
+    const water=waterColor(world.SEA_LEVEL-y);
     const yy=world.SEA_LEVEL+1.15;
-    quad(data,[x,yy,z],[x+stride,yy,z],[x+stride,yy,z+stride],[x,yy,z+stride],water,[0,1,0]);
+    // Normal.y = -2 is a reserved water-only marker for shader routing.
+    quad(data,[x,yy,z],[x+stride,yy,z],[x+stride,yy,z+stride],[x,yy,z+stride],water,[0,-2,0]);
     // Narrow bright shore strips. A separate high-altitude foam surface
     // avoids blending/sorting glitches on WebGL1 mobile GPUs.
     if(stride===1){
@@ -420,6 +436,6 @@
   }
   return Object.freeze({gl,render,dispose,chunkCount:()=>chunks.size,meshAt:(cx,cz)=>generateMesh(world,cx,cz)});
  }
- root.CityVoxelRenderer=Object.freeze({createRenderer,generateMesh,rgb,
+ root.CityVoxelRenderer=Object.freeze({createRenderer,generateMesh,rgb,surfaceLight,waterColor,
   VOXEL_METERS:.25,MAX_GPU_CHUNKS:176,MAX_GPU_BYTES:24*1024*1024});
 })(typeof window==='undefined'?globalThis:window);
