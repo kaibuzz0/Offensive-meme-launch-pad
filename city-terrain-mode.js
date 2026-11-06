@@ -213,25 +213,50 @@
   }else buildButton.textContent='Unable to save · retry';
  }
  buildButton.addEventListener('click',placeWorkbench);
+ // One visible, seed-persistent crafting action after the workbench is built.
+ const craftButton=document.createElement('button');
+ craftButton.type='button';craftButton.id='city-road-craft';craftButton.hidden=true;
+ craftButton.textContent='CRAFT TORCH';
+ craftButton.setAttribute('aria-label','Craft a persistent torch at the workbench');
+ craftButton.style.cssText='position:absolute;right:16px;bottom:158px;z-index:4;min-height:48px;padding:12px;background:#614018;color:#fff2c6;border:1px solid #f1c777;border-radius:6px';
+ buildButton.insertAdjacentElement('afterend',craftButton);
+ const torchMarker=document.createElement('div');
+ torchMarker.id='city-road-torch';torchMarker.hidden=true;
+ torchMarker.setAttribute('role','img');torchMarker.setAttribute('aria-label','Crafted roadside torch');
+ torchMarker.style.cssText='position:absolute;left:50%;top:40%;z-index:2;pointer-events:none;background:#45200bd9;color:#ffdb80;padding:9px 12px;border:1px solid #ffce61;border-radius:5px;text-shadow:0 0 9px #ff8c25;font:700 13px monospace;transform:translate(-50%,-50%)';
+ torchMarker.textContent='✦ TORCH · LIT';
+ craftButton.insertAdjacentElement('afterend',torchMarker);
+ function craftTorch(){
+  if(!running||paused||!firstPerson||atlas||!roadBuild?.placed)return;
+  if(roadBuild.craftTorch({x:player.x,z:player.y},voxel?.gateRoad?.supplies)){
+   craftButton.hidden=true;updateHud();
+  }else craftButton.textContent='Unable to craft · retry';
+ }
+ craftButton.addEventListener('click',craftTorch);
  function interactRoad(){
   if(atGate()&&!sealClaimed)claimSeal();
   else if(!suppliesClaimed)claimSupplies();
   else if(!roadBuild?.placed)placeWorkbench();
+  else if(!roadBuild.crafted)craftTorch();
  }
  function positionWorkbench(){
   const placed=roadBuild?.placed;
-  if(!placed||!firstPerson||atlas||!running){buildMarker.hidden=true;return;}
+  if(!placed||!firstPerson||atlas||!running){buildMarker.hidden=true;torchMarker.hidden=true;return;}
   const dx=placed.x-player.x,dz=placed.z-player.y;
   const forward=dz*Math.cos(player.yaw)+dx*Math.sin(player.yaw);
   const side=dx*Math.cos(player.yaw)-dz*Math.sin(player.yaw);
-  if(forward<=.5||Math.hypot(dx,dz)>45){buildMarker.hidden=true;return;}
+  if(forward<=.5||Math.hypot(dx,dz)>45){buildMarker.hidden=true;torchMarker.hidden=true;return;}
   const shell=canvas.getBoundingClientRect();
   const ratio=side/Math.max(1,forward);
-  if(Math.abs(ratio)>1.5){buildMarker.hidden=true;return;}
+  if(Math.abs(ratio)>1.5){buildMarker.hidden=true;torchMarker.hidden=true;return;}
   buildMarker.hidden=false;
+  torchMarker.hidden=!roadBuild.crafted;
   buildMarker.style.left=(50+ratio*45)+'%';
+  torchMarker.style.left=(50+ratio*45)+'%';
   buildMarker.style.top=(54+player.pitch*32)+'%';
+  torchMarker.style.top=(42+player.pitch*32)+'%';
   buildMarker.style.opacity=String(Math.max(.35,Math.min(1,12/Math.max(1,forward))));
+  torchMarker.style.opacity=buildMarker.style.opacity;
  }
  const keys=new Set(),held=new Set();
  const stick={x:0,y:0};
@@ -283,7 +308,7 @@
   $('#district').textContent=distance<65?(sealClaimed?'FORTRESS ROAD · SEAL COLLECTED':'FORTRESS GATE · '+Math.round(distance*.25)+' m'):current?.name?.toUpperCase()||'GENERATING';
   $('#save-state').textContent='Terrain world seed '+seed.slice(0,12)+'… · gate '+(sealClaimed?'claimed':'open')+' · builder supplies '+(suppliesClaimed?'8':'0')+'/8 · local save';
   $('#population').textContent='Fortress Road · '+(roadBuild?.placed?'workbench built':suppliesClaimed?'8 supplies ready to build':'roadside supplies ahead');
-  $('#save-state').textContent+=(roadBuild?.placed?' · workbench built':'');
+  $('#save-state').textContent+=(roadBuild?.placed?' · workbench built':'')+(roadBuild?.crafted?' · torch crafted':'');
  }
  function resize(){
   const rect=canvas.getBoundingClientRect();
@@ -363,6 +388,7 @@
    gateButton.hidden=!firstPerson||atlas||!atGate();
    supplyButton.hidden=!firstPerson||atlas||suppliesClaimed||!atSupplies();
    buildButton.hidden=!firstPerson||atlas||!running||paused||!suppliesClaimed||!!roadBuild?.placed||!atBuildSite();
+   craftButton.hidden=!firstPerson||atlas||!running||paused||!roadBuild?.placed||!!roadBuild?.crafted||!atBuildSite();
    positionWorkbench();
    gateButton.disabled=sealClaimed;
    if(sealClaimed)gateButton.textContent='Gate seal collected';
