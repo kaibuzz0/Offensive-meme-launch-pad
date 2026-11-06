@@ -387,7 +387,10 @@
   if(e.key.toLowerCase()==='e')interactRoad();
   keys.add(e.key.length===1?e.key.toLowerCase():e.key);
  });
- window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));
+ window.addEventListener('keyup',e=>{
+  const key=e.key.length===1?e.key.toLowerCase():e.key;
+  if(keys.delete(key))savePosition();
+ });
  window.addEventListener('blur',()=>{keys.clear();held.clear();stick.x=0;stick.y=0;jumpHeld=false;jumpQueued=false;savePosition();});
  window.addEventListener('pagehide',savePosition);
  document.addEventListener('visibilitychange',()=>{if(document.hidden)savePosition();});
