@@ -44,3 +44,23 @@ test('return command disables camera and docks at home',()=>{
   assert.equal(d.camera,false);
   assert.equal(stepDrone(d,0.1).mode,'docked');
 });
+
+test('partially charged drones cannot move farther than their remaining powered time',()=>{
+  let d=commandDrone(createDrone({id:'scout-8',home,capacity:4,speed:8}),'launch');
+  d={...d,position:{x:16,y:10,z:0},target:{x:32,y:10,z:0},battery:0.25};
+  const next=stepDrone(d,1);
+  assert.equal(next.mode,'returning');
+  assert.equal(next.battery,0);
+  assert.deepEqual(next.position,{x:14,y:10,z:0});
+  const stranded=stepDrone(next,1);
+  assert.deepEqual(stranded.position,next.position);
+  assert.equal(stranded.battery,0);
+  assert.equal(stranded.mode,'returning');
+});
+test('zero-charge restored drone cannot move or recharge away from dock',()=>{
+  let d=commandDrone(createDrone({id:'scout-9',home}),'launch');
+  d={...d,position:{x:8,y:10,z:0},battery:0,mode:'returning',camera:false,target:home};
+  d=restoreDrone(serializeDrone(d));
+  assert.deepEqual(stepDrone(d,0.5).position,d.position);
+  assert.equal(stepDrone(d,0.5).battery,0);
+});
