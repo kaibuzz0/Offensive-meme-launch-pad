@@ -53,13 +53,17 @@
     if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
+    // Test the proposed stepped-up feet height, not only the old feet.
+    // Otherwise a low doorway can accept a player and then lift their
+    // head through the solid lintel when the floor rises underneath.
+    const proposedY=state.grounded?Math.max(state.y,floor):state.y;
     // Sample the player's radius, not just the center. A gallery with a
     // solid roof must fit the entire player before entering it laterally.
     const samples=[[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]];
     let blocked=false;
     for(const [ox,oz] of samples){
      const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
-     if(gallery&&!gallery.exposed&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+     if(gallery&&!gallery.exposed&&proposedY<gallery.ceiling&&proposedY+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
      }
     }
