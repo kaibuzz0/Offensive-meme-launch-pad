@@ -4,11 +4,11 @@
 
 **Current baseline:** Original first-person world at `city.html?terrain=1`, 132 named seeded biomes, 0.25m voxels, underground pocket caves, WebGL, Android PWA and a bounded off-thread voxel mesher. Preserve world seeds, save formats, the legacy `city.html` experience and existing tests.
 
-## How the 20-minute automation works
+## ChatGPT hourly development automations (GitHub research paused)
 
-The repository workflow [`meme-city-council.yml`](../.github/workflows/meme-city-council.yml) runs at UTC minute **07, 27 and 47**, approximately every 20 minutes. The GitHub Actions scheduler can delay runs under load. Each execution cycles through **15 distinct issue-owned research/triage tasks**, searches GitHub for potentially useful maintained, permissively licensed libraries, checks issues and open PRs, and leaves a scoped issue update **only if meaningful findings or coordination state changed**. The workflow also publishes a GitHub Actions step summary.
+**Scheduled GitHub-only research is paused by user request (November 6, 2026).** [`meme-city-council.yml`](../.github/workflows/meme-city-council.yml) is now **manual-dispatch only**, with no cron or automatic push trigger. The user's account currently supports five active **ChatGPT** scheduled tasks; those five hourly coding workstreams jointly own the 15 issues below, with launches staggered 12 minutes apart. Each ChatGPT run is instructed to implement code, update a scoped PR, and verify tests where connected execution tools permit. The old GitHub-only research scanner can still be invoked manually but is no longer a scheduled development task.
 
-This is **automated research/project triage, not 15 autonomous AI coders**. It has no AI model credential, never installs software, changes the game, or merges code, and does not automatically assign an issue to GitHub Copilot. To get autonomous code-writing PRs, a user with an eligible GitHub Copilot setup can open a scoped issue and assign it to **Copilot** from the issue's *Assignees* field, or use GitHub's Agents panel. Keep human approval and exact-commit CI before merge.
+The **five active ChatGPT automations are implementation-oriented**, and each is responsible for three of the 15 issue-owned specialties. Their ability to modify GitHub depends on the available connected GitHub actions in the scheduled run. The separate **manual-only GitHub research scanner** has no AI model credential and never installs libraries or writes game code. Human review and exact-commit CI remain required for integration.
 
 The workflow uses only `GITHUB_TOKEN` with `contents: read`, `pull-requests: read` and `issues: write`; no other credentials are needed for public-repository research. It avoids repeating identical comments. If GitHub Search API is unavailable, the issue task is reported **blocked**, not fabricated as completed.
 
@@ -70,5 +70,6 @@ These are candidates, **not installed dependencies**. Confirm actual LICENSE fil
 
 - Monitor scheduled runs under [GitHub Actions](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/workflows/meme-city-council.yml).
 - Review active tasks under [Issues](https://github.com/kaibuzz0/Offensive-meme-launch-pad/issues?q=is%3Aissue+is%3Aopen+%22Council%22).
+- ChatGPT owns five hourly scheduled automations covering all 15 workstreams, due to the active-task limit. These are distinct from the now manual-only GitHub scanner.
 - To start an eligible GitHub Copilot coding agent, open a numbered issue, choose **Assignees → Copilot**, and review its created PR. Availability depends on the repository and GitHub Copilot plan.
 - Pause research by disabling `meme-city-council.yml` in GitHub Actions or removing its scheduled trigger. Scheduled GitHub Actions runs are not precise real-time timers.
