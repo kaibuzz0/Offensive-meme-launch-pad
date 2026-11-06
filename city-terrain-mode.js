@@ -65,7 +65,7 @@
  let world=engine.createTerrain(seed,definitions);
  let voxel=voxelApi?.createVoxelWorld(world)||null;
  function restore(){
-  const initial=world.spawnAt();
+  const initial=voxel?.spawnAt()||world.spawnAt();
   try{
    const saved=JSON.parse(get(POS+seed));
    if(saved?.version===world.version&&saved.seed===seed&&
@@ -73,11 +73,11 @@
       Math.abs(saved.x)<1000000&&Math.abs(saved.y)<1000000)
     return {x:saved.x,y:saved.y,yaw:Number.isFinite(saved.yaw)?saved.yaw:0,pitch:Number.isFinite(saved.pitch)?Math.max(-1.3,Math.min(1.3,saved.pitch)):0};
   }catch{}
-  return {x:initial.x,y:initial.y,yaw:0,pitch:0};
+  return {x:initial.x,y:initial.z??initial.y,yaw:0,pitch:0};
  }
  let player=restore(),running=false,paused=false,atlas=false,zoom=20,last=0,lastSave=0;
  let physics=voxel&&physicsApi?.createController(voxel,{x:player.x,z:player.y})||null;
- let jumpHeld=false;
+ let jumpHeld=false,jumpQueued=false;
  const voxelCanvas=document.createElement('canvas');voxelCanvas.id='city-voxel-canvas';
  voxelCanvas.setAttribute('aria-label','First-person procedurally generated voxel wilderness. Drag to look around.');
  canvas.insertAdjacentElement('afterend',voxelCanvas);
@@ -89,10 +89,10 @@
  jumpButton.id='city-jump';jumpButton.type='button';jumpButton.textContent='JUMP';
  jumpButton.setAttribute('aria-label','Jump over rocks and terrain steps');
  status.insertAdjacentElement('afterend',jumpButton);
- jumpButton.addEventListener('pointerdown',e=>{jumpHeld=true;e.preventDefault();jumpButton.setPointerCapture?.(e.pointerId);});
+ jumpButton.addEventListener('pointerdown',e=>{jumpHeld=true;jumpQueued=true;e.preventDefault();jumpButton.setPointerCapture?.(e.pointerId);});
  for(const kind of ['pointerup','pointercancel','lostpointercapture'])
   jumpButton.addEventListener(kind,()=>jumpHeld=false);
- jumpButton.addEventListener('click',()=>{jumpHeld=true;queueMicrotask(()=>jumpHeld=false);});
+ jumpButton.addEventListener('click',()=>{jumpQueued=true;});
  let perspective=null;
  try{if(voxel&&rendererApi)perspective=rendererApi.createRenderer(voxelCanvas,voxel);}catch(err){status.textContent='3D unavailable: '+String(err.message).slice(0,80);}
  let firstPerson=!!perspective;
@@ -206,7 +206,8 @@
    if(firstPerson&&perspective&&!atlas){
     if(physics){
      const position=physics.tick({right:move.x,forward:-move.y,yaw:player.yaw,
-      jump:keys.has(' ')||jumpHeld},dt);
+      jump:keys.has(' ')||jumpHeld||jumpQueued},dt);
+     jumpQueued=false;
      player.x=position.x;player.y=position.z;
     }else{
      const nx=player.x+move.x*dt*5,nz=player.y+move.y*dt*5;
@@ -253,7 +254,7 @@
   keys.add(e.key.length===1?e.key.toLowerCase():e.key);
  });
  window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));
- window.addEventListener('blur',()=>{keys.clear();held.clear();stick.x=0;stick.y=0;jumpHeld=false;savePosition();});
+ window.addEventListener('blur',()=>{keys.clear();held.clear();stick.x=0;stick.y=0;jumpHeld=false;jumpQueued=false;savePosition();});
  window.addEventListener('pagehide',savePosition);
  document.addEventListener('visibilitychange',()=>{if(document.hidden)savePosition();});
  for(const b of document.querySelectorAll('[data-move]')){
