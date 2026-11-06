@@ -235,7 +235,9 @@
  function savePosition(){
   const feet=physics?.snapshot();
   const vertical=feet&&Math.hypot(feet.x-player.x,feet.z-player.y)<.1?feet.y:null;
-  put(POS+seed,JSON.stringify({version:world.version,seed,x:player.x,y:player.y,yaw:player.yaw,pitch:player.pitch,vertical}));
+  const persisted=put(POS+seed,JSON.stringify({version:world.version,seed,x:player.x,y:player.y,yaw:player.yaw,pitch:player.pitch,vertical}));
+  status.dataset.positionWrite=persisted?'ok':'failed';
+  status.dataset.positionAttemptZ=String(player.y);
  }
  function spawnNewWorld(){
   savePosition();seed=randomSeed();put(KEY,seed);
@@ -355,6 +357,7 @@
    }else{player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
    // Persist before rendering: a slow mobile raster/mesh frame must never
    // prevent a completed movement tick from reaching the local save.
+   status.dataset.frameTime=String(t);status.dataset.lastSaveTime=String(lastSave);
    if(t-lastSave>1000){lastSave=t;savePosition();updateHud();}
    status.dataset.worldX=String(player.x);status.dataset.worldZ=String(player.y);
    status.dataset.inputForward=String(move.y);status.dataset.keyCount=String(keys.size);
