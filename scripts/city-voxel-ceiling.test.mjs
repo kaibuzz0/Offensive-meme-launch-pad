@@ -36,3 +36,44 @@ test('surface movement over a buried gallery does not enter it', () => {
   for (let i = 0; i < 20; i++) player.tick({forward: 1}, 0.05);
   assert.ok(player.snapshot().y >= 11);
 });
+
+
+test('fast movement cannot tunnel through a one-cell-heightfield wall', () => {
+  const world = {
+    PLAYER_HEIGHT: 7.2,
+    SEA_LEVEL: -100,
+    surfaceAt: (x) => ({height: x === 1 ? 40 : 0})
+  };
+  const player = createController(world, {x: 0, z: 0});
+  const after = player.tick({right: 1}, 0.05);
+  assert.ok(after.x < 1, 'substep sweep must stop before the intervening wall');
+  assert.equal(after.y, 1);
+});
+
+test('underground movement rejects cave boundary with insufficient headroom', () => {
+  const world = {
+    PLAYER_HEIGHT: 7.2,
+    SEA_LEVEL: -100,
+    surfaceAt: () => ({height: 20}),
+    caveRoomAt: (x) => x < 1
+      ? ({floor: 2, ceiling: 12, exposed: false})
+      : ({floor: 2, ceiling: 8, exposed: false})
+  };
+  const player = createController(world, {x: 0, z: 0, y: 2});
+  const after = player.tick({right: 1}, 0.05);
+  assert.ok(after.x < 1, 'player must not clip into a gallery lower than head height');
+  assert.equal(after.y, 2);
+});
+
+test('underground movement continues through a sufficiently tall gallery', () => {
+  const world = {
+    PLAYER_HEIGHT: 7.2,
+    SEA_LEVEL: -100,
+    surfaceAt: () => ({height: 20}),
+    caveRoomAt: () => ({floor: 2, ceiling: 12, exposed: false})
+  };
+  const player = createController(world, {x: 0, z: 0, y: 2});
+  const after = player.tick({right: 1}, 0.05);
+  assert.ok(after.x > 0.5, 'traversable cave remains walkable');
+  assert.equal(after.y, 2);
+});
