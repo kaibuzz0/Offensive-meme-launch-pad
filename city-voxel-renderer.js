@@ -287,9 +287,13 @@
   'void main(){vec3 unitNormal=vWater>.5?vec3(0.0,1.0,0.0):normalize(vNormal);'+
   'vec3 n=abs(unitNormal);'+
   'vec2 uv=n.y>.5?vPosition.xz:(n.x>n.z?vPosition.zy:vPosition.xy);'+
-  'float sunDiffuse=max(0.0,dot(unitNormal,normalize(vec3(.40,.87,.22))));'+
-  'vec3 color=vColor*(.30+.65*sunDiffuse);'+
   'float fine=gravel(uv*2.6),coarse=gravel(uv*.45);'+
+  'vec2 relief=vec2(sin(uv.x*9.4+coarse*3.0),cos(uv.y*8.1+fine*4.0))*.075;'+
+  'vec3 tangent=n.y>.5?vec3(relief.x,0.0,relief.y):'+
+  '(n.x>n.z?vec3(0.0,relief.x,relief.y):vec3(relief.x,relief.y,0.0));'+
+  'vec3 litNormal=normalize(unitNormal+(vWater>.5?vec3(0.0):tangent));'+
+  'float sunDiffuse=max(0.0,dot(litNormal,normalize(vec3(.40,.87,.22))));'+
+  'vec3 color=vColor*(.30+.65*sunDiffuse);'+
   'float seams=sin(vPosition.y*.51+coarse*3.1)*.045;'+
   'float mineral=(fine-.5)*.24+(coarse-.5)*.16+seams;'+
   'color*=clamp(1.0+mineral,.68,1.2);'+
