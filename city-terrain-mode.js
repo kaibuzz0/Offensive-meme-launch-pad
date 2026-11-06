@@ -206,6 +206,10 @@
   const site=voxel?.gateRoad?.supplies;
   return !!site&&Math.hypot(player.x-site.x,player.y-site.z)<10;
  }
+ function atWorkbench(){
+  const placed=roadBuild?.placed;
+  return !!placed&&Math.hypot(player.x-placed.x,player.y-placed.z)<10;
+ }
  function placeWorkbench(){
   if(!running||paused||!firstPerson||atlas||!roadBuild)return;
   if(roadBuild.place(suppliesClaimed,{x:player.x,z:player.y},voxel?.gateRoad?.supplies)){
@@ -228,7 +232,7 @@
  craftButton.insertAdjacentElement('afterend',torchMarker);
  function craftTorch(){
   if(!running||paused||!firstPerson||atlas||!roadBuild?.placed)return;
-  if(roadBuild.craftTorch({x:player.x,z:player.y},voxel?.gateRoad?.supplies)){
+  if(roadBuild.craftTorch({x:player.x,z:player.y})){
    craftButton.hidden=true;updateHud();
   }else craftButton.textContent='Unable to craft · retry';
  }
@@ -388,7 +392,7 @@
    gateButton.hidden=!firstPerson||atlas||!atGate();
    supplyButton.hidden=!firstPerson||atlas||suppliesClaimed||!atSupplies();
    buildButton.hidden=!firstPerson||atlas||!running||paused||!suppliesClaimed||!!roadBuild?.placed||!atBuildSite();
-   craftButton.hidden=!firstPerson||atlas||!running||paused||!roadBuild?.placed||!!roadBuild?.crafted||!atBuildSite();
+   craftButton.hidden=!firstPerson||atlas||!running||paused||!roadBuild?.placed||!!roadBuild?.crafted||!atWorkbench();
    positionWorkbench();
    gateButton.disabled=sealClaimed;
    if(sealClaimed)gateButton.textContent='Gate seal collected';
