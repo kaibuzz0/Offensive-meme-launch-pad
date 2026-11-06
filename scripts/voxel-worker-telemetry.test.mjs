@@ -15,7 +15,9 @@ function worker(meshFactory){
   CityVoxelRenderer:{generateMesh:meshFactory},
   postMessage:(message,transfer)=>messages.push({message,transfer})
  };
- runInNewContext(source,{self,Float32Array,Array,Number,Math,Date,Error});
+ // Classic Web Workers expose importScripts as a global, not only self.importScripts.
+ // Mirror that binding in Node's VM without changing production worker bootstrap.
+ runInNewContext(source,{self,importScripts:self.importScripts,Float32Array,Array,Number,Math,Date,Error});
  self.onmessage({data:{type:'init',seed:'seed',definitions:Array(132).fill({})}});
  assert.equal(messages.shift().message.type,'ready');
  return {send:(data)=>self.onmessage({data}),messages};
