@@ -46,7 +46,7 @@
  $('.welcome-steps').hidden=true;
  $('.welcome-goal').textContent='Beyond the gate, explore the mountains, forests and caves of your seeded world.';
  start.textContent='Enter first person →';
- $('.welcome-controls').textContent='WASD / arrows or mobile joystick · Swipe/drag to look · E or on-screen COLLECT for supplies and the gate seal · Space or Jump · Atlas and 2D view available.';
+ $('.welcome-controls').textContent='WASD / arrows or mobile joystick · Swipe to look · E or touch COLLECT at the roadside cache, then BUILD a saved workbench · Space or Jump.';
  const legacy=document.createElement('a');
  legacy.href='city.html?legacy=1';legacy.textContent='Open preserved legacy city →';
  legacy.style.cssText='display:inline-block;margin:1rem;color:#c4e7bb';
@@ -173,6 +173,7 @@
  supplyButton.style.cssText='position:absolute;right:16px;bottom:104px;z-index:4;padding:12px 16px;background:#31462a;color:#f2ffcb;border:1px solid #b9d46c;border-radius:6px;min-height:48px';
  gateButton.insertAdjacentElement('afterend',supplyButton);
  const supplyKey=()=> 'meme-city-road-supplies-v1:'+seed;
+ let roadBuild=window.CityRoadBuilding?.create(seed,localStorage)||null;
  let suppliesClaimed=get(supplyKey())==='1';
  function atSupplies(){
   const cache=voxel?.gateRoad?.supplies;
@@ -187,7 +188,51 @@
   updateHud();
  }
  supplyButton.addEventListener('click',claimSupplies);
- function interactRoad(){if(atGate()&&!sealClaimed)claimSeal();else claimSupplies();}
+ // The supply cache now enables a seed-scoped building action in the same
+ // first-person scene. This overlay is an interim marker pending voxel mesh
+ // integration with the renderer owner; it is not a simulated inventory.
+ const buildButton=document.createElement('button');
+ buildButton.type='button';buildButton.id='city-road-build';buildButton.hidden=true;
+ buildButton.textContent='BUILD WORKBENCH · 8 SUPPLIES';
+ buildButton.style.cssText='position:absolute;right:16px;bottom:158px;z-index:4;min-height:48px;padding:12px;background:#234b55;color:#fff;border:1px solid #c2e5e8;border-radius:6px';
+ supplyButton.insertAdjacentElement('afterend',buildButton);
+ const buildMarker=document.createElement('div');
+ buildMarker.id='city-road-workbench';buildMarker.hidden=true;
+ buildMarker.setAttribute('role','img');buildMarker.setAttribute('aria-label','Placed roadside workbench');
+ buildMarker.style.cssText='position:absolute;left:50%;top:50%;z-index:2;pointer-events:none;color:#fff1bf;text-shadow:0 2px 4px #000;background:#4d382ac9;border:2px solid #c9aa69;border-radius:4px;padding:12px 16px;font:700 13px monospace;transform:translate(-50%,-50%)';
+ buildMarker.textContent='▣ WORKBENCH · BUILT';
+ buildButton.insertAdjacentElement('afterend',buildMarker);
+ function atBuildSite(){
+  const site=voxel?.gateRoad?.supplies;
+  return !!site&&Math.hypot(player.x-site.x,player.y-site.z)<10;
+ }
+ function placeWorkbench(){
+  if(!running||paused||!firstPerson||atlas||!roadBuild)return;
+  if(roadBuild.place(suppliesClaimed,{x:player.x,z:player.y},voxel?.gateRoad?.supplies)){
+   buildButton.hidden=true;updateHud();
+  }else buildButton.textContent='Unable to save · retry';
+ }
+ buildButton.addEventListener('click',placeWorkbench);
+ function interactRoad(){
+  if(atGate()&&!sealClaimed)claimSeal();
+  else if(!suppliesClaimed)claimSupplies();
+  else if(!roadBuild?.placed)placeWorkbench();
+ }
+ function positionWorkbench(){
+  const placed=roadBuild?.placed;
+  if(!placed||!firstPerson||atlas||!running){buildMarker.hidden=true;return;}
+  const dx=placed.x-player.x,dz=placed.z-player.y;
+  const forward=dz*Math.cos(player.yaw)+dx*Math.sin(player.yaw);
+  const side=dx*Math.cos(player.yaw)-dz*Math.sin(player.yaw);
+  if(forward<=.5||Math.hypot(dx,dz)>45){buildMarker.hidden=true;return;}
+  const shell=canvas.getBoundingClientRect();
+  const ratio=side/Math.max(1,forward);
+  if(Math.abs(ratio)>1.5){buildMarker.hidden=true;return;}
+  buildMarker.hidden=false;
+  buildMarker.style.left=(50+ratio*45)+'%';
+  buildMarker.style.top=(54+player.pitch*32)+'%';
+  buildMarker.style.opacity=String(Math.max(.35,Math.min(1,12/Math.max(1,forward))));
+ }
  const keys=new Set(),held=new Set();
  const stick={x:0,y:0};
  function savePosition(){
@@ -203,6 +248,7 @@
   resetVoxel();
   sealClaimed=get(sealKey())==='1';gateButton.textContent=sealClaimed?'Gate seal collected':'Claim gate seal';
   suppliesClaimed=get(supplyKey())==='1';supplyButton.textContent=suppliesClaimed?'8 supplies recovered':'Collect 8 builder supplies';
+  roadBuild=window.CityRoadBuilding?.create(seed,localStorage)||null;
   lastSave=0;atlas=false;updateHud();
  }
  const button=document.createElement('button');
@@ -236,7 +282,8 @@
   const distance=road?Math.hypot(road.gateX-player.x,road.gateZ-player.y):Infinity;
   $('#district').textContent=distance<65?(sealClaimed?'FORTRESS ROAD · SEAL COLLECTED':'FORTRESS GATE · '+Math.round(distance*.25)+' m'):current?.name?.toUpperCase()||'GENERATING';
   $('#save-state').textContent='Terrain world seed '+seed.slice(0,12)+'… · gate '+(sealClaimed?'claimed':'open')+' · builder supplies '+(suppliesClaimed?'8':'0')+'/8 · local save';
-  $('#population').textContent='Fortress Road · '+(suppliesClaimed?'8 supplies saved':'roadside supplies ahead');
+  $('#population').textContent='Fortress Road · '+(roadBuild?.placed?'workbench built':suppliesClaimed?'8 supplies ready to build':'roadside supplies ahead');
+  $('#save-state').textContent+=(roadBuild?.placed?' · workbench built':'');
  }
  function resize(){
   const rect=canvas.getBoundingClientRect();
@@ -315,6 +362,8 @@
    status.dataset.playerMode=firstPerson&&!atlas?'first-person':'atlas';
    gateButton.hidden=!firstPerson||atlas||!atGate();
    supplyButton.hidden=!firstPerson||atlas||suppliesClaimed||!atSupplies();
+   buildButton.hidden=!firstPerson||atlas||!running||paused||!suppliesClaimed||!!roadBuild?.placed||!atBuildSite();
+   positionWorkbench();
    gateButton.disabled=sealClaimed;
    if(sealClaimed)gateButton.textContent='Gate seal collected';
    const size=resize();
