@@ -106,13 +106,19 @@
    }
    // A solid underground roof cannot be jumped through. Leave roofless
    // mouth tiles open so the transition is continuous with the outside.
-   const gallery=world.caveRoomAt?.(Math.floor(state.x),Math.floor(state.z));
-   // Only collide with an underground ceiling while the player's feet are
-   // inside that gallery. Surface players stand ABOVE the same cave roof;
-   // applying its ceiling to them teleports them into the cave on jump.
-   if(gallery&&!gallery.exposed&&state.vy>0&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
-    state.y=gallery.ceiling-world.PLAYER_HEIGHT;
-    state.vy=0;
+   // Check all capsule footprint corners when rising beneath a cave roof.
+   // The center alone can miss an adjacent lower roof while the head clips
+   // through it. Do not constrain a player already standing on the surface.
+   if(state.vy>0&&typeof world.caveRoomAt==='function'){
+    let ceiling=Infinity;
+    for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
+     const gallery=world.caveRoomAt(Math.floor(state.x+ox),Math.floor(state.z+oz));
+     if(gallery&&!gallery.exposed&&Number.isFinite(gallery.ceiling)
+       &&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+      ceiling=Math.min(ceiling,gallery.ceiling);
+     }
+    }
+    if(ceiling<Infinity){state.y=ceiling-world.PLAYER_HEIGHT;state.vy=0;}
    }
    const floor=floorAt(state.x,state.z,state.y);
    if(floor!==null&&state.y<=floor){state.y=floor;state.vy=0;state.grounded=true;}
