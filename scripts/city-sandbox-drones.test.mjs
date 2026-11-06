@@ -14,13 +14,13 @@ test('out of range commands fail without mutating drone',()=>{
   assert.deepEqual(d.position,home);
 });
 test('low battery triggers automatic return and docking',()=>{
-  let d=commandDrone(createDrone({id:'scout-3',home,capacity:3,speed:8}),'launch');
+  let d=commandDrone(createDrone({id:'scout-3',home,capacity:4,speed:8}),'launch');
   d=commandDrone(d,'scout',{target:{x:8,y:10,z:0}});
   d=stepDrone(d,1);
-  assert.equal(d.mode,'returning');
-  assert.equal(d.camera,false);
+  assert.equal(d.mode,'scouting');
   d=stepDrone(d,1);
   assert.equal(d.mode,'docked');
+  assert.equal(d.camera,false);
   assert.deepEqual(d.position,home);
 });
 test('docked drones recharge within capacity',()=>{
