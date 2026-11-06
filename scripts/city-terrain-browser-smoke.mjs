@@ -141,7 +141,7 @@ try{
   try{
    await waitFor(()=>evalPage('JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))).y>'+start),'movement persists to local save',14000);
   }catch(err){
-   const debug=await evalPage('(()=>{const x=document.getElementById("city-voxel-status");const seed=localStorage.getItem("meme-city-terrain-seed-v1");return {introHidden:document.getElementById("city-intro")?.hidden,renderer:x.dataset.renderer,status:x.textContent,worldZ:x.dataset.worldZ,physicsZ:x.dataset.physicsZ,inputForward:x.dataset.inputForward,keys:x.dataset.keyCount,saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+seed)),canvasHidden:document.getElementById("city-voxel-canvas")?.hidden,roadHidden:document.getElementById("city-road-canvas")?.hidden};})()');
+   const debug=await evalPage('(()=>{const x=document.getElementById("city-voxel-status");const seed=localStorage.getItem("meme-city-terrain-seed-v1");return {introHidden:document.getElementById("city-intro")?.hidden,renderer:x.dataset.renderer,status:x.textContent,worldZ:x.dataset.worldZ,physicsZ:x.dataset.physicsZ,inputForward:x.dataset.inputForward,keys:x.dataset.keyCount,saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+seed)),frameTime:x.dataset.frameTime,lastSaveTime:x.dataset.lastSaveTime,positionWrite:x.dataset.positionWrite,attemptZ:x.dataset.positionAttemptZ,canvasHidden:document.getElementById("city-voxel-canvas")?.hidden,roadHidden:document.getElementById("city-road-canvas")?.hidden};})()');
    console.error('MOVEMENT DEBUG',JSON.stringify({start,...debug}));
    throw err;
   }
