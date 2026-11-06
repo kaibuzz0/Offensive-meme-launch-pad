@@ -352,6 +352,8 @@
     }
    }else{player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
    status.dataset.worldX=String(player.x);status.dataset.worldZ=String(player.y);
+   status.dataset.inputForward=String(move.y);status.dataset.keyCount=String(keys.size);
+   status.dataset.physicsZ=String(physics?.snapshot().z);
    status.dataset.renderer=perspective?.software?'canvas':perspective?'webgl':'none';
    status.dataset.playerMode=firstPerson&&!atlas?'first-person':'atlas';
    gateButton.hidden=!firstPerson||atlas||!atGate();
