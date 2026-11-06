@@ -90,6 +90,48 @@
   }
   return Object.freeze(placed);
  }
+ // Bounded chunk lifecycle for the terrain renderer/integration owner. This
+ // manages entity data only; the graphics owner owns rendering and bootstrap.
+ function createChunkWildlifeManager(world,options={}){
+  if(!world||typeof world.surfaceAt!=='function'||!Number.isSafeInteger(world.seed)||world.CHUNK_SIZE!==CHUNK_SIZE)
+   throw TypeError('Compatible seeded voxel world required');
+  const maxChunks=options.maxChunks??16;
+  if(!Number.isInteger(maxChunks)||maxChunks<1||maxChunks>64)throw RangeError('maxChunks must be 1..64');
+  const active=new Map();
+  const key=(cx,cz)=>cx+':'+cz;
+  const validate=(cx,cz)=>{
+   if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz))throw TypeError('Safe integer chunk coordinates required');
+  };
+  function enter(cx,cz){
+   validate(cx,cz);
+   const k=key(cx,cz);
+   if(active.has(k))return active.get(k);
+   const creatures=spawnChunkOnTerrain(world,cx,cz,options);
+   if(active.size>=maxChunks)active.delete(active.keys().next().value);
+   active.set(k,creatures);
+   return creatures;
+  }
+  function leave(cx,cz){validate(cx,cz);return active.delete(key(cx,cz));}
+  function sync(chunks){
+   if(!Array.isArray(chunks)||chunks.length>maxChunks)throw RangeError('Visible chunks exceed wildlife budget');
+   const wanted=new Set();
+   for(const chunk of chunks){
+    if(!chunk||!Array.isArray(chunk)||chunk.length!==2)throw TypeError('Chunk must be [cx,cz]');
+    const [cx,cz]=chunk;validate(cx,cz);
+    const k=key(cx,cz);
+    if(wanted.has(k))throw RangeError('Duplicate visible chunk');
+    wanted.add(k);
+   }
+   for(const k of active.keys())if(!wanted.has(k))active.delete(k);
+   for(const [cx,cz] of chunks)enter(cx,cz);
+   return snapshot();
+  }
+  function snapshot(){
+   return Object.freeze(Array.from(active.values()).flat());
+  }
+  return Object.freeze({enter,leave,sync,snapshot,activeChunks:()=>active.size,
+   clear:()=>active.clear()});
+ }
  function cappedFlockStep(agents,dt,options={}){
   if(!Array.isArray(agents)||agents.length>64)throw RangeError('Flock must contain 0..64 agents');
   if(!Number.isFinite(dt)||dt<0||dt>0.1)throw RangeError('dt must be 0..0.1 seconds');
@@ -116,7 +158,7 @@
    return { ...a,x:a.x+nx*dt,z:a.z+nz*dt,vx:nx,vz:nz };
   });
  }
- const api=Object.freeze({CHUNK_SIZE,MAX_PER_CHUNK,HABITATS,habitatFor,spawnChunk,spawnChunkOnTerrain,cappedFlockStep});
+ const api=Object.freeze({CHUNK_SIZE,MAX_PER_CHUNK,HABITATS,habitatFor,spawnChunk,spawnChunkOnTerrain,createChunkWildlifeManager,cappedFlockStep});
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.CitySandboxWildlife=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
