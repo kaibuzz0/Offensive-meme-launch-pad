@@ -54,6 +54,35 @@
   }
   return animals;
  }
+ // Terrain adapter: reads existing voxel surface columns without changing seeds,
+ // cave layouts, chunk caches, saves, or rendering. Coordinates stay in voxels.
+ const AQUATIC=new Set(['fish']);
+ function spawnChunkOnTerrain(world,chunkX,chunkZ,options={}){
+  if(!world||typeof world.surfaceAt!=='function'||!Number.isSafeInteger(world.seed))
+   throw TypeError('Seeded voxel world with surfaceAt required');
+  if(world.CHUNK_SIZE!==CHUNK_SIZE)throw RangeError('Wildlife and terrain chunk sizes differ');
+  const centerX=chunkX*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
+  const centerZ=chunkZ*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
+  const center=world.surfaceAt(centerX,centerZ);
+  if(!center)return [];
+  const biome={group:center.group,name:center.biomeName};
+  const candidates=spawnChunk(world.seed,chunkX,chunkZ,biome,options);
+  const placed=[];
+  for(const animal of candidates){
+   const x=Math.floor(animal.x),z=Math.floor(animal.z),col=world.surfaceAt(x,z);
+   if(!col||!Number.isSafeInteger(col.height)||col.mouth||col.sinkhole)continue;
+   const aquatic=AQUATIC.has(animal.species);
+   // Rivers can host fish even where the atlas's biome is not a river biome.
+   // Do not place land animals underwater, fish on dry land, or ground
+   // creatures on near-vertical slopes.
+   const wet=!!col.water||!!col.river;
+   if(aquatic?!wet:wet||col.slope>18)continue;
+   const y=aquatic?Math.min(col.height+1,Number.isFinite(col.waterLevel)?col.waterLevel:world.SEA_LEVEL):col.height+1;
+   if(!Number.isFinite(y))continue;
+   placed.push(Object.freeze({...animal,y}));
+  }
+  return Object.freeze(placed);
+ }
  function cappedFlockStep(agents,dt,options={}){
   if(!Array.isArray(agents)||agents.length>64)throw RangeError('Flock must contain 0..64 agents');
   if(!Number.isFinite(dt)||dt<0||dt>0.1)throw RangeError('dt must be 0..0.1 seconds');
@@ -80,7 +109,7 @@
    return { ...a,x:a.x+nx*dt,z:a.z+nz*dt,vx:nx,vz:nz };
   });
  }
- const api=Object.freeze({CHUNK_SIZE,MAX_PER_CHUNK,HABITATS,habitatFor,spawnChunk,cappedFlockStep});
+ const api=Object.freeze({CHUNK_SIZE,MAX_PER_CHUNK,HABITATS,habitatFor,spawnChunk,spawnChunkOnTerrain,cappedFlockStep});
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.CitySandboxWildlife=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
