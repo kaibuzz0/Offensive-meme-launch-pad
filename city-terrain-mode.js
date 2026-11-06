@@ -96,7 +96,21 @@
  jumpButton.addEventListener('click',()=>{jumpQueued=true;});
  let perspective=null;
  try{if(voxel&&rendererApi)perspective=rendererApi.createRenderer(voxelCanvas,voxel);}catch(err){status.textContent='3D unavailable: '+String(err.message).slice(0,80);}
- let firstPerson=!!perspective;
+ let firstPerson=!!perspective,contextInterrupted=false;
+ // Android browsers can temporarily discard the WebGL context during app
+ // switching or memory pressure. Keep the seed and physics alive in the 2D
+ // fallback, then recreate only GPU resources after the context returns.
+ voxelCanvas.addEventListener('webglcontextlost',event=>{
+  event.preventDefault();
+  contextInterrupted=true;perspective=null;firstPerson=false;syncView();
+ });
+ voxelCanvas.addEventListener('webglcontextrestored',()=>{
+  if(!contextInterrupted)return;
+  try{perspective=voxel&&rendererApi?.createRenderer(voxelCanvas,voxel)||null;}
+  catch{perspective=null;}
+  contextInterrupted=false;
+  firstPerson=!!perspective;syncView();
+ });
  function syncView(){
   const threeD=!!perspective&&firstPerson&&!atlas;
   voxelCanvas.hidden=!threeD;crosshair.hidden=!threeD;status.hidden=!threeD;jumpButton.hidden=!threeD;
@@ -232,7 +246,8 @@
      const metrics=perspective.render({x:player.x,z:player.y,y:cameraY,yaw:player.yaw,pitch:player.pitch});
       const gallery=voxel.caveRoomAt?.(Math.floor(player.x),Math.floor(player.y));
       const subterranean=!!gallery&&!gallery.exposed&&cameraY+voxel.EYE_HEIGHT<voxel.surfaceAt(Math.floor(player.x),Math.floor(player.y)).height+1;
-      status.textContent='3D · '+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks · elevation '+Math.round(cameraY*voxel.VOXEL_METERS)+'m'+(subterranean?' · CAVERN':'')+' · ~'+Math.round(1000/Math.max(1,metrics.frameAverage))+' fps';
+      status.textContent='3D · '+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks · elevation '+Math.round(cameraY*voxel.VOXEL_METERS)+'m'+(subterranean?' · CAVERN':'')+' · ~'+Math.round(1000/Math.max(1,metrics.frameAverage))+' fps'+' · '+Math.round(metrics.renderScale*100)+'% render';
+      status.dataset.renderScale=String(metrics.renderScale);
       status.dataset.viewRadius=String(metrics.viewRadius);
       status.dataset.cavern=String(subterranean);
       status.dataset.elevation=String(cameraY);

@@ -120,6 +120,21 @@
   if(group==='wetland')return rgb(103+hueShift*.4,31,28);
   return rgb(92+hueShift,31,37);
  }
+ // AO-like local terrain occlusion and a sun-facing heightfield shadow cue.
+ // Reuses already-sampled neighbor columns; no new sampling or GPU pass.
+ function surfaceLight(tile,neighbors){
+  const h=tile.height;
+  const delta=neighbors.map(n=>Math.max(0,(n?.height??h)-h));
+  const ambient=clamp(1-(delta[0]+delta[1]+delta[2]+delta[3])*.018,.46,1);
+  // Sun direction has positive X and Z components: raised neighbors in
+  // these directions darken the lower ground's top face.
+  const directional=clamp(1-(delta[1]*.035+delta[3]*.020),.54,1);
+  return clamp(ambient*directional,.30,1);
+ }
+ function waterColor(depth){
+  const t=clamp(depth/45,0,1);
+  return [.08-.035*t,.48-.16*t,.64-.12*t];
+ }
  function generateMesh(world,cx,cz,stride=1){
   if(stride!==1&&stride!==4)throw Error('Unsupported terrain LOD');
   let chunk;
@@ -134,15 +149,15 @@
   const data=[];
   for(const tile of chunk.tiles){
    const {x,z,height:y}=tile,color=baseColor(tile);
-   const topShade=tile.slope>13?.86:tile.material==='shore'?.96:1;
-   const groundTint=color.map(v=>v*topShade);
-   quad(data,[x,y+1,z],[x+stride,y+1,z],[x+stride,y+1,z+stride],[x,y+1,z+stride],groundTint,[0,1,0]);
    const sides=[
     {n:world.surfaceAt(x-stride,z),axis:'left'},
     {n:world.surfaceAt(x+stride,z),axis:'right'},
     {n:world.surfaceAt(x,z-stride),axis:'front'},
     {n:world.surfaceAt(x,z+stride),axis:'back'}
    ];
+   const topShade=(tile.slope>13?.86:tile.material==='shore'?.96:1)*surfaceLight(tile,sides.map(s=>s.n));
+   const groundTint=color.map(v=>v*topShade);
+   quad(data,[x,y+1,z],[x+stride,y+1,z],[x+stride,y+1,z+stride],[x,y+1,z+stride],groundTint,[0,1,0]);
    const shade=color.map(v=>v*(tile.material==='cave-rock'?.45:tile.material==='cliff'?.72:.79));
    for(const side of sides){
     const low=side.n?.height??y;
@@ -166,9 +181,10 @@
     }
    }
    if(tile.water){
-    const water=[.15,.45,.67];
+    const water=waterColor(world.SEA_LEVEL-y);
     const yy=world.SEA_LEVEL+1.15;
-    quad(data,[x,yy,z],[x+stride,yy,z],[x+stride,yy,z+stride],[x,yy,z+stride],water,[0,1,0]);
+    // Normal.y = -2 is a reserved water-only marker for shader routing.
+    quad(data,[x,yy,z],[x+stride,yy,z],[x+stride,yy,z+stride],[x,yy,z+stride],water,[0,-2,0]);
     // Narrow bright shore strips. A separate high-altitude foam surface
     // avoids blending/sorting glitches on WebGL1 mobile GPUs.
     if(stride===1){
@@ -188,7 +204,10 @@
     const r=world.caveRoomAt(tile.x,tile.z);
     if(!r)continue;
     const x=tile.x,z=tile.z,floor=r.floor,ceil=r.ceiling;
-    const rock=[.21,.24,.27],base=[.30,.32,.30],vault=[.16,.18,.23];
+    const chamber=r.kind==='chamber-a'||r.kind==='chamber-b';
+    const rock=chamber?[.25,.28,.30]:[.21,.24,.27];
+    const base=chamber?[.30,.30,.29]:[.27,.29,.29];
+    const vault=chamber?[.19,.21,.23]:[.16,.18,.23];
     if(!r.exposed||floor<tile.height+.85){
      quad(data,[x,floor,z],[x+1,floor,z],[x+1,floor,z+1],[x,floor,z+1],base,[0,1,0]);
     }
@@ -215,6 +234,12 @@
      const height=1.6+((x^z)&3),tint=((x*3+z*5)&3)===0?[.36,.56,.65]:[.31,.34,.36];
      canopy(data,x+.5,ceil-.3,z+.5,.37,height,.37,tint,.2);
     }
+    // Small subterranean mineral clusters give chambers a readable
+    // silhouette at lantern range without requiring bulky texture assets.
+    if(chamber&&!r.exposed&&((x*31+z*17)&31)===0){
+     const pale=((x^z)&3)===0?[.40,.56,.62]:[.29,.42,.48];
+     canopy(data,x+.5,floor+.45,z+.5,.28,.65,.28,pale,.6);
+    }
    }
   }
   for(const plant of chunk.plants){
@@ -235,26 +260,29 @@
   'uniform mat4 uMatrix;uniform vec3 uEye;varying vec3 vColor;varying float vDist;'+
   'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;'+
   'void main(){gl_Position=uMatrix*vec4(aPos,1.0);'+
-  'float lit=.38+.56*max(0.0,dot(normalize(aNormal),normalize(vec3(.40,.87,.22))));'+
-  'vColor=aColor*lit;vDist=distance(aPos,uEye);vPosition=aPos;vNormal=aNormal;'+
-  'vWater=(aColor.r<.20&&aColor.g>.40&&aColor.g<.49&&aColor.b>.64)?1.0:0.0;}';
+  'vColor=aColor;vDist=distance(aPos,uEye);vPosition=aPos;vNormal=aNormal;'+
+  'vWater=aNormal.y< -1.5?1.0:0.0;}';
  const fragmentSource='precision mediump float;varying vec3 vColor;varying float vDist;'+
   'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;uniform float uTime;'+
   'uniform vec3 uLampEye;uniform float uUnderground;'+
   'float grit(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}'+
   'float gravel(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);'+
   'return mix(mix(grit(i),grit(i+vec2(1,0)),f.x),mix(grit(i+vec2(0,1)),grit(i+vec2(1,1)),f.x),f.y);}'+
-  'void main(){vec3 color=vColor;'+
-  'vec3 n=abs(normalize(vNormal));'+
+  'void main(){vec3 unitNormal=vWater>.5?vec3(0.0,1.0,0.0):normalize(vNormal);'+
+  'vec3 n=abs(unitNormal);'+
   'vec2 uv=n.y>.5?vPosition.xz:(n.x>n.z?vPosition.zy:vPosition.xy);'+
+  'float sunDiffuse=max(0.0,dot(unitNormal,normalize(vec3(.40,.87,.22))));'+
+  'vec3 color=vColor*(.30+.65*sunDiffuse);'+
   'float fine=gravel(uv*2.6),coarse=gravel(uv*.45);'+
   'float seams=sin(vPosition.y*.51+coarse*3.1)*.045;'+
   'float mineral=(fine-.5)*.24+(coarse-.5)*.16+seams;'+
-  'color*=clamp(1.0+mineral,.69,1.2);'+
+  'color*=clamp(1.0+mineral,.68,1.2);'+
   'color+=vec3(.035,.047,.036)*pow(max(0.0,coarse-.68),2.0)*3.5;'+
   'if(vWater>.5){float wave=sin(vPosition.x*.81+uTime*.8)*sin(vPosition.z*.62-uTime*.7);'+
   'float gleam=pow(max(0.0,sin((vPosition.x+vPosition.z)*1.7+uTime*1.5)),16.0);'+
-  'color=vec3(.055,.26,.42)+vec3(.025,.080,.11)*wave+vec3(.17,.19,.19)*gleam;}'+
+  'vec3 toEye=normalize(uLampEye-vPosition);'+
+  'float fresnel=pow(1.0-clamp(dot(toEye,vec3(0.0,1.0,0.0)),0.0,1.0),3.0);'+
+  'color=vColor*(.62+.18*wave)+vec3(.18,.22,.23)*gleam+vec3(.07,.13,.16)*fresnel;}'+
   'float torch=1.0/(1.0+.009*pow(distance(vPosition,uLampEye),2.0));'+
   'vec3 cavern=color*(.10+.84*torch)+vec3(.22,.145,.075)*torch;'+
   'color=mix(color,cavern,uUnderground);'+
@@ -263,9 +291,14 @@
   'gl_FragColor=vec4(mix(color,haze,fog),1.0);}';
  const skyVertex='attribute vec2 aXY;varying vec2 vUV;'+
   'void main(){gl_Position=vec4(aXY,0.9999,1.0);vUV=aXY*.5+.5;}';
- const skyFragment='precision mediump float;varying vec2 vUV;uniform vec2 uLook;'+
+ const skyFragment='precision mediump float;varying vec2 vUV;uniform vec2 uLook;uniform float uTime;'+
   'void main(){float y=clamp(vUV.y,0.0,1.0);'+
   'vec3 sky=mix(vec3(.75,.83,.85),vec3(.12,.35,.63),smoothstep(.1,1.0,y));'+
+  'float drift=uTime*.003+uLook.x*.22;'+
+  'float structure=sin((vUV.x+drift)*26.0+sin(vUV.y*39.0)*1.6)*.34+'+
+  'sin((vUV.x+drift)*43.0-vUV.y*18.0)*.20;'+
+  'float clouds=smoothstep(.17,.52,structure)*smoothstep(.40,.62,y)*(1.0-smoothstep(.88,.98,y));'+
+  'sky=mix(sky,vec3(.89,.91,.91),clouds*.58);'+
   'vec2 sun=vec2(.5+.5*sin(1.3-uLook.x),.68-.45*sin(uLook.y));'+
   'float halo=exp(-pow(distance(vUV,sun)*6.0,2.0));'+
   'float disc=1.0-smoothstep(.027,.049,distance(vUV,sun));'+
@@ -321,10 +354,11 @@
   const skyBuffer=gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER,skyBuffer);
   gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
-  const skyPos=gl.getAttribLocation(skyProgram,'aXY'),skyLook=gl.getUniformLocation(skyProgram,'uLook');
+  const skyPos=gl.getAttribLocation(skyProgram,'aXY'),skyLook=gl.getUniformLocation(skyProgram,'uLook'),
+   skyTime=gl.getUniformLocation(skyProgram,'uTime');
   const timeUniform=gl.getUniformLocation(program,'uTime');
   const chunks=new Map(),MAX_CHUNKS=176,MAX_GPU_BYTES=24*1024*1024,RADIUS=7,NEAR_RADIUS=3;
-  let adaptiveRadius=RADIUS,frameAverage=16.7,lastFrameTime=null,slowFrames=0,fastFrames=0;
+  let adaptiveRadius=RADIUS,frameAverage=16.7,lastFrameTime=null,slowFrames=0,fastFrames=0,renderScale=1;
   let allocated=0;
   gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);
   function release(key){
@@ -347,12 +381,12 @@
     if(frameAverage>33){slowFrames++;fastFrames=0;}
     else if(frameAverage<20){fastFrames++;slowFrames=0;}
     else{slowFrames=0;fastFrames=0;}
-    if(slowFrames>90){adaptiveRadius=5;slowFrames=0;}
-    if(fastFrames>210){adaptiveRadius=RADIUS;fastFrames=0;}
+    if(slowFrames>90){adaptiveRadius=5;renderScale=.76;slowFrames=0;}
+    if(fastFrames>210){adaptiveRadius=RADIUS;renderScale=1;fastFrames=0;}
    }
    lastFrameTime=clock;
    const rect=canvas.getBoundingClientRect();
-   const dpr=Math.min(window.devicePixelRatio||1,1.5);
+   const dpr=Math.min(window.devicePixelRatio||1,1.5)*renderScale;
    const width=Math.max(2,Math.round(rect.width*dpr)),height=Math.max(2,Math.round(rect.height*dpr));
    if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
    gl.viewport(0,0,width,height);
@@ -360,6 +394,7 @@
    gl.disable(gl.DEPTH_TEST);
    gl.useProgram(skyProgram);
    gl.uniform2f(skyLook,player.yaw,player.pitch);
+   gl.uniform1f(skyTime,(typeof performance!=='undefined'?performance.now():0)/1000);
    gl.bindBuffer(gl.ARRAY_BUFFER,skyBuffer);
    gl.enableVertexAttribArray(skyPos);
    gl.vertexAttribPointer(skyPos,2,gl.FLOAT,false,0,0);
@@ -416,10 +451,10 @@
     gl.drawArrays(gl.TRIANGLES,0,c.vertices);
     verts+=c.vertices;bytes+=c.bytes;
    }
-   return {loaded:chunks.size,wanted:wanted.length,vertices:verts,bytes,gpuBytes:allocated,viewRadius:adaptiveRadius,frameAverage,underground,glError:gl.getError()};
+   return {loaded:chunks.size,wanted:wanted.length,vertices:verts,bytes,gpuBytes:allocated,viewRadius:adaptiveRadius,renderScale,frameAverage,underground,glError:gl.getError()};
   }
   return Object.freeze({gl,render,dispose,chunkCount:()=>chunks.size,meshAt:(cx,cz)=>generateMesh(world,cx,cz)});
  }
- root.CityVoxelRenderer=Object.freeze({createRenderer,generateMesh,rgb,
+ root.CityVoxelRenderer=Object.freeze({createRenderer,generateMesh,rgb,surfaceLight,waterColor,
   VOXEL_METERS:.25,MAX_GPU_CHUNKS:176,MAX_GPU_BYTES:24*1024*1024});
 })(typeof window==='undefined'?globalThis:window);
