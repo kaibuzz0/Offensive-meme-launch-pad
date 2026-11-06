@@ -217,23 +217,31 @@
    vertices:data.length/9};
  }
  // Procedural material grain, atmosphere and water. No external textures.
+ // Small-scale rock grain, strata, crevice shading and water highlights are
+ // generated in WebGL1, avoiding large downloaded textures for low-data phones.
  const vertexSource='attribute vec3 aPos;attribute vec3 aColor;attribute vec3 aNormal;'+
   'uniform mat4 uMatrix;uniform vec3 uEye;varying vec3 vColor;varying float vDist;'+
-  'varying vec3 vPosition;varying float vWater;'+
+  'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;'+
   'void main(){gl_Position=uMatrix*vec4(aPos,1.0);'+
-  'float lit=.47+.50*max(0.0,dot(normalize(aNormal),normalize(vec3(.40,.87,.22))));'+
-  'vColor=aColor*lit;vDist=distance(aPos,uEye);vPosition=aPos;'+
+  'float lit=.38+.56*max(0.0,dot(normalize(aNormal),normalize(vec3(.40,.87,.22))));'+
+  'vColor=aColor*lit;vDist=distance(aPos,uEye);vPosition=aPos;vNormal=aNormal;'+
   'vWater=(aColor.r<.20&&aColor.g>.40&&aColor.g<.49&&aColor.b>.64)?1.0:0.0;}';
  const fragmentSource='precision mediump float;varying vec3 vColor;varying float vDist;'+
-  'varying vec3 vPosition;varying float vWater;uniform float uTime;'+
-  'float grain(vec3 p){return fract(sin(dot(floor(p),vec3(19.17,53.41,7.63)))*43758.5453);}'+
-  'void main(){'+
-  'float micro=grain(vPosition*3.0)*.13-.055;'+
-  'float strata=sin(vPosition.y*.53+vPosition.x*.11)*.027;'+
-  'vec3 color=vColor*(1.0+micro+strata);'+
+  'varying vec3 vPosition;varying vec3 vNormal;varying float vWater;uniform float uTime;'+
+  'float grit(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}'+
+  'float gravel(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);'+
+  'return mix(mix(grit(i),grit(i+vec2(1,0)),f.x),mix(grit(i+vec2(0,1)),grit(i+vec2(1,1)),f.x),f.y);}'+
+  'void main(){vec3 color=vColor;'+
+  'vec3 n=abs(normalize(vNormal));'+
+  'vec2 uv=n.y>.5?vPosition.xz:(n.x>n.z?vPosition.zy:vPosition.xy);'+
+  'float fine=gravel(uv*2.6),coarse=gravel(uv*.45);'+
+  'float seams=sin(vPosition.y*.51+coarse*3.1)*.045;'+
+  'float mineral=(fine-.5)*.24+(coarse-.5)*.16+seams;'+
+  'color*=clamp(1.0+mineral,.69,1.2);'+
+  'color+=vec3(.035,.047,.036)*pow(max(0.0,coarse-.68),2.0)*3.5;'+
   'if(vWater>.5){float wave=sin(vPosition.x*.81+uTime*.8)*sin(vPosition.z*.62-uTime*.7);'+
-  'float sheen=pow(.5+.5*sin((vPosition.x+vPosition.z)*1.5+uTime*1.5),12.0);'+
-  'color=vec3(.055,.26,.42)+vec3(.022,.087,.115)*wave+vec3(.10,.15,.15)*sheen;}'+
+  'float gleam=pow(max(0.0,sin((vPosition.x+vPosition.z)*1.7+uTime*1.5)),16.0);'+
+  'color=vec3(.055,.26,.42)+vec3(.025,.080,.11)*wave+vec3(.17,.19,.19)*gleam;}'+
   'float fog=smoothstep(55.0,235.0,vDist);'+
   'gl_FragColor=vec4(mix(color,vec3(.63,.77,.88),fog),1.0);}';
  const skyVertex='attribute vec2 aXY;varying vec2 vUV;'+
