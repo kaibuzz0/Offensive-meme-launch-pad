@@ -232,7 +232,9 @@
      const metrics=perspective.render({x:player.x,z:player.y,y:cameraY,yaw:player.yaw,pitch:player.pitch});
       const gallery=voxel.caveRoomAt?.(Math.floor(player.x),Math.floor(player.y));
       const subterranean=!!gallery&&!gallery.exposed&&cameraY+voxel.EYE_HEIGHT<voxel.surfaceAt(Math.floor(player.x),Math.floor(player.y)).height+1;
-      status.textContent='3D · '+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks · elevation '+Math.round(cameraY*voxel.VOXEL_METERS)+'m'+(subterranean?' · UNDERGROUND':'');
+      status.textContent='3D · '+metrics.loaded+'/'+metrics.wanted+' chunks · '+(metrics.vertices/1000).toFixed(0)+'k vertices · '+(voxel.VOXEL_METERS*100)+'cm blocks · elevation '+Math.round(cameraY*voxel.VOXEL_METERS)+'m'+(subterranean?' · CAVERN':'')+' · ~'+Math.round(1000/Math.max(1,metrics.frameAverage))+' fps';
+      status.dataset.viewRadius=String(metrics.viewRadius);
+      status.dataset.cavern=String(subterranean);
       status.dataset.elevation=String(cameraY);
       status.dataset.grounded=String(physics?.snapshot().grounded??true);
       status.dataset.underground=String(subterranean);
