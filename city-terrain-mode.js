@@ -112,8 +112,7 @@
  const renderHint=document.createElement('div');
  renderHint.id='city-render-hint';renderHint.textContent='Loading the 3D world…';
  modeButton.insertAdjacentElement('afterend',renderHint);
- // Default Android to the independently drawn landscape until the native
- // WebGL path passes real-device visual verification; players may opt back in.
+ // Use an independent visible fallback on Android until native GPU rendering is visually verified.
  let forceCanvas=new URLSearchParams(window.location.search).get('render')==='canvas'||/Android/i.test(window.navigator?.userAgent||'');
  let blankSince=0;
  function openPerspective(){
@@ -235,9 +234,7 @@
  function savePosition(){
   const feet=physics?.snapshot();
   const vertical=feet&&Math.hypot(feet.x-player.x,feet.z-player.y)<.1?feet.y:null;
-  const persisted=put(POS+seed,JSON.stringify({version:world.version,seed,x:player.x,y:player.y,yaw:player.yaw,pitch:player.pitch,vertical}));
-  status.dataset.positionWrite=persisted?'ok':'failed';
-  status.dataset.positionAttemptZ=String(player.y);
+  put(POS+seed,JSON.stringify({version:world.version,seed,x:player.x,y:player.y,yaw:player.yaw,pitch:player.pitch,vertical}));
  }
  function spawnNewWorld(){
   savePosition();seed=randomSeed();put(KEY,seed);
@@ -355,10 +352,6 @@
      if(Math.abs(nx)<999900&&Math.abs(nz)<999900){player.x=nx;player.y=nz;}
     }
    }else{player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
-   // Persist before rendering: a slow mobile raster/mesh frame must never
-   // prevent a completed movement tick from reaching the local save.
-   status.dataset.frameTime=String(t);status.dataset.lastSaveTime=String(lastSave);
-   if(t-lastSave>1000){lastSave=t;savePosition();updateHud();}
    status.dataset.worldX=String(player.x);status.dataset.worldZ=String(player.y);
    status.dataset.inputForward=String(move.y);status.dataset.keyCount=String(keys.size);
    status.dataset.physicsZ=String(physics?.snapshot().z);
@@ -405,6 +398,7 @@
      }
     }
    }else drawWorld(size.w,size.h);
+   if(t-lastSave>1100){lastSave=t;savePosition();updateHud();}
   }
   requestAnimationFrame(frame);
  }
