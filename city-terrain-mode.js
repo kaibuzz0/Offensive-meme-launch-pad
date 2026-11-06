@@ -311,6 +311,8 @@
      if(Math.abs(nx)<999900&&Math.abs(nz)<999900){player.x=nx;player.y=nz;}
     }
    }else{player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
+   status.dataset.worldX=String(player.x);status.dataset.worldZ=String(player.y);
+   status.dataset.playerMode=firstPerson&&!atlas?'first-person':'atlas';
    gateButton.hidden=!firstPerson||atlas||!atGate();
    supplyButton.hidden=!firstPerson||atlas||suppliesClaimed||!atSupplies();
    gateButton.disabled=sealClaimed;
