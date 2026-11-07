@@ -286,3 +286,18 @@ test('Fortress Road roadside vegetation respects biome and remains seed-stable',
   }
  }
 });
+
+test('lodge footprint and entrance remain free of regenerated foliage across chunk seams',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const world=create(seed),again=create(seed),lodge=world.gateRoad.lodge;
+  for(let z=lodge.z-2;z<=lodge.z+9;z++)for(let x=lodge.x-3;x<=lodge.x+10;x++){
+   assert.equal(world.featureAt(x,z),null,'foliage must not block lodge approach');
+   const chunk=world.chunkAt(Math.floor(x/16),Math.floor(z/16));
+   assert.ok(!chunk.plants.some(p=>p.x===x&&p.z===z),'chunk streaming must respect clearing');
+   assert.equal(again.featureAt(x,z),null,'clearing must be deterministic on reload');
+  }
+  const outside=world.featureAt(lodge.x+11,lodge.z+10);
+  assert.deepEqual(plain(outside),plain(again.featureAt(lodge.x+11,lodge.z+10)),
+   'outside the clearing, biome vegetation remains seed-stable');
+ }
+});
