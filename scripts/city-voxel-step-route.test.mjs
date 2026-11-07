@@ -79,3 +79,38 @@ test('airborne capsule cannot slip through a low obstacle when floor ahead is sl
   assert.ok(player.snapshot().x < wallStart,
     'airborne player must not enter a wall by checking raised ground instead of current feet');
 });
+
+test('jumping under a solid fortress lintel stops at its underside', () => {
+  const world = {
+    PLAYER_HEIGHT: 7.2, SEA_LEVEL: -100,
+    surfaceAt: () => ({height: 0}),
+    gateRoad: {
+      parts: [{x: -2, z: -2, y: 10, w: 4, h: 2, d: 4, solid: true}],
+      obstructs: () => false
+    }
+  };
+  const player = createController(world, {x: 0, z: 0});
+  let hit = false;
+  for (let i = 0; i < 20; i++) {
+    const before = player.snapshot();
+    const after = player.tick({jump: i === 0}, .05);
+    assert.ok(after.y + world.PLAYER_HEIGHT <= 10 + 1e-9,
+      'head must never pass through fortress lintel');
+    if (before.vy > 0 && after.vy === 0 && !after.grounded) hit = true;
+  }
+  assert.ok(hit, 'upward collision must cancel ascent');
+});
+
+test('jumping beside the fortress lintel retains normal ascent', () => {
+  const world = {
+    PLAYER_HEIGHT: 7.2, SEA_LEVEL: -100,
+    surfaceAt: () => ({height: 0}),
+    gateRoad: {
+      parts: [{x: 3, z: -2, y: 10, w: 4, h: 2, d: 4, solid: true}],
+      obstructs: () => false
+    }
+  };
+  const player = createController(world, {x: 0, z: 0});
+  for (let i = 0; i < 5; i++) player.tick({jump: i === 0}, .05);
+  assert.ok(player.snapshot().y > 2.8, 'open sky must not inherit lintel collision');
+});
