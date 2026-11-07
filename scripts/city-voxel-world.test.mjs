@@ -161,3 +161,28 @@ test('builder supply cache is visible, seed-relative and does not block the firs
   assert.ok(approached,seed+' players should be able to reach and collect supplies on foot');
  }
 });
+
+
+test('seeded fortress pieces clip into every intersecting chunk without seam gaps',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),again=create(seed);
+  for(let i=0;i<w.gateRoad.parts.length;i++){
+   const p=w.gateRoad.parts[i],fragments=[];
+   const firstX=Math.floor(p.x/16),lastX=Math.floor((p.x+p.w-1e-8)/16);
+   const firstZ=Math.floor(p.z/16),lastZ=Math.floor((p.z+p.d-1e-8)/16);
+   for(let cx=firstX;cx<=lastX;cx++)for(let cz=firstZ;cz<=lastZ;cz++){
+    const matching=w.chunkAt(cx,cz).structures.filter(q=>q.id==='starter-gate:'+w.seed+':'+i);
+    assert.equal(matching.length,1,'each touched chunk owns exactly one fragment');
+    const q=matching[0];
+    assert.equal(q.structureId,'starter-fortress:'+w.seed);
+    assert.ok(q.x>=cx*16&&q.x+q.w<=cx*16+16+1e-8);
+    assert.ok(q.z>=cz*16&&q.z+q.d<=cz*16+16+1e-8);
+    fragments.push(q);
+   }
+   const area=fragments.reduce((sum,q)=>sum+q.w*q.d,0);
+   assert.ok(Math.abs(area-p.w*p.d)<1e-7,'no gaps or overlap across seams');
+  }
+  const cx=Math.floor(w.gateRoad.x/16),cz=Math.floor(w.gateRoad.gateZ/16);
+  assert.deepEqual(plain(w.chunkAt(cx,cz).structures),plain(again.chunkAt(cx,cz).structures));
+ }
+});
