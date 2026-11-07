@@ -85,6 +85,37 @@ try{
  const view=await evalPage('(()=>{const canvas=document.getElementById("city-voxel-canvas");const gl=canvas?.getContext("webgl");return {exists:!!canvas,gl:!!gl,hidden:canvas?.hidden,crosshair:!!document.getElementById("city-voxel-crosshair")};})()');
  assert.equal(view.gl,true,'release CI must exercise WebGL gameplay');
  assert.equal(view.exists,true);assert.equal(view.crosshair,true);
+
+ // Android dual-stick acceptance: rotating the viewport must reveal two
+ // independent controls without affecting the original desktop keyboard path.
+ await request('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+ await request('Emulation.setDeviceMetricsOverride',{width:915,height:412,deviceScaleFactor:2,mobile:true});
+ await waitFor(()=>evalPage('matchMedia("(orientation:landscape)").matches && matchMedia("(pointer:coarse)").matches'),'landscape touch viewport',8000);
+ const mobile=await evalPage('(()=>{const left=document.getElementById("joystick"),right=document.getElementById("city-look-pad"),jump=document.getElementById("city-jump"),use=document.getElementById("city-mobile-interact"),land=document.getElementById("city-landscape");return {left:!!left,right:!!right,jump:!!jump,use:!!use,land:!!land,lookVisible:getComputedStyle(right).display!=="none"&&!right.hidden,leftVisible:getComputedStyle(left).display!=="none",height:document.querySelector(".game-shell").getBoundingClientRect().height,screen:innerHeight};})()');
+ assert.equal(mobile.left&&mobile.right&&mobile.jump&&mobile.use&&mobile.land,true,'landscape must expose both sticks and action buttons');
+ assert.equal(mobile.lookVisible&&mobile.leftVisible,true,'landscape sticks must be visibly rendered');
+ assert.ok(Math.abs(mobile.height-mobile.screen)<5,'landscape game should fill available viewport height');
+ const firstYaw=await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)');
+ await evalPage('(()=>{
+  const left=document.getElementById("joystick"),right=document.getElementById("city-look-pad");
+  const a=left.getBoundingClientRect(),b=right.getBoundingClientRect();
+  left.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:401,clientX:a.left+a.width/2,clientY:a.top+a.height*.20}));
+  right.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:402,clientX:b.left+b.width*.82,clientY:b.top+b.height/2}));
+  return true;
+ })()');
+ const dual=await evalPage('(()=>({movement:document.getElementById("joystick-knob").style.transform,look:document.getElementById("city-look-knob").style.transform}))()');
+ assert.match(dual.movement,/translate/,'left movement joystick must respond independently');
+ assert.match(dual.look,/translate/,'right look joystick must respond independently');
+ await waitFor(()=>evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)>'+firstYaw+.015'),'right thumbstick rotates actual first-person camera',8000);
+ await evalPage('(()=>{
+  document.getElementById("joystick").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:401}));
+  document.getElementById("city-look-pad").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:402}));
+  return true;
+ })()');
+ assert.equal(await evalPage('document.getElementById("city-look-knob").style.transform'),'','right thumbstick must recenter after release');
+ await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
+ await request('Emulation.setTouchEmulationEnabled',{enabled:false});
+
  if(view.gl){
   assert.equal(view.hidden,false,'first person is default when WebGL works');
   assert.equal(await evalPage('document.getElementById("city-jump").hidden'),false,'mobile jump must be visible in first person');
