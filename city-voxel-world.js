@@ -336,6 +336,8 @@
   // Fixed search order and stable IDs preserve positions across reloads.
   function actorSite(dx,dz,maxSlope,avoidRoad,excludedSite){
    const ax=gateRoad.supplies.x+dx,az=gateRoad.supplies.z+dz;
+   // Sample the reference grade once; terrain queries are costly during startup.
+   const referenceHeight=surfaceAt(ax,az).height;
    const offsets=[[0,0],[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2],
     [3,0],[-3,0],[0,3],[0,-3],[4,0],[-4,0],[0,4],[0,-4]];
    for(const [ox,oz] of offsets){
@@ -344,10 +346,13 @@
     if(excludedSite&&Math.hypot(x-excludedSite.x,z-excludedSite.z)<4)continue;
     if(!ground||ground.water||ground.mouth||ground.slope>maxSlope||
        (avoidRoad&&(ground.road||gateRoad.foundation(x,z))))continue;
-    if(Math.abs(ground.height-surfaceAt(ax,az).height)>3)continue;
+    if(Math.abs(ground.height-referenceHeight)>3)continue;
     // Shared physics uses the original fortress boxes, not streamed mesh fragments.
     // Do not seed a character inside a solid tower, wall or gate post.
-    if(gateRoad.obstructs(x+.5,ground.height+1,z+.5,PLAYER_HEIGHT,.65))continue;
+    // Check the full standing footprint against fortress collision, not only
+    // its center; corner overlap can otherwise embed actors in gate posts.
+    if([[.25,.25],[.75,.25],[.25,.75],[.75,.75]].some(([fx,fz])=>
+     gateRoad.obstructs(x+fx,ground.height+1,z+fz,PLAYER_HEIGHT,.35)))continue;
     // A standing actor needs a stable 2x2 footprint, not merely one dry tile.
     const footprint=[[1,0],[0,1],[1,1]].every(([ox2,oz2])=>{
      const neighbor=surfaceAt(x+ox2,z+oz2);
