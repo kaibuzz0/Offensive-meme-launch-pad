@@ -38,3 +38,27 @@ test('the controller does not depend on renderer detail or visual LOD', () => {
     assert.deepEqual({...a}, {...b});
   }
 });
+
+test('wall collision and open doorway use the same controller sweep at desktop and touch frame rates', () => {
+  const geometry = {
+    ...world,
+    gateRoad: {
+      obstructs: (x, y, z, height, radius) =>
+        x + radius >= 1 && x - radius <= 1.25 && Math.abs(z) > 0.6,
+    },
+  };
+  function traverse(z, dt, input) {
+    const controller = root.CityVoxelPhysics.createController(geometry, {x: 0, z});
+    for (let i = 0; i < Math.ceil(1 / dt); i++) controller.tick(input, dt);
+    return controller.snapshot();
+  }
+  const input = {right: 1, forward: 0, yaw: 0};
+  for (const dt of [1 / 60, 1 / 30, .05]) {
+    const wall = traverse(2, dt, input);
+    const doorway = traverse(0, dt, input);
+    assert.ok(wall.x < 1, `wall penetration at dt=${dt}: ${wall.x}`);
+    assert.ok(doorway.x > 1.5, `doorway not traversable at dt=${dt}: ${doorway.x}`);
+    assert.equal(wall.z, 2);
+    assert.equal(doorway.z, 0);
+  }
+});
