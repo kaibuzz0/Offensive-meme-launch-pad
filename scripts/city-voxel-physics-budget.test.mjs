@@ -107,3 +107,28 @@ test('low terrain steps remain passable and tall rises block at desktop and touc
     }
   }
 });
+
+test('local movement query work stays bounded independently of distant scene population', () => {
+  // The controller must query only its local world adapter, never traverse
+  // global actors or render meshes. Counts are a reproducible Node baseline,
+  // not a physical-device performance measurement.
+  function run(distantActors) {
+    let surfaceQueries = 0;
+    let obstructionQueries = 0;
+    const scene = {
+      ...world,
+      distantActors: Array.from({length: distantActors}, (_, i) => ({id: i})),
+      surfaceAt: () => { surfaceQueries++; return {height: 0}; },
+      gateRoad: {obstructs: () => { obstructionQueries++; return false; }},
+    };
+    const player = root.CityVoxelPhysics.createController(scene, {x: 0, z: 0});
+    for (let i = 0; i < 120; i++) player.tick({forward: 1, yaw: 0}, 1 / 60);
+    return {position: player.snapshot(), surfaceQueries, obstructionQueries};
+  }
+  const empty = run(0);
+  const populated = run(10000);
+  assert.deepEqual({...populated.position}, {...empty.position});
+  assert.equal(populated.surfaceQueries, empty.surfaceQueries);
+  assert.equal(populated.obstructionQueries, empty.obstructionQueries);
+  assert.ok(empty.surfaceQueries < 5000, 'unexpectedly high local terrain query count');
+});
