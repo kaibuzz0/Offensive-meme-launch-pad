@@ -11,6 +11,7 @@ export function buildWorkbenchState(state, action) {
   if (!action || action.kind !== 'place-workbench' ||
       !Number.isSafeInteger(action.expectedRevision) ||
       action.expectedRevision !== state.revision) throw new Error('stale building action');
+  if (state.revision >= Number.MAX_SAFE_INTEGER) throw new RangeError('building revision exhausted');
   if (state.inventory.supplies < 8) throw new Error('insufficient supplies');
   if (!action.player || !action.position ||
       !Number.isFinite(action.player.x) || !Number.isFinite(action.player.z) ||
