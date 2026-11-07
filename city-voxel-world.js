@@ -334,12 +334,14 @@
   }
   // Resolve seeded actor sites once per world, not once per streamed chunk.
   // Fixed search order and stable IDs preserve positions across reloads.
-  function actorSite(dx,dz,maxSlope,avoidRoad){
+  function actorSite(dx,dz,maxSlope,avoidRoad,excludedSite){
    const ax=gateRoad.supplies.x+dx,az=gateRoad.supplies.z+dz;
    const offsets=[[0,0],[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2],
     [3,0],[-3,0],[0,3],[0,-3],[4,0],[-4,0],[0,4],[0,-4]];
    for(const [ox,oz] of offsets){
     const x=ax+ox,z=az+oz,ground=surfaceAt(x,z);
+    // Separate independently generated populations without a second actor simulation.
+    if(excludedSite&&Math.hypot(x-excludedSite.x,z-excludedSite.z)<4)continue;
     if(!ground||ground.water||ground.mouth||ground.slope>maxSlope||
        (avoidRoad&&(ground.road||gateRoad.foundation(x,z))))continue;
     if(Math.abs(ground.height-surfaceAt(ax,az).height)>3)continue;
@@ -358,7 +360,7 @@
    return null;
   }
   const traderSite=actorSite(4,2,18,false);
-  const wildlifeSite=actorSite(-8,7,12,true);
+  const wildlifeSite=actorSite(-8,7,12,true,traderSite);
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
    const tiles=[],plants=[],roads=[];
