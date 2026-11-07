@@ -131,20 +131,32 @@
  // Android browsers can temporarily discard the WebGL context during app
  // switching or memory pressure. Keep the seed and physics alive in the 2D
  // fallback, then recreate only GPU resources after the context returns.
+ // A failed Canvas2D allocation must not throw from a WebGL event callback.
+ // Keep world state intact and allow the 2D atlas when both renderers fail.
+ function recoverPerspective(factory){
+  let replacement=null;
+  try{replacement=factory();}catch(err){status.dataset.rendererError=String(err?.message||err).slice(0,120);}
+  const previous=perspective;
+  perspective=replacement;
+  firstPerson=!!replacement;
+  try{previous?.dispose();}catch{}
+  syncView();
+  if(!replacement){
+   status.textContent='3D unavailable · switch to 2D map';
+   renderHint.textContent='3D unavailable · use the 2D map control';
+   renderHint.hidden=false;
+  }
+  return !!replacement;
+ }
  voxelCanvas.addEventListener('webglcontextlost',event=>{
   event.preventDefault();
   contextInterrupted=true;
-  const abandoned=perspective;
-  perspective=rendererApi.createCanvasRenderer(softwareCanvas,voxel);firstPerson=!!perspective;syncView();
-  // Stops outstanding mesh requests and retires resources associated with a
-  // dead GL context; the restored context gets a fresh worker and GPU cache.
-  try{abandoned?.dispose();}catch{}
+  recoverPerspective(()=>rendererApi.createCanvasRenderer(softwareCanvas,voxel));
  });
  voxelCanvas.addEventListener('webglcontextrestored',()=>{
   if(!contextInterrupted)return;
-  perspective?.dispose();perspective=openPerspective();
   contextInterrupted=false;
-  firstPerson=!!perspective;syncView();
+  recoverPerspective(openPerspective);
  });
  function syncView(){
   const threeD=!!perspective&&firstPerson&&!atlas;
@@ -425,7 +437,7 @@
   if(e.key.toLowerCase()==='e')interactRoad();
   keys.add(e.key.length===1?e.key.toLowerCase():e.key);
  });
- window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));
+ window.addEventListener('keyup',e=>{const key=e.key.length===1?e.key.toLowerCase():e.key;if(keys.delete(key))savePosition();});
  window.addEventListener('blur',()=>{keys.clear();held.clear();stick.x=0;stick.y=0;jumpHeld=false;jumpQueued=false;savePosition();});
  window.addEventListener('pagehide',savePosition);
  document.addEventListener('visibilitychange',()=>{if(document.hidden)savePosition();});
