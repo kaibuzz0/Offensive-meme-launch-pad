@@ -96,22 +96,22 @@ try{
  assert.equal(mobile.lookVisible&&mobile.leftVisible,true,'landscape sticks must be visibly rendered');
  assert.ok(Math.abs(mobile.height-mobile.screen)<5,'landscape game should fill available viewport height');
  const firstYaw=await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)');
- await evalPage('(()=>{
+ await evalPage(`(()=>{
   const left=document.getElementById("joystick"),right=document.getElementById("city-look-pad");
   const a=left.getBoundingClientRect(),b=right.getBoundingClientRect();
   left.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:401,clientX:a.left+a.width/2,clientY:a.top+a.height*.20}));
   right.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:402,clientX:b.left+b.width*.82,clientY:b.top+b.height/2}));
   return true;
- })()');
+ })()`);
  const dual=await evalPage('(()=>({movement:document.getElementById("joystick-knob").style.transform,look:document.getElementById("city-look-knob").style.transform}))()');
  assert.match(dual.movement,/translate/,'left movement joystick must respond independently');
  assert.match(dual.look,/translate/,'right look joystick must respond independently');
  await waitFor(()=>evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)>'+firstYaw+.015'),'right thumbstick rotates actual first-person camera',8000);
- await evalPage('(()=>{
+ await evalPage(`(()=>{
   document.getElementById("joystick").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:401}));
   document.getElementById("city-look-pad").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:402}));
   return true;
- })()');
+ })()`);
  assert.equal(await evalPage('document.getElementById("city-look-knob").style.transform'),'','right thumbstick must recenter after release');
  await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
  await request('Emulation.setTouchEmulationEnabled',{enabled:false});
