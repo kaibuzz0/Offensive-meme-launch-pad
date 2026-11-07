@@ -3,7 +3,7 @@
  */
 import assert from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
-import {mkdtemp,readFile,rm} from 'node:fs/promises';
+import {mkdtemp,readFile,rm,mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {tmpdir} from 'node:os';
 import {setTimeout as delay} from 'node:timers/promises';
@@ -26,6 +26,18 @@ async function waitFor(fn,label,timeout=20000){
   await delay(140);
  }
  throw Error('Timeout: '+label+(problem?' / '+problem.message:''));
+}
+// Optional genuine Chromium captures, never fabricated reference images.
+// Set MEME_CITY_QA_ARTIFACT_DIR to retain them for visual inspection.
+async function captureFrame(name){
+ const directory=process.env.MEME_CITY_QA_ARTIFACT_DIR;
+ if(!directory)return null;
+ await mkdir(directory,{recursive:true});
+ const result=await request('Page.captureScreenshot',{format:'png',captureBeyondViewport:false,fromSurface:true});
+ const filename=path.join(directory,name+'.png');
+ await writeFile(filename,Buffer.from(result.data,'base64'));
+ console.log('MOBILE_CHROMIUM_SCREENSHOT '+JSON.stringify({name,path:filename,physicalAndroid:false}));
+ return filename;
 }
 async function evalPage(expression){
  const response=await request('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});
@@ -92,6 +104,7 @@ try{
   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.textContent.startsWith("3D ·")'),'3D chunk rendering',30000);
   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.dataset.meshWorker==="ready"'),'Web Worker terrain mesher initializes',30000);
   await waitFor(()=>evalPage('Number(document.getElementById("city-voxel-status")?.dataset.gpuBytes)>0'),'transferred worker geometry draws in WebGL',30000);
+  await captureFrame('fortress-spawn-before-interaction');
   const startupMs=Date.now()-navigationStarted;
   const perf=await request('Performance.getMetrics');
   const metricsByName=Object.fromEntries((perf.metrics||[]).map(m=>[m.name,m.value]));
@@ -99,6 +112,7 @@ try{
   assert.ok(Number.isFinite(frameSample.meanMs)&&frameSample.samples>=2,'browser must produce measurable animation frames');
   console.log('MOBILE_CHROMIUM_TELEMETRY '+JSON.stringify({emulatedViewport:'412x915@2',physicalAndroid:false,startupMs,frameSample,jsHeapBytes:metricsByName.JSHeapUsedSize??null,domNodes:metricsByName.Nodes??null}));
   const workerMetrics=await evalPage('(()=>{const el=document.getElementById("city-voxel-status");return {status:el.dataset.meshWorker,pending:Number(el.dataset.meshPending),gpuBytes:Number(el.dataset.gpuBytes)};})()');
+  console.log('MOBILE_CHROMIUM_MESH '+JSON.stringify({gpuBytes:workerMetrics.gpuBytes,meshBudgetBytes:24*1024*1024,pending:workerMetrics.pending,physicalAndroid:false}));
   assert.equal(workerMetrics.status,'ready','first-person browser uses off-thread deterministic mesher');
   assert.ok(workerMetrics.pending>=0&&workerMetrics.pending<=2,'mesh request backpressure is bounded');
   // Exercise an actual first-person resource pickup on mobile-size Chromium.
@@ -113,7 +127,9 @@ try{
   }finally{
    await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
   }
+  await captureFrame('fortress-gate-before-interaction');
   await evalPage('document.getElementById("city-gate-seal").click();true');
+  await captureFrame('fortress-gate-after-interaction');
   assert.equal(await evalPage('localStorage.getItem("meme-city-gate-seal-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
   const error=await evalPage('document.getElementById("city-voxel-canvas").getContext("webgl").getError()');
   assert.equal(error,0,'first-person 3D frame must not cause WebGL errors');
