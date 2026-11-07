@@ -1,0 +1,51 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createVoxelEditJournal } from '../city-sandbox-mining.js';
+import { commitWorkbenchBuild } from '../city-road-build-commit.js';
+
+const seed = 'fortress-seed';
+const fresh = () => ({
+  version: 1, seed, revision: 0, inventory: { supplies: 8 },
+  journal: createVoxelEditJournal(seed).snapshot()
+});
+const action = {
+  kind: 'place-workbench', expectedRevision: 0,
+  player: { x: 15, z: 24 }, position: { x: 15, z: 24 },
+  groundHeight: 10, isOccupied: () => false
+};
+function store(initial = fresh()) {
+  let record = structuredClone(initial);
+  return {
+    async read() { return structuredClone(record); },
+    async compareAndSwap(_key, revision, next) {
+      if (record.revision !== revision) return false;
+      record = structuredClone(next);
+      return true;
+    }
+  };
+}
+test('atomic record commits inventory and voxel edit together', async () => {
+  const db = store();
+  const after = await commitWorkbenchBuild(db, 'world:fortress', action);
+  assert.equal(after.inventory.supplies, 0);
+  const reloaded = await db.read();
+  assert.deepEqual(reloaded, after);
+  assert.equal(createVoxelEditJournal(seed, reloaded.journal).get(60, 41, 96), 'workbench');
+  await assert.rejects(commitWorkbenchBuild(db, 'world:fortress', action), /stale/);
+});
+test('conflicting CAS cannot spend supplies or place a voxel', async () => {
+  const db = store();
+  db.compareAndSwap = async () => false;
+  const before = await db.read();
+  await assert.rejects(commitWorkbenchBuild(db, 'world:fortress', action), /conflict/);
+  assert.deepEqual(await db.read(), before);
+});
+test('invalid placement never invokes durable write', async () => {
+  const db = store(); let writes = 0;
+  db.compareAndSwap = async () => { writes++; return true; };
+  await assert.rejects(commitWorkbenchBuild(db, 'world:fortress', {...action, isOccupied: () => true}), /occupied/);
+  assert.equal(writes, 0);
+});
+test('non-atomic adapters are rejected', async () => {
+  await assert.rejects(commitWorkbenchBuild({read: async () => fresh()}, 'world:fortress', action), /atomic building store required/);
+});
