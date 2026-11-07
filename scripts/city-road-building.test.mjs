@@ -76,3 +76,19 @@ test('crafting uses saved bench location rather than nearby supply cache',()=>{
  assert.equal(b.craftTorch({x:24,z:24},site),true);
  assert.equal(a.create('bench-proximity',store).crafted,true);
 });
+
+test('two open tabs cannot duplicate a torch or overwrite a stale crafting record',()=>{
+ const a=api(),store=storage();
+ const first=a.create('same-seed',store);
+ assert.equal(first.place(true,player,site),true);
+ const second=a.create('same-seed',store);
+ assert.equal(first.craftTorch(player,site),true);
+ assert.equal(second.craftTorch(player,site),false);
+ assert.equal(store.getItem(a.CRAFT_KEY+'same-seed'),'torch-1');
+ assert.equal(a.create('same-seed',store).crafted,true);
+ const third=a.create('other-seed',store);
+ assert.equal(third.place(true,player,site),true);
+ store.setItem(a.CRAFT_KEY+'other-seed','unsupported-future-version');
+ assert.equal(third.craftTorch(player,site),false);
+ assert.equal(store.getItem(a.CRAFT_KEY+'other-seed'),'unsupported-future-version');
+});
