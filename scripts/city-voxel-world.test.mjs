@@ -247,3 +247,22 @@ test('fortress and lodge cuboids are clipped across chunk seams without gaps or 
   }
  }
 });
+
+test('Fortress Road roadside vegetation respects biome and remains seed-stable',()=>{
+ const groups={desert:'cactus',salt:'cactus',tropical:'palm',fungal:'mushroom',
+  wetland:'reed',volcanic:'rock',grassland:'tree'};
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),again=create(seed),road=w.gateRoad;
+  for(let t=4;t<=28;t+=8)for(const side of [-1,1]){
+   const x=road.x+side*8,z=road.z+t,col=w.surfaceAt(x,z);
+   const plant=w.featureAt(x,z);
+   assert.deepEqual(plain(plant),plain(again.featureAt(x,z)));
+   if(col.water||col.mouth||col.slope>13)assert.equal(plant,null,
+    'roadside plants must avoid water, cave mouths and steep ground');
+   else {
+    assert.equal(plant.type,groups[col.group]||'pine');
+    assert.equal(plant.height,13+t%5);
+   }
+  }
+ }
+});
