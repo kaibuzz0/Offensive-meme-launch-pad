@@ -50,13 +50,15 @@
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
-    if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
+    if(floor===null)break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
-    // Test the proposed stepped-up feet height, not only the old feet.
-    // Otherwise a low doorway can accept a player and then lift their
-    // head through the solid lintel when the floor rises underneath.
+    // Collision must use the position we will actually occupy. In the air,
+    // the floor ahead does not instantly lift the player. Checking that
+    // higher floor instead can miss a wall at the player's current height.
+    // On the ground, test the stepped-up height before entering a lintel.
     const proposedY=state.grounded?Math.max(state.y,floor):state.y;
+    if(world.gateRoad?.obstructs(nx,proposedY,nz,world.PLAYER_HEIGHT,RADIUS))break;
     // Sample the player's radius, not just the center. A gallery with a
     // solid roof must fit the entire player before entering it laterally.
     const samples=[[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]];
