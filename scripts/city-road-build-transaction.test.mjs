@@ -18,7 +18,7 @@ test('invalid reach, insufficient resources and occupied voxels leave input unto
  assert.throws(()=>buildWorkbenchState(before,{...action,player:{x:100,z:100}}),/reach/);
  assert.throws(()=>buildWorkbenchState({...before,inventory:{supplies:7}},action),/insufficient/);
  const occupied=createVoxelEditJournal(seed);occupied.apply({x:60,y:41,z:96,block:'stone'});
- assert.throws(()=>buildWorkbenchState({...before,journal:occupied.snapshot()},action),/occupied/);
+ assert.throws(()=>buildWorkbenchState({...before,revision:1,journal:occupied.snapshot()},{...action,expectedRevision:1}),/occupied/);
  assert.equal(JSON.stringify(before),snapshot);
 });
 
