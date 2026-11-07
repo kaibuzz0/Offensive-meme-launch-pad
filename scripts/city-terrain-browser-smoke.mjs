@@ -201,7 +201,19 @@ try{
  await evalPage('window.dispatchEvent(new Event("pagehide"));true');
  const afterFallbackWalk=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");return localStorage.getItem("meme-city-terrain-position-v1:"+seed);})()');
  assert.ok(afterFallbackWalk,'Canvas fallback movement must produce a position save');
- assert.notEqual(afterFallbackWalk,beforeFallbackWalk,'Canvas fallback movement must update saved controller position');
+ // Compare actual horizontal coordinates rather than serialized JSON: timestamps,
+ // orientation and other metadata can change while the player remains stuck.
+ const horizontal=(raw)=>{
+  const saved=JSON.parse(raw);
+  const point=saved?.position??saved?.player??saved;
+  const x=Number(point?.x),z=Number(point?.z);
+  assert.ok(Number.isFinite(x)&&Number.isFinite(z),'position save must contain finite x/z controller coordinates');
+  return {x,z};
+ };
+ assert.ok(beforeFallbackWalk,'fallback must have a pre-movement position save');
+ const beforeCoords=horizontal(beforeFallbackWalk),afterCoords=horizontal(afterFallbackWalk);
+ const displacement=Math.hypot(afterCoords.x-beforeCoords.x,afterCoords.z-beforeCoords.z);
+ assert.ok(displacement>0.05,'Canvas fallback must move controller at least 5cm horizontally; observed '+displacement+'m');
  // A compatibility session must also survive its own page-exit/reload
  // without losing the previously earned WebGL progression. This exercises
  // the fallback's save lifecycle, not just its first boot.
