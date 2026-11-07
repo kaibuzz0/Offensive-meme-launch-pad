@@ -284,7 +284,12 @@
     const t=z-gateRoad.z;
     if(t>=4&&t<=28&&(t-4)%8===0&&Math.abs(x-gateRoad.x)===8){
      const ground=surfaceAt(x,z);
-     if(!ground.water&&!ground.mouth)return {type:'pine',height:13+(t%5),color:.4};
+     if(!ground.water&&!ground.mouth&&ground.slope<=18){
+      const type=ground.group==='desert'||ground.group==='salt'?'cactus':
+       ground.group==='fungal'?'mushroom':ground.group==='tropical'?'palm':
+       ground.group==='evergreen'||ground.group==='tundra'||ground.group==='alpine'?'pine':'tree';
+      return Object.freeze({type,height:13+(t%5),color:.4});
+     }
     }
     if(gateRoad.foundation(x,z))return null;
    }
@@ -335,7 +340,7 @@
      const tile=surfaceAt(x,z),plant=featureAt(x,z);
      tiles.push(tile);
      if(tile.road)roads.push(tile);
-     if(plant)plants.push(Object.freeze({x,z,y:tile.height+1,...plant}));
+     if(plant)plants.push(Object.freeze({id:'plant:'+seed+':'+x+':'+z,x,z,y:tile.height+1,...plant}));
     }
    return Object.freeze({cx,cz,seed,tiles:Object.freeze(tiles),plants:Object.freeze(plants),
     structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze([]),roads:Object.freeze(roads)});
