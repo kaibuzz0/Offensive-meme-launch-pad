@@ -62,3 +62,27 @@ test('wall collision and open doorway use the same controller sweep at desktop a
     assert.equal(doorway.z, 0);
   }
 });
+
+
+test('low terrain steps remain passable and tall rises block at desktop and touch rates', () => {
+  const makeWorld = (height) => ({
+    ...world,
+    surfaceAt: (x, z) => ({height: x >= 2 ? height : 0}),
+  });
+  for (const dt of [1 / 60, 1 / 30, .05]) {
+    for (const [height, shouldPass] of [[1, true], [5, false]]) {
+      const controller = root.CityVoxelPhysics.createController(makeWorld(height), {x: 0, z: 0});
+      for (let i = 0; i < Math.ceil(1 / dt); i++) {
+        controller.tick({right: 1, yaw: 0}, dt);
+      }
+      const position = controller.snapshot();
+      if (shouldPass) {
+        assert.ok(position.x > 2, `low step blocked at dt=${dt}: ${position.x}`);
+        assert.ok(position.y >= 2, `low step height lost at dt=${dt}: ${position.y}`);
+      } else {
+        assert.ok(position.x < 2, `high wall crossed at dt=${dt}: ${position.x}`);
+        assert.equal(position.y, 1);
+      }
+    }
+  }
+});
