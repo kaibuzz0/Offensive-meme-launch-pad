@@ -248,6 +248,26 @@ test('fortress and lodge cuboids are clipped across chunk seams without gaps or 
  }
 });
 
+test('streamed vegetation has stable unique IDs across chunk reloads',()=>{
+ for(const seed of ['fortress-road','plants-001']){
+  const w=create(seed),again=create(seed);
+  const chunks=[[0,0],[-1,0],[0,-1],[-1,-1]];
+  let count=0;
+  const ids=new Set();
+  for(const [cx,cz] of chunks){
+   const first=w.chunkAt(cx,cz).plants,second=again.chunkAt(cx,cz).plants;
+   assert.deepEqual(plain(first),plain(second),'seed and chunk regenerate identical plants');
+   for(const p of first){
+    assert.equal(p.id,'plant:'+w.seed+':'+p.x+':'+p.z);
+    assert.ok(p.x>=cx*16&&p.x<(cx+1)*16&&p.z>=cz*16&&p.z<(cz+1)*16);
+    assert.ok(!ids.has(p.id),'neighboring chunks never duplicate plant identities');
+    ids.add(p.id);count++;
+   }
+  }
+  assert.ok(count>0,'fixture has real plants to validate');
+ }
+});
+
 test('Fortress Road roadside vegetation respects biome and remains seed-stable',()=>{
  const groups={desert:'cactus',salt:'cactus',tropical:'palm',fungal:'mushroom',
   wetland:'reed',volcanic:'rock',grassland:'tree'};
