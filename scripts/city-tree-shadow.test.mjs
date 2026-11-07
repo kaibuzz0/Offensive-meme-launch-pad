@@ -7,7 +7,7 @@ const context={};
 vm.runInNewContext(readFileSync(new URL('../city-voxel-renderer.js',import.meta.url),'utf8'),context);
 const mesh=context.CityVoxelRenderer.generateMesh;
 const world=(height=8)=>({
-  chunkAt:()=>({tiles:[],plants:[{x:8,y:12,z:8,type:'pine',height,color:.4}]}),
+  chunkAt:()=>({tiles:[],plants:[{x:8,y:12,z:8,type:'pine',height:height,color:.4}]}),
   surfaceAt:()=>null
 });
 test('canopy shadow casts opposite the shader sun and stays one quad',()=>{
