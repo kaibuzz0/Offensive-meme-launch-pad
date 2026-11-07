@@ -268,3 +268,18 @@ test('seeded actors have safe standing footprints and never intersect fortress c
   }
  }
 });
+
+
+test('starter wildlife never overlaps the trader standing area',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),s=w.gateRoad.supplies,actors=[];
+  for(let cz=Math.floor((s.z-20)/16);cz<=Math.floor((s.z+20)/16);cz++)
+   for(let cx=Math.floor((s.x-20)/16);cx<=Math.floor((s.x+20)/16);cx++)
+    actors.push(...w.chunkAt(cx,cz).npc);
+  const trader=actors.find(a=>a.kind==='trader');
+  const wildlife=actors.find(a=>a.kind==='wildlife');
+  if(trader&&wildlife)
+   assert.ok(Math.hypot(trader.x-wildlife.x,trader.z-wildlife.z)>=4,
+    'wildlife and trader must not share a spawn footprint');
+ }
+});
