@@ -45,6 +45,9 @@
     const next=Object.freeze({version:VERSION,seed,kind:'workbench',
      x:Math.round(site.x+5),z:Math.round(site.z+4)});
     try{
+     // A second tab may have placed a bench since this controller loaded.
+     // Preserve existing, corrupt, or future-version records rather than overwriting.
+     if(storage.getItem(key)!==null)return false;
      storage.setItem(key,JSON.stringify(next));
      if(storage.getItem(key)!==JSON.stringify(next))return false;
     }catch{return false;}
