@@ -20,7 +20,8 @@ export function buildWorkbenchState(state, action) {
   const target = roadWorkbenchVoxel(action.position,action.groundHeight);
   const journal = createVoxelEditJournal(state.seed,state.journal);
   // Never spend against a snapshot from a different transaction revision.
-  if (journal.revision !== state.revision) throw new Error('building/journal revision mismatch');\n  // Journal.has only detects player edits; generated terrain must be checked too.
+  if (journal.revision !== state.revision) throw new Error('building/journal revision mismatch');
+  // Journal.has only detects player edits; generated terrain must be checked too.
   // A caller without a canonical occupancy query must not place blindly.
   if (typeof action.isOccupied !== 'function') throw new Error('world occupancy query required');
   if (journal.has(target.x,target.y,target.z) || action.isOccupied(target.x,target.y,target.z) !== false)
