@@ -52,3 +52,26 @@ test('road to fortress doorway can be walked without teleporting through walls',
   assert.ok(player.snapshot().x > 3.5, 'player walks through opening into building');
   assert.ok(player.snapshot().y >= 2, 'step remains grounded');
 });
+
+
+test('airborne capsule cannot slip through a low obstacle when floor ahead is slightly higher', () => {
+  let raisedHeight = 0;
+  const wallStart = 1;
+  const world = {
+    PLAYER_HEIGHT: 7.2, SEA_LEVEL: -100,
+    surfaceAt: x => ({height: x >= wallStart ? raisedHeight : 0}),
+    gateRoad: {obstructs(x, y) {
+      // A thin overhang/wall at the airborne feet level. A collision query
+      // at the *higher* floor would incorrectly clear its top.
+      return x >= wallStart && y < raisedHeight + 1;
+    }}
+  };
+  const player = createController(world, {x: 0, z: 0});
+  player.tick({jump: true}, .05);
+  const inAir = player.snapshot();
+  assert.equal(inAir.grounded, false);
+  raisedHeight = inAir.y - 1 + .1;
+  for (let i = 0; i < 3; i++) player.tick({right: 1}, .05);
+  assert.ok(player.snapshot().x < wallStart - .27,
+    'airborne player must not enter a wall by checking raised ground instead of current feet');
+});
