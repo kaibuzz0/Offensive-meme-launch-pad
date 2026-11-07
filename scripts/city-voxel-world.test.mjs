@@ -186,3 +186,38 @@ test('seeded fortress pieces clip into every intersecting chunk without seam gap
   assert.deepEqual(plain(w.chunkAt(cx,cz).structures),plain(again.chunkAt(cx,cz).structures));
  }
 });
+
+
+test('streamed foliage identities remain stable across reloads and chunk seams',()=>{
+ for(const seed of ['plants-001','mountains-001','seam-001']){
+  const w=create(seed),reloaded=create(seed);
+  for(const [cx,cz] of [[0,0],[-1,0],[0,-1],[1,1]]){
+   const a=w.chunkAt(cx,cz),b=reloaded.chunkAt(cx,cz);
+   assert.deepEqual(plain(a.plants),plain(b.plants));
+   assert.equal(new Set(a.plants.map(p=>p.id)).size,a.plants.length);
+   for(const p of a.plants){
+    assert.equal(p.id,'plant:'+w.seed+':'+p.x+':'+p.z);
+    assert.ok(p.x>=cx*16&&p.x<(cx+1)*16);
+    assert.ok(p.z>=cz*16&&p.z<(cz+1)*16);
+   }
+  }
+ }
+});
+
+test('fortress roadside foliage follows the local biome and avoids unsafe slopes',()=>{
+ for(const seed of ['plants-001','mountains-001','seam-001']){
+  const w=create(seed),road=w.gateRoad;
+  for(let t=4;t<=28;t+=8)for(const side of [-1,1]){
+   const x=road.x+side*8,z=road.z+t;
+   const col=w.surfaceAt(x,z),plant=w.featureAt(x,z);
+   if(col.water||col.mouth||col.slope>18){
+    assert.equal(plant,null);
+    continue;
+   }
+   const expected=col.group==='desert'||col.group==='salt'?'cactus':
+    col.group==='fungal'?'mushroom':col.group==='tropical'?'palm':
+    ['evergreen','tundra','alpine'].includes(col.group)?'pine':'tree';
+   assert.equal(plant?.type,expected);
+  }
+ }
+});
