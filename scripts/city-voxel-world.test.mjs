@@ -258,6 +258,11 @@ test('seeded actors have safe standing footprints and never intersect fortress c
      for(const actor of w.chunkAt(cx,cz).npc){
       const ground=w.surfaceAt(actor.x,actor.z);
       assert.equal(actor.y,ground.height+1);
+      for(const [dx,dz] of [[0,0],[1,0],[0,1],[1,1]]){
+       const vegetation=w.featureAt(actor.x+dx,actor.z+dz);
+       assert.ok(!vegetation||vegetation.height<6,
+        'actor spawn footprint must not intersect tall foliage');
+      }
       assert.equal(gate.obstructs(actor.x+.5,actor.y,actor.z+.5,w.PLAYER_HEIGHT,.65),false);
       for(const [fx,fz] of [[.25,.25],[.75,.25],[.25,.75],[.75,.75]])
        assert.equal(gate.obstructs(actor.x+fx,actor.y,actor.z+fz,w.PLAYER_HEIGHT,.35),false,
