@@ -36,7 +36,10 @@ async function captureFrame(name){
  const result=await request('Page.captureScreenshot',{format:'png',captureBeyondViewport:false,fromSurface:true});
  const filename=path.join(directory,name+'.png');
  await writeFile(filename,Buffer.from(result.data,'base64'));
- console.log('MOBILE_CHROMIUM_SCREENSHOT '+JSON.stringify({name,path:filename,physicalAndroid:false}));
+ const metadata=await evalPage('(()=>({url:location.href,seed:localStorage.getItem("meme-city-terrain-seed-v1"),viewport:{width:innerWidth,height:innerHeight,devicePixelRatio:devicePixelRatio},renderer:document.getElementById("city-voxel-status")?.dataset.meshWorker??null,gpuBytes:Number(document.getElementById("city-voxel-status")?.dataset.gpuBytes)||0,savedPosition:localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))}))()');
+ const artifact={name,path:filename,physicalAndroid:false,...metadata};
+ await writeFile(path.join(directory,name+'.json'),JSON.stringify(artifact,null,2)+'\\n');
+ console.log('MOBILE_CHROMIUM_SCREENSHOT '+JSON.stringify(artifact));
  return filename;
 }
 async function evalPage(expression){
