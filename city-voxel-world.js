@@ -104,6 +104,11 @@
   lodgePart(-.25,3,6,.3,2,3,lodgeGlow,false); // lit door frame
   lodgePart(0,2,5,.3,1,1,amber,false);
   lodgePart(0,6,5,.3,1,1,amber,false);
+  // A raised clan banner makes the lodge readable from Fortress Road without
+  // blocking its open entrance or changing terrain, saves or collision.
+  // These are ordinary world cuboids, clipped into streamed chunks below.
+  lodgePart(-.45,2.5,10,.25,4,4,bronze,false); // crossbeam above doorway
+  lodgePart(-.65,3,11,.22,3,3,cloth,false); // hanging clan insignia
   // Stable source IDs survive chunk clipping and allow renderer/physics consumers
   // to identify the same structure across unload/reload without coordinates.
   for(let i=0;i<parts.length;i++)parts[i].id='fortress-part:'+seed+':'+i;
