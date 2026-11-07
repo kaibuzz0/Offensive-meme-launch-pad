@@ -82,6 +82,20 @@
    }
    return moved;
   }
+  // Solid roofs remain valid ground support after the landing frame. Only
+  // consider tops at or below the feet: nearby walls must never lift players.
+  function roofSupportAt(x,y,z){
+   let support=-Infinity;
+   for(const p of world.gateRoad?.parts||[]){
+    if(!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||
+       p.w<=0||p.h<=0||p.d<=0)continue;
+    const top=p.y+p.h;
+    if(top>y+.01||x+RADIUS<=p.x||x-RADIUS>=p.x+p.w||
+       z+RADIUS<=p.z||z-RADIUS>=p.z+p.d)continue;
+    support=Math.max(support,top);
+   }
+   return support;
+  }
   function tick(input,dt){
    if(!Number.isFinite(dt)||dt<0)throw Error('Invalid time step');
    const step=clamp(dt,0,.05);
@@ -106,7 +120,7 @@
    // A stationary player can lose terrain support when the underlying
    // terrain is edited or loaded. Recheck support even without horizontal
    // input; roof contact below is resolved by the downward sweep.
-   if(state.grounded&&floorAt(state.x,state.z,state.y)<state.y-.01)
+   if(state.grounded&&Math.max(floorAt(state.x,state.z,state.y)??-Infinity,\n    roofSupportAt(state.x,state.y,state.z))<state.y-.01)
     state.grounded=false;
    if(input?.jump&&state.grounded){state.grounded=false;state.vy=JUMP_SPEED;}
    // Swimming is deliberately opt-in: an explicit water-volume query enables
