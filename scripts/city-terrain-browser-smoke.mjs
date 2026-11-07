@@ -106,7 +106,7 @@ try{
  const dual=await evalPage('(()=>({movement:document.getElementById("joystick-knob").style.transform,look:document.getElementById("city-look-knob").style.transform}))()');
  assert.match(dual.movement,/translate/,'left movement joystick must respond independently');
  assert.match(dual.look,/translate/,'right look joystick must respond independently');
- await waitFor(()=>evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)>'+firstYaw+.015'),'right thumbstick rotates actual first-person camera',8000);
+ await waitFor(async()=>Number(await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)'))>firstYaw+.015,'right thumbstick rotates actual first-person camera',8000);
  await evalPage(`(()=>{
   document.getElementById("joystick").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:401}));
   document.getElementById("city-look-pad").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:402}));
