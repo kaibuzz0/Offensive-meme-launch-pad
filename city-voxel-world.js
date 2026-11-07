@@ -342,8 +342,22 @@
      if(tile.road)roads.push(tile);
      if(plant)plants.push(Object.freeze({id:'plant:'+seed+':'+x+':'+z,x,z,y:tile.height+1,...plant}));
     }
+   // One persistent, seed-relative starter trader descriptor. Rendering and
+   // interaction are consumed by the shared actor runtime, not a second world.
+   // Assign ownership by floor division so negative chunk coordinates work.
+   const npc=[];
+   const actorX=gateRoad.supplies.x+4,actorZ=gateRoad.supplies.z+2;
+   if(Math.floor(actorX/CHUNK_SIZE)===cx&&Math.floor(actorZ/CHUNK_SIZE)===cz){
+    const footing=surfaceAt(actorX,actorZ);
+    if(footing&&!footing.water&&!footing.mouth&&footing.slope<=18){
+     npc.push(Object.freeze({id:'starter-trader:'+seed,kind:'trader',
+      role:'supplies',faction:'starter-settlement',rig:'shared-humanoid',
+      x:actorX,z:actorZ,y:footing.height+1,heading:Math.PI,
+      homeId:'starter-fortress:'+seed,behavior:'idle-trade'}));
+    }
+   }
    return Object.freeze({cx,cz,seed,tiles:Object.freeze(tiles),plants:Object.freeze(plants),
-    structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze([]),roads:Object.freeze(roads)});
+    structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze(npc),roads:Object.freeze(roads)});
   }
   const naturalSpawn=spawnAt();
   gateRoad=buildGateRoad(naturalSpawn,rawColumn,seed);
