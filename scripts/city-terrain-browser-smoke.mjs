@@ -41,7 +41,7 @@ async function captureFrame(name){
  await writeFile(filename,png);
  const metadata=await evalPage('(()=>({url:location.href,seed:localStorage.getItem("meme-city-terrain-seed-v1"),viewport:{width:innerWidth,height:innerHeight,devicePixelRatio:devicePixelRatio},renderer:document.getElementById("city-voxel-status")?.dataset.meshWorker??null,gpuBytes:Number(document.getElementById("city-voxel-status")?.dataset.gpuBytes)||0,savedPosition:localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))}))()');
  const artifact={name,path:filename,sha256:createHash('sha256').update(png).digest('hex'),pngBytes:png.length,physicalAndroid:false,...metadata};
- await writeFile(path.join(directory,name+'.json'),JSON.stringify(artifact,null,2)+'\\n');
+ await writeFile(path.join(directory,name+'.json'),JSON.stringify(artifact,null,2)+'\n');
  console.log('MOBILE_CHROMIUM_SCREENSHOT '+JSON.stringify(artifact));
  return filename;
 }
@@ -116,7 +116,11 @@ try{
   const metricsByName=Object.fromEntries((perf.metrics||[]).map(m=>[m.name,m.value]));
   const frameSample=await evalPage(`new Promise(resolve=>{const frames=[];let previous=0;const until=performance.now()+1200;function sample(now){if(previous)frames.push(now-previous);previous=now;if(now<until)requestAnimationFrame(sample);else resolve({samples:frames.length,meanMs:frames.reduce((a,b)=>a+b,0)/Math.max(1,frames.length),maxMs:Math.max(0,...frames)});}requestAnimationFrame(sample);})`);
   assert.ok(Number.isFinite(frameSample.meanMs)&&frameSample.samples>=2,'browser must produce measurable animation frames');
-  console.log('MOBILE_CHROMIUM_TELEMETRY '+JSON.stringify({emulatedViewport:'412x915@2',physicalAndroid:false,startupMs,frameSample,jsHeapBytes:metricsByName.JSHeapUsedSize??null,domNodes:metricsByName.Nodes??null}));
+  // Distribution and >50ms stalls expose jank hidden by an average alone.
+  // These are observational baselines, not arbitrary hardware pass thresholds.
+  const frameDistribution=await evalPage(`new Promise(resolve=>{const values=[];let previous=0;const end=performance.now()+1200;function tick(now){if(previous)values.push(now-previous);previous=now;if(now<end)requestAnimationFrame(tick);else{values.sort((a,b)=>a-b);const pct=p=>values[Math.min(values.length-1,Math.ceil(values.length*p)-1)];resolve({samples:values.length,p50Ms:pct(.5),p95Ms:pct(.95),p99Ms:pct(.99),over50Ms:values.filter(v=>v>50).length});}}requestAnimationFrame(tick);})`);
+  assert.ok(frameDistribution.samples>=2&&Number.isFinite(frameDistribution.p95Ms),'frame-time percentiles must be measurable');
+  console.log('MOBILE_CHROMIUM_TELEMETRY '+JSON.stringify({emulatedViewport:'412x915@2',physicalAndroid:false,startupMs,frameSample,frameDistribution,jsHeapBytes:metricsByName.JSHeapUsedSize??null,domNodes:metricsByName.Nodes??null}));
   const workerMetrics=await evalPage('(()=>{const el=document.getElementById("city-voxel-status");return {status:el.dataset.meshWorker,pending:Number(el.dataset.meshPending),gpuBytes:Number(el.dataset.gpuBytes)};})()');
   console.log('MOBILE_CHROMIUM_MESH '+JSON.stringify({gpuBytes:workerMetrics.gpuBytes,meshBudgetBytes:24*1024*1024,pending:workerMetrics.pending,physicalAndroid:false}));
   assert.equal(workerMetrics.status,'ready','first-person browser uses off-thread deterministic mesher');
