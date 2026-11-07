@@ -175,6 +175,8 @@ test('seeded fortress pieces clip into every intersecting chunk without seam gap
     assert.equal(matching.length,1,'each touched chunk owns exactly one fragment');
     const q=matching[0];
     assert.equal(q.structureId,'starter-fortress:'+w.seed);
+    assert.equal(q.fragmentId,'starter-gate:'+w.seed+':'+i+':'+cx+':'+cz);
+    assert.equal(q.fragmentId,again.chunkAt(cx,cz).structures.find(s=>s.id===q.id).fragmentId);
     assert.ok(q.x>=cx*16&&q.x+q.w<=cx*16+16+1e-8);
     assert.ok(q.z>=cz*16&&q.z+q.d<=cz*16+16+1e-8);
     fragments.push(q);
@@ -218,6 +220,51 @@ test('fortress roadside foliage follows the local biome and avoids unsafe slopes
     col.group==='fungal'?'mushroom':col.group==='tropical'?'palm':
     ['evergreen','tundra','alpine'].includes(col.group)?'pine':'tree';
    assert.equal(plant?.type,expected);
+  }
+ }
+});
+
+test('starter trader is bounded to one streamed chunk and stable across reload',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),again=create(seed),s=w.gateRoad.supplies;
+  const x=s.x+4,z=s.z+2,cx=Math.floor(x/16),cz=Math.floor(z/16);
+  const local=w.chunkAt(cx,cz).npc;
+  assert.ok(local.length<=1,'starter population is bounded');
+  assert.deepEqual(plain(local),plain(again.chunkAt(cx,cz).npc));
+  assert.equal(new Set(local.map(n=>n.id)).size,local.length);
+  for(const actor of local){
+   assert.equal(actor.id,'starter-trader:'+w.seed);
+   assert.equal(actor.rig,'shared-humanoid');
+   assert.equal(actor.homeId,'starter-fortress:'+w.seed);
+   assert.equal(actor.y,w.surfaceAt(actor.x,actor.z).height+1);
+  }
+  for(const [dx,dz] of [[-1,0],[1,0],[0,-1],[0,1]]){
+   assert.equal(w.chunkAt(cx+dx,cz+dz).npc.length,0,
+    'adjacent chunks must not duplicate the actor');
+  }
+ }
+});
+
+test('seeded actors have safe standing footprints and never intersect fortress collision',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),gate=w.gateRoad;
+  const candidates=[
+   [gate.supplies.x+4,gate.supplies.z+2],
+   [gate.supplies.x-8,gate.supplies.z+7]
+  ];
+  for(const [x,z] of candidates){
+   for(let cz=Math.floor((z-5)/16);cz<=Math.floor((z+5)/16);cz++)
+    for(let cx=Math.floor((x-5)/16);cx<=Math.floor((x+5)/16);cx++)
+     for(const actor of w.chunkAt(cx,cz).npc){
+      const ground=w.surfaceAt(actor.x,actor.z);
+      assert.equal(actor.y,ground.height+1);
+      assert.equal(gate.obstructs(actor.x+.5,actor.y,actor.z+.5,w.PLAYER_HEIGHT,.65),false);
+      for(const [dx,dz] of [[1,0],[0,1],[1,1]]){
+       const neighbor=w.surfaceAt(actor.x+dx,actor.z+dz);
+       assert.ok(!neighbor.water&&!neighbor.mouth);
+       assert.ok(Math.abs(neighbor.height-ground.height)<=2);
+      }
+     }
   }
  }
 });

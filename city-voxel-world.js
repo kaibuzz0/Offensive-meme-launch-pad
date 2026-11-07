@@ -332,6 +332,33 @@
    const mid=surfaceAt(base.x,base.y);
    return Object.freeze({x:base.x,z:base.y,y:mid.height+1});
   }
+  // Resolve seeded actor sites once per world, not once per streamed chunk.
+  // Fixed search order and stable IDs preserve positions across reloads.
+  function actorSite(dx,dz,maxSlope,avoidRoad){
+   const ax=gateRoad.supplies.x+dx,az=gateRoad.supplies.z+dz;
+   const offsets=[[0,0],[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2],
+    [3,0],[-3,0],[0,3],[0,-3],[4,0],[-4,0],[0,4],[0,-4]];
+   for(const [ox,oz] of offsets){
+    const x=ax+ox,z=az+oz,ground=surfaceAt(x,z);
+    if(!ground||ground.water||ground.mouth||ground.slope>maxSlope||
+       (avoidRoad&&(ground.road||gateRoad.foundation(x,z))))continue;
+    if(Math.abs(ground.height-surfaceAt(ax,az).height)>3)continue;
+    // Shared physics uses the original fortress boxes, not streamed mesh fragments.
+    // Do not seed a character inside a solid tower, wall or gate post.
+    if(gateRoad.obstructs(x+.5,ground.height+1,z+.5,PLAYER_HEIGHT,.65))continue;
+    // A standing actor needs a stable 2x2 footprint, not merely one dry tile.
+    const footprint=[[1,0],[0,1],[1,1]].every(([ox2,oz2])=>{
+     const neighbor=surfaceAt(x+ox2,z+oz2);
+     return neighbor&&!neighbor.water&&!neighbor.mouth&&
+      Math.abs(neighbor.height-ground.height)<=2;
+    });
+    if(!footprint)continue;
+    return Object.freeze({x,z,y:ground.height+1,group:ground.group});
+   }
+   return null;
+  }
+  const traderSite=actorSite(4,2,18,false);
+  const wildlifeSite=actorSite(-8,7,12,true);
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
    const tiles=[],plants=[],roads=[];
@@ -342,8 +369,26 @@
      if(tile.road)roads.push(tile);
      if(plant)plants.push(Object.freeze({id:'plant:'+seed+':'+x+':'+z,x,z,y:tile.height+1,...plant}));
     }
+   // Each seed-stable descriptor belongs to exactly one floor-divided chunk.
+   // Distant populations remain declarative until the shared actor runtime activates them.
+   const npc=[];
+   if(traderSite&&Math.floor(traderSite.x/CHUNK_SIZE)===cx&&Math.floor(traderSite.z/CHUNK_SIZE)===cz){
+    npc.push(Object.freeze({id:'starter-trader:'+seed,kind:'trader',
+     role:'supplies',faction:'starter-settlement',rig:'shared-humanoid',
+     x:traderSite.x,z:traderSite.z,y:traderSite.y,heading:Math.PI,
+     homeId:'starter-fortress:'+seed,behavior:'idle-trade'}));
+   }
+   if(wildlifeSite&&Math.floor(wildlifeSite.x/CHUNK_SIZE)===cx&&Math.floor(wildlifeSite.z/CHUNK_SIZE)===cz){
+    const species=wildlifeSite.group==='desert'||wildlifeSite.group==='salt'?'lizard':
+     wildlifeSite.group==='tundra'||wildlifeSite.group==='alpine'?'hare':'deer';
+    npc.push(Object.freeze({id:'starter-wildlife:'+seed,kind:'wildlife',
+     species,role:'forager',faction:'wild',rig:'shared-creature',
+     x:wildlifeSite.x,z:wildlifeSite.z,y:wildlifeSite.y,
+     heading:random(plantSeed,wildlifeSite.x,wildlifeSite.z)*Math.PI*2,
+     homeId:'starter-fortress:'+seed,behavior:'graze-flee'}));
+   }
    return Object.freeze({cx,cz,seed,tiles:Object.freeze(tiles),plants:Object.freeze(plants),
-    structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze([]),roads:Object.freeze(roads)});
+    structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze(npc),roads:Object.freeze(roads)});
   }
   const naturalSpawn=spawnAt();
   gateRoad=buildGateRoad(naturalSpawn,rawColumn,seed);
@@ -360,7 +405,9 @@
     const w=Math.min(p.x+p.w,maxX)-x,d=Math.min(p.z+p.d,maxZ)-z;
     if(w<=0||d<=0)continue;
     fragments.push(Object.freeze({...p,x,z,w,d,
-     id:'starter-gate:'+seed+':'+i,structureId:'starter-fortress:'+seed}));
+     id:'starter-gate:'+seed+':'+i,
+     fragmentId:'starter-gate:'+seed+':'+i+':'+cx+':'+cz,
+     structureId:'starter-fortress:'+seed}));
    }
    return fragments;
   }
