@@ -190,6 +190,19 @@ try{
   return distinct.size;
  })()`);
  assert.ok(colorCount>=8,'compatibility renderer must paint actual scene pixels, not a black/gray viewport');
+ // A compatibility session must also survive its own page-exit/reload
+ // without losing the previously earned WebGL progression. This exercises
+ // the fallback's save lifecycle, not just its first boot.
+ await evalPage('window.dispatchEvent(new Event("pagehide"));true');
+ const fallbackSave=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");return localStorage.getItem("meme-city-terrain-position-v1:"+seed);})()');
+ assert.ok(fallbackSave,'compatibility session must leave a recoverable position save');
+ await request('Page.reload',{ignoreCache:true});
+ await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'compatibility session reload');
+ const fallbackReload=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");return {seed,position:localStorage.getItem("meme-city-terrain-position-v1:"+seed),supplies:localStorage.getItem("meme-city-road-supplies-v1:"+seed),gate:localStorage.getItem("meme-city-gate-seal-v1:"+seed)};})()');
+ assert.equal(fallbackReload.seed,initial.seed,'compatibility reload must retain the seed');
+ assert.equal(fallbackReload.position,fallbackSave,'compatibility reload must retain its position save');
+ assert.equal(fallbackReload.supplies,'1','compatibility reload must retain supplies');
+ assert.equal(fallbackReload.gate,'1','compatibility reload must retain gate progress');
  assert.deepEqual(exceptions,[],'no uncaught JS exceptions in terrain-mode browser entry');
  console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
 }finally{
