@@ -27,6 +27,10 @@
     try{
      // A second open tab may have crafted since this controller was created.
      // Never silently replace an existing or malformed crafting record.
+     const persisted=JSON.parse(storage.getItem(key));
+     // Never craft against a deleted, replaced or future-version workbench.
+     if(!persisted||persisted.version!==VERSION||persisted.seed!==seed||
+        persisted.kind!=='workbench'||persisted.x!==saved.x||persisted.z!==saved.z)return false;
      const current=storage.getItem(CRAFT_KEY+seed);
      if(current!==null)return false;
      storage.setItem(CRAFT_KEY+seed,'torch-1');
