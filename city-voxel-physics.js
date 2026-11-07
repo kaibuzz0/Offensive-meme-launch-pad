@@ -150,6 +150,23 @@
      }
     }
    }
+   // Land on the top of a real solid structure when falling across it.
+   // Only accept a top-face crossing from above: this prevents side-entry
+   // into a wall from snapping the player onto a roof.
+   if(state.vy<=0&&Array.isArray(world.gateRoad?.parts)){
+    let landing=-Infinity;
+    for(const p of world.gateRoad.parts){
+     if(!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||
+        p.w<=0||p.h<=0||p.d<=0)continue;
+     if(state.x+RADIUS<=p.x||state.x-RADIUS>=p.x+p.w||
+        state.z+RADIUS<=p.z||state.z-RADIUS>=p.z+p.d)continue;
+     const top=p.y+p.h;
+     if(previousY>=top&&state.y<=top)landing=Math.max(landing,top);
+    }
+    if(landing>-Infinity){
+     state.y=landing;state.vy=0;state.grounded=true;
+    }
+   }
    const floor=floorAt(state.x,state.z,state.y);
    if(floor!==null&&state.y<=floor){state.y=floor;state.vy=0;state.grounded=true;}
    else if(floor!==null&&state.y>floor+.01)state.grounded=false;
