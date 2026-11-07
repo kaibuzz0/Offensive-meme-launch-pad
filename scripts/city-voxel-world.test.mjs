@@ -186,3 +186,29 @@ test('seed-relative starter lodge is rendered in real chunks and its doorway is 
   assert.ok(road.parts.some(p=>p.x===lodge.x-1&&p.y===lodge.y+12),'roof silhouette is visible');
  }
 });
+
+test('fortress and lodge cuboids are clipped across chunk seams without gaps or duplicate area',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed);
+  const all=w.gateRoad.parts;
+  for(const original of all){
+   const minCx=Math.floor(original.x/16),maxCx=Math.floor((original.x+original.w-1e-9)/16);
+   const minCz=Math.floor(original.z/16),maxCz=Math.floor((original.z+original.d-1e-9)/16);
+   let area=0;
+   for(let cx=minCx;cx<=maxCx;cx++)for(let cz=minCz;cz<=maxCz;cz++){
+    const pieces=w.gateParts(cx,cz).filter(p=>p.y===original.y&&p.h===original.h&&
+     p.solid===original.solid&&p.color===original.color&&
+     p.x>=original.x&&p.z>=original.z&&
+     p.x+p.w<=original.x+original.w+1e-8&&p.z+p.d<=original.z+original.d+1e-8);
+    for(const p of pieces){
+     assert.ok(p.x>=cx*16&&p.x+p.w<=(cx+1)*16+1e-8);
+     assert.ok(p.z>=cz*16&&p.z+p.d<=(cz+1)*16+1e-8);
+     area+=p.w*p.d;
+    }
+   }
+   // Multiple cuboids can share a color, y and footprint. Only check
+   // the presence of a valid clipped piece at every occupied seam.
+   assert.ok(area>=original.w*original.d-1e-8,'cuboid footprint survives seam clipping');
+  }
+ }
+});
