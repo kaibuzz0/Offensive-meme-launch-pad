@@ -49,7 +49,8 @@ console.log('PASS: community pages, lightweight script boundaries, and applicati
 
 for(const file of ['city-voxel-world.js','city-voxel-renderer.js','city-voxel-mesh-worker.js','city-voxel-physics.js','city-terrain-mode.js','city-graphics.js','city-live-3d.js','city-biomes.js','city-frontier.js','city-mining.js','city-mine-visuals.js','city-world2-preview.js','city-world2-simulation.js','city-topology.js','city-migration.js','city-world2.js','city-world2-registry.js','city.js','city-map.js','city-nav.js','city-save.js','city-core.js','city-arcade.js','city-rise.js','city-interiors.js','city-clans.js','city-territory.js','city-civilians.js','city-monk.js','city-room-visuals.js','city-rise-visuals.js','city-visuals.js','city-districts.js','city-network.js','city-room-client.js'])new vm.Script(read(file));
 for(const file of ['city.html','city-roadmap.html','city.css','server/city-server.mjs'])assert.ok(fs.existsSync(path.join(root,file)),`Missing city release file: ${file}`);
-assert.ok(read('index.html').includes('href="city.html"'),'Homepage must link to the playable city');
+assert.ok(read('index.html').includes('href="city.html?terrain=1"'),'Homepage must link to the canonical first-person game');
+assert.ok(read('index.html').includes('href="city.html?release=center-city-v1"'),'Homepage must preserve original Solo access during migration');
 const networkContext={window:{}};vm.runInNewContext(read('city-network.js'),networkContext);const network=networkContext.window.MEME_CITY_NETWORK;assert.equal(typeof network.enabled,'boolean');if(network.enabled)assert.ok(/^https:\/\//.test(network.apiBase),'Public room service must use HTTPS');
 console.log('PASS: Meme City assets, script syntax, homepage entry and public solo configuration.');
 
