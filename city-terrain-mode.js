@@ -37,6 +37,54 @@
   .terrain-only-mode #city-voxel-status {max-width:calc(100% - 40px);text-shadow:0 1px 2px #000}
   .terrain-only-mode #city-compatibility-toggle {position:absolute;top:12px;right:12px;z-index:4;min-height:46px;border:1px solid #b8e2c4;border-radius:6px;background:#0b2934e8;color:#e8ffeb;padding:8px 11px;font:700 11px monospace;touch-action:manipulation}
   .terrain-only-mode #city-render-hint {position:absolute;top:49%;left:50%;z-index:2;transform:translate(-50%,-50%);background:#102532e8;color:#f5ffd5;border:1px solid #b5d29b;border-radius:8px;max-width:80%;padding:12px 16px;font:700 12px/1.5 monospace;text-align:center;pointer-events:none}
+  /* Two independently captured pointers: MOVE (left) and LOOK (right).
+     Controls are isolated to the canonical first-person route. */
+  .terrain-only-mode #city-look-pad {display:none;position:absolute;right:18px;bottom:max(14px,env(safe-area-inset-bottom));z-index:5;width:112px;height:112px;border:2px solid #9ecfeb99;border-radius:50%;background:#132a42bd;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none;box-shadow:inset 0 0 25px #0008,0 2px 14px #0005}
+  .terrain-only-mode #city-look-knob {display:block;width:43px;height:43px;border-radius:50%;background:linear-gradient(145deg,#e9db9d,#86744b);border:2px solid #fbefba;box-shadow:0 3px 12px #0007;pointer-events:none;will-change:transform}
+  .terrain-only-mode #city-look-pad>span {position:absolute;bottom:8px;font:700 8px monospace;letter-spacing:2px;color:#d5efff;pointer-events:none}
+  .terrain-only-mode #city-look-pad[hidden],.terrain-only-mode #city-mobile-interact[hidden] {display:none!important}
+  .terrain-only-mode #city-mobile-interact {display:none;position:absolute;right:152px;bottom:max(106px,calc(env(safe-area-inset-bottom) + 94px));z-index:6;min-height:49px;min-width:78px;padding:8px 10px;border-radius:10px;border:2px solid #e1ce8a;background:#46572ce0;color:#fff9da;font:800 12px monospace;touch-action:manipulation}
+  .terrain-only-mode #city-mobile-interact:disabled {opacity:.44;background:#263236e0}
+  .terrain-only-mode #city-landscape {display:none;position:absolute;right:max(12px,env(safe-area-inset-right));top:10px;z-index:6;min-height:42px;border:1px solid #d7deb1;border-radius:6px;padding:9px;background:#162d39f0;color:#e8f4c6;font:700 10px monospace;touch-action:manipulation}
+  .terrain-only-mode #city-orientation-hint {display:none;position:absolute;top:46px;left:50%;transform:translateX(-50%);z-index:4;max-width:65%;text-align:center;color:#f2eacb;background:#0f2736da;border-radius:4px;font:700 10px/1.4 monospace;padding:5px 8px;pointer-events:none}
+  @media(pointer:coarse){
+   .terrain-only-mode .game-bottom {left:max(14px,env(safe-area-inset-left));right:auto;bottom:max(14px,env(safe-area-inset-bottom));z-index:5}
+   .terrain-only-mode #joystick {display:flex!important;width:112px;height:112px}
+   .terrain-only-mode .dpad {display:none!important}
+   .terrain-only-mode #city-look-pad {display:flex}
+   .terrain-only-mode #city-mobile-interact {display:block}
+   .terrain-only-mode #city-landscape {display:block}
+   .terrain-only-mode #city-jump {right:150px;bottom:max(15px,env(safe-area-inset-bottom));width:72px;height:72px;min-width:72px;min-height:72px}
+   .terrain-only-mode #city-gate-seal,.terrain-only-mode #city-road-supplies {display:none!important}
+   .terrain-only-mode #city-voxel-status {top:55px;left:8px;font-size:9px;max-width:72%;opacity:.75}
+   .terrain-only-mode .world-hud {top:12px}
+   .terrain-only-mode .world-label {display:none}
+  }
+  @media(pointer:coarse) and (orientation:portrait){
+   .terrain-only-mode #city-look-pad {width:96px;height:96px;right:10px}
+   .terrain-only-mode #joystick {width:96px;height:96px}
+   .terrain-only-mode #city-jump {right:13px;bottom:124px;width:60px;height:60px;min-width:60px;min-height:60px;font-size:11px}
+   .terrain-only-mode #city-mobile-interact {right:86px;bottom:135px;min-width:72px;font-size:10px}
+   .terrain-only-mode #city-orientation-hint {display:block}
+  }
+  @media(pointer:coarse) and (orientation:landscape){
+   body.terrain-only-mode {overflow:hidden}
+   .terrain-only-mode .city-header,.terrain-only-mode footer,.terrain-only-mode .under-game,.terrain-only-mode .game-tools {display:none!important}
+   .terrain-only-mode main {margin:0;max-width:none;padding:0;width:100vw}
+   .terrain-only-mode .game-shell {width:100vw;max-width:100vw;height:100dvh;min-height:0;max-height:none;border:0;border-radius:0;box-shadow:none}
+   .terrain-only-mode .city-welcome {display:block;padding:14px 20px;overflow:auto}
+   .terrain-only-mode .welcome-side {display:none}
+   .terrain-only-mode .welcome-goal {margin:8px 0;padding:8px}
+   .terrain-only-mode .welcome-lead {font-size:11px;line-height:1.4;margin-bottom:7px}
+   .terrain-only-mode .welcome-controls {margin-top:8px}
+   .terrain-only-mode #city-compatibility-toggle {right:125px;top:10px;min-height:42px}
+   .terrain-only-mode #city-landscape {right:8px;top:10px}
+   .terrain-only-mode #city-look-pad {right:max(18px,env(safe-area-inset-right))}
+   .terrain-only-mode #city-mobile-interact {right:150px;bottom:max(106px,calc(env(safe-area-inset-bottom) + 94px))}
+   .terrain-only-mode #city-jump {right:150px}
+   .terrain-only-mode #city-voxel-status {top:12px;max-width:36%;left:10px;font-size:8px;opacity:.64}
+   .terrain-only-mode .world-hud {display:none}
+  }
  `;
  document.head.append(style);
  $('.alpha-tag').textContent='FORTRESS ROAD / FIRST PERSON';
@@ -48,7 +96,7 @@
  $('.welcome-steps').hidden=true;
  $('.welcome-goal').textContent='Beyond the gate, explore the mountains, forests and caves of your seeded world.';
  start.textContent='Enter first person →';
- $('.welcome-controls').textContent='WASD / arrows or mobile joystick · Swipe/drag to look · E or on-screen COLLECT for supplies and the gate seal · Space or Jump · Atlas and 2D view available.';
+ $('.welcome-controls').textContent='Android: rotate phone sideways · MOVE with left joystick · LOOK with right joystick · JUMP and USE buttons. Tap LANDSCAPE for fullscreen (if supported). Desktop: WASD, mouse and E.';
  const compatLink=document.createElement('a');
  compatLink.href='city.html?terrain=1&render=canvas';
  compatLink.textContent='Low graphics first-person mode →';
@@ -105,6 +153,31 @@
  for(const kind of ['pointerup','pointercancel','lostpointercapture'])
   jumpButton.addEventListener(kind,()=>jumpHeld=false);
  jumpButton.addEventListener('click',()=>{jumpQueued=true;});
+ // Landscape is optional: Android browser support varies, and the player
+ // can still use both sticks in portrait when orientation lock is denied.
+ const landscapeButton=document.createElement('button');
+ landscapeButton.id='city-landscape';landscapeButton.type='button';
+ landscapeButton.textContent='⛶ LANDSCAPE';
+ landscapeButton.setAttribute('aria-label','Fullscreen landscape mode on Android');
+ jumpButton.insertAdjacentElement('afterend',landscapeButton);
+ const orientationHint=document.createElement('div');
+ orientationHint.id='city-orientation-hint';
+ orientationHint.textContent='Rotate sideways for dual-stick gameplay';
+ landscapeButton.insertAdjacentElement('afterend',orientationHint);
+ async function requestLandscape(){
+  try{if(!document.fullscreenElement)await $('.game-shell').requestFullscreen?.();}
+  catch{}
+  try{await window.screen?.orientation?.lock?.('landscape');}
+  catch{}
+  orientationHint.textContent='Rotate sideways for dual-stick gameplay';
+ }
+ landscapeButton.addEventListener('click',requestLandscape);
+ const introLandscape=document.createElement('button');
+ introLandscape.type='button';introLandscape.id='city-intro-landscape';
+ introLandscape.textContent='⛶ Fullscreen landscape';
+ introLandscape.style.cssText='display:inline-block;margin:6px 10px;padding:12px 14px;background:#203b49;color:#f2f3d4;border:1px solid #a5c8c1;border-radius:6px';
+ introLandscape.addEventListener('click',requestLandscape);
+ start.insertAdjacentElement('afterend',introLandscape);
  const modeButton=document.createElement('button');
  modeButton.id='city-compatibility-toggle';modeButton.type='button';
  modeButton.setAttribute('aria-label','Toggle low graphics first-person renderer');
@@ -162,6 +235,8 @@
   const threeD=!!perspective&&firstPerson&&!atlas;
   softwareCanvas.hidden=!threeD||!perspective?.software;
   voxelCanvas.hidden=!threeD||!!perspective?.software;crosshair.hidden=!threeD;status.hidden=!threeD;jumpButton.hidden=!threeD;
+  lookPad.hidden=!threeD;mobileInteract.hidden=!threeD;landscapeButton.hidden=!threeD;
+  if(!threeD){lookStick.x=lookStick.y=0;lookKnob.style.transform='';}
   if(threeD&&physics){
    const position=physics.snapshot();
    // Switching from first-person to the biome atlas must never snap an
@@ -241,6 +316,44 @@
  }
  supplyButton.addEventListener('click',claimSupplies);
  function interactRoad(){if(atGate()&&!sealClaimed)claimSeal();else claimSupplies();}
+ // Right-hand look control uses its own pointer capture independently of
+ // the left movement thumbstick, including simultaneous multi-touch input.
+ const lookPad=document.createElement('div');
+ lookPad.id='city-look-pad';lookPad.setAttribute('role','group');
+ lookPad.setAttribute('aria-label','Look joystick. Drag to turn camera');
+ lookPad.innerHTML='<i id="city-look-knob"></i><span>LOOK</span>';
+ lookPad.hidden=true;
+ const lookKnob=lookPad.querySelector('#city-look-knob');
+ jumpButton.insertAdjacentElement('afterend',lookPad);
+ const lookStick={x:0,y:0};
+ let lookPointerId=null;
+ function setLookStick(e){
+  const r=lookPad.getBoundingClientRect(),rx=e.clientX-(r.left+r.width/2),ry=e.clientY-(r.top+r.height/2);
+  const radius=Math.max(15,Math.min(r.width,r.height)*.33),dist=Math.max(radius,Math.hypot(rx,ry));
+  lookStick.x=rx/dist;lookStick.y=ry/dist;
+  lookKnob.style.transform='translate('+Math.round(lookStick.x*radius)+'px,'+Math.round(lookStick.y*radius)+'px)';
+ }
+ function releaseLook(e){
+  if(e.pointerId!==lookPointerId)return;
+  lookPointerId=null;lookStick.x=lookStick.y=0;lookKnob.style.transform='';
+ }
+ lookPad.addEventListener('pointerdown',e=>{
+  if(!running||paused||!firstPerson||atlas||lookPointerId!==null)return;
+  e.preventDefault();lookPointerId=e.pointerId;
+  try{lookPad.setPointerCapture(e.pointerId);}catch{}
+  setLookStick(e);
+ });
+ lookPad.addEventListener('pointermove',e=>{
+  if(e.pointerId===lookPointerId){e.preventDefault();setLookStick(e);}
+ });
+ for(const kind of ['pointerup','pointercancel','lostpointercapture'])
+  lookPad.addEventListener(kind,releaseLook);
+ const mobileInteract=document.createElement('button');
+ mobileInteract.id='city-mobile-interact';mobileInteract.type='button';
+ mobileInteract.textContent='USE';mobileInteract.disabled=true;mobileInteract.hidden=true;
+ mobileInteract.setAttribute('aria-label','Interact with nearby road supplies or gate seal');
+ lookPad.insertAdjacentElement('afterend',mobileInteract);
+ mobileInteract.addEventListener('click',interactRoad);
  const keys=new Set(),held=new Set();
  const stick={x:0,y:0};
  function savePosition(){
@@ -354,6 +467,10 @@
   if(running&&!paused){
    const move=movement();
    if(firstPerson&&perspective&&!atlas){
+    // Frame-time normalization, clamped at 50ms, keeps look speed stable
+    // between software/accelerated renderers and independent of movement.
+    player.yaw+=lookStick.x*dt*2.55;
+    player.pitch=Math.max(-1.32,Math.min(1.32,player.pitch-lookStick.y*dt*1.95));
     if(physics){
      const position=physics.tick({right:move.x,forward:-move.y,yaw:player.yaw,
       jump:keys.has(' ')||jumpHeld||jumpQueued},dt);
@@ -365,12 +482,16 @@
     }
    }else{player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
    status.dataset.worldX=String(player.x);status.dataset.worldZ=String(player.y);
+   status.dataset.lookYaw=String(player.yaw);status.dataset.lookPitch=String(player.pitch);
    status.dataset.inputForward=String(move.y);status.dataset.keyCount=String(keys.size);
    status.dataset.physicsZ=String(physics?.snapshot().z);
    status.dataset.renderer=perspective?.software?'canvas':perspective?'webgl':'none';
    status.dataset.playerMode=firstPerson&&!atlas?'first-person':'atlas';
    gateButton.hidden=!firstPerson||atlas||!atGate();
    supplyButton.hidden=!firstPerson||atlas||suppliesClaimed||!atSupplies();
+   const canSeal=!sealClaimed&&atGate(),canSupplies=!suppliesClaimed&&atSupplies();
+   mobileInteract.disabled=!firstPerson||atlas||(!canSeal&&!canSupplies);
+   mobileInteract.textContent=canSeal?'SEAL':canSupplies?'PICK UP':'USE';
    gateButton.disabled=sealClaimed;
    if(sealClaimed)gateButton.textContent='Gate seal collected';
    const size=resize();
@@ -438,7 +559,7 @@
   keys.add(e.key.length===1?e.key.toLowerCase():e.key);
  });
  window.addEventListener('keyup',e=>{const key=e.key.length===1?e.key.toLowerCase():e.key;if(keys.delete(key))savePosition();});
- window.addEventListener('blur',()=>{keys.clear();held.clear();stick.x=0;stick.y=0;jumpHeld=false;jumpQueued=false;savePosition();});
+ window.addEventListener('blur',()=>{keys.clear();held.clear();stick.x=0;stick.y=0;lookStick.x=lookStick.y=0;lookPointerId=null;lookKnob.style.transform='';jumpHeld=false;jumpQueued=false;savePosition();});
  window.addEventListener('pagehide',savePosition);
  document.addEventListener('visibilitychange',()=>{if(document.hidden)savePosition();});
  for(const b of document.querySelectorAll('[data-move]')){
@@ -460,6 +581,7 @@
  function releaseStick(e){if(e.pointerId!==activePointer)return;activePointer=null;stick.x=stick.y=0;knob.style.transform='';}
  joystick.addEventListener('pointerup',releaseStick);
  joystick.addEventListener('pointercancel',releaseStick);
+ joystick.addEventListener('lostpointercapture',releaseStick);
  start.addEventListener('click',()=>{
   intro.hidden=true;intro.style.display='none';running=true;last=performance.now();resize();updateHud();canvas.focus();
  });
