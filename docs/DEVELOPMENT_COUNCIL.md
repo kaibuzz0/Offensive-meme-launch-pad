@@ -73,3 +73,38 @@ These are candidates, **not installed dependencies**. Confirm actual LICENSE fil
 - ChatGPT owns five hourly scheduled automations covering all 15 workstreams, due to the active-task limit. These are distinct from the now manual-only GitHub scanner.
 - To start an eligible GitHub Copilot coding agent, open a numbered issue, choose **Assignees → Copilot**, and review its created PR. Availability depends on the repository and GitHub Copilot plan.
 - Pause research by disabling `meme-city-council.yml` in GitHub Actions or removing its scheduled trigger. Scheduled GitHub Actions runs are not precise real-time timers.
+
+## Unified game contract — 2026-11-07 (supersedes permanent parallel-mode requirements)
+
+**Current delivery rung: A → B.** Ship the homepage → first-person fortress/mountain skyline → wooded road → lit clan building → persistent gather/build interaction, then measure mobile frame-time and memory. Do not claim that a module or green test alone is a public visual release. The canonical first-person entry is currently `city.html?terrain=1`; `city.html` and historic query URLs remain recoverable until equivalent gameplay, saves, and entry redirects are tested. The public homepage must offer one prominent Play action and an accessible wallet-free offline Solo option. **Do not remove or redirect old entrypoints yet.**
+
+### Contracts and owner boundaries
+
+- **World:** one seeded coordinate/voxel/chunk identity, quarter-meter edit resolution, 132 clustered biome definitions, persistent landmarks and stable worldgen version. Living World (#45/#55/#56) owns generation, settlement/NPC content and world-query APIs; generated scenery and gameplay collision must use identical geometry IDs.
+- **Player and state:** one authoritative movement/interaction/inventory/equipment model for Solo and multiplayer, with bounded fixed-step simulation. Physics (#49/#50/#52) owns movement, collision, seats and ground vehicles; Sandbox (#48/#51/#54) owns atomic edits, crafting, item ledger, ranged tools and drones. Never implement competing controllers or ledgers.
+- **Rendering:** Graphics (#46) owns visual materials, first-person camera, avatar/held-item socket contract, building kits, detail scaling and compatibility rendering. Both WebGL1 and fallback backends must consume the same world objects, player pose and gameplay events; a fallback cannot silently replace gameplay with a different 2D game. Flight (#53) uses shared world/player/seating/save interfaces, not a second scene.
+- **Quality and persistence:** QA (#47/#44/#57) owns reproducible startup, frame-time percentile, stalls, memory, mesh/draw, long-travel, save/reload and mobile-viewport baselines. Adapt LOD, render distance, resolution and effects automatically without changing collision, objects or progression. Maintain the 24 MiB mesh budget until a measured revision is reviewed.
+- **Integration:** #43 owns shared bootstrap/homepage files, dependency graph, PR queue, schema/entry migrations and release gates. Coordinate any shared-file edits here before pushing. No unreviewed direct-to-main changes.
+
+### Migration order and release gates
+
+1. Inventory current entry URLs, rendering backends, world generators, stores, and active PRs; record a mapping of old save keys and schema versions before modifying them. Keep original saves recoverable.
+2. Add a versioned, repeat-safe **copy/validate/activate** migration. Preserve the original save until successful readback; quarantine unmappable fields rather than silently deleting them. Test legacy fixtures, repeated migration, interruption and reload.
+3. Unify world queries, player controller, inventory and interaction contracts behind the existing working terrain implementation; port useful original Solo mechanics in bounded playable slices. Require WebGL1 and fallback scene/interaction parity.
+4. Ship one real player-eye-level route and persistent interaction, with desktop and mobile-viewport Chromium evidence; then promote first-person as the primary Play action. Keep offline Solo wallet-free.
+5. Only after parity, migration and link checks redirect historic entry URLs to the canonical game and retire duplicate mode selectors/runtimes. Retain recoverable Git history and a rollback path.
+
+### Current integration dependency queue
+
+| Order | Deliverable | Owner | Gate |
+| --- | --- | --- | --- |
+| 1 | Homepage entry and fortress-road scene/interactions | #43 + #45 + #46 + #48 | Real public path; mobile/desktop pixel and interaction checks |
+| 2 | Save inventory, versioned migration and replay | #57 + #48 + #43 | Old saves preserved, repeated migration and reload |
+| 3 | Shared world/physics/render parity and automatic detail | #49 + #47 + #46 | Identical scene/collision/interaction across backends; measured budgets |
+| 4 | Starter lodge/interior, workbench and first complete gather/build loop | #45 + #48 + #46 | Actual terrain geometry, door/collision, saved inventory/build |
+| 5 | Curated free wardrobe and held-item loadout | #46 + #49 + #48 | Preview/equip/render/reload on touch and desktop |
+| 6 | NPC encounter, vehicles, then aircraft | #56 + #52 + #53 | Same world/controller/save, bounded simulation |
+
+**PR review rule:** record exact head SHA, merge conflicts, test and browser evidence, release dependency and Pages publication. Merge only reviewed green compatible PRs; verify public homepage, asset loads and actual interaction after deployment. Do not fabricate physical Android measurements from emulation. Update this queue when code or CI establishes a different blocker.
+
+**Reuse research:** consult #44 before adding a dependency. Verify upstream revision, LICENSE and attribution, browser/WebGL1/PWA compatibility, size and measured runtime effect. Existing Three.js/Babylon/Rapier candidates are not approved engine replacements. User-provided reference archive `makethegameactuallylooklikethis.zip` is art direction, not licensed source content.
