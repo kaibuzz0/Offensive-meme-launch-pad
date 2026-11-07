@@ -205,14 +205,17 @@ try{
  // orientation and other metadata can change while the player remains stuck.
  const horizontal=(raw)=>{
   const saved=JSON.parse(raw);
-  const point=saved?.position??saved?.player??saved;
-  const x=Number(point?.x),z=Number(point?.z);
-  assert.ok(Number.isFinite(x)&&Number.isFinite(z),'position save must contain finite x/z controller coordinates');
-  return {x,z};
+  // city-terrain-mode.js persists horizontal map coordinates as x/y;
+  // vertical feet elevation is a separate "vertical" field.
+  assert.equal(typeof saved?.x,'number','save must contain numeric horizontal x');
+  assert.equal(typeof saved?.y,'number','save must contain numeric horizontal y');
+  const x=saved.x,y=saved.y;
+  assert.ok(Number.isFinite(x)&&Number.isFinite(y),'position save must contain finite x/y controller coordinates');
+  return {x,y};
  };
  assert.ok(beforeFallbackWalk,'fallback must have a pre-movement position save');
  const beforeCoords=horizontal(beforeFallbackWalk),afterCoords=horizontal(afterFallbackWalk);
- const displacement=Math.hypot(afterCoords.x-beforeCoords.x,afterCoords.z-beforeCoords.z);
+ const displacement=Math.hypot(afterCoords.x-beforeCoords.x,afterCoords.y-beforeCoords.y);
  assert.ok(displacement>0.05,'Canvas fallback must move controller at least 5cm horizontally; observed '+displacement+'m');
  // A compatibility session must also survive its own page-exit/reload
  // without losing the previously earned WebGL progression. This exercises
