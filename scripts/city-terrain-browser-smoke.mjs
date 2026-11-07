@@ -193,6 +193,17 @@ try{
  assert.ok(colorCount>=8,'compatibility renderer must paint actual scene pixels, not a black/gray viewport');
  assert.deepEqual(exceptions,[],'no uncaught JS exceptions in terrain-mode browser entry');
  console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
+}catch(error){
+ // Preserve a real browser frame and runtime state when acceptance fails.
+ // A failed journey is not evidence of a passing visual milestone.
+ if(ws?.readyState===WebSocket.OPEN){
+  try{
+   const state=await evalPage('(()=>({url:location.href,terrain:document.body.classList.contains("terrain-only-mode"),status:document.getElementById("city-voxel-status")?.textContent,meshWorker:document.getElementById("city-voxel-status")?.dataset.meshWorker,gpuBytes:document.getElementById("city-voxel-status")?.dataset.gpuBytes,suppliesVisible:document.getElementById("city-road-supplies")?.hidden===false,gateVisible:document.getElementById("city-gate-seal")?.hidden===false}))()');
+   console.error('MOBILE_CHROMIUM_FAILURE_STATE '+JSON.stringify({...state,physicalAndroid:false}));
+  }catch(diagnosticError){console.error('MOBILE_CHROMIUM_DIAGNOSTIC_ERROR '+diagnosticError.message);}
+  try{await captureFrame('failure-diagnostic');}catch(captureError){console.error('MOBILE_CHROMIUM_SCREENSHOT_ERROR '+captureError.message);}
+ }
+ throw error;
 }finally{
  for(const x of pending.values())x.reject(Error('Browser closed'));
  if(ws){try{ws.close();}catch{}}
