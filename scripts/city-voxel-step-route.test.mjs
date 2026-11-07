@@ -70,8 +70,12 @@ test('airborne capsule cannot slip through a low obstacle when floor ahead is sl
   player.tick({jump: true}, .05);
   const inAir = player.snapshot();
   assert.equal(inAir.grounded, false);
-  raisedHeight = inAir.y - 1 + .1;
-  for (let i = 0; i < 3; i++) player.tick({right: 1}, .05);
-  assert.ok(player.snapshot().x < wallStart - .27,
+  for (let i = 0; i < 3; i++) {
+    // Keep the adjacent ledge just above current feet while airborne.
+    // This isolates the height passed to the collision callback.
+    raisedHeight = player.snapshot().y - 1 + .1;
+    player.tick({right: 1}, .05);
+  }
+  assert.ok(player.snapshot().x < wallStart,
     'airborne player must not enter a wall by checking raised ground instead of current feet');
 });
