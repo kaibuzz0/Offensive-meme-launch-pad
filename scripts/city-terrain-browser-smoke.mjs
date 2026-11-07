@@ -190,6 +190,18 @@ try{
   return distinct.size;
  })()`);
  assert.ok(colorCount>=8,'compatibility renderer must paint actual scene pixels, not a black/gray viewport');
+ // Exercise the fallback as gameplay, not merely as a painted canvas.
+ // Key events travel through the normal player controller; do not alter
+ // localStorage directly to manufacture a movement result.
+ const beforeFallbackWalk=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");return localStorage.getItem("meme-city-terrain-position-v1:"+seed);})()');
+ await request('Input.dispatchKeyEvent',{type:'keyDown',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
+ try{await delay(1800);}finally{
+  await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
+ }
+ await evalPage('window.dispatchEvent(new Event("pagehide"));true');
+ const afterFallbackWalk=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");return localStorage.getItem("meme-city-terrain-position-v1:"+seed);})()');
+ assert.ok(afterFallbackWalk,'Canvas fallback movement must produce a position save');
+ assert.notEqual(afterFallbackWalk,beforeFallbackWalk,'Canvas fallback movement must update saved controller position');
  // A compatibility session must also survive its own page-exit/reload
  // without losing the previously earned WebGL progression. This exercises
  // the fallback's save lifecycle, not just its first boot.
