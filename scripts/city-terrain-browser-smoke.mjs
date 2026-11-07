@@ -54,7 +54,8 @@ try{
   if(msg.id&&pending.has(msg.id)){const p=pending.get(msg.id);pending.delete(msg.id);msg.error?p.reject(Error(msg.error.message)):p.resolve(msg.result);}
   if(msg.method==='Runtime.exceptionThrown')exceptions.push(msg.params.exceptionDetails.text||'Runtime error');
  });
- await request('Page.enable');await request('Runtime.enable');
+ await request('Page.enable');await request('Runtime.enable');await request('Performance.enable');
+ const navigationStarted=Date.now();
  await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
  const url='http://127.0.0.1:'+server.address().port+'/city.html?terrain=1';
  await request('Page.navigate',{url:new URL('index.html',url).href});
@@ -91,6 +92,12 @@ try{
   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.textContent.startsWith("3D ·")'),'3D chunk rendering',30000);
   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.dataset.meshWorker==="ready"'),'Web Worker terrain mesher initializes',30000);
   await waitFor(()=>evalPage('Number(document.getElementById("city-voxel-status")?.dataset.gpuBytes)>0'),'transferred worker geometry draws in WebGL',30000);
+  const startupMs=Date.now()-navigationStarted;
+  const perf=await request('Performance.getMetrics');
+  const metricsByName=Object.fromEntries((perf.metrics||[]).map(m=>[m.name,m.value]));
+  const frameSample=await evalPage(`new Promise(resolve=>{const frames=[];let previous=0;const until=performance.now()+1200;function sample(now){if(previous)frames.push(now-previous);previous=now;if(now<until)requestAnimationFrame(sample);else resolve({samples:frames.length,meanMs:frames.reduce((a,b)=>a+b,0)/Math.max(1,frames.length),maxMs:Math.max(0,...frames)});}requestAnimationFrame(sample);})`);
+  assert.ok(Number.isFinite(frameSample.meanMs)&&frameSample.samples>=2,'browser must produce measurable animation frames');
+  console.log('MOBILE_CHROMIUM_TELEMETRY '+JSON.stringify({emulatedViewport:'412x915@2',physicalAndroid:false,startupMs,frameSample,jsHeapBytes:metricsByName.JSHeapUsedSize??null,domNodes:metricsByName.Nodes??null}));
   const workerMetrics=await evalPage('(()=>{const el=document.getElementById("city-voxel-status");return {status:el.dataset.meshWorker,pending:Number(el.dataset.meshPending),gpuBytes:Number(el.dataset.gpuBytes)};})()');
   assert.equal(workerMetrics.status,'ready','first-person browser uses off-thread deterministic mesher');
   assert.ok(workerMetrics.pending>=0&&workerMetrics.pending<=2,'mesh request backpressure is bounded');
