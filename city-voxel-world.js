@@ -315,7 +315,16 @@
     const t=z-gateRoad.z;
     if(t>=4&&t<=28&&(t-4)%8===0&&Math.abs(x-gateRoad.x)===8){
      const ground=surfaceAt(x,z);
-     if(!ground.water&&!ground.mouth)return {type:'pine',height:13+(t%5),color:.4};
+     // Roadside vegetation follows the sampled biome rather than planting
+     // conifers in deserts, wetlands or above the treeline. Keep the seeded
+     // tree positions and road grade unchanged for existing saved worlds.
+     if(!ground.water&&!ground.mouth&&ground.slope<=13){
+      const type=ground.group==='desert'||ground.group==='salt'?'cactus':
+       ground.group==='tropical'?'palm':ground.group==='fungal'?'mushroom':
+       ground.group==='wetland'?'reed':ground.group==='volcanic'?'rock':
+       ground.group==='grassland'?'tree':'pine';
+      return {type,height:13+(t%5),color:.4};
+     }
     }
     if(gateRoad.foundation(x,z))return null;
    }
