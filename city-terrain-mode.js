@@ -42,7 +42,8 @@
   .terrain-only-mode #city-look-pad {display:none;position:absolute;right:18px;bottom:max(14px,env(safe-area-inset-bottom));z-index:5;width:112px;height:112px;border:2px solid #9ecfeb99;border-radius:50%;background:#132a42bd;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none;box-shadow:inset 0 0 25px #0008,0 2px 14px #0005}
   .terrain-only-mode #city-look-knob {display:block;width:43px;height:43px;border-radius:50%;background:linear-gradient(145deg,#e9db9d,#86744b);border:2px solid #fbefba;box-shadow:0 3px 12px #0007;pointer-events:none;will-change:transform}
   .terrain-only-mode #city-look-pad>span {position:absolute;bottom:8px;font:700 8px monospace;letter-spacing:2px;color:#d5efff;pointer-events:none}
-  .terrain-only-mode #city-look-pad[hidden],.terrain-only-mode #city-mobile-interact[hidden] {display:none!important}
+  .terrain-only-mode #city-look-pad[hidden],.terrain-only-mode #city-mobile-interact[hidden],.terrain-only-mode #city-landscape[hidden] {display:none!important}
+  .terrain-only-mode #city-intro-landscape {display:none!important}
   .terrain-only-mode #city-mobile-interact {display:none;position:absolute;right:152px;bottom:max(106px,calc(env(safe-area-inset-bottom) + 94px));z-index:6;min-height:49px;min-width:78px;padding:8px 10px;border-radius:10px;border:2px solid #e1ce8a;background:#46572ce0;color:#fff9da;font:800 12px monospace;touch-action:manipulation}
   .terrain-only-mode #city-mobile-interact:disabled {opacity:.44;background:#263236e0}
   .terrain-only-mode #city-landscape {display:none;position:absolute;right:max(12px,env(safe-area-inset-right));top:10px;z-index:6;min-height:42px;border:1px solid #d7deb1;border-radius:6px;padding:9px;background:#162d39f0;color:#e8f4c6;font:700 10px monospace;touch-action:manipulation}
@@ -54,6 +55,8 @@
    .terrain-only-mode #city-look-pad {display:flex}
    .terrain-only-mode #city-mobile-interact {display:block}
    .terrain-only-mode #city-landscape {display:block}
+   .terrain-only-mode #city-intro-landscape {display:inline-block!important}
+   .terrain-only-mode #city-compatibility-toggle {right:125px;top:10px;min-height:42px}
    .terrain-only-mode #city-jump {right:150px;bottom:max(15px,env(safe-area-inset-bottom));width:72px;height:72px;min-width:72px;min-height:72px}
    .terrain-only-mode #city-gate-seal,.terrain-only-mode #city-road-supplies {display:none!important}
    .terrain-only-mode #city-voxel-status {top:55px;left:8px;font-size:9px;max-width:72%;opacity:.75}
@@ -235,7 +238,7 @@
   const threeD=!!perspective&&firstPerson&&!atlas;
   softwareCanvas.hidden=!threeD||!perspective?.software;
   voxelCanvas.hidden=!threeD||!!perspective?.software;crosshair.hidden=!threeD;status.hidden=!threeD;jumpButton.hidden=!threeD;
-  lookPad.hidden=!threeD;mobileInteract.hidden=!threeD;landscapeButton.hidden=!threeD;
+  lookPad.hidden=!running||!threeD;mobileInteract.hidden=!running||!threeD;landscapeButton.hidden=!running||!threeD;
   if(!threeD){lookStick.x=lookStick.y=0;lookKnob.style.transform='';}
   if(threeD&&physics){
    const position=physics.snapshot();
@@ -576,14 +579,14 @@
   stick.x=ox/Math.max(radius,dist);stick.y=oy/Math.max(radius,dist);
   knob.style.transform='translate('+Math.round(stick.x*radius)+'px,'+Math.round(stick.y*radius)+'px)';
  }
- joystick.addEventListener('pointerdown',e=>{activePointer=e.pointerId;joystick.setPointerCapture(e.pointerId);onStick(e);});
+ joystick.addEventListener('pointerdown',e=>{if(activePointer!==null)return;e.preventDefault();activePointer=e.pointerId;try{joystick.setPointerCapture(e.pointerId);}catch{}onStick(e);});
  joystick.addEventListener('pointermove',e=>{if(e.pointerId===activePointer)onStick(e);});
  function releaseStick(e){if(e.pointerId!==activePointer)return;activePointer=null;stick.x=stick.y=0;knob.style.transform='';}
  joystick.addEventListener('pointerup',releaseStick);
  joystick.addEventListener('pointercancel',releaseStick);
  joystick.addEventListener('lostpointercapture',releaseStick);
  start.addEventListener('click',()=>{
-  intro.hidden=true;intro.style.display='none';running=true;last=performance.now();resize();updateHud();canvas.focus();
+  intro.hidden=true;intro.style.display='none';running=true;last=performance.now();resize();updateHud();syncView();canvas.focus();
  });
  updateHud();requestAnimationFrame(frame);
 })();
