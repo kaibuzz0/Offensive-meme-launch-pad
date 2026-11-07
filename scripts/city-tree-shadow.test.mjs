@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const context={};
 vm.runInNewContext(readFileSync(new URL('../city-voxel-renderer.js',import.meta.url),'utf8'),context);
 const mesh=context.CityVoxelRenderer.generateMesh;
-const world=(height)=>({
+const world=(height=8)=>({
   chunkAt:()=>({tiles:[],plants:[{x:8,y:12,z:8,type:'pine',height,color:.4}]}),
   surfaceAt:()=>null
 });
@@ -23,4 +23,12 @@ test('canopy shadow casts opposite the shader sun and stays one quad',()=>{
 });
 test('tree shadow coordinates are deterministic',()=>{
   assert.deepEqual(Array.from(mesh(world(),0,0).data),Array.from(mesh(world(),0,0).data));
+});
+
+test('taller trees cast longer shadows without increasing vertex count',()=>{
+  const short=mesh(world(2),0,0).data;
+  const tall=mesh(world(16),0,0).data;
+  assert.equal(short.length,tall.length,'shadow length must not allocate more geometry');
+  assert.ok(tall[0]<short[0],'taller tree shadow extends farther west');
+  assert.ok(tall[2]<short[2],'taller tree shadow extends farther north');
 });
