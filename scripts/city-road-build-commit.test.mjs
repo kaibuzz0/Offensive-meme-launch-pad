@@ -70,3 +70,29 @@ test('adapter cannot bypass validation with inconsistent resource record', async
   await assert.rejects(commitWorkbenchBuild(db, 'world:fortress', action), /invalid durable building record/);
   assert.equal(writes, 0);
 });
+
+
+test('concurrent placement attempts against one revision commit at most once', async () => {
+  const db = store();
+  const originalCAS = db.compareAndSwap.bind(db);
+  let writes = 0;
+  db.compareAndSwap = async (...args) => {
+    // Both callers can read the same revision; the storage boundary must
+    // serialize their compare-and-swap, not trust the earlier read.
+    await Promise.resolve();
+    const committed = await originalCAS(...args);
+    if (committed) writes++;
+    return committed;
+  };
+  const outcomes = await Promise.allSettled([
+    commitWorkbenchBuild(db, 'world:fortress', action),
+    commitWorkbenchBuild(db, 'world:fortress', action)
+  ]);
+  assert.equal(outcomes.filter(result => result.status === 'fulfilled').length, 1);
+  assert.equal(outcomes.filter(result => result.status === 'rejected').length, 1);
+  assert.equal(writes, 1);
+  const reloaded = await db.read();
+  assert.equal(reloaded.inventory.supplies, 0);
+  assert.equal(reloaded.revision, 1);
+  assert.equal(createVoxelEditJournal(seed, reloaded.journal).get(60, 41, 96), 'workbench');
+});
