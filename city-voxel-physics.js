@@ -103,6 +103,11 @@
    const dz=(vx*rightZ+vz*forwardZ)*speed*step;
    // Two-axis sweep permits sliding along terrain walls.
    moveAxis('x',dx);moveAxis('z',dz);
+   // A stationary player can lose terrain support when the underlying
+   // terrain is edited or loaded. Recheck support even without horizontal
+   // input; roof contact below is resolved by the downward sweep.
+   if(state.grounded&&floorAt(state.x,state.z,state.y)<state.y-.01)
+    state.grounded=false;
    if(input?.jump&&state.grounded){state.grounded=false;state.vy=JUMP_SPEED;}
    // Swimming is deliberately opt-in: an explicit water-volume query enables
    // controlled ascent, reduced gravity and terminal sinking velocity.
