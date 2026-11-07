@@ -92,6 +92,7 @@
   function lodgePart(dx,dz,dy,w,h,d,color,solid=true){
    parts.push({x:lodge.x+dx,z:lodge.z+dz,y:lodge.y+dy,w,h,d,color,solid});
   }
+  const lodgeStartIndex=parts.length;
   // 9x8 shell; west wall has a 3-voxel doorway from z+3 to z+6.
   lodgePart(0,0,0,9,12,1,lodgeWall);
   lodgePart(0,7,0,9,12,1,lodgeWall);
@@ -111,7 +112,13 @@
   lodgePart(-.65,3,11,.22,3,3,cloth,false); // hanging clan insignia
   // Stable source IDs survive chunk clipping and allow renderer/physics consumers
   // to identify the same structure across unload/reload without coordinates.
-  for(let i=0;i<parts.length;i++)parts[i].id='fortress-part:'+seed+':'+i;
+  for(let i=0;i<parts.length;i++){
+   const p=parts[i];
+   p.id='fortress-part:'+seed+':'+i; // Preserve existing persistent part IDs.
+   // Shared geometry contract: group clipped parts by their originating
+   // landmark without changing the part identity used by saved worlds.
+   p.structureId=i>=lodgeStartIndex?lodge.id:'starter-fortress:'+seed;
+  }
   function foundation(px,pz){
    const t=pz-z;
    if(t< -4||t>54)return null;
