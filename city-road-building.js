@@ -61,8 +61,12 @@
    },
    place(suppliesClaimed,position,site){
     if(!this.canPlace(suppliesClaimed,position,site))return false;
+    // The site is supplied by the seeded road. Reject missing or corrupt
+    // coordinates before writing: JSON.stringify(NaN) silently stores null.
+    if(!site||!Number.isSafeInteger(site.x)||!Number.isSafeInteger(site.z)||
+       Math.abs(site.x)>999990||Math.abs(site.z)>999990)return false;
     const next=Object.freeze({version:VERSION,seed,kind:'workbench',
-     x:Math.round(site.x+5),z:Math.round(site.z+4)});
+     x:site.x+5,z:site.z+4});
     try{
      // A second tab may have placed a bench since this controller loaded.
      // Preserve existing, corrupt, or future-version records rather than overwriting.
