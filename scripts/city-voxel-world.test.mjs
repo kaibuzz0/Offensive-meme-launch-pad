@@ -244,3 +244,27 @@ test('starter trader is bounded to one streamed chunk and stable across reload',
   }
  }
 });
+
+test('seeded actors have safe standing footprints and never intersect fortress collision',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),gate=w.gateRoad;
+  const candidates=[
+   [gate.supplies.x+4,gate.supplies.z+2],
+   [gate.supplies.x-8,gate.supplies.z+7]
+  ];
+  for(const [x,z] of candidates){
+   for(let cz=Math.floor((z-5)/16);cz<=Math.floor((z+5)/16);cz++)
+    for(let cx=Math.floor((x-5)/16);cx<=Math.floor((x+5)/16);cx++)
+     for(const actor of w.chunkAt(cx,cz).npc){
+      const ground=w.surfaceAt(actor.x,actor.z);
+      assert.equal(actor.y,ground.height+1);
+      assert.equal(gate.obstructs(actor.x+.5,actor.y,actor.z+.5,w.PLAYER_HEIGHT,.65),false);
+      for(const [dx,dz] of [[1,0],[0,1],[1,1]]){
+       const neighbor=w.surfaceAt(actor.x+dx,actor.z+dz);
+       assert.ok(!neighbor.water&&!neighbor.mouth);
+       assert.ok(Math.abs(neighbor.height-ground.height)<=2);
+      }
+     }
+  }
+ }
+});
