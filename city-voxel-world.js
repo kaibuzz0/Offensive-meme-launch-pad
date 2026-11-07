@@ -312,6 +312,13 @@
   }
   function featureAt(x,z){
    if(gateRoad){
+    // Keep the lodge entrance and walls free of procedural foliage. Plants
+    // are regenerated per chunk, so the exclusion must use world coordinates
+    // rather than transient chunk state. Do not move existing roadside trees
+    // outside this footprint or modify any saved terrain edits.
+    const lodge=gateRoad.lodge;
+    if(lodge&&x>=lodge.x-3&&x<=lodge.x+10&&
+       z>=lodge.z-2&&z<=lodge.z+9)return null;
     const t=z-gateRoad.z;
     if(t>=4&&t<=28&&(t-4)%8===0&&Math.abs(x-gateRoad.x)===8){
      const ground=surfaceAt(x,z);
