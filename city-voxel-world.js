@@ -366,8 +366,21 @@
   const naturalSpawn=spawnAt();
   gateRoad=buildGateRoad(naturalSpawn,rawColumn,seed);
   cache.clear();
+  // Clip every structure cuboid to the current chunk footprint. Merely
+  // assigning a cuboid to its origin chunk loses walls and roofs crossing
+  // a seam when that origin chunk is culled. Clipping also avoids duplicate
+  // overlapping faces if both neighboring chunks are resident.
   function gateParts(cx,cz){
-   return gateRoad.parts.filter(p=>Math.floor(p.x/CHUNK_SIZE)===cx&&Math.floor(p.z/CHUNK_SIZE)===cz);
+   const minX=cx*CHUNK_SIZE,minZ=cz*CHUNK_SIZE;
+   const maxX=minX+CHUNK_SIZE,maxZ=minZ+CHUNK_SIZE;
+   const pieces=[];
+   for(const p of gateRoad.parts){
+    const x0=Math.max(minX,p.x),x1=Math.min(maxX,p.x+p.w);
+    const z0=Math.max(minZ,p.z),z1=Math.min(maxZ,p.z+p.d);
+    if(x1<=x0||z1<=z0)continue;
+    pieces.push({...p,x:x0,z:z0,w:x1-x0,d:z1-z0});
+   }
+   return pieces;
   }
   return Object.freeze({seed,atlas,gateRoad,gateParts,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,MIN_HEIGHT,MAX_HEIGHT,
    SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,isWaterAt,featureAt,chunkAt,
