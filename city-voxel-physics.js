@@ -67,7 +67,7 @@
      let blocked=false;
     for(const [ox,oz] of FOOTPRINT){
      const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
-     if(gallery&&!gallery.exposed&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+     if(gallery&&!gallery.exposed&&Math.max(state.y,floor)<gallery.ceiling&&Math.max(state.y,floor)+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
      }
     }
