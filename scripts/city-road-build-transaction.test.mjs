@@ -41,3 +41,19 @@ test('divergent inventory and journal revisions cannot spend resources',()=>{
  const inverse={...before,revision:1};
  assert.throws(()=>buildWorkbenchState(inverse,{...action,expectedRevision:1}),/revision mismatch/);
 });
+
+test('rejects mismatched world seed and malformed journal without spending',()=>{
+ const before=original(), snapshot=JSON.stringify(before);
+ const other=createVoxelEditJournal('different-seed').snapshot();
+ assert.throws(()=>buildWorkbenchState({...before,journal:other},action),/incompatible voxel edit snapshot/);
+ const corrupted={...before,journal:{...before.journal,edits:[{x:0,y:0,z:0,block:'__proto__'}]}};
+ assert.throws(()=>buildWorkbenchState(corrupted,action),/material/);
+ assert.equal(JSON.stringify(before),snapshot);
+});
+
+test('failed occupancy query cannot debit supplies or commit an edit',()=>{
+ const before=original(), snapshot=JSON.stringify(before);
+ assert.throws(()=>buildWorkbenchState(before,{...action,isOccupied:()=>{throw new Error('terrain chunk unavailable');}}),/terrain chunk unavailable/);
+ assert.throws(()=>buildWorkbenchState(before,{...action,isOccupied:()=>Promise.resolve(false)}),/occupied voxel/);
+ assert.equal(JSON.stringify(before),snapshot);
+});
