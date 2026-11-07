@@ -29,3 +29,15 @@ test('generated terrain occupancy must be queried and empty before spending',()=
  assert.throws(()=>buildWorkbenchState(before,{...action,isOccupied:()=>undefined}),/occupied voxel/);
  assert.equal(JSON.stringify(before),snapshot);
 });
+
+test('divergent inventory and journal revisions cannot spend resources',()=>{
+ const before=original();
+ const changed=createVoxelEditJournal(seed);
+ changed.apply({x:1,y:1,z:1,block:'stone'});
+ const mismatched={...before,journal:changed.snapshot()};
+ const snapshot=JSON.stringify(mismatched);
+ assert.throws(()=>buildWorkbenchState(mismatched,action),/revision mismatch/);
+ assert.equal(JSON.stringify(mismatched),snapshot);
+ const inverse={...before,revision:1};
+ assert.throws(()=>buildWorkbenchState(inverse,{...action,expectedRevision:1}),/revision mismatch/);
+});
