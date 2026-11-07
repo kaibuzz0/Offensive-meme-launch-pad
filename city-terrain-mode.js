@@ -239,6 +239,7 @@
   softwareCanvas.hidden=!threeD||!perspective?.software;
   voxelCanvas.hidden=!threeD||!!perspective?.software;crosshair.hidden=!threeD;status.hidden=!threeD;jumpButton.hidden=!threeD;
   lookPad.hidden=!running||!threeD;mobileInteract.hidden=!running||!threeD;landscapeButton.hidden=!running||!threeD;
+  status.dataset.lookYaw=String(player.yaw);status.dataset.lookPitch=String(player.pitch);
   if(!threeD){lookStick.x=lookStick.y=0;lookKnob.style.transform='';}
   if(threeD&&physics){
    const position=physics.snapshot();
