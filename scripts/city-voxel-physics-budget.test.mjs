@@ -149,3 +149,22 @@ test('failed teleport outside loaded world preserves player state and collision 
   player.tick({right: 1, yaw: 0}, 1 / 60);
   assert.ok(player.snapshot().x > 2, 'movement failed after a rejected teleport');
 });
+
+
+test('teleport rejects blocked gate and low-headroom destinations without mutating player state', () => {
+  const blockedWorld = {
+    ...world,
+    gateRoad: {obstructs: (x, y, z) => x >= 3 && x < 5},
+    caveRoomAt: (x, z) => x >= 6 && x < 9
+      ? {floor: 0, ceiling: 6, exposed: false} : null,
+  };
+  const player = root.CityVoxelPhysics.createController(blockedWorld, {x: 0, z: 0});
+  player.tick({forward: 1, jump: true}, 1 / 60);
+  const before = player.snapshot();
+  assert.equal(player.teleport(4, 0), false, 'solid gate accepted teleport');
+  assert.deepEqual({...player.snapshot()}, {...before});
+  assert.equal(player.teleport(7, 0, 2), false, 'low cave roof accepted teleport');
+  assert.deepEqual({...player.snapshot()}, {...before});
+  assert.equal(player.teleport(10, 0), true, 'clear destination rejected');
+  assert.equal(player.snapshot().x, 10);
+});
