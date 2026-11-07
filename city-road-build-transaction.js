@@ -19,7 +19,11 @@ export function buildWorkbenchState(state, action) {
     throw new Error('workbench out of reach');
   const target = roadWorkbenchVoxel(action.position,action.groundHeight);
   const journal = createVoxelEditJournal(state.seed,state.journal);
-  if (journal.has(target.x,target.y,target.z)) throw new Error('occupied voxel');
+  // Journal.has only detects player edits; generated terrain must be checked too.
+  // A caller without a canonical occupancy query must not place blindly.
+  if (typeof action.isOccupied !== 'function') throw new Error('world occupancy query required');
+  if (journal.has(target.x,target.y,target.z) || action.isOccupied(target.x,target.y,target.z) !== false)
+    throw new Error('occupied voxel');
   const result = journal.apply({...target,block:'workbench'},journal.revision);
   if (!result.changed) throw new Error('unchanged placement');
   return {
