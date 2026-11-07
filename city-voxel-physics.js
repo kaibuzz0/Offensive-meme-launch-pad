@@ -71,7 +71,7 @@
     }
     if(blocked)break;
     if(axis==='x')state.x=nx;else state.z=nz;
-    if(state.grounded&&climb>0)state.y=floor;
+    // Leaving a raised step or roof starts gravity in this same tick.\n    // Otherwise grounded remains true for one frame and the player hovers\n    // beyond the edge before beginning to fall.\n    if(state.grounded){\n     if(climb>0)state.y=floor;\n     else if(climb<-.01)state.grounded=false;\n    }
     moved=true;
    }
    return moved;
