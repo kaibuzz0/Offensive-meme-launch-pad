@@ -116,3 +116,23 @@ test('crafting rejects removed or replaced workbench records after controller lo
  assert.equal(b.craftTorch(player,site),false);
  assert.equal(store.getItem(a.CRAFT_KEY+'replaced'),null);
 });
+
+test('open tabs observe completed builds and crafting without reload',()=>{
+ const a=api(),store=storage(),first=a.create('live-tabs',store),second=a.create('live-tabs',store);
+ assert.equal(second.placed,null);
+ assert.equal(first.place(true,player,site),true);
+ assert.equal(second.placed.kind,'workbench');
+ assert.equal(second.canPlace(true,player,site),false);
+ assert.equal(first.craftTorch(player,site),true);
+ assert.equal(second.crafted,true);
+ assert.equal(second.craftTorch(player,site),false);
+});
+test('removed or future-version records are not displayed by stale tabs',()=>{
+ const a=api(),store=storage(),first=a.create('live-invalid',store);
+ assert.equal(first.place(true,player,site),true);
+ assert.equal(first.craftTorch(player,site),true);
+ store.setItem(a.KEY+'live-invalid',JSON.stringify({version:2,seed:'live-invalid',kind:'workbench',x:15,z:24}));
+ assert.equal(first.placed,null);
+ assert.equal(first.crafted,false);
+ assert.equal(first.craftTorch(player,site),false);
+});
