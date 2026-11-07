@@ -57,3 +57,11 @@ test('failed occupancy query cannot debit supplies or commit an edit',()=>{
  assert.throws(()=>buildWorkbenchState(before,{...action,isOccupied:()=>Promise.resolve(false)}),/occupied voxel/);
  assert.equal(JSON.stringify(before),snapshot);
 });
+
+test('exhausted safe-integer revision cannot spend resources or wrap journal revision',()=>{
+ const before=original();
+ const exhausted={...before,revision:Number.MAX_SAFE_INTEGER,journal:{...before.journal,revision:Number.MAX_SAFE_INTEGER}};
+ const snapshot=JSON.stringify(exhausted);
+ assert.throws(()=>buildWorkbenchState(exhausted,{...action,expectedRevision:Number.MAX_SAFE_INTEGER}),/revision exhausted/);
+ assert.equal(JSON.stringify(exhausted),snapshot);
+});
