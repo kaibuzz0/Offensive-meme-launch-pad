@@ -168,3 +168,17 @@ test('teleport rejects blocked gate and low-headroom destinations without mutati
   assert.equal(player.teleport(10, 0), true, 'clear destination rejected');
   assert.equal(player.snapshot().x, 10);
 });
+
+
+test('stepping up into a low cave roof is rejected at destination foot elevation', () => {
+  const stepped = {
+    ...world,
+    surfaceAt: (x) => ({height: x >= 2 ? 1 : 0}),
+    caveRoomAt: (x) => x >= 2 ? {floor: 2, ceiling: 9, exposed: false} : null,
+  };
+  const controller = root.CityVoxelPhysics.createController(stepped, {x: 0, z: 0});
+  for (let i = 0; i < 60; i++) controller.tick({right: 1, yaw: 0}, 1 / 60);
+  const position = controller.snapshot();
+  assert.ok(position.x < 1.75, 'stepped player entered a roof with insufficient headroom');
+  assert.equal(position.y, 1);
+});
