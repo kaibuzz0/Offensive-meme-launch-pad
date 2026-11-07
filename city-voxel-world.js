@@ -104,6 +104,9 @@
   lodgePart(-.25,3,6,.3,2,3,lodgeGlow,false); // lit door frame
   lodgePart(0,2,5,.3,1,1,amber,false);
   lodgePart(0,6,5,.3,1,1,amber,false);
+  // Stable source IDs survive chunk clipping and allow renderer/physics consumers
+  // to identify the same structure across unload/reload without coordinates.
+  for(let i=0;i<parts.length;i++)parts[i].id='fortress-part:'+seed+':'+i;
   function foundation(px,pz){
    const t=pz-z;
    if(t< -4||t>54)return null;
