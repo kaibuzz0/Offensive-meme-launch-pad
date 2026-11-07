@@ -136,3 +136,14 @@ test('removed or future-version records are not displayed by stale tabs',()=>{
  assert.equal(first.crafted,false);
  assert.equal(first.craftTorch(player,site),false);
 });
+
+test('malformed or out-of-range road sites never persist invalid workbench coordinates',()=>{
+ const a=api(),store=storage(),b=a.create('bad-road-site',store);
+ for(const invalid of [null,{}, {x:NaN,z:20},{x:Infinity,z:20},
+  {x:10.5,z:20},{x:999999,z:20},{x:10,z:-999999}]){
+  assert.equal(b.place(true,player,invalid),false);
+  assert.equal(store.getItem(a.KEY+'bad-road-site'),null);
+ }
+ assert.equal(b.place(true,player,site),true);
+ assert.equal(a.create('bad-road-site',store).placed.kind,'workbench');
+});
