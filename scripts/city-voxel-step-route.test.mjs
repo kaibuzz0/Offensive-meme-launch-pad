@@ -114,3 +114,39 @@ test('jumping beside the fortress lintel retains normal ascent', () => {
   for (let i = 0; i < 5; i++) player.tick({jump: i === 0}, .05);
   assert.ok(player.snapshot().y > 2.8, 'open sky must not inherit lintel collision');
 });
+
+test('falling onto a solid fortress roof lands on its top without tunneling', () => {
+  const world = {
+    PLAYER_HEIGHT: 7.2, SEA_LEVEL: -100,
+    surfaceAt: () => ({height: 0}),
+    gateRoad: {
+      parts: [{x: -2, z: -2, y: 4, w: 4, d: 4, h: 1, solid: true}],
+      obstructs: () => false
+    }
+  };
+  const player = createController(world, {x: 0, z: 0});
+  player.tick({jump: true}, .05);
+  let landed = false;
+  for (let i = 0; i < 80; i++) {
+    const p = player.tick({}, .05);
+    if (p.grounded && Math.abs(p.y - 5) < 1e-9) {landed = true; break;}
+  }
+  assert.ok(landed, 'player should land on the real solid roof top');
+  for (let i = 0; i < 10; i++) assert.equal(player.tick({}, .05).y, 5);
+});
+
+test('falling beside a fortress roof does not snap onto its top', () => {
+  const world = {
+    PLAYER_HEIGHT: 7.2, SEA_LEVEL: -100,
+    surfaceAt: () => ({height: 0}),
+    gateRoad: {
+      parts: [{x: 3, z: -2, y: 4, w: 4, d: 4, h: 1, solid: true}],
+      obstructs: () => false
+    }
+  };
+  const player = createController(world, {x: 0, z: 0});
+  player.tick({jump: true}, .05);
+  for (let i = 0; i < 80; i++) player.tick({}, .05);
+  assert.equal(player.snapshot().y, 1);
+  assert.equal(player.snapshot().grounded, true);
+});
