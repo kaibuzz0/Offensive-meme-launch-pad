@@ -187,6 +187,24 @@ test('seed-relative starter lodge is rendered in real chunks and its doorway is 
  }
 });
 
+test('clan banner is visible world geometry without obstructing the lodge entrance',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-water']){
+  const w=create(seed),lodge=w.gateRoad.lodge;
+  const banner=w.gateRoad.parts.filter(p=>p.x<lodge.x&&p.x>lodge.x-1&&
+   p.z>=lodge.z+2&&p.z<lodge.z+4&&p.y>=lodge.y+10&&p.y<lodge.y+12);
+  assert.equal(banner.length,2,'crossbeam and insignia exist in the actual world');
+  assert.ok(banner.every(p=>p.solid===false&&typeof p.id==='string'));
+  for(const p of banner){
+   const cx=Math.floor(p.x/16),cz=Math.floor(p.z/16);
+   assert.ok(w.chunkAt(cx,cz).structures.some(s=>s.id===p.id),
+    'banner must be emitted into streamed first-person geometry');
+  }
+  assert.equal(w.gateRoad.obstructs(lodge.x+.2,lodge.y+1,lodge.doorZ+.2,
+   w.PLAYER_HEIGHT||7.2,.25),false,'banner does not obstruct doorway');
+  assert.deepEqual(plain(banner),plain(create(seed).gateRoad.parts.filter(p=>banner.some(b=>b.id===p.id))));
+ }
+});
+
 test('seed-stable part identifiers survive chunk seams and reloads',()=>{
  for(const seed of ['fortress-road','fortress-highlands','fortress-water']){
   const w=create(seed),reload=create(seed);
