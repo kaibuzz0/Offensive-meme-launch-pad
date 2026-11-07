@@ -374,7 +374,9 @@
     const w=Math.min(p.x+p.w,maxX)-x,d=Math.min(p.z+p.d,maxZ)-z;
     if(w<=0||d<=0)continue;
     fragments.push(Object.freeze({...p,x,z,w,d,
-     id:'starter-gate:'+seed+':'+i,structureId:'starter-fortress:'+seed}));
+     id:'starter-gate:'+seed+':'+i,
+     fragmentId:'starter-gate:'+seed+':'+i+':'+cx+':'+cz,
+     structureId:'starter-fortress:'+seed}));
    }
    return fragments;
   }
