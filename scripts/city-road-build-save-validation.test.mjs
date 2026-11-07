@@ -37,3 +37,13 @@ test('rejects invalid journal edit material and duplicate voxel edits', () => {
   a.journal.edits[1].block = '__proto__';
   assert.throws(() => validateBuildRecord(a), /material/);
 });
+
+test('rejects a different or missing voxel scale without rewriting the save', () => {
+  const original = record();
+  const incompatible = { ...original, journal: { ...original.journal, voxelMetres: 1 } };
+  assert.throws(() => validateBuildRecord(incompatible), /voxel scale mismatch/);
+  assert.equal(original.journal.voxelMetres, 0.25);
+  const missing = { ...original, journal: { ...original.journal } };
+  delete missing.journal.voxelMetres;
+  assert.throws(() => validateBuildRecord(missing), /voxel scale mismatch/);
+});
