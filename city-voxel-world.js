@@ -359,8 +359,6 @@
    }
    return null;
   }
-  const traderSite=actorSite(4,2,18,false);
-  const wildlifeSite=actorSite(-8,7,12,true,traderSite);
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
    const tiles=[],plants=[],roads=[];
@@ -394,6 +392,9 @@
   }
   const naturalSpawn=spawnAt();
   gateRoad=buildGateRoad(naturalSpawn,rawColumn,seed);
+  // Actor sites require the initialized road and collision geometry.
+  const traderSite=actorSite(4,2,18,false);
+  const wildlifeSite=actorSite(-8,7,12,true,traderSite);
   cache.clear();
   // Emit each structure fragment in every intersected chunk. Keep the source
   // gateRoad.parts unchanged: collision uses those original world-space boxes.
