@@ -1,3 +1,4 @@
+import { validateBuildRecord } from './city-road-build-save-validation.js';
 // Solo-only durable store for the shared inventory + voxel journal record.
 // One IndexedDB readwrite transaction atomically compares and replaces the record.
 // Multiplayer must use a server-owned transactional database instead.
@@ -43,7 +44,10 @@ export async function openSoloBuildStore(indexedDBFactory = globalThis.indexedDB
     read(key) {
       return transaction('readonly', (store, done, fail) => {
         const req = store.get(key);
-        req.onsuccess = () => done(req.result ?? null);
+        req.onsuccess = () => {
+          try { done(req.result === undefined ? null : validateBuildRecord(req.result)); }
+          catch (error) { fail(error); }
+        };
         req.onerror = () => fail(req.error);
       });
     },
@@ -52,11 +56,13 @@ export async function openSoloBuildStore(indexedDBFactory = globalThis.indexedDB
           !Number.isSafeInteger(expectedRevision) || expectedRevision < 0 ||
           !next || next.revision !== expectedRevision + 1)
         return Promise.reject(new TypeError('invalid atomic building write'));
+      validateBuildRecord(next);
       return transaction('readwrite', (store, done, fail) => {
         const req = store.get(key);
         req.onsuccess = () => {
           const previous = req.result;
           if (!previous || previous.revision !== expectedRevision) { done(false); return; }
+          try { validateBuildRecord(previous); } catch (error) { fail(error); return; }
           // Keep the world identity immutable across an edit.
           if (previous.seed !== next.seed || previous.version !== next.version) {
             fail(new Error('building world identity mismatch')); return;
@@ -74,6 +80,7 @@ export async function openSoloBuildStore(indexedDBFactory = globalThis.indexedDB
           !initial || initial.revision !== 0 || typeof initial.seed !== 'string' ||
           !initial.seed || !initial.journal || !initial.inventory)
         return Promise.reject(new TypeError('invalid initial building record'));
+      validateBuildRecord(initial);
       return transaction('readwrite', (store, done, fail) => {
         const req = store.get(key);
         req.onsuccess = () => {
