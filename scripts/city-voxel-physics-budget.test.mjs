@@ -132,3 +132,20 @@ test('local movement query work stays bounded independently of distant scene pop
   assert.equal(populated.obstructionQueries, empty.obstructionQueries);
   assert.ok(empty.surfaceQueries < 5000, 'unexpectedly high local terrain query count');
 });
+
+
+test('failed teleport outside loaded world preserves player state and collision continuity', () => {
+  const boundedWorld = {
+    ...world,
+    surfaceAt: (x, z) => (Math.abs(x) <= 8 && Math.abs(z) <= 8 ? {height: 0} : null),
+  };
+  const player = root.CityVoxelPhysics.createController(boundedWorld, {x: 0, z: 0});
+  const before = player.snapshot();
+  assert.equal(player.teleport(100, 100), false);
+  assert.deepEqual({...player.snapshot()}, {...before});
+  assert.equal(player.teleport(2, 2), true);
+  assert.equal(player.snapshot().x, 2);
+  assert.equal(player.snapshot().z, 2);
+  player.tick({right: 1, yaw: 0}, 1 / 60);
+  assert.ok(player.snapshot().x > 2, 'movement failed after a rejected teleport');
+});
