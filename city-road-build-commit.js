@@ -2,6 +2,7 @@
 // The adapter must implement atomic CAS (IndexedDB readwrite transaction in Solo,
 // authoritative database transaction in multiplayer). localStorage is NOT an atomic CAS.
 import { buildWorkbenchState } from './city-road-build-transaction.js';
+import { validateBuildRecord } from './city-road-build-save-validation.js';
 
 export async function commitWorkbenchBuild(store, key, action) {
   if (!store || typeof store.read !== 'function' || typeof store.compareAndSwap !== 'function')
@@ -14,8 +15,11 @@ export async function commitWorkbenchBuild(store, key, action) {
   const before = await store.read(key);
   if (!before || before.revision !== action.expectedRevision)
     throw new Error('stale building action');
+  // Reject corrupt snapshots even if a future storage adapter skips read validation.
+  validateBuildRecord(before);
   // The pure reducer validates reach, occupancy, supplies and journal revision.
   const after = buildWorkbenchState(before, action);
+  validateBuildRecord(after);
   // CAS MUST compare the durable record revision and atomically replace the
   // entire record; no separate inventory and journal writes are permitted.
   const committed = await store.compareAndSwap(key, before.revision, after);
