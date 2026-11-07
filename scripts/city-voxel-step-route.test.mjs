@@ -116,16 +116,18 @@ test('jumping beside the fortress lintel retains normal ascent', () => {
 });
 
 test('falling onto a solid fortress roof lands on its top without tunneling', () => {
+  let terrainHeight = 10;
   const world = {
     PLAYER_HEIGHT: 7.2, SEA_LEVEL: -100,
-    surfaceAt: () => ({height: 0}),
+    surfaceAt: () => ({height: terrainHeight}),
     gateRoad: {
       parts: [{x: -2, z: -2, y: 4, w: 4, d: 4, h: 1, solid: true}],
       obstructs: () => false
     }
   };
   const player = createController(world, {x: 0, z: 0});
-  player.tick({jump: true}, .05);
+  terrainHeight = 0;
+  player.tick({}, .05);
   let landed = false;
   for (let i = 0; i < 80; i++) {
     const p = player.tick({}, .05);
@@ -136,16 +138,18 @@ test('falling onto a solid fortress roof lands on its top without tunneling', ()
 });
 
 test('falling beside a fortress roof does not snap onto its top', () => {
+  let terrainHeight = 10;
   const world = {
     PLAYER_HEIGHT: 7.2, SEA_LEVEL: -100,
-    surfaceAt: () => ({height: 0}),
+    surfaceAt: () => ({height: terrainHeight}),
     gateRoad: {
       parts: [{x: 3, z: -2, y: 4, w: 4, d: 4, h: 1, solid: true}],
       obstructs: () => false
     }
   };
   const player = createController(world, {x: 0, z: 0});
-  player.tick({jump: true}, .05);
+  terrainHeight = 0;
+  player.tick({}, .05);
   for (let i = 0; i < 80; i++) player.tick({}, .05);
   assert.equal(player.snapshot().y, 1);
   assert.equal(player.snapshot().grounded, true);
