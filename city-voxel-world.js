@@ -343,8 +343,21 @@
   const naturalSpawn=spawnAt();
   gateRoad=buildGateRoad(naturalSpawn,rawColumn,seed);
   cache.clear();
+  // Emit each structure fragment in every intersected chunk. Keep the source
+  // gateRoad.parts unchanged: collision uses those original world-space boxes.
   function gateParts(cx,cz){
-   return gateRoad.parts.filter(p=>Math.floor(p.x/CHUNK_SIZE)===cx&&Math.floor(p.z/CHUNK_SIZE)===cz);
+   const minX=cx*CHUNK_SIZE,maxX=minX+CHUNK_SIZE;
+   const minZ=cz*CHUNK_SIZE,maxZ=minZ+CHUNK_SIZE;
+   const fragments=[];
+   for(let i=0;i<gateRoad.parts.length;i++){
+    const p=gateRoad.parts[i];
+    const x=Math.max(p.x,minX),z=Math.max(p.z,minZ);
+    const w=Math.min(p.x+p.w,maxX)-x,d=Math.min(p.z+p.d,maxZ)-z;
+    if(w<=0||d<=0)continue;
+    fragments.push(Object.freeze({...p,x,z,w,d,
+     id:'starter-gate:'+seed+':'+i,structureId:'starter-fortress:'+seed}));
+   }
+   return fragments;
   }
   return Object.freeze({seed,atlas,gateRoad,gateParts,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,MIN_HEIGHT,MAX_HEIGHT,
    SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,isWaterAt,featureAt,chunkAt,
