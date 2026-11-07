@@ -153,6 +153,28 @@ try{
  await evalPage('document.getElementById("start-button").click();true');
  await waitFor(()=>evalPage('!document.querySelector("#city-road-canvas").hidden && document.querySelector("#city-voxel-status").dataset.meshWorker==="canvas"'),'first-person rendering with WebGL unavailable',30000);
  assert.equal(await evalPage('document.getElementById("city-compatibility-toggle")?.textContent'),'TRY WEBGL 3D');
+ // The fallback must keep the SAME seed, saved progression and player
+ // position as WebGL. A rendered canvas alone is not gameplay parity.
+ const compatibility=await evalPage(`(()=>{
+  const seed=localStorage.getItem("meme-city-terrain-seed-v1");
+  const position=localStorage.getItem("meme-city-terrain-position-v1:"+seed);
+  return {
+   seed, position:position?JSON.parse(position):null,
+   supplies:localStorage.getItem("meme-city-road-supplies-v1:"+seed),
+   gate:localStorage.getItem("meme-city-gate-seal-v1:"+seed),
+   terrain:document.body.classList.contains("terrain-only-mode"),
+   pickupControl:!!document.getElementById("city-road-supplies"),
+   gateControl:!!document.getElementById("city-gate-seal")
+  };
+ })()`);
+ assert.equal(compatibility.seed,initial.seed,'Canvas fallback must retain the same world seed');
+ assert.deepEqual(compatibility.position,stored.saved,'Canvas fallback must not discard the WebGL position save on boot');
+ assert.equal(compatibility.supplies,'1','Canvas fallback must preserve collected supplies');
+ assert.equal(compatibility.gate,'1','Canvas fallback must preserve fortress gate progress');
+ assert.equal(compatibility.terrain,true,'Canvas fallback must remain in the canonical terrain world');
+ assert.equal(compatibility.pickupControl,true,'Canvas fallback must retain the supply interaction control');
+ assert.equal(compatibility.gateControl,true,'Canvas fallback must retain the gate interaction control');
+
  await waitFor(()=>evalPage('document.getElementById("city-render-hint")?.hidden===true'),'compatibility scene becomes visible',30000);
  assert.equal(await evalPage('!!document.querySelector("a[href*=\\\"render=canvas\\\"]")'),true,'there is an escape route to low graphics before starting');
  assert.equal(await evalPage('document.querySelector("#city-road-canvas").getContext("2d").getImageData(1,1,1,1).data[3]'),255);
