@@ -193,7 +193,9 @@
      state.y=landing;state.vy=0;state.grounded=true;
     }
    }
-   const floor=floorAt(state.x,state.z,state.y);
+   const terrainFloor=floorAt(state.x,state.z,state.y);
+   const roofFloor=roofSupportAt(state.x,state.y,state.z);
+   const floor=terrainFloor===null?null:Math.max(terrainFloor,roofFloor);
    if(floor!==null&&state.y<=floor){state.y=floor;state.vy=0;state.grounded=true;}
    else if(floor!==null&&state.y>floor+.01)state.grounded=false;
    return snapshot();
