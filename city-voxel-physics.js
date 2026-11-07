@@ -120,7 +120,8 @@
    // A stationary player can lose terrain support when the underlying
    // terrain is edited or loaded. Recheck support even without horizontal
    // input; roof contact below is resolved by the downward sweep.
-   if(state.grounded&&Math.max(floorAt(state.x,state.z,state.y)??-Infinity,\n    roofSupportAt(state.x,state.y,state.z))<state.y-.01)
+   if(state.grounded&&Math.max(floorAt(state.x,state.z,state.y)??-Infinity,
+    roofSupportAt(state.x,state.y,state.z))<state.y-.01)
     state.grounded=false;
    if(input?.jump&&state.grounded){state.grounded=false;state.vy=JUMP_SPEED;}
    // Swimming is deliberately opt-in: an explicit water-volume query enables
