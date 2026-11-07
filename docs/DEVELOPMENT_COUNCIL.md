@@ -1,5 +1,16 @@
 # Meme City — 15-workstream development council
 
+> **Architecture update — 2026-11-07 (supersedes conflicting legacy guidance below):** One canonical first-person game, one continuous seeded world, shared rules and versioned save migration. Original Solo and terrain entrypoints remain operational only during verified migration; they are not permanent separate editions. Offline wallet-free Solo and mobile/desktop gameplay parity are mandatory. Integration owner #43 coordinates the canonical entry, saves and PR order; do not redirect legacy URLs until migration and browser tests pass. No blank terrain releases.
+>
+> **Current release ladder:** A: homepage Play, visible fortress/road, touch controls, persistent save and measured runtime; B: enterable lit lodge and persistent gather/build interaction; C: equipment/wardrobe; D: NPC/wildlife encounters. Fix A/B blockers before broad content expansion. Public visual proof is required; green unit tests alone are insufficient.
+>
+> **Living World ownership (#45/#55/#56):** `city-voxel-world.js` remains canonical seeded terrain and spatial queries until #43 approves a replacement. Preserve gate road grade, supply cache, old edits and seed IDs. Consume existing structure/plant IDs; geometry fragments crossing chunk seams retain parent IDs, but collision must use the fragment bounds. Rendered NPC/wildlife must share the active character rig, have bounded per-chunk populations and lower distant update rates. World generation must not overwrite player edits. Coordinate renderer and physics interfaces through #43 before editing their files.
+>
+> **Integration blocker:** Historical lodge PR #81 must be checked against current main and conflicts resolved before assuming its structure/foliage contracts are shipped. Verify a player can walk from the homepage to the lodge, enter its door, interact, save/reload on mobile Chromium and desktop. No automatic merge or deployment claims. #86 separately tracks authoritative position-save replay verification.
+>
+> **Research:** Use the existing #44 shortlist first. New libraries require pinned version/license, attribution, transitive dependencies, bundle impact and WebGL1/PWA compatibility evidence before adoption. Do not duplicate research reports.
+
+
 **Purpose:** Develop one original, expandable, Minecraft-scale *feature set* for Meme City without replacing the existing first-person wilderness or accidentally breaking the original Solo game. This is an independent game, not a Minecraft clone or a plan to use Minecraft code/assets.
 
 **Current baseline:** Original first-person world at `city.html?terrain=1`, 132 named seeded biomes, 0.25m voxels, underground pocket caves, WebGL, Android PWA and a bounded off-thread voxel mesher. Preserve world seeds, save formats, the legacy `city.html` experience and existing tests.
