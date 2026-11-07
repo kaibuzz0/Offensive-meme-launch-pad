@@ -46,7 +46,7 @@ test('rejects mismatched world seed and malformed journal without spending',()=>
  const before=original(), snapshot=JSON.stringify(before);
  const other=createVoxelEditJournal('different-seed').snapshot();
  assert.throws(()=>buildWorkbenchState({...before,journal:other},action),/incompatible voxel edit snapshot/);
- const corrupted={...before,journal:{...before.journal,edits:[{x:0,y:0,z:0,block:'__proto__'}]}};
+ const corrupted={...before,journal:{...before.journal,revision:1,edits:[{x:0,y:0,z:0,block:'__proto__'}]}};
  assert.throws(()=>buildWorkbenchState(corrupted,action),/material/);
  assert.equal(JSON.stringify(before),snapshot);
 });
