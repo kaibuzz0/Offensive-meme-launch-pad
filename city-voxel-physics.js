@@ -7,14 +7,16 @@
 (function(root){
  const GRAVITY=42,JUMP_SPEED=18,MAX_STEP=2.2,RADIUS=.27,SPEED=15;
  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+ // Reuse the same capsule-footprint offsets for floor, cave and roof queries.
+ // Avoid rebuilding offset arrays during every swept movement segment.
+ const FOOTPRINT=Object.freeze([[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]].map(pair=>Object.freeze(pair)));
  function createController(world,start){
   if(!world?.surfaceAt||!Number.isFinite(start?.x)||!Number.isFinite(start?.z))
    throw Error('Voxel world and finite player coordinates required');
   function floorAt(x,z,referenceY=Infinity){
    if(!Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>999900||Math.abs(z)>999900)return null;
-   const samples=[[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]];
    let top=-Infinity;
-   for(const [ox,oz] of samples){
+   for(const [ox,oz] of FOOTPRINT){
     const bx=Math.floor(x+ox),bz=Math.floor(z+oz);
     const col=world.surfaceAt(bx,bz);
     if(!col)return null;
@@ -55,9 +57,8 @@
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
     // solid roof must fit the entire player before entering it laterally.
-    const samples=[[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]];
-    let blocked=false;
-    for(const [ox,oz] of samples){
+     let blocked=false;
+    for(const [ox,oz] of FOOTPRINT){
      const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
      if(gallery&&!gallery.exposed&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
@@ -114,7 +115,7 @@
    // through it. Do not constrain a player already standing on the surface.
    if(state.vy>0&&typeof world.caveRoomAt==='function'){
     let ceiling=Infinity;
-    for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
+    for(const [ox,oz] of FOOTPRINT){
      const gallery=world.caveRoomAt(Math.floor(state.x+ox),Math.floor(state.z+oz));
      if(gallery&&!gallery.exposed&&Number.isFinite(gallery.ceiling)){
       const roof=gallery.ceiling;
