@@ -29,13 +29,34 @@ test('diagonal touch axes do not increase walking speed', () => {
   assert.ok(Math.abs(Math.hypot(b.x, b.z) - Math.hypot(a.x, a.z)) < 1e-9);
 });
 
-test('the controller does not depend on renderer detail or visual LOD', () => {
-  const low = spawn(), high = spawn();
-  const input = {forward: 1, right: .2, yaw: .3};
-  for (let i = 0; i < 60; i++) {
-    const a = low.tick(input, 1 / 60);
-    const b = high.tick(input, 1 / 60);
-    assert.deepEqual({...a}, {...b});
+test('automatic visual-detail changes do not alter shared world collision or player trajectory', () => {
+  // Distinct render budgets must never create distinct gameplay geometry.
+  // Use a real obstruction callback and terrain rise, not two controllers
+  // referencing the same unchanged world as the previous test did.
+  const makeWorld = (detail) => ({
+    ...world,
+    visualDetail: detail,
+    renderDistance: detail === 'minimal' ? 2 : 24,
+    surfaceAt: (x, z) => ({height: x >= 3 ? 1 : 0}),
+    gateRoad: {
+      obstructs: (x, y, z, height, radius) =>
+        x + radius >= 1.5 && x - radius <= 1.75 && Math.abs(z) > .65,
+    },
+  });
+  const low = root.CityVoxelPhysics.createController(makeWorld('minimal'), {x: 0, z: 0});
+  const high = root.CityVoxelPhysics.createController(makeWorld('full'), {x: 0, z: 0});
+  const inputs = [
+    {right: 1, yaw: 0},
+    {forward: 1, right: 1, yaw: 0},
+    {forward: 1, yaw: Math.PI / 2, jump: true},
+    {right: -1, yaw: 0},
+  ];
+  for (const input of inputs) {
+    for (let i = 0; i < 30; i++) {
+      const a = low.tick(input, 1 / 60);
+      const b = high.tick(input, 1 / 60);
+      assert.deepEqual({...a}, {...b}, 'render budget changed gameplay physics');
+    }
   }
 });
 
