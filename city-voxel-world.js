@@ -347,6 +347,13 @@
     if(!ground||ground.water||ground.mouth||ground.slope>maxSlope||
        (avoidRoad&&(ground.road||gateRoad.foundation(x,z))))continue;
     if(Math.abs(ground.height-referenceHeight)>3)continue;
+    // Avoid spawning actors inside tall biome foliage. Sample the same
+    // deterministic vegetation contract consumed by streamed chunks.
+    // Short grass and flowers remain valid underfoot.
+    if([[0,0],[1,0],[0,1],[1,1]].some(([fx,fz])=>{
+     const vegetation=featureAt(x+fx,z+fz);
+     return vegetation&&vegetation.height>=6;
+    }))continue;
     // Shared physics uses the original fortress boxes, not streamed mesh fragments.
     // Do not seed a character inside a solid tower, wall or gate post.
     // Check the full standing footprint against fortress collision, not only
