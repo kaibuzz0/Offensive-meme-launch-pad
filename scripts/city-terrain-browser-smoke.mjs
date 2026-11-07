@@ -41,7 +41,10 @@ async function captureFrame(name){
  await writeFile(filename,png);
  const metadata=await evalPage('(()=>({url:location.href,seed:localStorage.getItem("meme-city-terrain-seed-v1"),viewport:{width:innerWidth,height:innerHeight,devicePixelRatio:devicePixelRatio},renderer:document.getElementById("city-voxel-status")?.dataset.meshWorker??null,gpuBytes:Number(document.getElementById("city-voxel-status")?.dataset.gpuBytes)||0,savedPosition:localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))}))()');
  const artifact={name,path:filename,sha256:createHash('sha256').update(png).digest('hex'),pngBytes:png.length,physicalAndroid:false,...metadata};
- await writeFile(path.join(directory,name+'.json'),JSON.stringify(artifact,null,2)+'\n');
+ const metadataPath=path.join(directory,name+'.json');
+ await writeFile(metadataPath,JSON.stringify(artifact,null,2)+'\n');
+ const restored=JSON.parse(await readFile(metadataPath,'utf8'));
+ assert.equal(restored.sha256,artifact.sha256,'captured screenshot metadata must round-trip as JSON');
  console.log('MOBILE_CHROMIUM_SCREENSHOT '+JSON.stringify(artifact));
  return filename;
 }
