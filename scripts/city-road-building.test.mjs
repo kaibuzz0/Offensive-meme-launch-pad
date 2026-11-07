@@ -92,3 +92,16 @@ test('two open tabs cannot duplicate a torch or overwrite a stale crafting recor
  assert.equal(third.craftTorch(player,site),false);
  assert.equal(store.getItem(a.CRAFT_KEY+'other-seed'),'unsupported-future-version');
 });
+
+test('stale tabs cannot overwrite a workbench and future saves are preserved',()=>{
+ const a=api(),store=storage();
+ const first=a.create('shared',store),stale=a.create('shared',store);
+ assert.equal(first.place(true,player,site),true);
+ const original=store.getItem(a.KEY+'shared');
+ assert.equal(stale.place(true,player,{x:20,z:30}),false);
+ assert.equal(store.getItem(a.KEY+'shared'),original);
+ const future=a.create('future',store);
+ store.setItem(a.KEY+'future',JSON.stringify({version:2,seed:'future',kind:'workbench',x:2,z:3}));
+ assert.equal(future.place(true,player,site),false);
+ assert.equal(JSON.parse(store.getItem(a.KEY+'future')).version,2);
+});
