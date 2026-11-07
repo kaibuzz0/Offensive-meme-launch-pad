@@ -4,7 +4,7 @@ import {createVoxelEditJournal} from '../city-sandbox-mining.js';
 import {buildWorkbenchState} from '../city-road-build-transaction.js';
 const seed='fortress-seed';
 const original=()=>({version:1,seed,revision:0,inventory:{supplies:8},journal:createVoxelEditJournal(seed).snapshot()});
-const action={kind:'place-workbench',expectedRevision:0,player:{x:15,z:24},position:{x:15,z:24},groundHeight:10};
+const action={kind:'place-workbench',expectedRevision:0,player:{x:15,z:24},position:{x:15,z:24},groundHeight:10,isOccupied:()=>false};
 test('one transition debits supplies and writes persistent voxel',()=>{
  const before=original(),after=buildWorkbenchState(before,action);
  assert.equal(before.inventory.supplies,8);
@@ -19,5 +19,13 @@ test('invalid reach, insufficient resources and occupied voxels leave input unto
  assert.throws(()=>buildWorkbenchState({...before,inventory:{supplies:7}},action),/insufficient/);
  const occupied=createVoxelEditJournal(seed);occupied.apply({x:60,y:41,z:96,block:'stone'});
  assert.throws(()=>buildWorkbenchState({...before,journal:occupied.snapshot()},action),/occupied/);
+ assert.equal(JSON.stringify(before),snapshot);
+});
+
+test('generated terrain occupancy must be queried and empty before spending',()=>{
+ const before=original(), snapshot=JSON.stringify(before);
+ assert.throws(()=>buildWorkbenchState(before,{...action,isOccupied:undefined}),/occupancy query required/);
+ assert.throws(()=>buildWorkbenchState(before,{...action,isOccupied:()=>true}),/occupied voxel/);
+ assert.throws(()=>buildWorkbenchState(before,{...action,isOccupied:()=>undefined}),/occupied voxel/);
  assert.equal(JSON.stringify(before),snapshot);
 });
