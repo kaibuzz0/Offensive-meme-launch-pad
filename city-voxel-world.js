@@ -356,6 +356,22 @@
       homeId:'starter-fortress:'+seed,behavior:'idle-trade'}));
     }
    }
+   // A single low-cost wildlife descriptor shares the same chunk ownership and
+   // seed-stable activation path as the trader. No distant actor is simulated here.
+   // This is declarative population data; the common actor renderer/AI owns motion.
+   const animalX=gateRoad.supplies.x-8,animalZ=gateRoad.supplies.z+7;
+   if(Math.floor(animalX/CHUNK_SIZE)===cx&&Math.floor(animalZ/CHUNK_SIZE)===cz){
+    const ground=surfaceAt(animalX,animalZ);
+    if(ground&&!ground.water&&!ground.mouth&&!ground.road&&ground.slope<=12){
+     const species=ground.group==='desert'||ground.group==='salt'?'lizard':
+      ground.group==='tundra'||ground.group==='alpine'?'hare':'deer';
+     npc.push(Object.freeze({id:'starter-wildlife:'+seed,kind:'wildlife',
+      species,role:'forager',faction:'wild',rig:'shared-creature',
+      x:animalX,z:animalZ,y:ground.height+1,
+      heading:random(plantSeed,animalX,animalZ)*Math.PI*2,
+      homeId:'starter-fortress:'+seed,behavior:'graze-flee'}));
+    }
+   }
    return Object.freeze({cx,cz,seed,tiles:Object.freeze(tiles),plants:Object.freeze(plants),
     structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze(npc),roads:Object.freeze(roads)});
   }
