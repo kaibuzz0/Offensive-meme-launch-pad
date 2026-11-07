@@ -25,6 +25,10 @@
     if(!saved||crafted||!position||!Number.isFinite(position.x)||!Number.isFinite(position.z)||
        Math.hypot(position.x-saved.x,position.z-saved.z)>=10)return false;
     try{
+     // A second open tab may have crafted since this controller was created.
+     // Never silently replace an existing or malformed crafting record.
+     const current=storage.getItem(CRAFT_KEY+seed);
+     if(current!==null)return false;
      storage.setItem(CRAFT_KEY+seed,'torch-1');
      if(storage.getItem(CRAFT_KEY+seed)!=='torch-1')return false;
     }catch{return false;}
