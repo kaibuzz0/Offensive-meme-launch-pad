@@ -307,3 +307,27 @@ test('lodge footprint and entrance remain free of regenerated foliage across chu
    'outside the clearing, biome vegetation remains seed-stable');
  }
 });
+
+
+test('streamed landmark pieces retain parent structure IDs across seams',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-water']){
+  const w=create(seed),road=w.gateRoad;
+  const ids=new Set(road.parts.map(p=>p.id));
+  assert.equal(ids.size,road.parts.length);
+  const fortressId='starter-fortress:'+w.seed;
+  assert.ok(road.parts.some(p=>p.structureId===fortressId));
+  assert.ok(road.parts.some(p=>p.structureId===road.lodge.id));
+  for(const original of road.parts){
+   assert.ok([fortressId,road.lodge.id].includes(original.structureId));
+   const cx=Math.floor(original.x/16),cz=Math.floor(original.z/16);
+   const clipped=w.chunkAt(cx,cz).structures.find(p=>p.id===original.id);
+   assert.ok(clipped,'part exists in streamed chunk');
+   assert.equal(clipped.structureId,original.structureId);
+   const farX=Math.floor((original.x+original.w-1e-9)/16);
+   const farZ=Math.floor((original.z+original.d-1e-9)/16);
+   const far=w.chunkAt(farX,farZ).structures.find(p=>p.id===original.id);
+   assert.equal(far?.structureId,original.structureId,'landmark ownership survives clipping');
+  }
+  assert.deepEqual(plain(road.parts),plain(create(seed).gateRoad.parts));
+ }
+});
