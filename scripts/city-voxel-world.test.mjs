@@ -290,11 +290,17 @@ test('Fortress Road roadside vegetation respects biome and remains seed-stable',
 test('lodge footprint and entrance remain free of regenerated foliage across chunk seams',()=>{
  for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
   const world=create(seed),again=create(seed),lodge=world.gateRoad.lodge;
+  const chunks=new Set();
   for(let z=lodge.z-2;z<=lodge.z+9;z++)for(let x=lodge.x-3;x<=lodge.x+10;x++){
    assert.equal(world.featureAt(x,z),null,'foliage must not block lodge approach');
-   const chunk=world.chunkAt(Math.floor(x/16),Math.floor(z/16));
-   assert.ok(!chunk.plants.some(p=>p.x===x&&p.z===z),'chunk streaming must respect clearing');
    assert.equal(again.featureAt(x,z),null,'clearing must be deterministic on reload');
+   chunks.add(Math.floor(x/16)+','+Math.floor(z/16));
+  }
+  for(const key of chunks){
+   const [cx,cz]=key.split(',').map(Number);
+   const chunk=world.chunkAt(cx,cz);
+   assert.ok(!chunk.plants.some(p=>p.x>=lodge.x-3&&p.x<=lodge.x+10&&
+    p.z>=lodge.z-2&&p.z<=lodge.z+9),'chunk streaming must respect clearing');
   }
   const outside=world.featureAt(lodge.x+11,lodge.z+10);
   assert.deepEqual(plain(outside),plain(again.featureAt(lodge.x+11,lodge.z+10)),
