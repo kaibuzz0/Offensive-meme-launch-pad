@@ -187,6 +187,23 @@ test('seed-relative starter lodge is rendered in real chunks and its doorway is 
  }
 });
 
+test('seed-stable part identifiers survive chunk seams and reloads',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-water']){
+  const w=create(seed),reload=create(seed);
+  const parts=w.gateRoad.parts;
+  assert.equal(new Set(parts.map(p=>p.id)).size,parts.length,'every original part has a unique ID');
+  assert.deepEqual(parts.map(p=>p.id),reload.gateRoad.parts.map(p=>p.id));
+  for(const p of parts){
+   const cx=Math.floor(p.x/16),cz=Math.floor(p.z/16);
+   assert.ok(w.chunkAt(cx,cz).structures.some(piece=>piece.id===p.id));
+   assert.ok(reload.chunkAt(cx,cz).structures.some(piece=>piece.id===p.id));
+   const farX=Math.floor((p.x+p.w-1e-9)/16),farZ=Math.floor((p.z+p.d-1e-9)/16);
+   assert.ok(w.chunkAt(farX,farZ).structures.some(piece=>piece.id===p.id),
+    'the same identity is present in every intersecting chunk');
+  }
+ }
+});
+
 test('fortress and lodge cuboids are clipped across chunk seams without gaps or duplicate area',()=>{
  for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
   const w=create(seed);
