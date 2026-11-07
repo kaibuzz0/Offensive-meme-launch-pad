@@ -49,3 +49,24 @@ test('invalid placement never invokes durable write', async () => {
 test('non-atomic adapters are rejected', async () => {
   await assert.rejects(commitWorkbenchBuild({read: async () => fresh()}, 'world:fortress', action), /atomic building store required/);
 });
+
+test('corrupt stored journal is rejected before the CAS write', async () => {
+  const broken = fresh();
+  broken.journal.worldSeed = 'wrong-world';
+  const db = store(broken);
+  let writes = 0;
+  db.compareAndSwap = async () => { writes++; return true; };
+  await assert.rejects(commitWorkbenchBuild(db, 'world:fortress', action), /incompatible voxel edit snapshot/);
+  assert.equal(writes, 0);
+  assert.deepEqual(await db.read(), broken);
+});
+
+test('adapter cannot bypass validation with inconsistent resource record', async () => {
+  const broken = fresh();
+  broken.inventory.supplies = -1;
+  const db = store(broken);
+  let writes = 0;
+  db.compareAndSwap = async () => { writes++; return true; };
+  await assert.rejects(commitWorkbenchBuild(db, 'world:fortress', action), /invalid durable building record/);
+  assert.equal(writes, 0);
+});
