@@ -135,6 +135,21 @@
     }
     if(ceiling<Infinity){state.y=ceiling-world.PLAYER_HEIGHT;state.vy=0;}
    }
+   // Sweep the rising capsule head against the underside of real fortress
+   // geometry. Horizontal collision alone misses a thin gate lintel when a
+   // jump crosses it entirely between two fixed physics updates.
+   if(state.vy>0&&Array.isArray(world.gateRoad?.parts)){
+    const height=world.PLAYER_HEIGHT;
+    for(const p of world.gateRoad.parts){
+     if(!p.solid||!Number.isFinite(p.y)||!Number.isFinite(p.h))continue;
+     if(state.x+RADIUS<=p.x||state.x-RADIUS>=p.x+p.w||
+        state.z+RADIUS<=p.z||state.z-RADIUS>=p.z+p.d)continue;
+     if(previousY+height<=p.y&&state.y+height>p.y&&state.y<p.y+p.h){
+      state.y=p.y-height;
+      state.vy=0;
+     }
+    }
+   }
    const floor=floorAt(state.x,state.z,state.y);
    if(floor!==null&&state.y<=floor){state.y=floor;state.vy=0;state.grounded=true;}
    else if(floor!==null&&state.y>floor+.01)state.grounded=false;
