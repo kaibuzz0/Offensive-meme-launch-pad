@@ -333,12 +333,23 @@
  function setLookStick(e){
   const r=lookPad.getBoundingClientRect(),rx=e.clientX-(r.left+r.width/2),ry=e.clientY-(r.top+r.height/2);
   const radius=Math.max(15,Math.min(r.width,r.height)*.33),dist=Math.max(radius,Math.hypot(rx,ry));
+  const oldX=lookStick.x,oldY=lookStick.y;
   lookStick.x=rx/dist;lookStick.y=ry/dist;
   lookKnob.style.transform='translate('+Math.round(lookStick.x*radius)+'px,'+Math.round(lookStick.y*radius)+'px)';
+  // Apply the change in deflection immediately, even if drawing the terrain
+  // delays the next animation frame. Holding the stick still continues to
+  // turn smoothly through frame(), independently of movement.
+  if(running&&!paused&&firstPerson&&!atlas){
+   player.yaw+=(lookStick.x-oldX)*.06;
+   player.pitch=Math.max(-1.32,Math.min(1.32,player.pitch-(lookStick.y-oldY)*.05));
+   status.dataset.lookYaw=String(player.yaw);
+   status.dataset.lookPitch=String(player.pitch);
+  }
  }
  function releaseLook(e){
   if(e.pointerId!==lookPointerId)return;
   lookPointerId=null;lookStick.x=lookStick.y=0;lookKnob.style.transform='';
+  savePosition();
  }
  lookPad.addEventListener('pointerdown',e=>{
   if(!running||paused||!firstPerson||atlas||lookPointerId!==null)return;
