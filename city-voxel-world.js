@@ -343,6 +343,16 @@
     if(!ground||ground.water||ground.mouth||ground.slope>maxSlope||
        (avoidRoad&&(ground.road||gateRoad.foundation(x,z))))continue;
     if(Math.abs(ground.height-surfaceAt(ax,az).height)>3)continue;
+    // Shared physics uses the original fortress boxes, not streamed mesh fragments.
+    // Do not seed a character inside a solid tower, wall or gate post.
+    if(gateRoad.obstructs(x+.5,ground.height+1,z+.5,PLAYER_HEIGHT,.65))continue;
+    // A standing actor needs a stable 2x2 footprint, not merely one dry tile.
+    const footprint=[[1,0],[0,1],[1,1]].every(([ox2,oz2])=>{
+     const neighbor=surfaceAt(x+ox2,z+oz2);
+     return neighbor&&!neighbor.water&&!neighbor.mouth&&
+      Math.abs(neighbor.height-ground.height)<=2;
+    });
+    if(!footprint)continue;
     return Object.freeze({x,z,y:ground.height+1,group:ground.group});
    }
    return null;
