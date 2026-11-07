@@ -375,7 +375,7 @@
      const tile=surfaceAt(x,z),plant=featureAt(x,z);
      tiles.push(tile);
      if(tile.road)roads.push(tile);
-     if(plant)plants.push(Object.freeze({x,z,y:tile.height+1,...plant}));
+     if(plant)plants.push(Object.freeze({id:'plant:'+seed+':'+x+':'+z,x,z,y:tile.height+1,...plant}));
     }
    return Object.freeze({cx,cz,seed,tiles:Object.freeze(tiles),plants:Object.freeze(plants),
     structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze([]),roads:Object.freeze(roads)});
