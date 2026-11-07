@@ -16,12 +16,26 @@
       Math.abs(raw.x)<1000000&&Math.abs(raw.z)<1000000)saved=Object.freeze({...raw});
   }catch{}
   let crafted=false;
-  try { crafted=storage.getItem(CRAFT_KEY+seed)==='torch-1' && !!saved; } catch {}
+  function refresh(){
+   // Read through shared localStorage so another open tab's completed build
+   // becomes visible without reloading. Reject malformed/future saves.
+   try{
+    const raw=storage.getItem(key);
+    const record=raw===null?null:JSON.parse(raw);
+    saved=record&&record.version===VERSION&&record.seed===seed&&
+     record.kind==='workbench'&&Number.isSafeInteger(record.x)&&
+     Number.isSafeInteger(record.z)&&Math.abs(record.x)<1000000&&
+     Math.abs(record.z)<1000000?Object.freeze({...record}):null;
+    crafted=!!saved&&storage.getItem(CRAFT_KEY+seed)==='torch-1';
+   }catch{saved=null;crafted=false;}
+  }
+  refresh();
   return Object.freeze({
-   get crafted(){return crafted;},
+   get crafted(){refresh();return crafted;},
    craftTorch(position,site){
     // Crafting happens at the actual saved workbench, not the supply cache.
     // This matters when the cache and workbench are several voxels apart.
+    refresh();
     if(!saved||crafted||!position||!Number.isFinite(position.x)||!Number.isFinite(position.z)||
        Math.hypot(position.x-saved.x,position.z-saved.z)>=10)return false;
     try{
@@ -38,8 +52,9 @@
     }catch{return false;}
     crafted=true;return true;
    },
-   get placed(){return saved;},
+   get placed(){refresh();return saved;},
    canPlace(suppliesClaimed,position,site){
+    refresh();
     return !saved&&suppliesClaimed&&position&&site&&
      Number.isFinite(position.x)&&Number.isFinite(position.z)&&
      Math.hypot(position.x-site.x,position.z-site.z)<10;
