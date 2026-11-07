@@ -1,0 +1,26 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+
+const context={};
+vm.runInNewContext(readFileSync(new URL('../city-voxel-renderer.js',import.meta.url),'utf8'),context);
+const mesh=context.CityVoxelRenderer.generateMesh;
+const world=(height)=>({
+  chunkAt:()=>({tiles:[],plants:[{x:8,y:12,z:8,type:'pine',height,color:.4}]}),
+  surfaceAt:()=>null
+});
+test('canopy shadow casts opposite the shader sun and stays one quad',()=>{
+  const data=mesh(world(),0,0).data;
+  assert.equal(data.length%9,0);
+  // First six vertices are the ground shadow, before foliage geometry.
+  const xs=[],zs=[];
+  for(let i=0;i<6;i++){xs.push(data[i*9]);zs.push(data[i*9+2]);}
+  assert.ok(Math.min(...xs)<7.65,'sun-facing shadow shifts west');
+  assert.ok(Math.min(...zs)<7.65,'sun-facing shadow shifts north');
+  assert.equal(new Set(xs).size,2);
+  assert.equal(new Set(zs).size,2);
+});
+test('tree shadow coordinates are deterministic',()=>{
+  assert.deepEqual(Array.from(mesh(world(),0,0).data),Array.from(mesh(world(),0,0).data));
+});
