@@ -105,3 +105,14 @@ test('stale tabs cannot overwrite a workbench and future saves are preserved',()
  assert.equal(future.place(true,player,site),false);
  assert.equal(JSON.parse(store.getItem(a.KEY+'future')).version,2);
 });
+
+test('crafting rejects removed or replaced workbench records after controller load',()=>{
+ const a=api(),store=storage(),b=a.create('replaced',store);
+ assert.equal(b.place(true,player,site),true);
+ store.setItem(a.KEY+'replaced',JSON.stringify({version:2,seed:'replaced',kind:'workbench',x:15,z:24}));
+ assert.equal(b.craftTorch(player,site),false);
+ assert.equal(store.getItem(a.CRAFT_KEY+'replaced'),null);
+ store.setItem(a.KEY+'replaced',JSON.stringify({version:1,seed:'replaced',kind:'workbench',x:16,z:24}));
+ assert.equal(b.craftTorch(player,site),false);
+ assert.equal(store.getItem(a.CRAFT_KEY+'replaced'),null);
+});
