@@ -259,6 +259,9 @@ test('seeded actors have safe standing footprints and never intersect fortress c
       const ground=w.surfaceAt(actor.x,actor.z);
       assert.equal(actor.y,ground.height+1);
       assert.equal(gate.obstructs(actor.x+.5,actor.y,actor.z+.5,w.PLAYER_HEIGHT,.65),false);
+      for(const [fx,fz] of [[.25,.25],[.75,.25],[.25,.75],[.75,.75]])
+       assert.equal(gate.obstructs(actor.x+fx,actor.y,actor.z+fz,w.PLAYER_HEIGHT,.35),false,
+        'spawn footprint must not clip fortress collision');
       for(const [dx,dz] of [[1,0],[0,1],[1,1]]){
        const neighbor=w.surfaceAt(actor.x+dx,actor.z+dz);
        assert.ok(!neighbor.water&&!neighbor.mouth);
