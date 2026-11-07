@@ -265,9 +265,13 @@
   }
   for(const plant of chunk.plants){
    if(['pine','palm','tree'].includes(plant.type)){
+    // Cast a canopy footprint away from the same fixed sun used by the
+    // terrain shader. One quad per tree, preserving the existing mesh budget.
     const {x,z,y}=plant,shadow=[.13,.19,.13];
-    quad(data,[x-.35,y+.012,z-.35],[x+1.35,y+.012,z-.35],
-      [x+1.35,y+.012,z+1.35],[x-.35,y+.012,z+1.35],shadow,[0,1,0]);
+    const reach=Math.min(2.5,Math.max(0,plant.height||0)*.18);
+    const dx=-reach*.40,dz=-reach*.22;
+    quad(data,[x-.35+dx,y+.012,z-.35+dz],[x+1.35+dx,y+.012,z-.35+dz],
+      [x+1.35+dx,y+.012,z+1.35+dz],[x-.35+dx,y+.012,z+1.35+dz],shadow,[0,1,0]);
    }
    foliage(data,plant);
   }
