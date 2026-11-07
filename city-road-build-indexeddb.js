@@ -84,7 +84,17 @@ export async function openSoloBuildStore(indexedDBFactory = globalThis.indexedDB
       return transaction('readwrite', (store, done, fail) => {
         const req = store.get(key);
         req.onsuccess = () => {
-          if (req.result !== undefined) { done(false); return; }
+          if (req.result !== undefined) {
+            // Existing data is authoritative. Never silently accept corruption
+            // or bind this record key to another world on a repeat initialize.
+            try {
+              const existing = validateBuildRecord(req.result);
+              if (existing.seed !== initial.seed || existing.version !== initial.version)
+                throw new Error('building initialization world identity mismatch');
+              done(false);
+            } catch (error) { fail(error); }
+            return;
+          }
           const add = store.add(initial, key);
           add.onsuccess = () => done(true);
           add.onerror = () => fail(add.error);
