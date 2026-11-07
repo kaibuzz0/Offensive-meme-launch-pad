@@ -133,10 +133,17 @@ try{
  // asserted below. The separate position-replay test needs repair before
  // it can reliably distinguish rendering stalls from physics movement.
  if(view.gl)await evalPage('window.dispatchEvent(new Event("pagehide"));true');
+ // Capture the actual serialized position immediately before navigation.
+ // This checks storage durability without mistaking stale HUD coordinates
+ // for authoritative movement (tracked separately in issue #86).
+ const savedBeforeReload=await evalPage('localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))');
+ assert.ok(savedBeforeReload,'position snapshot exists before reload');
+ assert.doesNotThrow(()=>JSON.parse(savedBeforeReload),'position snapshot is valid JSON');
  await request('Page.reload',{ignoreCache:true});
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'reload terrain mode');
  const stored=await evalPage('(()=>({seed:localStorage.getItem("meme-city-terrain-seed-v1"),saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))),original:localStorage.getItem("offensive-meme-city-v1-center")}))()');
  assert.equal(stored.seed,initial.seed);
+ assert.deepEqual(stored.saved,JSON.parse(savedBeforeReload),'serialized position survives page reload without mutation');
 
  if(view.gl)assert.equal(await evalPage('localStorage.getItem("meme-city-gate-seal-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
  assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1','roadside supplies persist across reload');
