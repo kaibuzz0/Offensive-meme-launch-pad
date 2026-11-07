@@ -95,7 +95,8 @@ try{
  assert.equal(mobile.left&&mobile.right&&mobile.jump&&mobile.use&&mobile.land,true,'landscape must expose both sticks and action buttons');
  assert.equal(mobile.lookVisible&&mobile.leftVisible,true,'landscape sticks must be visibly rendered');
  assert.ok(Math.abs(mobile.height-mobile.screen)<5,'landscape game should fill available viewport height');
- const firstYaw=await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)');
+ const firstYaw=await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw || "0")');
+ assert.ok(Number.isFinite(firstYaw),'look control must have a numeric initial yaw');
  await evalPage(`(()=>{
   const left=document.getElementById("joystick"),right=document.getElementById("city-look-pad");
   const a=left.getBoundingClientRect(),b=right.getBoundingClientRect();
