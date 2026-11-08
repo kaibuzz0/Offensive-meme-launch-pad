@@ -19,6 +19,14 @@ export function buildWorkbenchState(state, action) {
       Math.hypot(action.player.x-action.position.x,action.player.z-action.position.z) >= 10)
     throw new Error('workbench out of reach');
   const target = roadWorkbenchVoxel(action.position,action.groundHeight);
+  // When a 3D player pose is supplied, enforce vertical reach as well as the
+  // horizontal roadside check. A server must derive this pose itself.
+  if (action.player.y !== undefined &&
+      (!Number.isFinite(action.player.y) ||
+       Math.hypot(action.player.x - action.position.x,
+                  action.player.y - (target.y + 0.5) * 0.25,
+                  action.player.z - action.position.z) >= 10))
+    throw new Error('workbench out of reach');
   const journal = createVoxelEditJournal(state.seed,state.journal);
   // Never spend against a snapshot from a different transaction revision.
   if (journal.revision !== state.revision) throw new Error('building/journal revision mismatch');
