@@ -281,6 +281,9 @@
   }
   function featureAt(x,z){
    if(gateRoad){
+    // Structures own their footprint. Check before decorative road planting:
+    // otherwise roadside trees can appear inside lodge walls or doorways.
+    if(gateRoad.foundation(x,z))return null;
     const t=z-gateRoad.z;
     if(t>=4&&t<=28&&(t-4)%8===0&&Math.abs(x-gateRoad.x)===8){
      const ground=surfaceAt(x,z);
@@ -291,7 +294,6 @@
       return Object.freeze({type,height:13+(t%5),color:.4});
      }
     }
-    if(gateRoad.foundation(x,z))return null;
    }
    const c=surfaceAt(x,z);if(!c||c.water||c.mouth||c.slope>18||c.river&&c.height<SEA_LEVEL+2)return null;
    const r=random(plantSeed,x,z),r2=random(plantSeed^0x91a3,x,z);
