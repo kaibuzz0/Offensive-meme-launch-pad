@@ -110,7 +110,7 @@ test('three-dimensional reach uses the snapped voxel center and rejects invalid 
 test('snapped placement boundary cannot extend the permitted interaction radius',()=>{
  const before=original(), snapshot=JSON.stringify(before);
  // Raw x is just inside the 10m radius, but its voxel center is outside.
- const attempt={...action,player:{x:5.13,z:24.125},position:{x:15.12,z:24.125}};
+ const attempt={...action,player:{x:5.01,z:24.125},position:{x:15.001,z:24.125}};
  assert.ok(Math.hypot(attempt.player.x-attempt.position.x,attempt.player.z-attempt.position.z)<10);
  assert.throws(()=>buildWorkbenchState(before,attempt),/reach/);
  assert.equal(JSON.stringify(before),snapshot);
