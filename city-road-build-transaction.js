@@ -37,7 +37,11 @@ export function buildWorkbenchState(state, action) {
   // Journal.has only detects player edits; generated terrain must be checked too.
   // A caller without a canonical occupancy query must not place blindly.
   if (typeof action.isOccupied !== 'function') throw new Error('world occupancy query required');
-  if (journal.has(target.x,target.y,target.z) || action.isOccupied(target.x,target.y,target.z) !== false)
+  // An explicit mined-air edit is empty, not an occupied block. The canonical
+  // occupancy query must still confirm the effective world cell is empty.
+  // Never treat an unedited cell as air without consulting generated terrain.
+  if ((journal.has(target.x,target.y,target.z) && journal.get(target.x,target.y,target.z) !== null) ||
+      action.isOccupied(target.x,target.y,target.z) !== false)
     throw new Error('occupied voxel');
   const result = journal.apply({...target,block:'workbench'},journal.revision);
   if (!result.changed) throw new Error('unchanged placement');
