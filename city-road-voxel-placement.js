@@ -5,7 +5,8 @@ import { VOXEL_METRES } from './city-sandbox-mining.js';
 
 const MAX_VOXEL = 2_000_000;
 function index(metres) {
-  if (!Number.isFinite(metres)) throw new RangeError('non-finite world position');
+  if (typeof metres !== 'number' || !Number.isFinite(metres))
+    throw new RangeError('invalid numeric world position');
   const value = Math.floor(metres / VOXEL_METRES);
   if (!Number.isSafeInteger(value) || Math.abs(value) > MAX_VOXEL)
     throw new RangeError('world position exceeds journal bounds');
