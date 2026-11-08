@@ -280,6 +280,11 @@ test('seeded actors have safe standing footprints and never intersect fortress c
       for(const [dx,dz] of [[1,0],[0,1],[1,1]]){
        const neighbor=w.surfaceAt(actor.x+dx,actor.z+dz);
        assert.ok(!neighbor.water&&!neighbor.mouth);
+       if(actor.kind==='wildlife'){
+        assert.equal(Boolean(neighbor.road),false,'wildlife footprint must avoid road tiles');
+        assert.equal(Boolean(gate.foundation(actor.x+dx,actor.z+dz)),false,
+         'wildlife footprint must avoid the graded road foundation');
+       }
        assert.ok(Math.abs(neighbor.height-ground.height)<=2);
       }
      }
