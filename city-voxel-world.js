@@ -397,9 +397,13 @@
   }
   function actorsNear(x,z,radius){
    if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0)return EMPTY_ACTORS;
-   const result=[];
-   for(const actor of starterActors)
-    if(Math.hypot(actor.x-x,actor.z-z)<=radius)result.push(actor);
+   // Compare squared distances to avoid a square root on every activation query.
+   // Infinite squared radii (from finite but very large inputs) still mean all actors.
+   const radiusSquared=radius*radius,result=[];
+   for(const actor of starterActors){
+    const dx=actor.x-x,dz=actor.z-z;
+    if(dx*dx+dz*dz<=radiusSquared)result.push(actor);
+   }
    return result.length?Object.freeze(result):EMPTY_ACTORS;
   }
   function chunkAt(cx,cz){
