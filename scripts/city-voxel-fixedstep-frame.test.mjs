@@ -55,3 +55,22 @@ test('frame telemetry reports simulated steps and bounded discarded stall time',
  assert.equal(paused.simulatedSeconds,0);
  assert.equal(paused.droppedSeconds,0);
 });
+
+
+test('per-frame spatial query telemetry is bounded to the simulated work',()=>{
+ const c=create();
+ const idle=c.tickFrame({},0);
+ assert.equal(idle.surfaceQueries,0);
+ assert.equal(idle.caveQueries,0);
+ const moving=c.tickFrame({forward:1},1/60);
+ assert.equal(moving.steps,1);
+ assert.ok(moving.surfaceQueries>0);
+ assert.equal(moving.caveQueries,0);
+ const stalled=c.tickFrame({forward:1},10);
+ assert.equal(stalled.steps,6);
+ assert.ok(stalled.surfaceQueries>0);
+ assert.ok(stalled.surfaceQueries<=moving.surfaceQueries*12,
+  'long frame must not execute unbounded collision queries');
+ const paused=c.tickFrame({},0);
+ assert.equal(paused.surfaceQueries,0);
+});
