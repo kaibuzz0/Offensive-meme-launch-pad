@@ -93,10 +93,20 @@
     }
     if(blocked)break;
     if(axis==='x')state.x=nx;else state.z=nz;
-    if(state.grounded&&climb>0)state.y=floor;
+    if(state.grounded){if(climb>0)state.y=floor;else if(climb<-.01)state.grounded=false;}
     moved=true;
    }
    return moved;
+  }
+  function roofSupportAt(x,y,z){
+   let support=-Infinity;
+   for(const p of world.gateRoad?.parts||[]){
+    if(!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||p.w<=0||p.h<=0||p.d<=0)continue;
+    const top=p.y+p.h;
+    if(top>y+.01||x+RADIUS<=p.x||x-RADIUS>=p.x+p.w||z+RADIUS<=p.z||z-RADIUS>=p.z+p.d)continue;
+    support=Math.max(support,top);
+   }
+   return support;
   }
   function tick(input,dt){
    if(!Number.isFinite(dt)||dt<0)throw Error('Invalid time step');
@@ -124,6 +134,8 @@
    // The final floor/support query below still runs for gravity and falling.
    if(dx!==0)moveAxis('x',dx);
    if(dz!==0)moveAxis('z',dz);
+   if(state.grounded&&Math.max(floorAt(state.x,state.z,state.y)??-Infinity,
+    roofSupportAt(state.x,state.y,state.z))<state.y-.01)state.grounded=false;
    if(input?.jump&&state.grounded){state.grounded=false;state.vy=JUMP_SPEED;}
    // Swimming is deliberately opt-in: an explicit water-volume query enables
    // controlled ascent, reduced gravity and terminal sinking velocity.
@@ -162,7 +174,23 @@
     }
     if(ceiling<Infinity){state.y=ceiling-world.PLAYER_HEIGHT;state.vy=0;}
    }
-   const floor=floorAt(state.x,state.z,state.y);
+   // Real structure roof/underside contacts use world geometry, never render LOD.
+   if(Array.isArray(world.gateRoad?.parts)){
+    let landing=-Infinity;
+    for(const p of world.gateRoad.parts){
+     if(!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||p.w<=0||p.h<=0||p.d<=0||
+        state.x+RADIUS<=p.x||state.x-RADIUS>=p.x+p.w||state.z+RADIUS<=p.z||state.z-RADIUS>=p.z+p.d)continue;
+     if(state.vy>0&&previousY+world.PLAYER_HEIGHT<=p.y&&
+        state.y+world.PLAYER_HEIGHT>p.y&&state.y<p.y+p.h){
+      state.y=p.y-world.PLAYER_HEIGHT;state.vy=0;
+     }
+     const top=p.y+p.h;
+     if(state.vy<=0&&previousY>=top&&state.y<=top)landing=Math.max(landing,top);
+    }
+    if(landing>-Infinity){state.y=landing;state.vy=0;state.grounded=true;}
+   }
+   const terrainFloor=floorAt(state.x,state.z,state.y);
+   const floor=terrainFloor===null?null:Math.max(terrainFloor,roofSupportAt(state.x,state.y,state.z));
    if(floor!==null&&state.y<=floor){state.y=floor;state.vy=0;state.grounded=true;}
    else if(floor!==null&&state.y>floor+.01)state.grounded=false;
    return snapshot();
