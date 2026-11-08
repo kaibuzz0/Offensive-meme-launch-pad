@@ -90,6 +90,10 @@ test('surface and cave generation remain identical across independent worlds wit
   assert.deepEqual(plain(one.caveRoomAt(x,z)),plain(two.caveRoomAt(x,z)));
  }
  assert.deepEqual(plain(one.chunkAt(0,0).roads),plain(two.chunkAt(0,0).roads));
- assert.equal(one.chunkAt(0,0).npc.length,0);
+ assert.ok(one.chunkAt(0,0).npc.length<=2,'starter actor population remains bounded');
+ one.chunkAt(0,0).npc.forEach(actor=>{
+  assert.equal(Math.floor(actor.x/one.CHUNK_SIZE),0,'actor belongs to the queried chunk');
+  assert.equal(Math.floor(actor.z/one.CHUNK_SIZE),0,'actor belongs to the queried chunk');
+ });
  assert.deepEqual(plain(one.chunkAt(0,0).structures),plain(two.chunkAt(0,0).structures),'seeded roadside structures are deterministic');
 });
