@@ -42,3 +42,16 @@ test('successful teleport clears partial frame time; rejected teleport retains i
  assert.equal(c.tickFrame({forward:1},1/120).steps,1);
  assert.ok(c.snapshot().z>2);
 });
+
+test('frame telemetry reports simulated steps and bounded discarded stall time',()=>{
+ const c=create();
+ const stalled=c.tickFrame({forward:1},10);
+ assert.equal(stalled.steps,6);
+ assert.ok(Math.abs(stalled.simulatedSeconds-.1)<1e-10);
+ assert.ok(Math.abs(stalled.droppedSeconds-9.9)<1e-8);
+ assert.ok(stalled.alpha>=0&&stalled.alpha<1);
+ const paused=c.tickFrame({},0);
+ assert.equal(paused.steps,0);
+ assert.equal(paused.simulatedSeconds,0);
+ assert.equal(paused.droppedSeconds,0);
+});
