@@ -102,3 +102,11 @@ test('frame telemetry includes cave and fortress obstruction probes, not only su
  assert.equal(idle.caveQueries,0);
  assert.equal(idle.obstructionQueries,0);
 });
+
+test('public first-person loop consumes fixed-step adapter and preserves queued jump until a step',()=>{
+ const source=readFileSync(new URL('../city-terrain-mode.js',import.meta.url),'utf8');
+ assert.match(source,/physics\.tickFrame\(input,elapsed\)/);
+ assert.match(source,/if\(framePhysics\.steps>0\)jumpQueued=false/);
+ assert.match(source,/player\.x=position\.x;player\.y=position\.z/);
+ assert.match(source,/physicsDroppedSeconds/);
+});
