@@ -82,3 +82,23 @@ test('controller initializes collision telemetry before sampling spawn terrain',
  assert.equal(idle.surfaceQueries,0);
  assert.equal(idle.caveQueries,0);
 });
+
+
+test('frame telemetry includes cave and fortress obstruction probes, not only surface sampling',()=>{
+ let caveCalls=0,gateCalls=0;
+ const world={...makeWorld(),
+  caveRoomAt(){caveCalls++;return null;},
+  gateRoad:{obstructs(){gateCalls++;return false;}}
+ };
+ const c=context.CityVoxelPhysics.createController(world,{x:0,z:0});
+ const beforeCave=caveCalls,beforeGate=gateCalls;
+ const frame=c.tickFrame({forward:1},1/60);
+ assert.equal(frame.steps,1);
+ assert.ok(frame.caveQueries>0);
+ assert.ok(frame.obstructionQueries>0);
+ assert.equal(frame.caveQueries,caveCalls-beforeCave);
+ assert.equal(frame.obstructionQueries,gateCalls-beforeGate);
+ const idle=c.tickFrame({},0);
+ assert.equal(idle.caveQueries,0);
+ assert.equal(idle.obstructionQueries,0);
+});
