@@ -5,7 +5,7 @@
 
 **Purpose:** Develop one original, expandable, Minecraft-scale *feature set* for Meme City without replacing the existing first-person wilderness or accidentally breaking the original Solo game. This is an independent game, not a Minecraft clone or a plan to use Minecraft code/assets.
 
-**Current baseline:** Original first-person world at `city.html?terrain=1`, 132 named seeded biomes, 0.25m voxels, underground pocket caves, WebGL, Android PWA and a bounded off-thread voxel mesher. Preserve world seeds, save formats, the legacy `city.html` experience and existing tests.
+**Current baseline (source-level, not public acceptance):** The existing first-person route is `city.html?terrain=1`, with seeded biomes, quarter-meter voxel definitions, caves, WebGL and a bounded meshing pipeline. These features must be verified in the current running build rather than assumed from documentation. Keep existing saves and old URLs recoverable **during migration**, not as permanent separate editions.
 
 ## ChatGPT hourly development automations (GitHub research paused)
 
@@ -45,7 +45,7 @@ The machine-readable source of role names, issue IDs, GitHub research queries, d
 
 **Stage C — feature modules (P2).** Owners 08–13 develop modular melee, guns/explosion gameplay, cars, planes, drones and wildlife. These should begin as independently testable simulations. They can be implemented in parallel but must not be attached to the playable world until the P0 interfaces and integration tests exist.
 
-**Stage D — integration and release.** Owner 01 coordinates feature flags, owner 15 checks server-authoritative state and regression tests, and the user reviews all final merge requests. No scheduled scanner may directly change `main`.
+**Stage D — integration and release.** Owner 01 reviews exact-head CI, gameplay acceptance, save migration and release dependencies; owner 15 checks server-authoritative state and regressions. The integration owner may merge compatible reviewed green PRs and verify Pages plus the actual public path. The manual-only GitHub research scanner never merges.
 
 ## Candidate libraries worth evaluating
 
@@ -61,13 +61,13 @@ These are candidates, **not installed dependencies**. Confirm actual LICENSE fil
 
 ## Hard safety and quality boundaries
 
-1. **One world and backward compatibility.** No parallel replacement map. The current 132 seeded biomes and prior save data remain readable. Do not remove the original Solo entry.
+1. **One world and backward compatibility.** No permanent parallel game editions. Preserve existing seeded biomes and prior save data; migrate Solo into the shared game while retaining wallet-free offline access. Redirect old URLs only after verified, recoverable migration and gameplay parity.
 2. **One responsibility per PR.** Each code-writing agent creates a separate workstream-specific branch and clearly documents the merge dependency. Avoid editing someone else's owner path without coordination through #43.
 3. **Always run tests first.** At minimum `npm test`, `npm run check`, and both the original-game and first-person Chromium browser smoke tests on the exact PR head.
 4. **Security first.** Server authority for multiplayer inventories, damage, world edits and vehicle state; input validation; limit CPU/GPU/worker budgets; no credential or signing-key persistence in game saves.
 5. **Game-only weapons.** Guns, swords, knives, explosives and drones are fictional game mechanics, not real-world instructions.
 6. **No copyrighted code/assets without permission.** Only import code/assets after license review and attribution. Prefer original game materials and models.
-7. **No automatic merging.** Automated scans produce project research; coding agents produce reviewable PRs; only reviewed and green branches may be merged.
+7. **Release-controlled merging.** The integration owner may merge reviewed, compatible, exact-head-green PRs after required browser and migration acceptance. Research scanners never merge. Draft, failing, conflicting or visually unverified gameplay PRs remain blocked.
 
 ## Operations
 
