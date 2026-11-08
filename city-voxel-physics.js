@@ -104,6 +104,8 @@
    const yaw=Number.isFinite(input?.yaw)?input.yaw:0;
    const rightX=Math.cos(yaw),rightZ=-Math.sin(yaw);
    const forwardX=Math.sin(yaw),forwardZ=Math.cos(yaw);
+   // Include the direct water/feet sample in the same surface-query budget as swept collision.
+   surfaceQueries++;
    const feet=world.surfaceAt(Math.floor(state.x),Math.floor(state.z));
    // Optional water-volume query allows submerged cave pools without
    // treating dry terrain below sea level as water. Legacy worlds without
