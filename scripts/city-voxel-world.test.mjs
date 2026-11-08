@@ -325,3 +325,23 @@ test('nearby actor queries are bounded, chunk-free and match streamed descriptor
   assert.deepEqual(plain(w.actorsNear(s.x,s.z,-1)),[]);
  }
 });
+
+test('nearby actor queries reuse immutable descriptors across repeated activation',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),s=w.gateRoad.supplies;
+  const initial=w.actorsNear(s.x,s.z,40);
+  const before=w.cacheSize();
+  for(let i=0;i<100;i++){
+   const again=w.actorsNear(s.x,s.z,40);
+   assert.equal(again.length,initial.length);
+   for(let j=0;j<initial.length;j++){
+    assert.strictEqual(again[j],initial[j],'stable actors reuse descriptor objects');
+    assert.ok(Object.isFrozen(again[j]));
+   }
+  }
+  assert.equal(w.cacheSize(),before,'repeated activation must not expand terrain cache');
+  const empty=w.actorsNear(1e8,1e8,1);
+  assert.strictEqual(empty,w.actorsNear(1e8,1e8,1),'empty results reuse frozen array');
+  assert.ok(Object.isFrozen(empty));
+ }
+});
