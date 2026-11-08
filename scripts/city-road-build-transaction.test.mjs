@@ -65,3 +65,14 @@ test('exhausted safe-integer revision cannot spend resources or wrap journal rev
  assert.throws(()=>buildWorkbenchState(exhausted,{...action,expectedRevision:Number.MAX_SAFE_INTEGER}),/revision exhausted/);
  assert.equal(JSON.stringify(exhausted),snapshot);
 });
+
+test('direct reducer rejects incompatible or missing voxel scale without spending',()=>{
+ const before=original(), snapshot=JSON.stringify(before);
+ for (const voxelMetres of [1, undefined]) {
+  const invalid={...before,journal:{...before.journal,voxelMetres}};
+  assert.throws(()=>buildWorkbenchState(invalid,action),/voxel scale mismatch/);
+  assert.equal(invalid.inventory.supplies,8);
+  assert.equal(invalid.journal.edits.length,0);
+ }
+ assert.equal(JSON.stringify(before),snapshot);
+});
