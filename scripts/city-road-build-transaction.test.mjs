@@ -93,3 +93,25 @@ test('mined-air edit permits building only when canonical occupancy confirms emp
  assert.equal(createVoxelEditJournal(seed,after.journal).get(60,41,96),'workbench');
  assert.equal(JSON.stringify(state),snapshot);
 });
+
+test('three-dimensional reach uses the snapped voxel center and rejects invalid height',()=>{
+ const before=original(), snapshot=JSON.stringify(before);
+ const near={...action,player:{x:15.125,y:10.375,z:24.125}};
+ const after=buildWorkbenchState(before,near);
+ assert.equal(after.inventory.supplies,0);
+ for(const player of [
+  {x:15.125,y:20.375,z:24.125},
+  {x:15.125,y:Infinity,z:24.125},
+  {x:15.125,y:'10.375',z:24.125}
+ ]) assert.throws(()=>buildWorkbenchState(before,{...near,player}),/reach/);
+ assert.equal(JSON.stringify(before),snapshot);
+});
+
+test('snapped placement boundary cannot extend the permitted interaction radius',()=>{
+ const before=original(), snapshot=JSON.stringify(before);
+ // Raw x is just inside the 10m radius, but its voxel center is outside.
+ const attempt={...action,player:{x:5.13,z:24.125},position:{x:15.12,z:24.125}};
+ assert.ok(Math.hypot(attempt.player.x-attempt.position.x,attempt.player.z-attempt.position.z)<10);
+ assert.throws(()=>buildWorkbenchState(before,attempt),/reach/);
+ assert.equal(JSON.stringify(before),snapshot);
+});
