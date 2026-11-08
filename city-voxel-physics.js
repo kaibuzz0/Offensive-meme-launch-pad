@@ -117,7 +117,10 @@
    const dx=(vx*rightX+vz*forwardX)*speed*step;
    const dz=(vx*rightZ+vz*forwardZ)*speed*step;
    // Two-axis sweep permits sliding along terrain walls.
-   moveAxis('x',dx);moveAxis('z',dz);
+   // Stationary axes need no sweep; skip expensive cave/terrain probes.
+   // The final floor/support query below still runs for gravity and falling.
+   if(dx!==0)moveAxis('x',dx);
+   if(dz!==0)moveAxis('z',dz);
    if(input?.jump&&state.grounded){state.grounded=false;state.vy=JUMP_SPEED;}
    // Swimming is deliberately opt-in: an explicit water-volume query enables
    // controlled ascent, reduced gravity and terminal sinking velocity.
