@@ -15,8 +15,7 @@ export function buildWorkbenchState(state, action) {
   if (state.inventory.supplies < 8) throw new Error('insufficient supplies');
   if (!action.player || !action.position ||
       !Number.isFinite(action.player.x) || !Number.isFinite(action.player.z) ||
-      !Number.isFinite(action.position.x) || !Number.isFinite(action.position.z) ||
-      Math.hypot(action.player.x-action.position.x,action.player.z-action.position.z) >= 10)
+      !Number.isFinite(action.position.x) || !Number.isFinite(action.position.z))
     throw new Error('workbench out of reach');
   const target = roadWorkbenchVoxel(action.position,action.groundHeight);
   // Validate the actual snapped voxel, not only the unsnapped pointer position.
