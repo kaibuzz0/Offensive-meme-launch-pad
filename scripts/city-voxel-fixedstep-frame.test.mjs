@@ -110,3 +110,16 @@ test('public first-person loop consumes fixed-step adapter and preserves queued 
  assert.match(source,/player\.x=position\.x;player\.y=position\.z/);
  assert.match(source,/physicsDroppedSeconds/);
 });
+
+test('surface-query telemetry includes direct per-step feet sampling',()=>{
+ let calls=0;
+ const world={...makeWorld(),surfaceAt(x,z){calls++;return {height:0};}};
+ const c=context.CityVoxelPhysics.createController(world,{x:0,z:0});
+ const before=calls;
+ const frame=c.tickFrame({},1/60);
+ assert.equal(frame.steps,1);
+ assert.equal(frame.surfaceQueries,calls-before);
+ const paused=c.tickFrame({},0);
+ assert.equal(paused.surfaceQueries,0);
+ assert.equal(calls-before,frame.surfaceQueries);
+});
