@@ -142,8 +142,27 @@
    else if(floor!==null&&state.y>floor+.01)state.grounded=false;
    return snapshot();
   }
-  return Object.freeze({tick,snapshot,teleport,floorAt,
-   GRAVITY,JUMP_SPEED,MAX_STEP,PLAYER_HEIGHT:world.PLAYER_HEIGHT});
+  // Frame-facing fixed-step adapter. Physics is advanced in bounded, equal
+  // increments rather than feeding variable render deltas into tick().
+  // Excess wall-clock time is intentionally dropped after a stall; this
+  // prevents a backgrounded mobile tab from simulating seconds of catch-up.
+  const FIXED_DT=1/60,MAX_FRAME_DT=.1,MAX_SUBSTEPS=6;
+  let accumulator=0;
+  function tickFrame(input,elapsedSeconds){
+   if(!Number.isFinite(elapsedSeconds)||elapsedSeconds<0)throw Error('Invalid frame time');
+   accumulator+=Math.min(elapsedSeconds,MAX_FRAME_DT);
+   let steps=0;
+   while(accumulator+1e-10>=FIXED_DT&&steps<MAX_SUBSTEPS){
+    tick(input,FIXED_DT);
+    accumulator-=FIXED_DT;
+    steps++;
+   }
+   if(steps===MAX_SUBSTEPS&&accumulator>=FIXED_DT)
+    accumulator=accumulator%FIXED_DT;
+   return Object.freeze({state:snapshot(),steps,alpha:clamp(accumulator/FIXED_DT,0,1)});
+  }
+  return Object.freeze({tick,tickFrame,snapshot,teleport,floorAt,
+   FIXED_DT,MAX_SUBSTEPS,GRAVITY,JUMP_SPEED,MAX_STEP,PLAYER_HEIGHT:world.PLAYER_HEIGHT});
  }
  root.CityVoxelPhysics=Object.freeze({createController,GRAVITY,JUMP_SPEED,MAX_STEP});
 })(typeof window==='undefined'?globalThis:window);
