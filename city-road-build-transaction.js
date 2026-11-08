@@ -1,6 +1,6 @@
 // One-record inventory + voxel edit transition. Caller persists the returned
 // state as ONE record; this pure reducer does not claim localStorage CAS safety.
-import { createVoxelEditJournal } from './city-sandbox-mining.js';
+import { createVoxelEditJournal, VOXEL_METRES } from './city-sandbox-mining.js';
 import { roadWorkbenchVoxel } from './city-road-voxel-placement.js';
 export const BUILD_STATE_VERSION = 1;
 export function buildWorkbenchState(state, action) {
@@ -24,7 +24,7 @@ export function buildWorkbenchState(state, action) {
   if (action.player.y !== undefined &&
       (!Number.isFinite(action.player.y) ||
        Math.hypot(action.player.x - action.position.x,
-                  action.player.y - (target.y + 0.5) * 0.25,
+                  action.player.y - (target.y + 0.5) * VOXEL_METRES,
                   action.player.z - action.position.z) >= 10))
     throw new Error('workbench out of reach');
   const journal = createVoxelEditJournal(state.seed,state.journal);
