@@ -33,13 +33,14 @@
    }
    return top;
   }
+  // Counters must exist before spawn sampling invokes floorAt().
+  let surfaceQueries=0, caveQueries=0, obstructionQueries=0;
   const requestedY=Number.isFinite(start.y)?start.y:Infinity;
   const initial=floorAt(start.x,start.z,requestedY);
   if(initial===null)throw Error('Spawn outside supported world');
   const state={x:start.x,z:start.z,y:initial,vy:0,grounded:true};
   function snapshot(){return Object.freeze({...state});}
   let accumulator=0;
-  let surfaceQueries=0, caveQueries=0, obstructionQueries=0;
   function teleport(x,z,referenceY=Infinity){
    const floor=floorAt(x,z,referenceY);
    if(floor===null)return false;
