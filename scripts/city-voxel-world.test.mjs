@@ -368,3 +368,19 @@ test('actor proximity includes exact boundaries and rejects invalid ranges',()=>
    'large finite radii still return only the bounded starter population');
  }
 });
+
+
+test('actor ID resolution reuses stable descriptors without loading chunks',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),spawn=w.spawnAt();
+  const actors=w.actorsNear(spawn.x,spawn.z,256);
+  const before=w.cacheSize();
+  for(const actor of actors){
+   assert.strictEqual(w.actorById(actor.id),actor);
+   assert.deepEqual(plain(create(seed).actorById(actor.id)),plain(actor));
+  }
+  for(const unknown of [null,undefined,0,{},'','missing:actor',`starter-trader:${seed}:retired`])
+   assert.equal(w.actorById(unknown),null);
+  assert.equal(w.cacheSize(),before,'ID lookup must not generate terrain or chunks');
+ }
+});
