@@ -76,7 +76,10 @@
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
-    if(floor===null||obstructed(nx,Math.max(state.y,floor),nz))break;
+    // Airborne actors retain their actual height; grounded actors test the stepped height.
+    // Testing a higher floor while airborne can incorrectly clear a wall.
+    const proposedY=state.grounded?Math.max(state.y,floor):state.y;
+    if(floor===null||obstructed(nx,proposedY,nz))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
@@ -84,7 +87,7 @@
      let blocked=false;
     for(const [ox,oz] of FOOTPRINT){
      const gallery=caveAt(Math.floor(nx+ox),Math.floor(nz+oz));
-     if(gallery&&!gallery.exposed&&Math.max(state.y,floor)<gallery.ceiling&&Math.max(state.y,floor)+world.PLAYER_HEIGHT>gallery.ceiling){
+     if(gallery&&!gallery.exposed&&proposedY<gallery.ceiling&&proposedY+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
      }
     }
