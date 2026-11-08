@@ -25,3 +25,17 @@ test('stale edits and invalid heights never mutate journal', () => {
   assert.throws(()=>placeRoadWorkbenchVoxel(journal,{x:16,z:24},10,0),/stale/);
   assert.equal(journal.size,1);
 });
+
+test('malformed road coordinates and journal bounds reject before any edit', () => {
+  const journal = createVoxelEditJournal('fortress-seed');
+  const invalid = [
+    {x:'15',z:24}, {x:15,z:'24'}, {x:null,z:24},
+    {x:NaN,z:24}, {x:15,z:Infinity}, {x:500001,z:24},
+    {x:15,z:-500001}, {}, null
+  ];
+  for (const position of invalid) {
+    assert.throws(() => placeRoadWorkbenchVoxel(journal,position,10,journal.revision));
+    assert.equal(journal.size,0);
+    assert.equal(journal.revision,0);
+  }
+});
