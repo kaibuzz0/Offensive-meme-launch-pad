@@ -36,6 +36,7 @@
   if(initial===null)throw Error('Spawn outside supported world');
   const state={x:start.x,z:start.z,y:initial,vy:0,grounded:true};
   function snapshot(){return Object.freeze({...state});}
+  let accumulator=0;
   function teleport(x,z,referenceY=Infinity){
    const floor=floorAt(x,z,referenceY);
    if(floor===null)return false;
@@ -47,6 +48,9 @@
     if(gallery&&!gallery.exposed&&floor<gallery.ceiling&&floor+world.PLAYER_HEIGHT>gallery.ceiling)return false;
    }
    state.x=x;state.z=z;state.y=floor;state.vy=0;state.grounded=true;
+   // A successful world transition starts a new simulation timeline.
+   // Do not replay a partial movement frame at the destination.
+   accumulator=0;
    return true;
   }
   function moveAxis(axis,delta){
@@ -147,7 +151,6 @@
   // Excess wall-clock time is intentionally dropped after a stall; this
   // prevents a backgrounded mobile tab from simulating seconds of catch-up.
   const FIXED_DT=1/60,MAX_FRAME_DT=.1,MAX_SUBSTEPS=6;
-  let accumulator=0;
   function tickFrame(input,elapsedSeconds){
    if(!Number.isFinite(elapsedSeconds)||elapsedSeconds<0)throw Error('Invalid frame time');
    accumulator+=Math.min(elapsedSeconds,MAX_FRAME_DT);
