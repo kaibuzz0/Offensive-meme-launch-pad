@@ -24,8 +24,7 @@
     let height=col.height+1;
     // Caves share world coordinates with the terrain. The roof stays solid
     // until the player reaches an open mouth or is already below the roof.
-    if(world.caveRoomAt)caveQueries++;
-    const gallery=world.caveRoomAt?.(bx,bz);
+    const gallery=caveAt(bx,bz);
     if(gallery&&(gallery.exposed||referenceY<gallery.ceiling)){
      height=gallery.floor;
     }
@@ -41,14 +40,24 @@
   const state={x:start.x,z:start.z,y:initial,vy:0,grounded:true};
   function snapshot(){return Object.freeze({...state});}
   let accumulator=0;
+  function obstructed(x,y,z){
+   if(typeof world.gateRoad?.obstructs!=='function')return false;
+   obstructionQueries++;
+   return !!world.gateRoad.obstructs(x,y,z,world.PLAYER_HEIGHT,RADIUS);
+  }
+  function caveAt(x,z){
+   if(typeof world.caveRoomAt!=='function')return null;
+   caveQueries++;
+   return world.caveRoomAt(x,z);
+  }
   function teleport(x,z,referenceY=Infinity){
    const floor=floorAt(x,z,referenceY);
    if(floor===null)return false;
    // A destination must be clear before committing the teleport. Failed
    // transitions leave position, velocity and grounded state untouched.
-   if(world.gateRoad?.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS))return false;
+   if(obstructed(x,floor,z))return false;
    for(const [ox,oz] of FOOTPRINT){
-    const gallery=world.caveRoomAt?.(Math.floor(x+ox),Math.floor(z+oz));
+    const gallery=caveAt(Math.floor(x+ox),Math.floor(z+oz));
     if(gallery&&!gallery.exposed&&floor<gallery.ceiling&&floor+world.PLAYER_HEIGHT>gallery.ceiling)return false;
    }
    state.x=x;state.z=z;state.y=floor;state.vy=0;state.grounded=true;
@@ -67,14 +76,14 @@
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
-    if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
+    if(floor===null||obstructed(nx,Math.max(state.y,floor),nz))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
     // solid roof must fit the entire player before entering it laterally.
      let blocked=false;
     for(const [ox,oz] of FOOTPRINT){
-     const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
+     const gallery=caveAt(Math.floor(nx+ox),Math.floor(nz+oz));
      if(gallery&&!gallery.exposed&&Math.max(state.y,floor)<gallery.ceiling&&Math.max(state.y,floor)+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
      }
@@ -131,7 +140,7 @@
    if(state.vy>0&&typeof world.caveRoomAt==='function'){
     let ceiling=Infinity;
     for(const [ox,oz] of FOOTPRINT){
-     const gallery=world.caveRoomAt(Math.floor(state.x+ox),Math.floor(state.z+oz));
+     const gallery=caveAt(Math.floor(state.x+ox),Math.floor(state.z+oz));
      if(gallery&&!gallery.exposed&&Number.isFinite(gallery.ceiling)){
       const roof=gallery.ceiling;
       const crossedFromBelow=previousY<roof
@@ -157,7 +166,7 @@
   const FIXED_DT=1/60,MAX_FRAME_DT=.1,MAX_SUBSTEPS=6;
   function tickFrame(input,elapsedSeconds){
    if(!Number.isFinite(elapsedSeconds)||elapsedSeconds<0)throw Error('Invalid frame time');
-   const beforeSurface=surfaceQueries,beforeCave=caveQueries;
+   const beforeSurface=surfaceQueries,beforeCave=caveQueries,beforeObstructions=obstructionQueries;
    const admittedSeconds=Math.min(elapsedSeconds,MAX_FRAME_DT);
    const droppedFromFrame=elapsedSeconds-admittedSeconds;
    accumulator+=admittedSeconds;
@@ -178,7 +187,8 @@
    return Object.freeze({state:snapshot(),steps,alpha:clamp(accumulator/FIXED_DT,0,1),
     simulatedSeconds:steps*FIXED_DT,
     droppedSeconds:droppedFromFrame+droppedFromCatchup,
-    surfaceQueries:surfaceQueries-beforeSurface,caveQueries:caveQueries-beforeCave});
+    surfaceQueries:surfaceQueries-beforeSurface,caveQueries:caveQueries-beforeCave,
+    obstructionQueries:obstructionQueries-beforeObstructions});
   }
   return Object.freeze({tick,tickFrame,snapshot,teleport,floorAt,
    FIXED_DT,MAX_SUBSTEPS,GRAVITY,JUMP_SPEED,MAX_STEP,PLAYER_HEIGHT:world.PLAYER_HEIGHT});
