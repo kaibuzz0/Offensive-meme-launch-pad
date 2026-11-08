@@ -228,24 +228,30 @@ test('fortress roadside foliage follows the local biome and avoids unsafe slopes
  }
 });
 
-test('starter trader is bounded to one streamed chunk and stable across reload',()=>{
+test('starter actor descriptors have unique chunk ownership and stable identities',()=>{
  for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
   const w=create(seed),again=create(seed),s=w.gateRoad.supplies;
-  const x=s.x+4,z=s.z+2,cx=Math.floor(x/16),cz=Math.floor(z/16);
-  const local=w.chunkAt(cx,cz).npc;
-  assert.ok(local.length<=1,'starter population is bounded');
-  assert.deepEqual(plain(local),plain(again.chunkAt(cx,cz).npc));
-  assert.equal(new Set(local.map(n=>n.id)).size,local.length);
-  for(const actor of local){
-   assert.equal(actor.id,'starter-trader:'+w.seed);
-   assert.equal(actor.rig,'shared-humanoid');
-   assert.equal(actor.homeId,'starter-fortress:'+w.seed);
-   assert.equal(actor.y,w.surfaceAt(actor.x,actor.z).height+1);
-  }
-  for(const [dx,dz] of [[-1,0],[1,0],[0,-1],[0,1]]){
-   assert.equal(w.chunkAt(cx+dx,cz+dz).npc.length,0,
-    'adjacent chunks must not duplicate the actor');
-  }
+  const actors=[];
+  // Candidate search may move an actor across a chunk seam. Scan its bounded
+  // neighborhood instead of assuming it lives in the preferred origin chunk.
+  for(let cz=Math.floor((s.z-20)/16);cz<=Math.floor((s.z+20)/16);cz++)
+   for(let cx=Math.floor((s.x-20)/16);cx<=Math.floor((s.x+20)/16);cx++){
+    const local=w.chunkAt(cx,cz).npc;
+    assert.ok(local.length<=2,'starter population is bounded per chunk');
+    assert.deepEqual(plain(local),plain(again.chunkAt(cx,cz).npc));
+    for(const actor of local){
+     assert.equal(Math.floor(actor.x/16),cx,'actor belongs to its X chunk');
+     assert.equal(Math.floor(actor.z/16),cz,'actor belongs to its Z chunk');
+     assert.equal(actor.homeId,'starter-fortress:'+w.seed);
+     assert.equal(actor.y,w.surfaceAt(actor.x,actor.z).height+1);
+     if(actor.kind==='trader')assert.equal(actor.rig,'shared-humanoid');
+     actors.push(actor);
+    }
+   }
+  assert.equal(new Set(actors.map(n=>n.id)).size,actors.length,
+   'actors must not be duplicated across streamed chunks');
+  assert.ok(actors.filter(n=>n.kind==='trader').length<=1);
+  assert.ok(actors.filter(n=>n.kind==='wildlife').length<=1);
  }
 });
 
