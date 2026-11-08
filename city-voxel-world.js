@@ -284,6 +284,11 @@
     // Structures own their footprint. Check before decorative road planting:
     // otherwise roadside trees can appear inside lodge walls or doorways.
     if(gateRoad.foundation(x,z))return null;
+    // The graded road footprint does not cover every tower/wall overhang.
+    // Query the same solid world-space boxes used by player collision before
+    // placing vegetation, including trees outside the road foundation.
+    const standing=surfaceAt(x,z);
+    if(standing&&gateRoad.obstructs(x+.5,standing.height+1,z+.5,20,.5))return null;
     const t=z-gateRoad.z;
     if(t>=4&&t<=28&&(t-4)%8===0&&Math.abs(x-gateRoad.x)===8){
      const ground=surfaceAt(x,z);
