@@ -31,3 +31,14 @@ test('short frames retain fractional time without moving prematurely',()=>{
  assert.equal(c.tickFrame({forward:1},1/120).steps,1);
  assert.ok(c.snapshot().z>0);
 });
+
+test('successful teleport clears partial frame time; rejected teleport retains it',()=>{
+ const c=create();
+ assert.equal(c.tickFrame({forward:1},1/120).steps,0);
+ assert.equal(c.teleport(2,2),true);
+ assert.equal(c.tickFrame({forward:1},1/120).steps,0);
+ assert.equal(c.snapshot().z,2);
+ assert.equal(c.teleport(10000,10000),false);
+ assert.equal(c.tickFrame({forward:1},1/120).steps,1);
+ assert.ok(c.snapshot().z>2);
+});
