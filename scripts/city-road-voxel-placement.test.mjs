@@ -17,7 +17,10 @@ test('road workbench writes to existing journal and survives snapshot reload', (
 });
 test('stale edits and invalid heights never mutate journal', () => {
   const journal=createVoxelEditJournal('fortress-seed');
-  assert.throws(()=>placeRoadWorkbenchVoxel(journal,{x:15,z:24},NaN,0),RangeError);
+  for (const height of [NaN, Infinity, '10', null, undefined]) {
+    assert.throws(()=>placeRoadWorkbenchVoxel(journal,{x:15,z:24},height,0),RangeError);
+    assert.equal(journal.size,0);
+  }
   placeRoadWorkbenchVoxel(journal,{x:15,z:24},10,0);
   assert.throws(()=>placeRoadWorkbenchVoxel(journal,{x:16,z:24},10,0),/stale/);
   assert.equal(journal.size,1);
