@@ -7,7 +7,7 @@ runInNewContext(readFileSync(new URL('../city-voxel-physics.js',import.meta.url)
 function controller(){
  const world={PLAYER_HEIGHT:1.8,SEA_LEVEL:-100,
   surfaceAt(x,z){return Math.abs(x)<50&&Math.abs(z)<50?{height:0}:null;},
-  gateRoad:{obstructs(x,y,z){return x>=1&&x<=2&&z>=0&&z<=4;}}};
+  gateRoad:{obstructs(x,y,z){return x>=1&&x<=2&&z>=0;}}};
  return context.CityVoxelPhysics.createController(world,{x:0,z:0});
 }
 function simulate(hz){
