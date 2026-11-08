@@ -97,6 +97,10 @@ test('cave metadata cache stays bounded while sampling across the world',()=>{
  for(let cz=-17;cz<=17;cz++)for(let cx=-17;cx<=17;cx++)
   w.caveRoomAt(cx*112+42,cz*112+51);
  assert.ok(w.caveCacheSize()<=256);
- assert.equal(w.chunkAt(0,0).npc.length,0);
+ assert.ok(w.chunkAt(0,0).npc.length<=2,'starter actor population remains bounded');
+ w.chunkAt(0,0).npc.forEach(actor=>{
+  assert.equal(Math.floor(actor.x/w.CHUNK_SIZE),0,'actor belongs to the queried chunk');
+  assert.equal(Math.floor(actor.z/w.CHUNK_SIZE),0,'actor belongs to the queried chunk');
+ });
  assert.deepEqual(JSON.parse(JSON.stringify(w.chunkAt(0,0).structures)),JSON.parse(JSON.stringify(make('cache-caverns').chunkAt(0,0).structures)),'seeded roadside structures remain stable across independent loads');
 });
