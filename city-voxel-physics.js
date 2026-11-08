@@ -18,11 +18,13 @@
    let top=-Infinity;
    for(const [ox,oz] of FOOTPRINT){
     const bx=Math.floor(x+ox),bz=Math.floor(z+oz);
+    surfaceQueries++;
     const col=world.surfaceAt(bx,bz);
     if(!col)return null;
     let height=col.height+1;
     // Caves share world coordinates with the terrain. The roof stays solid
     // until the player reaches an open mouth or is already below the roof.
+    if(world.caveRoomAt)caveQueries++;
     const gallery=world.caveRoomAt?.(bx,bz);
     if(gallery&&(gallery.exposed||referenceY<gallery.ceiling)){
      height=gallery.floor;
@@ -37,6 +39,7 @@
   const state={x:start.x,z:start.z,y:initial,vy:0,grounded:true};
   function snapshot(){return Object.freeze({...state});}
   let accumulator=0;
+  let surfaceQueries=0, caveQueries=0, obstructionQueries=0;
   function teleport(x,z,referenceY=Infinity){
    const floor=floorAt(x,z,referenceY);
    if(floor===null)return false;
@@ -153,6 +156,7 @@
   const FIXED_DT=1/60,MAX_FRAME_DT=.1,MAX_SUBSTEPS=6;
   function tickFrame(input,elapsedSeconds){
    if(!Number.isFinite(elapsedSeconds)||elapsedSeconds<0)throw Error('Invalid frame time');
+   const beforeSurface=surfaceQueries,beforeCave=caveQueries;
    const admittedSeconds=Math.min(elapsedSeconds,MAX_FRAME_DT);
    const droppedFromFrame=elapsedSeconds-admittedSeconds;
    accumulator+=admittedSeconds;
@@ -172,7 +176,8 @@
    // These are telemetry only: render LOD never changes collision or time step.
    return Object.freeze({state:snapshot(),steps,alpha:clamp(accumulator/FIXED_DT,0,1),
     simulatedSeconds:steps*FIXED_DT,
-    droppedSeconds:droppedFromFrame+droppedFromCatchup});
+    droppedSeconds:droppedFromFrame+droppedFromCatchup,
+    surfaceQueries:surfaceQueries-beforeSurface,caveQueries:caveQueries-beforeCave});
   }
   return Object.freeze({tick,tickFrame,snapshot,teleport,floorAt,
    FIXED_DT,MAX_SUBSTEPS,GRAVITY,JUMP_SPEED,MAX_STEP,PLAYER_HEIGHT:world.PLAYER_HEIGHT});
