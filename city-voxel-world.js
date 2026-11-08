@@ -402,7 +402,11 @@
    const radiusSquared=radius*radius,result=[];
    for(const actor of starterActors){
     const dx=actor.x-x,dz=actor.z-z;
-    if(dx*dx+dz*dz<=radiusSquared)result.push(actor);
+    // Extremely large finite coordinates can overflow both squared terms.
+    // Never treat Infinity <= Infinity as an in-range actor.
+    const within=Number.isFinite(radiusSquared)&&Number.isFinite(dx*dx+dz*dz)
+     ? dx*dx+dz*dz<=radiusSquared : Math.hypot(dx,dz)<=radius;
+    if(within)result.push(actor);
    }
    return result.length?Object.freeze(result):EMPTY_ACTORS;
   }
