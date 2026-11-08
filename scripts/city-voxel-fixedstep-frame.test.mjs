@@ -74,3 +74,11 @@ test('per-frame spatial query telemetry is bounded to the simulated work',()=>{
  const paused=c.tickFrame({},0);
  assert.equal(paused.surfaceQueries,0);
 });
+
+test('controller initializes collision telemetry before sampling spawn terrain',()=>{
+ const c=create();
+ assert.equal(c.snapshot().y,1);
+ const idle=c.tickFrame({},0);
+ assert.equal(idle.surfaceQueries,0);
+ assert.equal(idle.caveQueries,0);
+});
