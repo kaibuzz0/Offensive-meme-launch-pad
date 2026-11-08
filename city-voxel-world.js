@@ -382,22 +382,25 @@
   // Lightweight population query for render/AI activation. Do not allocate a
   // 256-tile chunk merely to discover nearby actors. IDs and positions match
   // chunkAt() exactly, so the shared runtime can deduplicate by stable ID.
+  // Build the two immutable descriptors once per seed. Nearby queries may run
+  // every render/AI activation tick; do not recreate actor objects each time.
+  function actorDescriptor(site,trader){
+   if(!site)return null;
+   const species=site.group==='desert'||site.group==='salt'?'lizard':
+    site.group==='tundra'||site.group==='alpine'?'hare':'deer';
+   return Object.freeze(trader?
+    {id:'starter-trader:'+seed,kind:'trader',role:'supplies',faction:'starter-settlement',rig:'shared-humanoid',
+     x:site.x,z:site.z,y:site.y,heading:Math.PI,homeId:'starter-fortress:'+seed,behavior:'idle-trade'}:
+    {id:'starter-wildlife:'+seed,kind:'wildlife',species,role:'forager',faction:'wild',rig:'shared-creature',
+     x:site.x,z:site.z,y:site.y,heading:random(plantSeed,site.x,site.z)*Math.PI*2,
+     homeId:'starter-fortress:'+seed,behavior:'graze-flee'});
+  }
   function actorsNear(x,z,radius){
-   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0)return Object.freeze([]);
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0)return EMPTY_ACTORS;
    const result=[];
-   for(const site of [traderSite,wildlifeSite]){
-    if(!site||Math.hypot(site.x-x,site.z-z)>radius)continue;
-    const trader=site===traderSite;
-    const species=site.group==='desert'||site.group==='salt'?'lizard':
-     site.group==='tundra'||site.group==='alpine'?'hare':'deer';
-    result.push(Object.freeze(trader?
-     {id:'starter-trader:'+seed,kind:'trader',role:'supplies',faction:'starter-settlement',rig:'shared-humanoid',
-      x:site.x,z:site.z,y:site.y,heading:Math.PI,homeId:'starter-fortress:'+seed,behavior:'idle-trade'}:
-     {id:'starter-wildlife:'+seed,kind:'wildlife',species,role:'forager',faction:'wild',rig:'shared-creature',
-      x:site.x,z:site.z,y:site.y,heading:random(plantSeed,site.x,site.z)*Math.PI*2,
-      homeId:'starter-fortress:'+seed,behavior:'graze-flee'}));
-   }
-   return Object.freeze(result);
+   for(const actor of starterActors)
+    if(Math.hypot(actor.x-x,actor.z-z)<=radius)result.push(actor);
+   return result.length?Object.freeze(result):EMPTY_ACTORS;
   }
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
@@ -421,6 +424,8 @@
   // Actor sites require the initialized road and collision geometry.
   const traderSite=actorSite(4,2,18,false);
   const wildlifeSite=actorSite(-8,7,12,true,traderSite);
+  const EMPTY_ACTORS=Object.freeze([]);
+  const starterActors=Object.freeze([actorDescriptor(traderSite,true),actorDescriptor(wildlifeSite,false)].filter(Boolean));
   cache.clear();
   // Emit each structure fragment in every intersected chunk. Keep the source
   // gateRoad.parts unchanged: collision uses those original world-space boxes.
