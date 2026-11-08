@@ -345,3 +345,22 @@ test('nearby actor queries reuse immutable descriptors across repeated activatio
   assert.ok(Object.isFrozen(empty));
  }
 });
+
+
+test('actor proximity includes exact boundaries and rejects invalid ranges',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),s=w.gateRoad.supplies;
+  const actors=w.actorsNear(s.x,s.z,40);
+  for(const actor of actors){
+   assert.ok(w.actorsNear(actor.x,actor.z,0).some(a=>a.id===actor.id),
+    'zero-radius queries include the actor standing at their center');
+   const distance=Math.hypot(actor.x-s.x,actor.z-s.z);
+   assert.ok(w.actorsNear(s.x,s.z,distance).some(a=>a.id===actor.id),
+    'exact-radius queries include actors on the boundary');
+  }
+  assert.deepEqual(plain(w.actorsNear(s.x,s.z,Number.POSITIVE_INFINITY)),[]);
+  assert.deepEqual(plain(w.actorsNear(s.x,s.z,Number.NaN)),[]);
+  assert.ok(w.actorsNear(s.x,s.z,Number.MAX_VALUE).length<=2,
+   'large finite radii still return only the bounded starter population');
+ }
+});
