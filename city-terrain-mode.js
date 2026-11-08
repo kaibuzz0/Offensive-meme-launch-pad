@@ -350,15 +350,26 @@
   const mag=Math.hypot(x,y);return mag>1?{x:x/mag,y:y/mag}:{x,y};
  }
  function frame(t){
-  const dt=Math.min(.05,(t-last)/1000||0);last=t;
+  const elapsed=Math.max(0,(t-last)/1000||0);
+  const dt=Math.min(.05,elapsed);last=t;
   if(running&&!paused){
    const move=movement();
    if(firstPerson&&perspective&&!atlas){
     if(physics){
-     const position=physics.tick({right:move.x,forward:-move.y,yaw:player.yaw,
-      jump:keys.has(' ')||jumpHeld||jumpQueued},dt);
-     jumpQueued=false;
+     // Advance the same world controller on fixed simulation steps for both
+     // accelerated and compatibility renderers. Preserve a queued tap jump
+     // until a physics step actually consumes it (important at 120 Hz).
+     const input={right:move.x,forward:-move.y,yaw:player.yaw,
+      jump:keys.has(' ')||jumpHeld||jumpQueued};
+     const framePhysics=typeof physics.tickFrame==='function'
+      ? physics.tickFrame(input,elapsed)
+      : {state:physics.tick(input,dt),steps:1};
+     if(framePhysics.steps>0)jumpQueued=false;
+     const position=framePhysics.state;
      player.x=position.x;player.y=position.z;
+     status.dataset.physicsSteps=String(framePhysics.steps);
+     status.dataset.physicsDroppedSeconds=String(framePhysics.droppedSeconds??0);
+     status.dataset.physicsSurfaceQueries=String(framePhysics.surfaceQueries??0);
     }else{
      const nx=player.x+move.x*dt*5,nz=player.y+move.y*dt*5;
      if(Math.abs(nx)<999900&&Math.abs(nz)<999900){player.x=nx;player.y=nz;}
