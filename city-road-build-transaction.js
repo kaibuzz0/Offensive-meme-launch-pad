@@ -27,6 +27,10 @@ export function buildWorkbenchState(state, action) {
                   action.player.y - (target.y + 0.5) * VOXEL_METRES,
                   action.player.z - action.position.z) >= 10))
     throw new Error('workbench out of reach');
+  // Reject saves from a different voxel scale before spending any resources.
+  // The journal parser validates seed and edits but does not check scale metadata.
+  if (state.journal.voxelMetres !== VOXEL_METRES)
+    throw new Error('building voxel scale mismatch');
   const journal = createVoxelEditJournal(state.seed,state.journal);
   // Never spend against a snapshot from a different transaction revision.
   if (journal.revision !== state.revision) throw new Error('building/journal revision mismatch');
