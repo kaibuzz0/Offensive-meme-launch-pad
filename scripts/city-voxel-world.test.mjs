@@ -360,6 +360,10 @@ test('actor proximity includes exact boundaries and rejects invalid ranges',()=>
   }
   assert.deepEqual(plain(w.actorsNear(s.x,s.z,Number.POSITIVE_INFINITY)),[]);
   assert.deepEqual(plain(w.actorsNear(s.x,s.z,Number.NaN)),[]);
+  assert.deepEqual(plain(w.actorsNear(1e200,1e200,1e100)),[],
+   'overflowed squared distances must not include distant actors');
+  assert.deepEqual(plain(w.actorsNear(-1e200,-1e200,1e100)),[],
+   'negative distant coordinates must not create false-positive actors');
   assert.ok(w.actorsNear(s.x,s.z,Number.MAX_VALUE).length<=2,
    'large finite radii still return only the bounded starter population');
  }
