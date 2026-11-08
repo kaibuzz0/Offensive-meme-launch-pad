@@ -19,13 +19,20 @@ export function buildWorkbenchState(state, action) {
       Math.hypot(action.player.x-action.position.x,action.player.z-action.position.z) >= 10)
     throw new Error('workbench out of reach');
   const target = roadWorkbenchVoxel(action.position,action.groundHeight);
+  // Validate the actual snapped voxel, not only the unsnapped pointer position.
+  // Otherwise a placement near the reach boundary can move farther away when
+  // quantized to the canonical quarter-metre grid.
+  const targetX = (target.x + 0.5) * VOXEL_METRES;
+  const targetZ = (target.z + 0.5) * VOXEL_METRES;
+  if (Math.hypot(action.player.x - targetX, action.player.z - targetZ) >= 10)
+    throw new Error('workbench out of reach');
   // When a 3D player pose is supplied, enforce vertical reach as well as the
   // horizontal roadside check. A server must derive this pose itself.
   if (action.player.y !== undefined &&
       (!Number.isFinite(action.player.y) ||
-       Math.hypot(action.player.x - action.position.x,
+       Math.hypot(action.player.x - targetX,
                   action.player.y - (target.y + 0.5) * VOXEL_METRES,
-                  action.player.z - action.position.z) >= 10))
+                  action.player.z - targetZ) >= 10))
     throw new Error('workbench out of reach');
   // Reject saves from a different voxel scale before spending any resources.
   // The journal parser validates seed and edits but does not check scale metadata.
