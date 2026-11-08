@@ -379,6 +379,26 @@
    }
    return null;
   }
+  // Lightweight population query for render/AI activation. Do not allocate a
+  // 256-tile chunk merely to discover nearby actors. IDs and positions match
+  // chunkAt() exactly, so the shared runtime can deduplicate by stable ID.
+  function actorsNear(x,z,radius){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0)return Object.freeze([]);
+   const result=[];
+   for(const site of [traderSite,wildlifeSite]){
+    if(!site||Math.hypot(site.x-x,site.z-z)>radius)continue;
+    const trader=site===traderSite;
+    const species=site.group==='desert'||site.group==='salt'?'lizard':
+     site.group==='tundra'||site.group==='alpine'?'hare':'deer';
+    result.push(Object.freeze(trader?
+     {id:'starter-trader:'+seed,kind:'trader',role:'supplies',faction:'starter-settlement',rig:'shared-humanoid',
+      x:site.x,z:site.z,y:site.y,heading:Math.PI,homeId:'starter-fortress:'+seed,behavior:'idle-trade'}:
+     {id:'starter-wildlife:'+seed,kind:'wildlife',species,role:'forager',faction:'wild',rig:'shared-creature',
+      x:site.x,z:site.z,y:site.y,heading:random(plantSeed,site.x,site.z)*Math.PI*2,
+      homeId:'starter-fortress:'+seed,behavior:'graze-flee'}));
+   }
+   return Object.freeze(result);
+  }
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
    const tiles=[],plants=[],roads=[];
@@ -391,22 +411,8 @@
     }
    // Each seed-stable descriptor belongs to exactly one floor-divided chunk.
    // Distant populations remain declarative until the shared actor runtime activates them.
-   const npc=[];
-   if(traderSite&&Math.floor(traderSite.x/CHUNK_SIZE)===cx&&Math.floor(traderSite.z/CHUNK_SIZE)===cz){
-    npc.push(Object.freeze({id:'starter-trader:'+seed,kind:'trader',
-     role:'supplies',faction:'starter-settlement',rig:'shared-humanoid',
-     x:traderSite.x,z:traderSite.z,y:traderSite.y,heading:Math.PI,
-     homeId:'starter-fortress:'+seed,behavior:'idle-trade'}));
-   }
-   if(wildlifeSite&&Math.floor(wildlifeSite.x/CHUNK_SIZE)===cx&&Math.floor(wildlifeSite.z/CHUNK_SIZE)===cz){
-    const species=wildlifeSite.group==='desert'||wildlifeSite.group==='salt'?'lizard':
-     wildlifeSite.group==='tundra'||wildlifeSite.group==='alpine'?'hare':'deer';
-    npc.push(Object.freeze({id:'starter-wildlife:'+seed,kind:'wildlife',
-     species,role:'forager',faction:'wild',rig:'shared-creature',
-     x:wildlifeSite.x,z:wildlifeSite.z,y:wildlifeSite.y,
-     heading:random(plantSeed,wildlifeSite.x,wildlifeSite.z)*Math.PI*2,
-     homeId:'starter-fortress:'+seed,behavior:'graze-flee'}));
-   }
+   const npc=actorsNear(cx*CHUNK_SIZE+CHUNK_SIZE/2,cz*CHUNK_SIZE+CHUNK_SIZE/2,CHUNK_SIZE*1.5)
+    .filter(actor=>Math.floor(actor.x/CHUNK_SIZE)===cx&&Math.floor(actor.z/CHUNK_SIZE)===cz);
    return Object.freeze({cx,cz,seed,tiles:Object.freeze(tiles),plants:Object.freeze(plants),
     structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze(npc),roads:Object.freeze(roads)});
   }
@@ -435,7 +441,7 @@
    return fragments;
   }
   return Object.freeze({seed,atlas,gateRoad,gateParts,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,MIN_HEIGHT,MAX_HEIGHT,
-   SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,isWaterAt,featureAt,chunkAt,
+   SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,isWaterAt,featureAt,chunkAt,actorsNear,
    cacheSize:()=>cache.size,caveCacheSize:()=>caveCells.size,spawnAt:()=>({...naturalSpawn,y:surfaceAt(naturalSpawn.x,naturalSpawn.z).height+1})});
  }
  root.CityVoxelWorld=Object.freeze({createVoxelWorld,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,
