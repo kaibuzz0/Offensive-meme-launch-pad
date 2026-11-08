@@ -212,8 +212,12 @@ test('fortress roadside foliage follows the local biome and avoids unsafe slopes
   for(let t=4;t<=28;t+=8)for(const side of [-1,1]){
    const x=road.x+side*8,z=road.z+t;
    const col=w.surfaceAt(x,z),plant=w.featureAt(x,z);
-   if(col.water||col.mouth||col.slope>18){
-    assert.equal(plant,null);
+   // Decorative roadside planting must yield to the actual fortress collision
+   // footprint, including tower and wall overhangs outside the graded road.
+   const blocked=w.gateRoad.foundation(x,z)||
+    w.gateRoad.obstructs(x+.5,col.height+1,z+.5,20,.5);
+   if(blocked||col.water||col.mouth||col.slope>18){
+    assert.equal(plant,null,'blocked or unsafe roadside tiles cannot grow foliage');
     continue;
    }
    const expected=col.group==='desert'||col.group==='salt'?'cactus':
