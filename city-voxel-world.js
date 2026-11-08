@@ -429,8 +429,9 @@
     }
    // Each seed-stable descriptor belongs to exactly one floor-divided chunk.
    // Distant populations remain declarative until the shared actor runtime activates them.
-   const npc=actorsNear(cx*CHUNK_SIZE+CHUNK_SIZE/2,cz*CHUNK_SIZE+CHUNK_SIZE/2,CHUNK_SIZE*1.5)
-    .filter(actor=>Math.floor(actor.x/CHUNK_SIZE)===cx&&Math.floor(actor.z/CHUNK_SIZE)===cz);
+   // Direct ownership check avoids a redundant radial query during chunk streaming.
+   // Stable descriptors are few and never activate an AI simulation here.
+   const npc=starterActors.filter(actor=>Math.floor(actor.x/CHUNK_SIZE)===cx&&Math.floor(actor.z/CHUNK_SIZE)===cz);
    return Object.freeze({cx,cz,seed,tiles:Object.freeze(tiles),plants:Object.freeze(plants),
     structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze(npc),roads:Object.freeze(roads)});
   }
