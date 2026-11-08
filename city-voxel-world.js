@@ -371,6 +371,7 @@
     const footprint=[[1,0],[0,1],[1,1]].every(([ox2,oz2])=>{
      const neighbor=surfaceAt(x+ox2,z+oz2);
      return neighbor&&!neighbor.water&&!neighbor.mouth&&
+      (!avoidRoad||(!neighbor.road&&!gateRoad.foundation(x+ox2,z+oz2)))&&
       Math.abs(neighbor.height-ground.height)<=2;
     });
     if(!footprint)continue;
