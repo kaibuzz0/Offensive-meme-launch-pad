@@ -16,6 +16,10 @@ function index(metres) {
 // road's horizontal z with a voxel's vertical coordinate.
 export function roadWorkbenchVoxel(position, groundHeight) {
   if (!position || typeof position !== 'object') throw new TypeError('position required');
+  // Reject strings: `groundHeight + VOXEL_METRES` would concatenate rather
+  // than add, silently moving the workbench to a different elevation.
+  if (typeof groundHeight !== 'number' || !Number.isFinite(groundHeight))
+    throw new RangeError('invalid ground height');
   return Object.freeze({
     x: index(position.x),
     y: index(groundHeight + VOXEL_METRES),
