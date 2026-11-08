@@ -306,3 +306,22 @@ test('starter wildlife never overlaps the trader standing area',()=>{
     'wildlife and trader must not share a spawn footprint');
  }
 });
+
+test('nearby actor queries are bounded, chunk-free and match streamed descriptors',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),s=w.gateRoad.supplies;
+  const nearby=w.actorsNear(s.x,s.z,40);
+  assert.ok(nearby.length<=2);
+  assert.deepEqual(plain(nearby),plain(create(seed).actorsNear(s.x,s.z,40)));
+  const fromChunks=[];
+  for(let cz=Math.floor((s.z-40)/16);cz<=Math.floor((s.z+40)/16);cz++)
+   for(let cx=Math.floor((s.x-40)/16);cx<=Math.floor((s.x+40)/16);cx++)
+    fromChunks.push(...w.chunkAt(cx,cz).npc);
+  assert.deepEqual(plain(nearby.map(a=>a.id).sort()),plain(fromChunks.map(a=>a.id).sort()));
+  const before=w.cacheSize();
+  for(let i=0;i<50;i++)w.actorsNear(s.x+i,s.z,16);
+  assert.equal(w.cacheSize(),before,'actor queries must not generate terrain chunks');
+  assert.deepEqual(plain(w.actorsNear(NaN,s.z,20)),[]);
+  assert.deepEqual(plain(w.actorsNear(s.x,s.z,-1)),[]);
+ }
+});
