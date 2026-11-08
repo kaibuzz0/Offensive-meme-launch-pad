@@ -76,3 +76,20 @@ test('direct reducer rejects incompatible or missing voxel scale without spendin
  }
  assert.equal(JSON.stringify(before),snapshot);
 });
+
+test('mined-air edit permits building only when canonical occupancy confirms empty',()=>{
+ const before=original();
+ const journal=createVoxelEditJournal(seed);
+ journal.apply({x:60,y:41,z:96,block:null});
+ const state={...before,revision:1,journal:journal.snapshot()};
+ const snapshot=JSON.stringify(state);
+ const place={...action,expectedRevision:1};
+ assert.throws(()=>buildWorkbenchState(state,{...place,isOccupied:()=>true}),/occupied voxel/);
+ assert.throws(()=>buildWorkbenchState(state,{...place,isOccupied:()=>undefined}),/occupied voxel/);
+ assert.equal(JSON.stringify(state),snapshot);
+ const after=buildWorkbenchState(state,place);
+ assert.equal(after.inventory.supplies,0);
+ assert.equal(after.revision,2);
+ assert.equal(createVoxelEditJournal(seed,after.journal).get(60,41,96),'workbench');
+ assert.equal(JSON.stringify(state),snapshot);
+});
