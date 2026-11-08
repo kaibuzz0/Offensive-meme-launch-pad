@@ -123,3 +123,21 @@ test('surface-query telemetry includes direct per-step feet sampling',()=>{
  assert.equal(paused.surfaceQueries,0);
  assert.equal(calls-before,frame.surfaceQueries);
 });
+
+test('stationary and single-axis input avoid unnecessary lateral collision sweeps',()=>{
+ let probes=0;
+ const world={...makeWorld(),gateRoad:{obstructs(){probes++;return false;}}};
+ const idle=context.CityVoxelPhysics.createController(world,{x:0,z:0});
+ const start=probes;
+ const stationary=idle.tickFrame({},1/60);
+ assert.equal(stationary.steps,1);
+ assert.equal(probes-start,0,'stationary physics should not probe lateral obstacles');
+ const forward=idle.tickFrame({forward:1,yaw:0},1/60);
+ assert.equal(forward.steps,1);
+ assert.ok(probes-start>0,'forward movement must still sweep the active axis');
+ assert.ok(idle.snapshot().z>0);
+ const before=probes;
+ idle.tickFrame({right:1,yaw:0},1/60);
+ assert.ok(probes>before,'right movement must sweep its active axis');
+ assert.ok(idle.snapshot().x>0);
+});
