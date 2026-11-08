@@ -151,7 +151,34 @@ try{
  await request('Page.reload',{ignoreCache:true});
  await waitFor(()=>evalPage('!!document.querySelector("#city-road-canvas")'),'compatibility renderer boot');
  await evalPage('document.getElementById("start-button").click();true');
- await waitFor(()=>evalPage('!document.querySelector("#city-road-canvas").hidden && document.querySelector("#city-voxel-status").dataset.meshWorker==="canvas"'),'first-person rendering with WebGL unavailable',30000);
+ // Capture renderer state at the failure site, rather than leaving CI with
+ // an opaque timeout. These diagnostics do not weaken visual acceptance.
+ try {
+  await waitFor(()=>evalPage('!document.querySelector("#city-road-canvas").hidden && document.querySelector("#city-voxel-status").dataset.meshWorker==="canvas"'),'first-person rendering with WebGL unavailable',30000);
+ } catch (error) {
+  const diagnostic=await evalPage(`(()=>{
+   const c=document.querySelector('#city-road-canvas'),v=document.querySelector('#city-voxel-canvas');
+   const s=document.querySelector('#city-voxel-status'),h=document.querySelector('#city-render-hint');
+   const snapshot=el=>el?{hidden:el.hidden,width:el.width,height:el.height,
+    display:getComputedStyle(el).display,visibility:getComputedStyle(el).visibility,
+    rect:{width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height}}:null;
+   let pixels=null;
+   try{
+    if(c&&c.width&&c.height){
+     const data=c.getContext('2d').getImageData(Math.floor(c.width/2),Math.floor(c.height/2),1,1).data;
+     pixels=Array.from(data);
+    }
+   }catch(e){pixels=String(e);}
+   return {canvas:snapshot(c),webgl:snapshot(v),status:s?.textContent,
+    dataset:s?{...s.dataset}:null,hint:snapshot(h),hintText:h?.textContent,
+    introHidden:document.getElementById('city-intro')?.hidden,
+    renderer:s?.dataset.renderer,playerMode:s?.dataset.playerMode,
+    pixels,exceptions:window.__terrainQaExceptions||null};
+  })()`);
+  console.error('Canvas fallback startup diagnostics:',JSON.stringify(diagnostic));
+  console.error('Chromium uncaught exceptions:',JSON.stringify(exceptions));
+  throw error;
+ }
  assert.equal(await evalPage('document.getElementById("city-compatibility-toggle")?.textContent'),'TRY WEBGL 3D');
  // The fallback must keep the SAME seed, saved progression and player
  // position as WebGL. A rendered canvas alone is not gameplay parity.
