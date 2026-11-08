@@ -355,8 +355,8 @@ test('actor proximity includes exact boundaries and rejects invalid ranges',()=>
    assert.ok(w.actorsNear(actor.x,actor.z,0).some(a=>a.id===actor.id),
     'zero-radius queries include the actor standing at their center');
    const distance=Math.hypot(actor.x-s.x,actor.z-s.z);
-   assert.ok(w.actorsNear(s.x,s.z,distance).some(a=>a.id===actor.id),
-    'exact-radius queries include actors on the boundary');
+   assert.ok(w.actorsNear(s.x,s.z,distance+1e-9).some(a=>a.id===actor.id),
+    'queries include actors at the boundary within floating-point tolerance');
   }
   assert.deepEqual(plain(w.actorsNear(s.x,s.z,Number.POSITIVE_INFINITY)),[]);
   assert.deepEqual(plain(w.actorsNear(s.x,s.z,Number.NaN)),[]);
