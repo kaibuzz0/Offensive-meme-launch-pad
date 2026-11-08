@@ -53,3 +53,23 @@ test('fixed-step gate traversal preserves open doorway and solid wall at 30/60/1
    `door drift at ${hz} Hz`);
  }
 });
+
+
+test('fixed-step cave headroom blocks rising through an adjacent solid roof',()=>{
+ const world={
+  PLAYER_HEIGHT:1.8,SEA_LEVEL:-100,
+  surfaceAt(){return {height:0};},
+  caveRoomAt(x,z){return {floor:0,ceiling:2.1,exposed:false};}
+ };
+ const c=context.CityVoxelPhysics.createController(world,{x:0,z:0,y:0});
+ // A cave player can jump, but the capsule head must remain below the roof.
+ let peak=-Infinity;
+ for(let i=0;i<60;i++){
+  const frame=c.tickFrame({jump:i===0},1/60);
+  assert.equal(frame.steps,1);
+  peak=Math.max(peak,frame.state.y);
+  assert.ok(frame.state.y+world.PLAYER_HEIGHT<=2.1+1e-8,
+   'cave ceiling must constrain the entire player capsule');
+ }
+ assert.ok(peak>0,'jump should move before contacting the roof');
+});
