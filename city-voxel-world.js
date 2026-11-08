@@ -441,7 +441,11 @@
   const wildlifeSite=actorSite(-8,7,12,true,traderSite);
   const EMPTY_ACTORS=Object.freeze([]);
   const starterActors=Object.freeze([actorDescriptor(traderSite,true),actorDescriptor(wildlifeSite,false)].filter(Boolean));
+  // Startup actor placement samples cave entrances; do not leave transient
+  // generation lookups resident before gameplay begins. Both caches regenerate
+  // deterministically on demand and retain their existing bounded policies.
   cache.clear();
+  caveCells.clear();
   // Emit each structure fragment in every intersected chunk. Keep the source
   // gateRoad.parts unchanged: collision uses those original world-space boxes.
   function gateParts(cx,cz){
