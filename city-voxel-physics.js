@@ -153,16 +153,26 @@
   const FIXED_DT=1/60,MAX_FRAME_DT=.1,MAX_SUBSTEPS=6;
   function tickFrame(input,elapsedSeconds){
    if(!Number.isFinite(elapsedSeconds)||elapsedSeconds<0)throw Error('Invalid frame time');
-   accumulator+=Math.min(elapsedSeconds,MAX_FRAME_DT);
+   const admittedSeconds=Math.min(elapsedSeconds,MAX_FRAME_DT);
+   const droppedFromFrame=elapsedSeconds-admittedSeconds;
+   accumulator+=admittedSeconds;
    let steps=0;
    while(accumulator+1e-10>=FIXED_DT&&steps<MAX_SUBSTEPS){
     tick(input,FIXED_DT);
     accumulator-=FIXED_DT;
     steps++;
    }
-   if(steps===MAX_SUBSTEPS&&accumulator>=FIXED_DT)
-    accumulator=accumulator%FIXED_DT;
-   return Object.freeze({state:snapshot(),steps,alpha:clamp(accumulator/FIXED_DT,0,1)});
+   let droppedFromCatchup=0;
+   if(steps===MAX_SUBSTEPS&&accumulator>=FIXED_DT){
+    const retained=accumulator%FIXED_DT;
+    droppedFromCatchup=accumulator-retained;
+    accumulator=retained;
+   }
+   // Per-frame counters expose bounded simulation work to the QA profiler.
+   // These are telemetry only: render LOD never changes collision or time step.
+   return Object.freeze({state:snapshot(),steps,alpha:clamp(accumulator/FIXED_DT,0,1),
+    simulatedSeconds:steps*FIXED_DT,
+    droppedSeconds:droppedFromFrame+droppedFromCatchup});
   }
   return Object.freeze({tick,tickFrame,snapshot,teleport,floorAt,
    FIXED_DT,MAX_SUBSTEPS,GRAVITY,JUMP_SPEED,MAX_STEP,PLAYER_HEIGHT:world.PLAYER_HEIGHT});
