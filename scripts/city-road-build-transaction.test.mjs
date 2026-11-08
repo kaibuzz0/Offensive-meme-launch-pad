@@ -115,3 +115,14 @@ test('snapped placement boundary cannot extend the permitted interaction radius'
  assert.throws(()=>buildWorkbenchState(before,attempt),/reach/);
  assert.equal(JSON.stringify(before),snapshot);
 });
+
+test('snapped reach accepts a valid voxel even when the unsnapped pointer is farther',()=>{
+ const before=original(),snapshot=JSON.stringify(before);
+ // The pointer is over 10m away, but the actual snapped voxel center is within 10m.
+ const attempt={...action,player:{x:25.08,z:24.125},position:{x:15.001,z:24.125}};
+ assert.ok(Math.hypot(attempt.player.x-attempt.position.x,attempt.player.z-attempt.position.z)>10);
+ const after=buildWorkbenchState(before,attempt);
+ assert.equal(after.inventory.supplies,0);
+ assert.equal(createVoxelEditJournal(seed,after.journal).get(60,41,96),'workbench');
+ assert.equal(JSON.stringify(before),snapshot);
+});
