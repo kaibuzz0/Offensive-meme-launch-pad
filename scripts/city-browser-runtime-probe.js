@@ -43,6 +43,16 @@
   } catch (_) { /* Unsupported browser: explicitly reported below. */ }
   globalThis.__memeCityQA = {
     stop() {
+      if (!active) return null;
+      // Drain queued entries before disconnecting; late callbacks remain ignored.
+      const pending = observer?.takeRecords?.() || [];
+      for (const entry of pending) {
+        if (entry.startTime >= started) {
+          longTaskTotal++;
+          if (longTasks.length === MAX_LONG_TASK_SAMPLES) longTasks.shift();
+          longTasks.push(entry.duration);
+        }
+      }
       active = false;
       cancelAnimationFrame(raf);
       observer?.disconnect();
