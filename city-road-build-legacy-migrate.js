@@ -31,5 +31,5 @@ export async function migrateLegacyRoadWorkbench({
   }
   if (occupied !== false)
     return Object.freeze({ status: 'quarantine', reason: 'occupied-target' });
-  return activateLegacyWorkbench(store, key, mapped);
+  return activateLegacyWorkbench(store, key, mapped, seed);
 }
