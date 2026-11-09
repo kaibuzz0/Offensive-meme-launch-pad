@@ -680,6 +680,22 @@
     if(bottom<=0||top>=h)continue;
     projected.push({depth,x:center-width/2,top,width,height:bottom-top,color:part.color});
    }
+   // Canvas compatibility uses the same stable actor descriptors and world
+   // coordinates as WebGL, never an alternate flat-map population.
+   for(const actor of world.actorsNear?.(player.x,player.z,far)||[]){
+    const dx=actor.x+.5-player.x,dz=actor.z+.5-player.z;
+    const depth=dx*forwardX+dz*forwardZ,side=dx*rightX+dz*rightZ;
+    if(depth<=1||depth>far||Math.abs(side)>depth*1.8+3)continue;
+    const height=actor.kind==='trader'?4.2:2.5;
+    const width=actor.kind==='trader'?.9:1.5;
+    const center=w*.5+side*focal/depth;
+    const top=horizon+(eye-actor.y-height)*focal/depth;
+    const bottom=horizon+(eye-actor.y)*focal/depth;
+    if(bottom<=0||top>=h)continue;
+    projected.push({depth,x:center-width*focal/depth/2,top,
+     width:width*focal/depth,height:bottom-top,
+     color:actor.kind==='trader'?[.26,.35,.51]:[.56,.39,.27]});
+   }
    projected.sort((a,b)=>b.depth-a.depth);
    for(const p of projected){
     const tint=clamp(.9-p.depth/370,.48,.92);
