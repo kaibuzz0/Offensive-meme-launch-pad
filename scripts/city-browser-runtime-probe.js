@@ -21,7 +21,9 @@
   let observer = null;
   try {
     observer = new PerformanceObserver(list => {
-      for (const entry of list.getEntries()) longTasks.push(entry.duration);
+      for (const entry of list.getEntries()) {
+        if (entry.startTime >= started) longTasks.push(entry.duration);
+      }
     });
     observer.observe({ type: 'longtask', buffered: true });
   } catch (_) { /* Unsupported browser: explicitly reported below. */ }
@@ -30,14 +32,16 @@
       active = false;
       cancelAnimationFrame(raf);
       observer?.disconnect();
-      const resources = performance.getEntriesByType('resource');
+      const resources = performance.getEntriesByType('resource').filter(entry => entry.startTime >= started);
       const grouped = new Map();
+      let transferSizeUnknown = 0;
       for (const entry of resources) {
         const url = new URL(entry.name);
         if (url.origin !== location.origin) continue;
         const key = url.pathname + url.search;
         const item = grouped.get(key) || { requests: 0, transferBytes: 0, decodedBytes: 0 };
         item.requests++;
+        if (entry.transferSize === 0 && entry.decodedBodySize === 0) transferSizeUnknown++;
         item.transferBytes += entry.transferSize || 0;
         item.decodedBytes += entry.decodedBodySize || 0;
         grouped.set(key, item);
@@ -56,9 +60,10 @@
         longTaskMsP95: percentile(longTasks, .95),
         resourceCount: resources.length,
         sameOriginTransferBytes: [...grouped.values()].reduce((s,x)=>s+x.transferBytes,0),
-        duplicateSameOriginRequests: [...grouped].filter(([,x])=>x.requests>1).map(([url,x])=>({url,...x})),
+        resourceTimingUnknownCount: transferSizeUnknown,
+        repeatedSameOriginRequests: [...grouped].filter(([,x])=>x.requests>1).map(([url,x])=>({url,...x})),
         jsHeapUsedBytes: performance.memory?.usedJSHeapSize ?? null,
-        notes: 'RAF frame intervals are not GPU frame times. Cache hits can report zero transfer. Heap is Chromium-only. No GPU memory estimate. Identify physical device separately.'
+        notes: 'Window-scoped measurements only; repeated requests are not proven duplicate network downloads. Resource timing may omit bytes (cache, cross-origin, browser limits). RAF intervals are not GPU frame times; heap is Chromium-only. No GPU memory estimate. Identify physical device separately.'
       };
       console.log('Meme City QA performance snapshot', report);
       delete globalThis.__memeCityQA;
