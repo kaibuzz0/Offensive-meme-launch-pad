@@ -27,7 +27,9 @@ export async function activateLegacyWorkbench(store, key, mapped, expectedSeed =
   const committed = await store.compareAndSwap(key, current.revision, next);
   if (!committed) return Object.freeze({ status: 'revision-conflict' });
   const saved = await store.read(key);
-  if (!saved || saved.revision !== next.revision ||
+  if (!saved || saved.seed !== next.seed || saved.version !== next.version ||
+      saved.revision !== next.revision ||
+      JSON.stringify(saved.inventory) !== JSON.stringify(next.inventory) ||
       JSON.stringify(saved.journal) !== JSON.stringify(next.journal))
     throw new Error('legacy activation readback mismatch');
   return Object.freeze({ status: 'activated', revision: saved.revision });
