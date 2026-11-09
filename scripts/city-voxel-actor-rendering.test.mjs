@@ -23,11 +23,12 @@ test('actor silhouettes use chunk ownership, preserve terrain LOD and stay deter
   const cx=Math.floor(actor.x/16),cz=Math.floor(actor.z/16);
   const chunk=world.chunkAt(cx,cz);
   assert.equal(chunk.npc.filter(a=>a.id===actor.id).length,1);
-  const withoutActors=Object.create(world);
-  withoutActors.chunkAt=(x,z)=>{
+  // The canonical world is frozen; a prototype child cannot shadow its
+  // non-writable chunkAt method. Copy its public interface for this test.
+  const withoutActors={...world,chunkAt:(x,z)=>{
    const original=world.chunkAt(x,z);
    return original&&{...original,npc:[]};
-  };
+  }};
   const visible=renderer.generateMesh(world,cx,cz,1);
   const empty=renderer.generateMesh(withoutActors,cx,cz,1);
   assert.ok(visible.vertices>empty.vertices,'near actor adds visible geometry');
