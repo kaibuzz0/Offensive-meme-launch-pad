@@ -1,8 +1,8 @@
 # Meme City — 15-workstream development council
 
-**Purpose:** Develop one original, expandable, Minecraft-scale *feature set* for Meme City without replacing the existing first-person wilderness or accidentally breaking the original Solo game. This is an independent game, not a Minecraft clone or a plan to use Minecraft code/assets.
+**Purpose:** Develop one original, expandable, Minecraft-scale *feature set* for Meme City by consolidating the existing first-person wilderness and Solo gameplay into one canonical game without losing saves. This is an independent game, not a Minecraft clone or a plan to use Minecraft code/assets.
 
-**Current baseline:** Original first-person world at `city.html?terrain=1`, 132 named seeded biomes, 0.25m voxels, underground pocket caves, WebGL, Android PWA and a bounded off-thread voxel mesher. Preserve world seeds, save formats, the legacy `city.html` experience and existing tests.
+**Current direction (November 9, 2026):** One canonical first-person game, one continuous seeded world model, shared inventory/interaction rules and one versioned save architecture. Solo must work offline without a wallet; multiplayer uses the same gameplay rules with server authority. Existing `city.html?terrain=1`, 132 seeded biome definitions, quarter-metre voxels, caves, WebGL/PWA and voxel mesher are migration inputs, not permanent alternate editions. Preserve recoverable old saves and source history; redirect legacy entries only after verified migration and gameplay parity.
 
 ## ChatGPT hourly development automations (GitHub research paused)
 
@@ -38,7 +38,7 @@ The machine-readable source of role names, issue IDs, GitHub research queries, d
 
 **Stage A — protect and stabilize the engine (P0).** Owner 01 sequences and integrates; owners 02 and 05 assess dependencies and real Android performance; owners 07 and 15 harden 3D player/world physics and multiplayer state boundaries. Goal: stable first-person controller and consistent saved state under realistic movement and load.
 
-**Stage B — make the world interactive (P1).** Owners 03, 04 and 06 expand terrain realism, deterministic editable blocks, resources, crafting and building. Owner 14 establishes stealth and NPC entity interfaces. Goal: complete a seed-stable gameplay loop, not just a beautiful static map.
+**Stage B — make the canonical world interactive (P1).** Owners 03, 04 and 06 expand terrain realism, deterministic editable blocks, resources, crafting and building. Owner 14 establishes stealth and NPC entity interfaces. Goal: complete a seed-stable gameplay loop, not just a beautiful static map.
 
 **Stage C — feature modules (P2).** Owners 08–13 develop modular melee, guns/explosion gameplay, cars, planes, drones and wildlife. These should begin as independently testable simulations. They can be implemented in parallel but must not be attached to the playable world until the P0 interfaces and integration tests exist.
 
@@ -58,9 +58,9 @@ These are candidates, **not installed dependencies**. Confirm actual LICENSE fil
 
 ## Hard safety and quality boundaries
 
-1. **One world and backward compatibility.** No parallel replacement map. The current 132 seeded biomes and prior save data remain readable. Do not remove the original Solo entry.
+1. **One canonical game and backward compatibility.** No permanent legacy/terrain/low/normal/high game editions. Retain original Solo accessibility without wallet, but migrate old URLs to the canonical Play entry only after complete save backups, repeat-safe migration and browser verification. Preserve 132 biome identities and old data that cannot be mapped.
 2. **One responsibility per PR.** Each code-writing agent creates a separate workstream-specific branch and clearly documents the merge dependency. Avoid editing someone else's owner path without coordination through #43.
-3. **Always run tests first.** At minimum `npm test`, `npm run check`, and both the original-game and first-person Chromium browser smoke tests on the exact PR head.
+3. **Verify before merge.** Run `npm test`, `npm run check`, and canonical Play desktop/Android browser acceptance on the exact PR head; keep legacy-entry migration regression tests until redirects are verified. Distinguish emulator from physical Android evidence.
 4. **Security first.** Server authority for multiplayer inventories, damage, world edits and vehicle state; input validation; limit CPU/GPU/worker budgets; no credential or signing-key persistence in game saves.
 5. **Game-only weapons.** Guns, swords, knives, explosives and drones are fictional game mechanics, not real-world instructions.
 6. **No copyrighted code/assets without permission.** Only import code/assets after license review and attribution. Prefer original game materials and models.
@@ -73,3 +73,7 @@ These are candidates, **not installed dependencies**. Confirm actual LICENSE fil
 - ChatGPT owns five hourly scheduled automations covering all 15 workstreams, due to the active-task limit. These are distinct from the now manual-only GitHub scanner.
 - To start an eligible GitHub Copilot coding agent, open a numbered issue, choose **Assignees → Copilot**, and review its created PR. Availability depends on the repository and GitHub Copilot plan.
 - Pause research by disabling `meme-city-council.yml` in GitHub Actions or removing its scheduled trigger. Scheduled GitHub Actions runs are not precise real-time timers.
+
+## Current construction integration gate — #48 / PR #82
+
+PR #80's seed-scoped Fortress Road supplies are an existing input. PR #82's IndexedDB compare-and-swap inventory + voxel-journal record is **Solo persistence infrastructure only**, not a completed first-person feature. The older `city-road-building.js` still writes workbench and torch records separately to localStorage; do not treat it as a second authoritative ledger. Preserve legacy records during validated, repeat-safe migration. #48 owns wiring pickup, select/place controls, visible committed geometry and reload recovery into the same canonical runtime. #43 coordinates file ownership and integration; #57 owns multiplayer server-side resource/occupancy/reach validation. Before release, verify Play → road pickup → workbench placement → resource deduction → reload on desktop and touch Android. No deployment claim without public browser evidence. #51 ranged effects and #54 scouting camera follow this shared inventory/interaction contract; keep active projectiles and secondary cameras bounded.
