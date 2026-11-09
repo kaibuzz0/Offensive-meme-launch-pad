@@ -4,6 +4,16 @@
 import { validateBuildRecord } from './city-road-build-save-validation.js';
 import { prepareLegacyWorkbenchImport } from './city-road-build-legacy-import.js';
 
+// IndexedDB adapters may return equivalent object fields in a different order.
+// Compare canonical JSON values while retaining array order and all metadata.
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])]));
+  }
+  return value;
+}
+
 export async function activateLegacyWorkbench(store, key, mapped, expectedSeed = null) {
   if (!store || typeof store.read !== 'function' ||
       typeof store.compareAndSwap !== 'function' ||
@@ -34,7 +44,7 @@ export async function activateLegacyWorkbench(store, key, mapped, expectedSeed =
   // The durable adapter must not silently mutate ANY migration field, including
   // future metadata or provenance. Validate the complete committed snapshot,
   // not just the inventory and voxel journal, before reporting success.
-  if (!saved || JSON.stringify(saved) !== JSON.stringify(next))
+  if (!saved || JSON.stringify(canonical(saved)) !== JSON.stringify(canonical(next)))
     throw new Error('legacy activation readback mismatch');
   return Object.freeze({ status: 'activated', revision: saved.revision });
 }
