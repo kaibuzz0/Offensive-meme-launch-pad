@@ -200,7 +200,7 @@
     if(ceiling<Infinity){state.y=ceiling-world.PLAYER_HEIGHT;state.vy=0;}
    }
    // Real structure roof/underside contacts use world geometry, never render LOD.
-   if(Array.isArray(world.gateRoad?.parts)){
+   if(Array.isArray(world.gateRoad?.parts)||typeof world.gateRoad?.queryParts==='function'){
     let landing=-Infinity;
     for(const p of nearbyStructures(state.x,state.z)){
      structureCandidates++;
