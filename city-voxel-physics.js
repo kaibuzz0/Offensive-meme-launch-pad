@@ -33,7 +33,7 @@
    return top;
   }
   // Counters must exist before spawn sampling invokes floorAt().
-  let surfaceQueries=0, caveQueries=0, obstructionQueries=0;
+  let surfaceQueries=0, caveQueries=0, obstructionQueries=0, structureCandidates=0;
   const requestedY=Number.isFinite(start.y)?start.y:Infinity;
   const initial=floorAt(start.x,start.z,requestedY);
   if(initial===null)throw Error('Spawn outside supported world');
@@ -101,6 +101,7 @@
   function roofSupportAt(x,y,z){
    let support=-Infinity;
    for(const p of world.gateRoad?.parts||[]){
+    structureCandidates++;
     if(!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||p.w<=0||p.h<=0||p.d<=0)continue;
     const top=p.y+p.h;
     if(top>y+.01||x+RADIUS<=p.x||x-RADIUS>=p.x+p.w||z+RADIUS<=p.z||z-RADIUS>=p.z+p.d)continue;
@@ -178,6 +179,7 @@
    if(Array.isArray(world.gateRoad?.parts)){
     let landing=-Infinity;
     for(const p of world.gateRoad.parts){
+     structureCandidates++;
      if(!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||p.w<=0||p.h<=0||p.d<=0||
         state.x+RADIUS<=p.x||state.x-RADIUS>=p.x+p.w||state.z+RADIUS<=p.z||state.z-RADIUS>=p.z+p.d)continue;
      if(state.vy>0&&previousY+world.PLAYER_HEIGHT<=p.y&&
@@ -202,7 +204,7 @@
   const FIXED_DT=1/60,MAX_FRAME_DT=.1,MAX_SUBSTEPS=6;
   function tickFrame(input,elapsedSeconds){
    if(!Number.isFinite(elapsedSeconds)||elapsedSeconds<0)throw Error('Invalid frame time');
-   const beforeSurface=surfaceQueries,beforeCave=caveQueries,beforeObstructions=obstructionQueries;
+   const beforeSurface=surfaceQueries,beforeCave=caveQueries,beforeObstructions=obstructionQueries,beforeStructures=structureCandidates;
    const admittedSeconds=Math.min(elapsedSeconds,MAX_FRAME_DT);
    const droppedFromFrame=elapsedSeconds-admittedSeconds;
    accumulator+=admittedSeconds;
@@ -224,7 +226,8 @@
     simulatedSeconds:steps*FIXED_DT,
     droppedSeconds:droppedFromFrame+droppedFromCatchup,
     surfaceQueries:surfaceQueries-beforeSurface,caveQueries:caveQueries-beforeCave,
-    obstructionQueries:obstructionQueries-beforeObstructions});
+    obstructionQueries:obstructionQueries-beforeObstructions,
+    structureCandidates:structureCandidates-beforeStructures});
   }
   return Object.freeze({tick,tickFrame,snapshot,teleport,floorAt,
    FIXED_DT,MAX_SUBSTEPS,GRAVITY,JUMP_SPEED,MAX_STEP,PLAYER_HEIGHT:world.PLAYER_HEIGHT});
