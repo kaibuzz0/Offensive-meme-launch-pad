@@ -84,7 +84,10 @@ export async function openSoloBuildStore(indexedDBFactory = globalThis.indexedDB
           !initial || initial.revision !== 0 || typeof initial.seed !== 'string' ||
           !initial.seed || !initial.journal || !initial.inventory)
         return Promise.reject(new TypeError('invalid initial building record'));
-      validateBuildRecord(initial);
+      // Preserve the exact validated initial state across the asynchronous get().
+      // Otherwise a caller can mutate supplies or edits before store.add().
+      const snapshot = structuredClone(initial);
+      validateBuildRecord(snapshot);
       return transaction('readwrite', (store, done, fail) => {
         const req = store.get(key);
         req.onsuccess = () => {
@@ -93,13 +96,13 @@ export async function openSoloBuildStore(indexedDBFactory = globalThis.indexedDB
             // or bind this record key to another world on a repeat initialize.
             try {
               const existing = validateBuildRecord(req.result);
-              if (existing.seed !== initial.seed || existing.version !== initial.version)
+              if (existing.seed !== snapshot.seed || existing.version !== snapshot.version)
                 throw new Error('building initialization world identity mismatch');
               done(false);
             } catch (error) { fail(error); }
             return;
           }
-          const add = store.add(initial, key);
+          const add = store.add(snapshot, key);
           add.onsuccess = () => done(true);
           add.onerror = () => fail(add.error);
         };
