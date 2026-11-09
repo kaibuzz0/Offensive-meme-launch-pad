@@ -31,8 +31,11 @@ test('actor silhouettes use chunk ownership, preserve terrain LOD and stay deter
   const visible=renderer.generateMesh(world,cx,cz,1);
   const empty=renderer.generateMesh(withoutActors,cx,cz,1);
   assert.ok(visible.vertices>empty.vertices,'near actor adds visible geometry');
-  assert.deepEqual(Array.from(visible.data.slice(0,empty.data.length)),
-   Array.from(empty.data),'actor rendering must not alter preceding terrain/structures');
+  // Actor boxes are inserted between structures and foliage. Comparing the
+  // entire no-actor mesh as a prefix is incorrect whenever a chunk has plants.
+  // The canonical terrain and foliage counts must remain unchanged.
+  assert.equal(visible.tiles,empty.tiles,'actors must not alter terrain tiles');
+  assert.equal(visible.plants,empty.plants,'actors must not alter foliage');
   assert.deepEqual(Array.from(renderer.generateMesh(world,cx,cz,1).data),
    Array.from(visible.data),'same seed and chunk produce identical actor geometry');
   const distant=renderer.generateMesh(world,cx,cz,4);
