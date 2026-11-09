@@ -70,3 +70,23 @@ test('actor queries remain bounded, stable and independent of chunk activation',
  assert.deepEqual(world.actorsNear(center.x,center.z,256).map(a=>a.id),
   near.map(a=>a.id),'repeat queries must preserve order and IDs');
 });
+
+
+test('seeded actors survive chunk eviction and preserve spatial query boundaries',()=>{
+ const center=world.gateRoad.supplies;
+ const actors=world.actorsNear(center.x,center.z,256);
+ const rebuilt=ctx.CityVoxelWorld.createVoxelWorld(ctx.CityTerrainWorld.createTerrain('fortress-road',catalog));
+ assert.deepEqual(rebuilt.actorsNear(center.x,center.z,256).map(a=>({id:a.id,x:a.x,z:a.z,role:a.role})),
+  actors.map(a=>({id:a.id,x:a.x,z:a.z,role:a.role})),
+  'reconstructing the same seed must preserve actor identity and placement');
+ for(const actor of actors){
+  const cx=Math.floor(actor.x/16),cz=Math.floor(actor.z/16);
+  const before=world.chunkAt(cx,cz).npc.map(a=>a.id);
+  // Streaming unrelated chunks must not change the population or ownership.
+  world.chunkAt(cx+32,cz+32);
+  world.chunkAt(cx-32,cz-32);
+  assert.deepEqual(world.chunkAt(cx,cz).npc.map(a=>a.id),before);
+  assert.equal(world.actorsNear(actor.x,actor.z,0).filter(a=>a.id===actor.id).length,1);
+  assert.equal(world.actorsNear(actor.x+512,actor.z+512,0).some(a=>a.id===actor.id),false);
+ }
+});
