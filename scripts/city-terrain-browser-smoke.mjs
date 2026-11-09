@@ -102,7 +102,27 @@ try{
    await waitFor(()=>evalPage('!document.getElementById("city-road-supplies").hidden'),'walk to the roadside supply cache',90000);
    await evalPage('document.getElementById("city-road-supplies").click();true');
    assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
-   await waitFor(()=>evalPage('!document.getElementById("city-gate-seal").hidden'),'walk under the fortress arch',90000);
+   try {
+    await waitFor(()=>evalPage('!document.getElementById("city-gate-seal").hidden'),'walk under the fortress arch',90000);
+   } catch (error) {
+    // Capture public-runtime evidence before releasing the held movement key.
+    // Do not change the route, movement physics, or acceptance threshold.
+    const diagnostic=await evalPage(`(()=>{
+      const status=document.getElementById("city-voxel-status");
+      const gate=document.getElementById("city-gate-seal");
+      const supply=document.getElementById("city-road-supplies");
+      const seed=localStorage.getItem("meme-city-terrain-seed-v1");
+      const world=window.CityVoxelWorld&&window.CityTerrainWorld&&window.CityFrontier
+       ? CityVoxelWorld.createVoxelWorld(CityTerrainWorld.createTerrain(seed,CityFrontier.regions)):null;
+      const saved=localStorage.getItem("meme-city-terrain-position-v1:"+seed);
+      return {seed,savedPosition:saved,gateVisible:!!gate&&!gate.hidden,
+       supplyVisible:!!supply&&!supply.hidden,
+       gate:world?.gateRoad&&{x:world.gateRoad.gateX,z:world.gateRoad.gateZ},
+       supplies:world?.gateRoad?.supplies,
+       status:status?.textContent,metrics:status?{...status.dataset}:null};
+    })()`).catch(e=>({diagnosticError:e.message}));
+    throw Error(error.message+' / traversal diagnostic: '+JSON.stringify(diagnostic));
+   }
   }finally{
    await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
   }
