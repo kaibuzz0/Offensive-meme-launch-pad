@@ -109,7 +109,8 @@ assert.ok(!city.includes('href="city-world2-preview.html"'),'Do not advertise V2
 const cardStart=landing.indexOf('<article class="home-portal game-portal"'),detailsStart=landing.indexOf('<details class="portal-details"',cardStart);
 const soloCta=landing.indexOf('class="button primary game-direct-play"',cardStart);
 assert.ok(cardStart>=0&&soloCta>cardStart&&detailsStart>soloCta,'Homepage must show an immediate Solo Play button without expanding the card');
-assert.ok(landing.includes('href="city.html?release=center-city-v1"'),'Homepage Solo Play must open Center City');
+assert.ok(landing.includes('class="button primary game-direct-play" href="city.html?terrain=1"'),'Homepage primary Play must open the existing first-person seeded world');
+assert.ok(landing.includes('href="city.html?release=center-city-v1"'),'Homepage must retain original Center City Solo link');
 assert.ok(pages.includes('city.html')&&pages.includes('city.js'),'Pages must publish original playable game files');
 for(const oldPage of ['city-world2-preview.html','city-world2-production.html']){
  const redirect=read(oldPage);
