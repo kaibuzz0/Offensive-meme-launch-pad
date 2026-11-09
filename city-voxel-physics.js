@@ -56,8 +56,13 @@
    return world.caveRoomAt(x,z);
   }
   function teleport(x,z,referenceY=Infinity){
-   const floor=floorAt(x,z,referenceY);
-   if(floor===null)return false;
+   const terrain=floorAt(x,z,referenceY);
+   if(terrain===null)return false;
+   // Explicit elevated destinations may stand on structural roofs. Preserve
+   // the caller's intended support, as the initial spawn restoration does.
+   // The default Infinity reference keeps ordinary ground teleports unchanged.
+   const roof=Number.isFinite(referenceY)?roofSupportAt(x,referenceY,z):-Infinity;
+   const floor=Math.max(terrain,roof);
    // A destination must be clear before committing the teleport. Failed
    // transitions leave position, velocity and grounded state untouched.
    if(obstructed(x,floor,z))return false;
