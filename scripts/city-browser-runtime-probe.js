@@ -5,6 +5,8 @@
 (() => {
   if (globalThis.__memeCityQA) { console.warn('QA probe already active'); return; }
   const started = performance.now(), frames = [], longTasks = [];
+  const MAX_FRAME_SAMPLES = 6000, MAX_LONG_TASK_SAMPLES = 2000;
+  let frameTotal = 0, longTaskTotal = 0;
   let active = true, last = 0, raf = 0;
   const percentile = (values, p) => {
     if (!values.length) return null;
@@ -13,7 +15,11 @@
   };
   const tick = t => {
     if (!active) return;
-    if (last && t - last < 2000) frames.push(t - last);
+    if (last && t - last < 2000) {
+      frameTotal++;
+      if (frames.length === MAX_FRAME_SAMPLES) frames.shift();
+      frames.push(t - last);
+    }
     last = t;
     raf = requestAnimationFrame(tick);
   };
@@ -22,7 +28,11 @@
   try {
     observer = new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
-        if (entry.startTime >= started) longTasks.push(entry.duration);
+        if (entry.startTime >= started) {
+          longTaskTotal++;
+          if (longTasks.length === MAX_LONG_TASK_SAMPLES) longTasks.shift();
+          longTasks.push(entry.duration);
+        }
       }
     });
     observer.observe({ type: 'longtask', buffered: true });
@@ -52,18 +62,22 @@
         deviceMemoryGiBHint: navigator.deviceMemory ?? null,
         elapsedMs: Math.round(performance.now() - started),
         frameSamples: frames.length,
+        frameTotal,
+        frameSampleLimit: MAX_FRAME_SAMPLES,
         frameMsP50: percentile(frames, .50),
         frameMsP95: percentile(frames, .95),
         frameMsP99: percentile(frames, .99),
         longTaskSupported: !!observer,
-        longTaskCount: longTasks.length,
+        longTaskCount: longTaskTotal,
+        longTaskSamples: longTasks.length,
+        longTaskSampleLimit: MAX_LONG_TASK_SAMPLES,
         longTaskMsP95: percentile(longTasks, .95),
         resourceCount: resources.length,
         sameOriginTransferBytes: [...grouped.values()].reduce((s,x)=>s+x.transferBytes,0),
         resourceTimingUnknownCount: transferSizeUnknown,
         repeatedSameOriginRequests: [...grouped].filter(([,x])=>x.requests>1).map(([url,x])=>({url,...x})),
         jsHeapUsedBytes: performance.memory?.usedJSHeapSize ?? null,
-        notes: 'Window-scoped measurements only; repeated requests are not proven duplicate network downloads. Resource timing may omit bytes (cache, cross-origin, browser limits). RAF intervals are not GPU frame times; heap is Chromium-only. No GPU memory estimate. Identify physical device separately.'
+        notes: 'Window-scoped measurements only; percentiles use bounded most-recent samples (6000 frames, 2000 long tasks), while totals cover the full window; repeated requests are not proven duplicate network downloads. Resource timing may omit bytes (cache, cross-origin, browser limits). RAF intervals are not GPU frame times; heap is Chromium-only. No GPU memory estimate. Identify physical device separately.'
       };
       console.log('Meme City QA performance snapshot', report);
       delete globalThis.__memeCityQA;
