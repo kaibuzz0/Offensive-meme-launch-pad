@@ -63,3 +63,24 @@ test('rejects a committed readback that silently changes inventory', async () =>
   );
   assert.equal(record.journal.edits.length, 1);
 });
+
+test('accepts equivalent durable readback with reordered object keys', async () => {
+  let record = fresh();
+  const s = {
+    async read() { return structuredClone(record); },
+    async compareAndSwap(_key, revision, next) {
+      if (record.revision !== revision) return false;
+      // Simulate a persistence adapter reconstructing the record in another order.
+      record = {
+        journal: structuredClone(next.journal),
+        inventory: { supplies: next.inventory.supplies },
+        revision: next.revision,
+        seed: next.seed,
+        version: next.version
+      };
+      return true;
+    }
+  };
+  assert.deepEqual(await activateLegacyWorkbench(s, 'road-test', mapped, 'road-test'),
+    { status: 'activated', revision: 1 });
+});
