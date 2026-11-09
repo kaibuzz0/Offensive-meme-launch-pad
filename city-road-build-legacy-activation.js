@@ -31,10 +31,10 @@ export async function activateLegacyWorkbench(store, key, mapped, expectedSeed =
   // a malformed record (for example, invalid metadata or resource counts).
   // Validate the complete durable snapshot before reporting activation success.
   if (saved) validateBuildRecord(saved);
-  if (!saved || saved.seed !== next.seed || saved.version !== next.version ||
-      saved.revision !== next.revision ||
-      JSON.stringify(saved.inventory) !== JSON.stringify(next.inventory) ||
-      JSON.stringify(saved.journal) !== JSON.stringify(next.journal))
+  // The durable adapter must not silently mutate ANY migration field, including
+  // future metadata or provenance. Validate the complete committed snapshot,
+  // not just the inventory and voxel journal, before reporting success.
+  if (!saved || JSON.stringify(saved) !== JSON.stringify(next))
     throw new Error('legacy activation readback mismatch');
   return Object.freeze({ status: 'activated', revision: saved.revision });
 }
