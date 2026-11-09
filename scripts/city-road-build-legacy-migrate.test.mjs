@@ -53,3 +53,26 @@ test('terrain query failure preserves original record', async () => {
   assert.equal(result.status, 'quarantine');
   assert.equal(result.reason, 'terrain-query-failed');
 });
+
+test('occupancy query becoming unavailable after mapping quarantines without durable writes', async () => {
+  let queries = 0;
+  let writes = 0;
+  const result = await migrateLegacyRoadWorkbench({
+    storage: storage(JSON.stringify({version:1,seed,kind:'workbench',x:4,z:5})),
+    seed, key: seed,
+    store: {
+      read: async () => { writes++; throw Error('unexpected durable read'); },
+      compareAndSwap: async () => { writes++; throw Error('unexpected durable write'); }
+    },
+    groundHeightAt: () => 1,
+    isOccupied: () => {
+      queries++;
+      if (queries === 1) return false;
+      throw Error('chunk unloaded before activation');
+    }
+  });
+  assert.equal(queries, 2);
+  assert.equal(writes, 0);
+  assert.equal(result.status, 'quarantine');
+  assert.equal(result.reason, 'terrain-query-failed');
+});
