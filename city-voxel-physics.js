@@ -75,7 +75,12 @@
    for(let i=0;i<segments;i++){
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
-    const floor=floorAt(nx,nz,state.y);
+    const terrainFloor=floorAt(nx,nz,state.y);
+    // Structural roofs are walkable support, not just landing surfaces.
+    // Include their height during horizontal sweeps so traversing a roof
+    // does not spuriously switch the player to an airborne state.
+    const roofFloor=roofSupportAt(nx,state.y,nz);
+    const floor=terrainFloor===null?null:Math.max(terrainFloor,roofFloor);
     // Airborne actors retain their actual height; grounded actors test the stepped height.
     // Testing a higher floor while airborne can incorrectly clear a wall.
     const proposedY=state.grounded?Math.max(state.y,floor):state.y;
