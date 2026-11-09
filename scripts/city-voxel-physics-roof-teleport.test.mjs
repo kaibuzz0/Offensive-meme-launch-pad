@@ -40,8 +40,12 @@ test('ordinary teleport beneath a roof does not lift the player onto it', () => 
 });
 
 test('failed elevated teleport retains previous state', () => {
- const controller = createController(world(), { x: 0, z: 0 });
+ const blockedWorld = world();
+ const baseObstructs = blockedWorld.gateRoad.obstructs;
+ blockedWorld.gateRoad.obstructs = (x, y, z, height, radius) =>
+  (x === 6 && z === 6) || baseObstructs(x, y, z, height, radius);
+ const controller = createController(blockedWorld, { x: 0, z: 0 });
  const before = controller.snapshot();
- assert.equal(controller.teleport(6, 6, 11), false);
+ assert.equal(controller.teleport(6, 6, 12), false);
  assert.deepEqual({ ...controller.snapshot() }, { ...before });
 });
