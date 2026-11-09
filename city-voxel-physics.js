@@ -113,9 +113,18 @@
    }
    return moved;
   }
+  function nearbyStructures(x,z){
+   // Optional canonical-world broadphase. The provider must return every
+   // solid part intersecting the player's capsule footprint; otherwise
+   // fall back to the complete structure list for collision correctness.
+   const query=world.gateRoad?.queryParts;
+   if(typeof query!=='function')return world.gateRoad?.parts||[];
+   const candidates=query.call(world.gateRoad,x-RADIUS,z-RADIUS,x+RADIUS,z+RADIUS);
+   return Array.isArray(candidates)?candidates:(world.gateRoad?.parts||[]);
+  }
   function roofSupportAt(x,y,z){
    let support=-Infinity;
-   for(const p of world.gateRoad?.parts||[]){
+   for(const p of nearbyStructures(x,z)){
     structureCandidates++;
     if(!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||p.w<=0||p.h<=0||p.d<=0)continue;
     const top=p.y+p.h;
@@ -193,7 +202,7 @@
    // Real structure roof/underside contacts use world geometry, never render LOD.
    if(Array.isArray(world.gateRoad?.parts)){
     let landing=-Infinity;
-    for(const p of world.gateRoad.parts){
+    for(const p of nearbyStructures(state.x,state.z)){
      structureCandidates++;
      if(!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||p.w<=0||p.h<=0||p.d<=0||
         state.x+RADIUS<=p.x||state.x-RADIUS>=p.x+p.w||state.z+RADIUS<=p.z||state.z-RADIUS>=p.z+p.d)continue;
