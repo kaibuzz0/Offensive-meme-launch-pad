@@ -84,3 +84,36 @@ test('accepts equivalent durable readback with reordered object keys', async () 
   assert.deepEqual(await activateLegacyWorkbench(s, 'road-test', mapped, 'road-test'),
     { status: 'activated', revision: 1 });
 });
+
+test('readback compares nested metadata by value but preserves ordered journal edits', async () => {
+  let record = { ...fresh(), provenance: { source: 'legacy', detail: { b: 2, a: 1 } } };
+  const s = {
+    async read() { return structuredClone(record); },
+    async compareAndSwap(_key, revision, next) {
+      if (record.revision !== revision) return false;
+      record = structuredClone(next);
+      record.provenance = { detail: { a: 1, b: 2 }, source: 'legacy' };
+      return true;
+    }
+  };
+  assert.deepEqual(await activateLegacyWorkbench(s, 'road-test', mapped, 'road-test'),
+    { status: 'activated', revision: 1 });
+  assert.equal(record.journal.edits.length, 1);
+});
+
+test('readback rejects altered journal edit coordinates even with valid record shape', async () => {
+  let record = fresh();
+  const s = {
+    async read() { return structuredClone(record); },
+    async compareAndSwap(_key, revision, next) {
+      if (record.revision !== revision) return false;
+      record = structuredClone(next);
+      record.journal.edits[0].x += 1;
+      return true;
+    }
+  };
+  await assert.rejects(
+    activateLegacyWorkbench(s, 'road-test', mapped, 'road-test'),
+    /legacy activation readback mismatch/
+  );
+});
