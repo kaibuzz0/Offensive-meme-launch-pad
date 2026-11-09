@@ -128,7 +128,10 @@
     if(!Array.isArray(world.gateRoad?.parts))throw error;
     return world.gateRoad.parts;
    }
-   return Array.isArray(candidates)?candidates:(world.gateRoad?.parts||[]);
+   if(Array.isArray(candidates))return candidates;
+   // Invalid broadphase results must not silently erase structural collision.
+   if(Array.isArray(world.gateRoad?.parts))return world.gateRoad.parts;
+   throw Error('Structural spatial query returned invalid candidates without fallback geometry');
   }
   function roofSupportAt(x,y,z){
    let support=-Infinity;
