@@ -1,5 +1,7 @@
 # Meme City — Terrain-Only Rebuild Progress
 
+> **Historical record — November 9, 2026:** This document chronicles the early terrain-only prototype and must **not** be treated as the current release policy or a mandate to maintain separate World V1 / terrain / low / normal / high editions. The authoritative direction is [DEVELOPMENT_COUNCIL.md](DEVELOPMENT_COUNCIL.md) and [integration issue #43](https://github.com/kaibuzz0/Offensive-meme-launch-pad/issues/43): one canonical first-person game, one seeded world and shared state/save/gameplay, automatic quality adaptation and offline wallet-free Solo. Older URLs and save keys stay recoverable only until versioned, validated, repeat-safe migration and renderer parity pass. The historical milestone percentages and "default V1" statements below are archival, **not current progress or release acceptance**. Current player-visible acceptance is homepage Play → fortress and mountain skyline → wooded road → lit interior → persistent interaction; verify on desktop/mobile Chromium, then Pages and physical Android separately. No claims of deployment or visual verification are made by this note.
+
 **Working branch:** `codex/seeded-worldgen-rebuild` (PR #36)
 **Production policy:** Existing World V1 at `city.html` remains the default until terrain mode is robust; no original saves deleted. Owner requested incremental main merges of tested milestones.
 
