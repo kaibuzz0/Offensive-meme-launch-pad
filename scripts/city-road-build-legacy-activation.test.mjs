@@ -44,3 +44,22 @@ test('refuses a valid legacy mapping for another seeded world', async () => {
     { status: 'quarantine', reason: 'world-seed-mismatch' });
   assert.deepEqual(await s.read(), before);
 });
+
+test('rejects a committed readback that silently changes inventory', async () => {
+  const original = fresh();
+  let record = structuredClone(original);
+  const s = {
+    async read() { return structuredClone(record); },
+    async compareAndSwap(_key, revision, next) {
+      if (revision !== record.revision) return false;
+      record = structuredClone(next);
+      record.inventory.supplies = 0; // Simulate a broken persistence adapter.
+      return true;
+    }
+  };
+  await assert.rejects(
+    activateLegacyWorkbench(s, 'road-test', mapped, original.seed),
+    /legacy activation readback mismatch/
+  );
+  assert.equal(record.journal.edits.length, 1);
+});
