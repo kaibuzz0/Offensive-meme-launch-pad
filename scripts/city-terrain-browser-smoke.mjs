@@ -171,7 +171,23 @@ try{
  await request('Page.reload',{ignoreCache:true});
  await waitFor(()=>evalPage('!!document.querySelector("#city-road-canvas")'),'compatibility renderer boot');
  await evalPage('document.getElementById("start-button").click();true');
- await waitFor(()=>evalPage('!document.querySelector("#city-road-canvas").hidden && document.querySelector("#city-voxel-status").dataset.meshWorker==="canvas"'),'first-person rendering with WebGL unavailable',30000);
+ try {
+await waitFor(()=>evalPage('!document.querySelector("#city-road-canvas").hidden && document.querySelector("#city-voxel-status").dataset.meshWorker==="canvas"'),'first-person rendering with WebGL unavailable',30000);
+ } catch (error) {
+  const diagnostic=await evalPage(`(()=>{
+   const road=document.querySelector('#city-road-canvas');
+   const voxel=document.querySelector('#city-voxel-canvas');
+   const status=document.querySelector('#city-voxel-status');
+   const hint=document.querySelector('#city-render-hint');
+   const intro=document.querySelector('#city-intro');
+   return {roadExists:!!road,roadHidden:road?.hidden,roadSize:road&&[road.width,road.height],
+    voxelHidden:voxel?.hidden,statusText:status?.textContent,statusData:status?{...status.dataset}:null,
+    hintHidden:hint?.hidden,hintText:hint?.textContent,introHidden:intro?.hidden,
+    canvasCount:document.querySelectorAll('canvas').length};
+  })()`).catch(e=>({diagnosticError:e.message}));
+  throw Error(error.message+' / compatibility diagnostic: '+JSON.stringify(diagnostic)+
+   ' / uncaught browser exceptions: '+JSON.stringify(exceptions));
+ }
  assert.equal(await evalPage('document.getElementById("city-compatibility-toggle")?.textContent'),'TRY WEBGL 3D');
  await waitFor(()=>evalPage('document.getElementById("city-render-hint")?.hidden===true'),'compatibility scene becomes visible',30000);
  assert.equal(await evalPage('!!document.querySelector("a[href*=\\\"render=canvas\\\"]")'),true,'there is an escape route to low graphics before starting');
