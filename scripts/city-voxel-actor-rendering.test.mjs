@@ -128,3 +128,16 @@ test('streamed neighboring chunks never double-own a seeded actor',()=>{
   assert.equal(seen.has(actor.id),true,'each queried actor must be owned by a chunk');
  }
 });
+
+
+test('starter actor standing footprints remain clear of tall seeded vegetation',()=>{
+ const actors=world.actorsNear(world.gateRoad.supplies.x,world.gateRoad.supplies.z,256);
+ assert.ok(actors.length>0,'starter actor fixture must be present');
+ for(const actor of actors){
+  for(const [dx,dz] of [[0,0],[1,0],[0,1],[1,1]]){
+   const feature=world.featureAt(actor.x+dx,actor.z+dz);
+   assert.ok(!feature||feature.height<6,
+    'seeded actor footprints must not overlap tree or tall vegetation geometry');
+  }
+ }
+});
