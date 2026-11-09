@@ -56,7 +56,11 @@ export async function openSoloBuildStore(indexedDBFactory = globalThis.indexedDB
           !Number.isSafeInteger(expectedRevision) || expectedRevision < 0 ||
           !next || next.revision !== expectedRevision + 1)
         return Promise.reject(new TypeError('invalid atomic building write'));
-      validateBuildRecord(next);
+      // Snapshot caller-owned state before the asynchronous read completes. Otherwise
+      // a UI handler could mutate inventory or journal after validation but before put().
+      // IndexedDB stores this same validated snapshot, never the mutable input.
+      const snapshot = structuredClone(next);
+      validateBuildRecord(snapshot);
       return transaction('readwrite', (store, done, fail) => {
         const req = store.get(key);
         req.onsuccess = () => {
@@ -64,10 +68,10 @@ export async function openSoloBuildStore(indexedDBFactory = globalThis.indexedDB
           if (!previous || previous.revision !== expectedRevision) { done(false); return; }
           try { validateBuildRecord(previous); } catch (error) { fail(error); return; }
           // Keep the world identity immutable across an edit.
-          if (previous.seed !== next.seed || previous.version !== next.version) {
+          if (previous.seed !== snapshot.seed || previous.version !== snapshot.version) {
             fail(new Error('building world identity mismatch')); return;
           }
-          const put = store.put(next, key);
+          const put = store.put(snapshot, key);
           put.onsuccess = () => done(true);
           put.onerror = () => fail(put.error);
         };
