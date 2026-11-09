@@ -90,3 +90,20 @@ test('seeded actors survive chunk eviction and preserve spatial query boundaries
   assert.equal(world.actorsNear(actor.x+512,actor.z+512,0).some(a=>a.id===actor.id),false);
  }
 });
+
+test('starter actors stand on terrain without overlapping fortress collision',()=>{
+ const center=world.gateRoad.supplies;
+ const actors=world.actorsNear(center.x,center.z,256);
+ for(const actor of actors){
+  const ground=world.surfaceAt(actor.x,actor.z);
+  assert.ok(ground&&!ground.water&&!ground.mouth,
+   'actors require a dry standing surface');
+  assert.equal(actor.y,ground.height+1,
+   'actor feet must follow the canonical terrain grade');
+  for(const [dx,dz] of [[.25,.25],[.75,.25],[.25,.75],[.75,.75]]){
+   assert.equal(world.gateRoad.obstructs(actor.x+dx,actor.y,actor.z+dz,
+    world.PLAYER_HEIGHT,.35),false,
+   'actor footprint must not overlap fortress collision');
+  }
+ }
+});
