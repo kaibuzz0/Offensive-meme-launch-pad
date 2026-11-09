@@ -76,3 +76,38 @@ test('occupancy query becoming unavailable after mapping quarantines without dur
   assert.equal(result.status, 'quarantine');
   assert.equal(result.reason, 'terrain-query-failed');
 });
+
+test('full migration commits once, retains supplies and preserves legacy source on repeat', async () => {
+  const { createVoxelEditJournal } = await import('../city-sandbox-mining.js');
+  const raw = JSON.stringify({ version: 1, seed, kind: 'workbench', x: 4, z: 5 });
+  const legacy = storage(raw);
+  let record = {
+    version: 1, seed, revision: 0, inventory: { supplies: 8 },
+    journal: createVoxelEditJournal(seed).snapshot()
+  };
+  let commits = 0;
+  const durable = {
+    async read() { return structuredClone(record); },
+    async compareAndSwap(_key, revision, next) {
+      if (revision !== record.revision) return false;
+      commits++;
+      record = structuredClone(next);
+      return true;
+    }
+  };
+  const args = {
+    storage: legacy, seed, key: seed, store: durable,
+    groundHeightAt: () => 1, isOccupied: () => false
+  };
+  const first = await migrateLegacyRoadWorkbench(args);
+  assert.deepEqual(first, { status: 'activated', revision: 1 });
+  assert.equal(record.inventory.supplies, 8);
+  assert.equal(record.journal.edits.length, 1);
+  assert.equal(commits, 1);
+  assert.equal(legacy.getItem('meme-city-road-build-v1:' + seed), raw);
+  const saved = structuredClone(record);
+  const again = await migrateLegacyRoadWorkbench(args);
+  assert.equal(again.status, 'quarantine');
+  assert.deepEqual(record, saved);
+  assert.equal(commits, 1);
+});
