@@ -79,6 +79,8 @@
         hiddenTransitions,
         deviceMemoryGiBHint: navigator.deviceMemory ?? null,
         elapsedMs: Math.round(performance.now() - started),
+        probeStartedAfterNavigationMs: Math.round(started),
+        startupMeasuredByProbe: false,
         frameSamples: frames.length,
         frameTotal,
         frameSampleLimit: MAX_FRAME_SAMPLES,
@@ -95,7 +97,7 @@
         resourceTimingUnknownCount: transferSizeUnknown,
         repeatedSameOriginRequests: [...grouped].filter(([,x])=>x.requests>1).map(([url,x])=>({url,...x})),
         jsHeapUsedBytes: performance.memory?.usedJSHeapSize ?? null,
-        notes: 'Window-scoped measurements only; percentiles use bounded most-recent samples (6000 frames, 2000 long tasks), while totals cover the full window; repeated requests are not proven duplicate network downloads. Resource timing may omit bytes (cache, cross-origin, browser limits). Hidden-tab intervals are excluded and visibility changes reset frame continuity; RAF intervals are not GPU frame times; heap is Chromium-only. No GPU memory estimate. Identify physical device separately.'
+        notes: 'This DevTools-injected probe starts AFTER page navigation and cannot measure cold startup, initial Play navigation or pre-injection requests; use navigation-start browser automation for startup acceptance. Window-scoped measurements only; percentiles use bounded most-recent samples (6000 frames, 2000 long tasks), while totals cover the full window; repeated requests are not proven duplicate network downloads. Resource timing may omit bytes (cache, cross-origin, browser limits). Hidden-tab intervals are excluded and visibility changes reset frame continuity; RAF intervals are not GPU frame times; heap is Chromium-only. No GPU memory estimate. Identify physical device separately.'
       };
       console.log('Meme City QA performance snapshot', report);
       delete globalThis.__memeCityQA;
