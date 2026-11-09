@@ -126,7 +126,7 @@
    let support=-Infinity;
    for(const p of nearbyStructures(x,z)){
     structureCandidates++;
-    if(!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||p.w<=0||p.h<=0||p.d<=0)continue;
+    if(!p||typeof p!=='object'||!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||p.w<=0||p.h<=0||p.d<=0)continue;
     const top=p.y+p.h;
     if(top>y+.01||x+RADIUS<=p.x||x-RADIUS>=p.x+p.w||z+RADIUS<=p.z||z-RADIUS>=p.z+p.d)continue;
     support=Math.max(support,top);
@@ -204,7 +204,7 @@
     let landing=-Infinity;
     for(const p of nearbyStructures(state.x,state.z)){
      structureCandidates++;
-     if(!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||p.w<=0||p.h<=0||p.d<=0||
+     if(!p||typeof p!=='object'||!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||p.w<=0||p.h<=0||p.d<=0||
         state.x+RADIUS<=p.x||state.x-RADIUS>=p.x+p.w||state.z+RADIUS<=p.z||state.z-RADIUS>=p.z+p.d)continue;
      if(state.vy>0&&previousY+world.PLAYER_HEIGHT<=p.y&&
         state.y+world.PLAYER_HEIGHT>p.y&&state.y<p.y+p.h){
