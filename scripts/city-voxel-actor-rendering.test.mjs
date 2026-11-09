@@ -107,3 +107,24 @@ test('starter actors stand on terrain without overlapping fortress collision',()
   }
  }
 });
+
+
+test('streamed neighboring chunks never double-own a seeded actor',()=>{
+ const center=world.gateRoad.supplies;
+ const actors=world.actorsNear(center.x,center.z,256);
+ const seen=new Map();
+ for(const actor of actors){
+  const cx=Math.floor(actor.x/16),cz=Math.floor(actor.z/16);
+  for(let dx=-1;dx<=1;dx++) for(let dz=-1;dz<=1;dz++){
+   const chunk=world.chunkAt(cx+dx,cz+dz);
+   for(const entry of chunk.npc){
+    if(entry.id!==actor.id) continue;
+    const owner=(cx+dx)+','+(cz+dz);
+    assert.equal(owner,cx+','+cz,'actor must belong to its position-derived chunk');
+    assert.equal(seen.has(entry.id),false,'actor must appear in exactly one streamed chunk');
+    seen.set(entry.id,owner);
+   }
+  }
+  assert.equal(seen.has(actor.id),true,'each queried actor must be owned by a chunk');
+ }
+});
