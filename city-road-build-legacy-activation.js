@@ -27,6 +27,10 @@ export async function activateLegacyWorkbench(store, key, mapped, expectedSeed =
   const committed = await store.compareAndSwap(key, current.revision, next);
   if (!committed) return Object.freeze({ status: 'revision-conflict' });
   const saved = await store.read(key);
+  // A matching revision and journal are insufficient if the adapter returned
+  // a malformed record (for example, invalid metadata or resource counts).
+  // Validate the complete durable snapshot before reporting activation success.
+  if (saved) validateBuildRecord(saved);
   if (!saved || saved.seed !== next.seed || saved.version !== next.version ||
       saved.revision !== next.revision ||
       JSON.stringify(saved.inventory) !== JSON.stringify(next.inventory) ||
