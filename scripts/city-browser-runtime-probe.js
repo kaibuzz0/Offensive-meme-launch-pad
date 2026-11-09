@@ -32,7 +32,7 @@
   try {
     observer = new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
-        if (entry.startTime >= started) {
+        if (active && entry.startTime >= started) {
           longTaskTotal++;
           if (longTasks.length === MAX_LONG_TASK_SAMPLES) longTasks.shift();
           longTasks.push(entry.duration);
