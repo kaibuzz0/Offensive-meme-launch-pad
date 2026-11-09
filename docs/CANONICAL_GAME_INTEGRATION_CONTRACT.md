@@ -1,6 +1,6 @@
 # Canonical Game Integration Contract — graphics/release checkpoint (2026-11-08)
 
-Status: **proposed integration contract, not shipped gameplay**. Baseline main `8f0e6d1`. This document supplements `docs/DEVELOPMENT_COUNCIL.md` and issue #43; current implementation must be inventoried before binding names or changing public URLs.
+Status: **architecture contract merged to main via PR #116; gameplay consolidation remains unverified**. The `8f0e6d1` SHA below is a historical pre-merge reference, **not a current main baseline**. Fetch fresh main, PR heads and CI before every integration decision. This document supplements `docs/DEVELOPMENT_COUNCIL.md` and issue #43; current implementation must be inventoried before binding names or changing public URLs.
 
 ## Single entry and invariants
 
@@ -40,3 +40,19 @@ Release order: verify canonical startup and backups → reconcile #81 lodge and 
 ## Release evidence template
 
 Report separately: **implemented in branch**, **PR green**, **merged**, **Pages deployed**, **public player-eye-level verified**, and **physical Android measured**. Include exact SHA, Play URL, seed/viewpoint, interaction tried, save migration fixture, before/after performance evidence and remaining blockers. CI success alone is not proof of visible gameplay.
+
+## Integration checkpoint — 2026-11-09 (release ownership, not proof of deployment)
+
+The canonical contract itself was merged via PR #116. Open work must be re-evaluated against the *current* main rather than treating historic PR head SHAs, test totals or draft status as release evidence. In particular, renderer recovery (#83), starter lodge (#81), and workbench (#82) overlap the terrain runtime; do not merge these independently without an integrated, conflict-resolved branch and same-seed browser acceptance. The open QA work (#118–#122) must be deduplicated and ordered by the actual blocking regression rather than merged wholesale.
+
+### Required next batch and ownership
+
+1. **Graphics/release (#43/#46):** inventory current homepage Play link, terrain renderer adapters, compatibility path, and active state stores on main; choose the smallest renderer-recovery patch that preserves one world snapshot. Keep public legacy routes intact until migration tests pass. Own the shared terrain-runtime integration branch; other owners supply scoped patches or cherry-pick guidance rather than independently replacing that file.
+2. **Living World (#45/#56):** supply stable seeded lodge/road/landmark identifiers, terrain-fitting placement, enterable geometry and lighting with no independent save format.
+3. **Sandbox (#48):** supply one repeat-safe workbench gather/craft/place transaction using the existing inventory and edit ledger, with reload and two-tab tests.
+4. **Physics (#49/#52):** verify gate-to-lodge traversal, doorway headroom, collision independent of render detail, and shared vehicle seat/enter/exit contract before #53 flight connects.
+5. **QA (#47/#57):** capture exact-head npm test/check, desktop and emulated Android Chromium screenshots at a fixed seed and camera path, fallback parity, offline Solo and old-save migration; distinguish physical-device evidence. Record startup bytes, frame-time percentiles, stalls, draw/mesh load and memory before approving visual expansions.
+
+### Merge/deployment gate
+
+Use the order **renderer recovery → lodge geometry → workbench ledger → collision/parity/save migration → canonical homepage/PWA smoke → Pages publication**. For each candidate record the exact head SHA, mergeability, required checks, gameplay evidence and compatibility with other open PRs. Do not mark green CI alone as release-ready. After a successful merge, verify the Pages workflow completed for that main SHA and follow the *public* homepage Play action into the same first-person world; report any inability to run an interactive browser as unverified, not as a pass. Flight and wardrobe follow only after the starter interaction route is stable; flight uses the existing world queries and vehicle control/save interfaces.
