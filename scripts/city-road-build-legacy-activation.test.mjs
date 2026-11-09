@@ -36,3 +36,11 @@ test('does not overwrite concurrent changes or unresolved craft', async () => {
   assert.equal((await activateLegacyWorkbench(t, 'road-test', { ...mapped, craftedTorch: true })).status, 'quarantine');
   assert.equal((await t.read()).revision, 0);
 });
+
+test('refuses a valid legacy mapping for another seeded world', async () => {
+  const s = store(fresh());
+  const before = await s.read();
+  assert.deepEqual(await activateLegacyWorkbench(s, 'wrong-world-key', mapped, 'different-seed'),
+    { status: 'quarantine', reason: 'world-seed-mismatch' });
+  assert.deepEqual(await s.read(), before);
+});
