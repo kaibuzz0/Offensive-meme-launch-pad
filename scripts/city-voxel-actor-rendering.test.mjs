@@ -141,3 +141,18 @@ test('starter actor standing footprints remain clear of tall seeded vegetation',
   }
  }
 });
+
+
+test('actor identities are isolated between different seeded worlds',()=>{
+ const other=ctx.CityVoxelWorld.createVoxelWorld(ctx.CityTerrainWorld.createTerrain('fortress-road-alternate',catalog));
+ const original=world.actorsNear(world.gateRoad.supplies.x,world.gateRoad.supplies.z,256);
+ const alternate=other.actorsNear(other.gateRoad.supplies.x,other.gateRoad.supplies.z,256);
+ assert.ok(original.length>0&&alternate.length>0,'both worlds should seed starter actors');
+ assert.notEqual(world.seed,other.seed,'fixture must use distinct world seeds');
+ const originalIds=new Set(original.map(actor=>actor.id));
+ for(const actor of alternate){
+  assert.equal(originalIds.has(actor.id),false,'different world seeds must not share persistent actor IDs');
+  assert.strictEqual(other.actorById(actor.id),actor,'alternate world resolves its own actor');
+  assert.equal(world.actorById(actor.id),null,'cross-world actor IDs must not resolve');
+ }
+});
