@@ -64,3 +64,24 @@ test('QA probe reports unavailable Long Tasks and resource timing', () => {
   assert.equal(result.resourceTimingUnknownCount, 1);
   assert.equal(result.jsHeapUsedBytes, null);
 });
+
+test('QA probe bounds frame samples during extended sessions', () => {
+  let now = 0;
+  let callback;
+  const context = {
+    performance: { now: () => now, getEntriesByType: () => [] },
+    requestAnimationFrame(fn) { callback = fn; return 1; },
+    cancelAnimationFrame() {},
+    URL, location: { origin: 'https://example.test', href: 'https://example.test/city.html' },
+    navigator: { userAgent: 'QA' }, console: { log() {}, warn() {} }
+  };
+  context.globalThis = context;
+  vm.runInNewContext(source, context);
+  for (let i = 1; i <= 6200; i++) callback(i * 16);
+  now = 100000;
+  const result = context.__memeCityQA.stop();
+  assert.equal(result.frameTotal, 6199);
+  assert.equal(result.frameSamples, 6000);
+  assert.equal(result.frameSampleLimit, 6000);
+  assert.equal(result.frameMsP95, 16);
+});
