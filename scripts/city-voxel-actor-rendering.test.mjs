@@ -45,3 +45,28 @@ test('actor silhouettes use chunk ownership, preserve terrain LOD and stay deter
    'distant LOD must not duplicate actor geometry');
  }
 });
+
+test('actor queries remain bounded, stable and independent of chunk activation',()=>{
+ const center=world.gateRoad.supplies;
+ const near=world.actorsNear(center.x,center.z,256);
+ assert.ok(near.length>0);
+ assert.ok(near.length<=2,'starter population has a fixed upper bound');
+ assert.equal(world.actorsNear(center.x,center.z,-1).length,0);
+ assert.equal(world.actorsNear(NaN,center.z,10).length,0);
+ assert.equal(world.actorsNear(center.x,Infinity,10).length,0);
+ assert.equal(world.actorsNear(center.x,center.z,NaN).length,0);
+ assert.equal(world.actorById('unknown:retired-actor'),null);
+ assert.equal(world.actorById(null),null);
+ for(const actor of near){
+  assert.strictEqual(world.actorById(actor.id),actor,
+   'stable IDs resolve the same immutable descriptor');
+  assert.ok(Object.isFrozen(actor),'actor definitions must not carry mutable AI state');
+  assert.strictEqual(world.actorsNear(actor.x,actor.z,0)[0],actor,
+   'exact-position queries reuse the canonical descriptor');
+  const cx=Math.floor(actor.x/16),cz=Math.floor(actor.z/16);
+  assert.strictEqual(world.chunkAt(cx,cz).npc.find(a=>a.id===actor.id),actor,
+   'chunk streaming must not recreate or rename actors');
+ }
+ assert.deepEqual(world.actorsNear(center.x,center.z,256).map(a=>a.id),
+  near.map(a=>a.id),'repeat queries must preserve order and IDs');
+});
