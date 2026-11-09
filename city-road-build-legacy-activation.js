@@ -4,7 +4,7 @@
 import { validateBuildRecord } from './city-road-build-save-validation.js';
 import { prepareLegacyWorkbenchImport } from './city-road-build-legacy-import.js';
 
-export async function activateLegacyWorkbench(store, key, mapped) {
+export async function activateLegacyWorkbench(store, key, mapped, expectedSeed = null) {
   if (!store || typeof store.read !== 'function' ||
       typeof store.compareAndSwap !== 'function' ||
       typeof key !== 'string' || !key || key.length > 256)
@@ -12,6 +12,10 @@ export async function activateLegacyWorkbench(store, key, mapped) {
   const current = await store.read(key);
   if (!current) return Object.freeze({ status: 'missing-canonical-record' });
   validateBuildRecord(current);
+  // A storage key is not proof of world identity. Never migrate a legacy
+  // structure into a different seeded world even when its record is empty.
+  if (expectedSeed !== null && current.seed !== expectedSeed)
+    return Object.freeze({ status: 'quarantine', reason: 'world-seed-mismatch' });
   // The pure importer refuses active journals, crafted torches and invalid mapping.
   // Treat these as quarantine rather than rewriting any existing player progress.
   let next;
