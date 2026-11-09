@@ -119,7 +119,15 @@
    // fall back to the complete structure list for collision correctness.
    const query=world.gateRoad?.queryParts;
    if(typeof query!=='function')return world.gateRoad?.parts||[];
-   const candidates=query.call(world.gateRoad,x-RADIUS,z-RADIUS,x+RADIUS,z+RADIUS);
+   // A failed optional accelerator must not break movement when the
+   // canonical structure list is still available. Do not swallow failures
+   // for query-only worlds: without geometry there is no safe fallback.
+   let candidates;
+   try { candidates=query.call(world.gateRoad,x-RADIUS,z-RADIUS,x+RADIUS,z+RADIUS); }
+   catch(error){
+    if(!Array.isArray(world.gateRoad?.parts))throw error;
+    return world.gateRoad.parts;
+   }
    return Array.isArray(candidates)?candidates:(world.gateRoad?.parts||[]);
   }
   function roofSupportAt(x,y,z){
