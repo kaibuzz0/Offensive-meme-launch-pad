@@ -7,21 +7,24 @@
 (function(root){
  const GRAVITY=42,JUMP_SPEED=18,MAX_STEP=2.2,RADIUS=.27,SPEED=15;
  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+ // Reuse the same capsule-footprint offsets for floor, cave and roof queries.
+ // Avoid rebuilding offset arrays during every swept movement segment.
+ const FOOTPRINT=Object.freeze([[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]].map(pair=>Object.freeze(pair)));
  function createController(world,start){
   if(!world?.surfaceAt||!Number.isFinite(start?.x)||!Number.isFinite(start?.z))
    throw Error('Voxel world and finite player coordinates required');
   function floorAt(x,z,referenceY=Infinity){
    if(!Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>999900||Math.abs(z)>999900)return null;
-   const samples=[[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]];
    let top=-Infinity;
-   for(const [ox,oz] of samples){
+   for(const [ox,oz] of FOOTPRINT){
     const bx=Math.floor(x+ox),bz=Math.floor(z+oz);
+    surfaceQueries++;
     const col=world.surfaceAt(bx,bz);
     if(!col)return null;
     let height=col.height+1;
     // Caves share world coordinates with the terrain. The roof stays solid
     // until the player reaches an open mouth or is already below the roof.
-    const gallery=world.caveRoomAt?.(bx,bz);
+    const gallery=caveAt(bx,bz);
     if(gallery&&(gallery.exposed||referenceY<gallery.ceiling)){
      height=gallery.floor;
     }
@@ -29,15 +32,48 @@
    }
    return top;
   }
+  // Counters must exist before spawn sampling invokes floorAt().
+  let surfaceQueries=0, caveQueries=0, obstructionQueries=0, structureCandidates=0;
   const requestedY=Number.isFinite(start.y)?start.y:Infinity;
-  const initial=floorAt(start.x,start.z,requestedY);
-  if(initial===null)throw Error('Spawn outside supported world');
+  const terrainSpawn=floorAt(start.x,start.z,requestedY);
+  if(terrainSpawn===null)throw Error('Spawn outside supported world');
+  // A saved position on a solid roof must not respawn beneath that roof.
+  // Only accept roof support at or below the requested feet elevation;
+  // ordinary ground spawns must not be lifted onto distant rooftops.
+  const roofSpawn=Number.isFinite(requestedY)?roofSupportAt(start.x,requestedY,start.z):-Infinity;
+  const initial=Math.max(terrainSpawn,roofSpawn);
   const state={x:start.x,z:start.z,y:initial,vy:0,grounded:true};
   function snapshot(){return Object.freeze({...state});}
+  let accumulator=0;
+  function obstructed(x,y,z){
+   if(typeof world.gateRoad?.obstructs!=='function')return false;
+   obstructionQueries++;
+   return !!world.gateRoad.obstructs(x,y,z,world.PLAYER_HEIGHT,RADIUS);
+  }
+  function caveAt(x,z){
+   if(typeof world.caveRoomAt!=='function')return null;
+   caveQueries++;
+   return world.caveRoomAt(x,z);
+  }
   function teleport(x,z,referenceY=Infinity){
-   const floor=floorAt(x,z,referenceY);
-   if(floor===null)return false;
+   const terrain=floorAt(x,z,referenceY);
+   if(terrain===null)return false;
+   // Explicit elevated destinations may stand on structural roofs. Preserve
+   // the caller's intended support, as the initial spawn restoration does.
+   // The default Infinity reference keeps ordinary ground teleports unchanged.
+   const roof=Number.isFinite(referenceY)?roofSupportAt(x,referenceY,z):-Infinity;
+   const floor=Math.max(terrain,roof);
+   // A destination must be clear before committing the teleport. Failed
+   // transitions leave position, velocity and grounded state untouched.
+   if(obstructed(x,floor,z))return false;
+   for(const [ox,oz] of FOOTPRINT){
+    const gallery=caveAt(Math.floor(x+ox),Math.floor(z+oz));
+    if(gallery&&!gallery.exposed&&floor<gallery.ceiling&&floor+world.PLAYER_HEIGHT>gallery.ceiling)return false;
+   }
    state.x=x;state.z=z;state.y=floor;state.vy=0;state.grounded=true;
+   // A successful world transition starts a new simulation timeline.
+   // Do not replay a partial movement frame at the destination.
+   accumulator=0;
    return true;
   }
   function moveAxis(axis,delta){
@@ -49,26 +85,64 @@
    for(let i=0;i<segments;i++){
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
-    const floor=floorAt(nx,nz,state.y);
-    if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
+    const terrainFloor=floorAt(nx,nz,state.y);
+    // Structural roofs are walkable support, not just landing surfaces.
+    // Include their height during horizontal sweeps so traversing a roof
+    // does not spuriously switch the player to an airborne state.
+    const roofFloor=roofSupportAt(nx,state.y,nz);
+    const floor=terrainFloor===null?null:Math.max(terrainFloor,roofFloor);
+    // Airborne actors retain their actual height; grounded actors test the stepped height.
+    // Testing a higher floor while airborne can incorrectly clear a wall.
+    const proposedY=state.grounded?Math.max(state.y,floor):state.y;
+    if(floor===null||obstructed(nx,proposedY,nz))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
     // solid roof must fit the entire player before entering it laterally.
-    const samples=[[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]];
-    let blocked=false;
-    for(const [ox,oz] of samples){
-     const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
-     if(gallery&&!gallery.exposed&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+     let blocked=false;
+    for(const [ox,oz] of FOOTPRINT){
+     const gallery=caveAt(Math.floor(nx+ox),Math.floor(nz+oz));
+     if(gallery&&!gallery.exposed&&proposedY<gallery.ceiling&&proposedY+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
      }
     }
     if(blocked)break;
     if(axis==='x')state.x=nx;else state.z=nz;
-    if(state.grounded&&climb>0)state.y=floor;
+    if(state.grounded){if(climb>0)state.y=floor;else if(climb<-.01)state.grounded=false;}
     moved=true;
    }
    return moved;
+  }
+  function nearbyStructures(x,z){
+   // Optional canonical-world broadphase. The provider must return every
+   // solid part intersecting the player's capsule footprint; otherwise
+   // fall back to the complete structure list for collision correctness.
+   const query=world.gateRoad?.queryParts;
+   if(typeof query!=='function')return world.gateRoad?.parts||[];
+   // A failed optional accelerator must not break movement when the
+   // canonical structure list is still available. Do not swallow failures
+   // for query-only worlds: without geometry there is no safe fallback.
+   let candidates;
+   try { candidates=query.call(world.gateRoad,x-RADIUS,z-RADIUS,x+RADIUS,z+RADIUS); }
+   catch(error){
+    if(!Array.isArray(world.gateRoad?.parts))throw error;
+    return world.gateRoad.parts;
+   }
+   if(Array.isArray(candidates))return candidates;
+   // Invalid broadphase results must not silently erase structural collision.
+   if(Array.isArray(world.gateRoad?.parts))return world.gateRoad.parts;
+   throw Error('Structural spatial query returned invalid candidates without fallback geometry');
+  }
+  function roofSupportAt(x,y,z){
+   let support=-Infinity;
+   for(const p of nearbyStructures(x,z)){
+    structureCandidates++;
+    if(!p||typeof p!=='object'||!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||p.w<=0||p.h<=0||p.d<=0)continue;
+    const top=p.y+p.h;
+    if(top>y+.01||x+RADIUS<=p.x||x-RADIUS>=p.x+p.w||z+RADIUS<=p.z||z-RADIUS>=p.z+p.d)continue;
+    support=Math.max(support,top);
+   }
+   return support;
   }
   function tick(input,dt){
    if(!Number.isFinite(dt)||dt<0)throw Error('Invalid time step');
@@ -79,6 +153,8 @@
    const yaw=Number.isFinite(input?.yaw)?input.yaw:0;
    const rightX=Math.cos(yaw),rightZ=-Math.sin(yaw);
    const forwardX=Math.sin(yaw),forwardZ=Math.cos(yaw);
+   // Include the direct water/feet sample in the same surface-query budget as swept collision.
+   surfaceQueries++;
    const feet=world.surfaceAt(Math.floor(state.x),Math.floor(state.z));
    // Optional water-volume query allows submerged cave pools without
    // treating dry terrain below sea level as water. Legacy worlds without
@@ -90,7 +166,12 @@
    const dx=(vx*rightX+vz*forwardX)*speed*step;
    const dz=(vx*rightZ+vz*forwardZ)*speed*step;
    // Two-axis sweep permits sliding along terrain walls.
-   moveAxis('x',dx);moveAxis('z',dz);
+   // Stationary axes need no sweep; skip expensive cave/terrain probes.
+   // The final floor/support query below still runs for gravity and falling.
+   if(dx!==0)moveAxis('x',dx);
+   if(dz!==0)moveAxis('z',dz);
+   if(state.grounded&&Math.max(floorAt(state.x,state.z,state.y)??-Infinity,
+    roofSupportAt(state.x,state.y,state.z))<state.y-.01)state.grounded=false;
    if(input?.jump&&state.grounded){state.grounded=false;state.vy=JUMP_SPEED;}
    // Swimming is deliberately opt-in: an explicit water-volume query enables
    // controlled ascent, reduced gravity and terminal sinking velocity.
@@ -114,8 +195,8 @@
    // through it. Do not constrain a player already standing on the surface.
    if(state.vy>0&&typeof world.caveRoomAt==='function'){
     let ceiling=Infinity;
-    for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
-     const gallery=world.caveRoomAt(Math.floor(state.x+ox),Math.floor(state.z+oz));
+    for(const [ox,oz] of FOOTPRINT){
+     const gallery=caveAt(Math.floor(state.x+ox),Math.floor(state.z+oz));
      if(gallery&&!gallery.exposed&&Number.isFinite(gallery.ceiling)){
       const roof=gallery.ceiling;
       const crossedFromBelow=previousY<roof
@@ -129,13 +210,62 @@
     }
     if(ceiling<Infinity){state.y=ceiling-world.PLAYER_HEIGHT;state.vy=0;}
    }
-   const floor=floorAt(state.x,state.z,state.y);
+   // Real structure roof/underside contacts use world geometry, never render LOD.
+   if(Array.isArray(world.gateRoad?.parts)||typeof world.gateRoad?.queryParts==='function'){
+    let landing=-Infinity;
+    for(const p of nearbyStructures(state.x,state.z)){
+     structureCandidates++;
+     if(!p||typeof p!=='object'||!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||p.w<=0||p.h<=0||p.d<=0||
+        state.x+RADIUS<=p.x||state.x-RADIUS>=p.x+p.w||state.z+RADIUS<=p.z||state.z-RADIUS>=p.z+p.d)continue;
+     if(state.vy>0&&previousY+world.PLAYER_HEIGHT<=p.y&&
+        state.y+world.PLAYER_HEIGHT>p.y&&state.y<p.y+p.h){
+      state.y=p.y-world.PLAYER_HEIGHT;state.vy=0;
+     }
+     const top=p.y+p.h;
+     if(state.vy<=0&&previousY>=top&&state.y<=top)landing=Math.max(landing,top);
+    }
+    if(landing>-Infinity){state.y=landing;state.vy=0;state.grounded=true;}
+   }
+   const terrainFloor=floorAt(state.x,state.z,state.y);
+   const floor=terrainFloor===null?null:Math.max(terrainFloor,roofSupportAt(state.x,state.y,state.z));
    if(floor!==null&&state.y<=floor){state.y=floor;state.vy=0;state.grounded=true;}
    else if(floor!==null&&state.y>floor+.01)state.grounded=false;
    return snapshot();
   }
-  return Object.freeze({tick,snapshot,teleport,floorAt,
-   GRAVITY,JUMP_SPEED,MAX_STEP,PLAYER_HEIGHT:world.PLAYER_HEIGHT});
+  // Frame-facing fixed-step adapter. Physics is advanced in bounded, equal
+  // increments rather than feeding variable render deltas into tick().
+  // Excess wall-clock time is intentionally dropped after a stall; this
+  // prevents a backgrounded mobile tab from simulating seconds of catch-up.
+  const FIXED_DT=1/60,MAX_FRAME_DT=.1,MAX_SUBSTEPS=6;
+  function tickFrame(input,elapsedSeconds){
+   if(!Number.isFinite(elapsedSeconds)||elapsedSeconds<0)throw Error('Invalid frame time');
+   const beforeSurface=surfaceQueries,beforeCave=caveQueries,beforeObstructions=obstructionQueries,beforeStructures=structureCandidates;
+   const admittedSeconds=Math.min(elapsedSeconds,MAX_FRAME_DT);
+   const droppedFromFrame=elapsedSeconds-admittedSeconds;
+   accumulator+=admittedSeconds;
+   let steps=0;
+   while(accumulator+1e-10>=FIXED_DT&&steps<MAX_SUBSTEPS){
+    tick(input,FIXED_DT);
+    accumulator-=FIXED_DT;
+    steps++;
+   }
+   let droppedFromCatchup=0;
+   if(steps===MAX_SUBSTEPS&&accumulator>=FIXED_DT){
+    const retained=accumulator%FIXED_DT;
+    droppedFromCatchup=accumulator-retained;
+    accumulator=retained;
+   }
+   // Per-frame counters expose bounded simulation work to the QA profiler.
+   // These are telemetry only: render LOD never changes collision or time step.
+   return Object.freeze({state:snapshot(),steps,alpha:clamp(accumulator/FIXED_DT,0,1),
+    simulatedSeconds:steps*FIXED_DT,
+    droppedSeconds:droppedFromFrame+droppedFromCatchup,
+    surfaceQueries:surfaceQueries-beforeSurface,caveQueries:caveQueries-beforeCave,
+    obstructionQueries:obstructionQueries-beforeObstructions,
+    structureCandidates:structureCandidates-beforeStructures});
+  }
+  return Object.freeze({tick,tickFrame,snapshot,teleport,floorAt,
+   FIXED_DT,MAX_SUBSTEPS,GRAVITY,JUMP_SPEED,MAX_STEP,PLAYER_HEIGHT:world.PLAYER_HEIGHT});
  }
  root.CityVoxelPhysics=Object.freeze({createController,GRAVITY,JUMP_SPEED,MAX_STEP});
 })(typeof window==='undefined'?globalThis:window);
