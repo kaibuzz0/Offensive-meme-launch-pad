@@ -22,7 +22,14 @@ export async function migrateLegacyRoadWorkbench({
   // A second occupancy check narrows the Solo race window. Multiplayer must
   // instead validate occupancy within the server-owned serialized world edit.
   const { x, y, z } = mapped.target;
-  if (isOccupied(x, y, z) !== false)
+  let occupied;
+  try { occupied = isOccupied(x, y, z); }
+  catch (error) {
+    // Chunks can unload between mapping and activation. A missing occupancy
+    // answer must never become permission to overwrite an unknown cell.
+    return Object.freeze({ status: 'quarantine', reason: 'terrain-query-failed', detail: String(error.message) });
+  }
+  if (occupied !== false)
     return Object.freeze({ status: 'quarantine', reason: 'occupied-target' });
   return activateLegacyWorkbench(store, key, mapped);
 }
