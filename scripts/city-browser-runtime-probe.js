@@ -8,6 +8,9 @@
   const MAX_FRAME_SAMPLES = 6000, MAX_LONG_TASK_SAMPLES = 2000;
   let frameTotal = 0, longTaskTotal = 0;
   let active = true, last = 0, raf = 0;
+  let hiddenTransitions = 0;
+  const onVisibility = () => { last = 0; if (document.hidden) hiddenTransitions++; };
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility);
   const percentile = (values, p) => {
     if (!values.length) return null;
     const sorted = [...values].sort((a,b) => a-b);
@@ -15,6 +18,7 @@
   };
   const tick = t => {
     if (!active) return;
+    if (typeof document !== 'undefined' && document.hidden) { last = 0; raf = requestAnimationFrame(tick); return; }
     if (last && t - last < 2000) {
       frameTotal++;
       if (frames.length === MAX_FRAME_SAMPLES) frames.shift();
@@ -42,6 +46,7 @@
       active = false;
       cancelAnimationFrame(raf);
       observer?.disconnect();
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility);
       const resources = performance.getEntriesByType('resource').filter(entry => entry.startTime >= started);
       const grouped = new Map();
       let transferSizeUnknown = 0;
@@ -59,6 +64,9 @@
       const report = {
         url: location.href,
         userAgent: navigator.userAgent,
+        viewportCssPx: { width: globalThis.innerWidth ?? null, height: globalThis.innerHeight ?? null },
+        devicePixelRatio: globalThis.devicePixelRatio ?? null,
+        hiddenTransitions,
         deviceMemoryGiBHint: navigator.deviceMemory ?? null,
         elapsedMs: Math.round(performance.now() - started),
         frameSamples: frames.length,
@@ -77,7 +85,7 @@
         resourceTimingUnknownCount: transferSizeUnknown,
         repeatedSameOriginRequests: [...grouped].filter(([,x])=>x.requests>1).map(([url,x])=>({url,...x})),
         jsHeapUsedBytes: performance.memory?.usedJSHeapSize ?? null,
-        notes: 'Window-scoped measurements only; percentiles use bounded most-recent samples (6000 frames, 2000 long tasks), while totals cover the full window; repeated requests are not proven duplicate network downloads. Resource timing may omit bytes (cache, cross-origin, browser limits). RAF intervals are not GPU frame times; heap is Chromium-only. No GPU memory estimate. Identify physical device separately.'
+        notes: 'Window-scoped measurements only; percentiles use bounded most-recent samples (6000 frames, 2000 long tasks), while totals cover the full window; repeated requests are not proven duplicate network downloads. Resource timing may omit bytes (cache, cross-origin, browser limits). Hidden-tab intervals are excluded and visibility changes reset frame continuity; RAF intervals are not GPU frame times; heap is Chromium-only. No GPU memory estimate. Identify physical device separately.'
       };
       console.log('Meme City QA performance snapshot', report);
       delete globalThis.__memeCityQA;
