@@ -50,7 +50,7 @@
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
-    if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
+    if(floor===null||world.gateRoad?.obstructs?.(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
