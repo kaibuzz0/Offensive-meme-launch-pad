@@ -195,3 +195,16 @@ test('public command reads reject corrupt durable records rather than exposing t
   };
   await assert.rejects(commands.read(), /revision mismatch/);
 });
+
+
+test('public read cannot mutate a store-owned record by reference', async () => {
+  const { store, snapshot } = fixture();
+  const owned = snapshot();
+  store.read = async () => owned; // Deliberately return a mutable storage alias.
+  const commands = createSoloBuildCommands(store, 'road:solo');
+  const displayed = await commands.read();
+  displayed.inventory.supplies = 9999;
+  displayed.journal.edits.push({ x: 0, y: 0, z: 0, block: 'workbench' });
+  assert.equal(owned.inventory.supplies, 16);
+  assert.equal(owned.journal.edits.length, 0);
+});
