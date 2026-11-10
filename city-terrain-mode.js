@@ -481,6 +481,8 @@
  // Cap catch-up to four steps so a suspended tab cannot monopolize the UI.
  const PHYSICS_STEP=1/60,MAX_PHYSICS_STEPS=4;
  let physicsAccumulator=0;
+ let droppedPhysicsSeconds=0;
+ let peakPhysicsStepMs=0;
  function frame(t){
   const elapsed=Math.max(0,(t-last)/1000||0);
   const dt=Math.min(.05,elapsed);last=t;
@@ -492,19 +494,29 @@
     player.yaw+=lookStick.x*dt*2.55;
     player.pitch=Math.max(-1.32,Math.min(1.32,player.pitch-lookStick.y*dt*1.95));
     if(physics){
-     physicsAccumulator=Math.min(PHYSICS_STEP*MAX_PHYSICS_STEPS,physicsAccumulator+elapsed);
+     const pendingPhysicsSeconds=physicsAccumulator+elapsed;
+     const allowedPhysicsSeconds=PHYSICS_STEP*MAX_PHYSICS_STEPS;
+     droppedPhysicsSeconds+=Math.max(0,pendingPhysicsSeconds-allowedPhysicsSeconds);
+     physicsAccumulator=Math.min(allowedPhysicsSeconds,pendingPhysicsSeconds);
      const input={right:move.x,forward:-move.y,yaw:player.yaw,
       jump:keys.has(' ')||jumpHeld||jumpQueued};
      let steps=0;
+     const physicsStart=performance.now();
      while(physicsAccumulator+1e-9>=PHYSICS_STEP&&steps<MAX_PHYSICS_STEPS){
       physics.tick(input,PHYSICS_STEP);
       physicsAccumulator-=PHYSICS_STEP;
       if(jumpQueued){jumpQueued=false;input.jump=keys.has(' ')||jumpHeld;}
       steps++;
      }
+     const physicsWorkMs=performance.now()-physicsStart;
+     peakPhysicsStepMs=Math.max(peakPhysicsStepMs,physicsWorkMs);
      const position=physics.snapshot();
      player.x=position.x;player.y=position.z;
      status.dataset.physicsSteps=String(steps);
+     status.dataset.physicsWorkMs=physicsWorkMs.toFixed(3);
+     status.dataset.physicsPeakWorkMs=peakPhysicsStepMs.toFixed(3);
+     status.dataset.physicsDroppedMs=(droppedPhysicsSeconds*1000).toFixed(1);
+     status.dataset.physicsActiveBodies='1';
     }else{
      const nx=player.x+move.x*dt*5,nz=player.y+move.y*dt*5;
      if(Math.abs(nx)<999900&&Math.abs(nz)<999900){player.x=nx;player.y=nz;}
