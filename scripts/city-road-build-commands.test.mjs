@@ -181,3 +181,17 @@ test('world occupancy is rechecked after delayed read before any supplies are sp
   assert.equal(snapshot().inventory.supplies, 16);
   assert.equal(snapshot().journal.edits.length, 0);
 });
+
+
+test('public command reads reject corrupt durable records rather than exposing them to UI', async () => {
+  const { store } = fixture();
+  const originalRead = store.read;
+  const commands = createSoloBuildCommands(store, 'road:solo');
+  assert.equal((await commands.read()).inventory.supplies, 16);
+  store.read = async (...args) => {
+    const record = await originalRead(...args);
+    record.journal.revision += 1;
+    return record;
+  };
+  await assert.rejects(commands.read(), /revision mismatch/);
+});
