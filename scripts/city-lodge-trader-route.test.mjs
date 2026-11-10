@@ -48,3 +48,28 @@ test('starter actors remain bounded and uniquely owned across repeated chunk str
   }
  }
 });
+
+test('spatial activation uses the same immutable actors without loading chunks',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=world(seed);
+  const actors=['starter-trader:'+seed,'starter-wildlife:'+seed]
+   .map(id=>w.actorById(id)).filter(Boolean);
+  const initialCache=w.cacheSize(),initialCaves=w.caveCacheSize();
+  assert.equal(w.actorsNear(NaN,0,10).length,0);
+  assert.equal(w.actorsNear(0,Infinity,10).length,0);
+  assert.equal(w.actorsNear(0,0,-1).length,0);
+  for(const actor of actors){
+   const near=w.actorsNear(actor.x,actor.z,0);
+   assert.ok(near.some(candidate=>candidate===actor),
+    'zero-radius query must return the canonical actor at its exact position');
+   const outside=w.actorsNear(actor.x+2,actor.z,1);
+   assert.ok(!outside.some(candidate=>candidate.id===actor.id),
+    'spatial query must reject actors beyond its radius');
+   assert.strictEqual(w.actorById(actor.id),actor);
+  }
+  assert.equal(w.cacheSize(),initialCache,
+   'actor activation must not generate terrain chunks');
+  assert.equal(w.caveCacheSize(),initialCaves,
+   'actor activation must not populate cave caches');
+ }
+});
