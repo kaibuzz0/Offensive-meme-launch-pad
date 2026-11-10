@@ -30,7 +30,9 @@ export function createSoloBuildCommands(store, key) {
     async read() {
       const record = await store.read(key);
       if (record !== null && record !== undefined) validateBuildRecord(record);
-      return record;
+      // Do not expose the store-owned object to UI code: a mutable alias could
+      // change inventory or edits without an atomic committed transaction.
+      return record == null ? record : structuredClone(record);
     },
     placeWorkbench(input) {
       const captured = capturePlacement(input);
