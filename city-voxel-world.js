@@ -379,6 +379,15 @@
    const referenceHeight=surfaceAt(ax,az).height;
    const offsets=[[0,0],[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2],
     [3,0],[-3,0],[0,3],[0,-3],[4,0],[-4,0],[0,4],[0,-4]];
+   // When the immediate entrance is obstructed, search a bounded, stable
+   // perimeter rather than silently omitting the settlement trader. Preserve
+   // the original candidate order so existing seed placements do not move.
+   if(anchor)for(let radius=5;radius<=8;radius++){
+    for(let step=-radius;step<=radius;step++){
+     offsets.push([step,-radius],[step,radius]);
+     if(Math.abs(step)!==radius)offsets.push([-radius,step],[radius,step]);
+    }
+   }
    for(const [ox,oz] of offsets){
     const x=ax+ox,z=az+oz,ground=surfaceAt(x,z);
     // Separate independently generated populations without a second actor simulation.
