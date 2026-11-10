@@ -118,3 +118,28 @@ test('a missing occupancy query cannot spend supplies or write a voxel', async (
   assert.equal(snapshot().inventory.supplies, 16);
   assert.equal(snapshot().journal.edits.length, 0);
 });
+
+test('queued placement captures its own input before an earlier command finishes', async () => {
+  const { store, snapshot } = fixture(24);
+  const read = store.read;
+  let releaseFirstRead;
+  const gate = new Promise(resolve => { releaseFirstRead = resolve; });
+  let calls = 0;
+  store.read = async (...args) => {
+    if (++calls === 1) await gate;
+    return read(...args);
+  };
+  const commands = createSoloBuildCommands(store, 'road:solo');
+  const first = commands.placeWorkbench(action(2));
+  const secondInput = action(4);
+  const second = commands.placeWorkbench(secondInput);
+  secondInput.player.x = 999;
+  secondInput.position.x = 999;
+  secondInput.groundHeight = 999;
+  releaseFirstRead();
+  const results = await Promise.all([first, second]);
+  assert.equal(results[1].revision, 2);
+  assert.equal(snapshot().inventory.supplies, 8);
+  assert.equal(snapshot().journal.edits.length, 2);
+  assert.equal(snapshot().journal.edits.every(edit => edit.x < 100), true);
+});
