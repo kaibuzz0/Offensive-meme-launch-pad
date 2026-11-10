@@ -414,8 +414,7 @@
   // chunks. Unknown or retired IDs are deliberately non-interactive.
   function actorById(id){
    if(typeof id!=='string')return null;
-   for(const actor of starterActors)if(actor.id===id)return actor;
-   return null;
+   return actorsById.get(id)||null;
   }
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
@@ -442,6 +441,9 @@
   const wildlifeSite=actorSite(-8,7,12,true,traderSite);
   const EMPTY_ACTORS=Object.freeze([]);
   const starterActors=Object.freeze([actorDescriptor(traderSite,true),actorDescriptor(wildlifeSite,false)].filter(Boolean));
+  // One seed-local identity index, shared with spatial and chunk descriptors.
+  // Retired/foreign IDs resolve to null without instantiating distant actors.
+  const actorsById=new Map(starterActors.map(actor=>[actor.id,actor]));
   // Immutable seed-local chunk index: streaming a chunk must not scan all
   // actors or instantiate/simulate distant populations. IDs and descriptors
   // remain the same objects exposed by actorsNear/actorById.
