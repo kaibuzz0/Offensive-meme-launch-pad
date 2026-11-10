@@ -81,19 +81,48 @@
   parts.push({x:supplies.x-.15,z:supplies.z-.15,y:supplies.y+2,w:3.3,h:.5,d:3.3,color:trim,solid:false});
   parts.push({x:supplies.x+1.3,z:supplies.z+1.1,y:supplies.y+2.5,w:.35,h:8,d:.35,color:stone,solid:false});
   parts.push({x:supplies.x+1.6,z:supplies.z+1.1,y:supplies.y+7,w:4,h:2.8,d:.22,color:amber,solid:false});
+  // Keep the lodge beyond the east curtain wall (which occupies z+3..7);
+  // the door must not intersect fortress collision geometry.
+  // The first clan-district building shares the fortress's graded pad and
+  // existing world-space cuboid renderer/collision contract. Its western
+  // doorway faces the road and stays open at player height.
+  const lodge=Object.freeze({id:'starter-lodge:'+seed,x:x+13,z:gateZ+9,
+   y:heights[42]+1,doorX:x+13,doorZ:gateZ+13});
+  const lodgeWall=[.48,.34,.23],lodgeRoof=[.20,.29,.34],lodgeGlow=[1,.69,.24];
+  function lodgePart(dx,dz,dy,w,h,d,color,solid=true){
+   parts.push({x:lodge.x+dx,z:lodge.z+dz,y:lodge.y+dy,w,h,d,color,solid});
+  }
+  const lodgeStartIndex=parts.length;
+  // 9x8 shell; west wall has a 3-voxel doorway from z+3 to z+6.
+  lodgePart(0,0,0,9,12,1,lodgeWall);
+  lodgePart(0,7,0,9,12,1,lodgeWall);
+  lodgePart(8,1,0,1,12,6,lodgeWall);
+  lodgePart(0,1,0,1,12,2,lodgeWall);
+  lodgePart(0,6,0,1,12,1,lodgeWall);
+  lodgePart(0,3,9,1,3,3,lodgeWall); // lintel, clear below
+  lodgePart(-1,-1,12,11,2,10,lodgeRoof);
+  lodgePart(2,2,0,2,1,2,stone); // visible interior workbench
+  lodgePart(-.25,3,6,.3,2,3,lodgeGlow,false); // lit door frame
+  lodgePart(0,2,5,.3,1,1,amber,false);
+  lodgePart(0,6,5,.3,1,1,amber,false);
+  // A raised clan banner makes the lodge readable from Fortress Road without
+  // blocking its open entrance or changing terrain, saves or collision.
+  // These are ordinary world cuboids, clipped into streamed chunks below.
+  lodgePart(-.45,2.5,10,.25,4,4,bronze,false); // crossbeam above doorway
+  lodgePart(-.65,3,11,.22,3,3,cloth,false); // hanging clan insignia
   function foundation(px,pz){
    const t=pz-z;
    if(t< -4||t>54)return null;
    const distance=Math.abs(px-center(t));
-   if(distance>(t>=31&&t<=47?24:6))return null;
+   if(distance>(t>=31&&t<=54?24:6))return null;
    return {height:heights[t+4],road:distance<=4,edge:distance===4};
   }
   function obstructs(px,py,pz,height,radius){
-   if(Math.abs(px-x)>25||Math.abs(pz-gateZ)>12)return false;
+   if(Math.abs(px-x)>25||Math.abs(pz-gateZ)>20)return false;
    return parts.some(p=>p.solid&&px+radius>p.x&&px-radius<p.x+p.w&&
     pz+radius>p.z&&pz-radius<p.z+p.d&&py+height>p.y&&py<p.y+p.h);
   }
-  return {x,z,gateX:x,gateZ,base,parts,foundation,obstructs,supplies};
+  return {x,z,gateX:x,gateZ,base,parts,foundation,obstructs,supplies,lodge,lodgeStartIndex};
  }
  function createVoxelWorld(atlas){
   if(!atlas?.seedHash||typeof atlas.biomeAt!=='function')throw Error('Seeded 132-biome atlas required');
@@ -281,6 +310,14 @@
   }
   function featureAt(x,z){
    if(gateRoad){
+    // Structures own their footprint. Check before decorative road planting:
+    // otherwise roadside trees can appear inside lodge walls or doorways.
+    if(gateRoad.foundation(x,z))return null;
+    // The graded road footprint does not cover every tower/wall overhang.
+    // Query the same solid world-space boxes used by player collision before
+    // placing vegetation, including trees outside the road foundation.
+    const standing=surfaceAt(x,z);
+    if(standing&&gateRoad.obstructs(x+.5,standing.height+1,z+.5,20,.5))return null;
     const t=z-gateRoad.z;
     if(t>=4&&t<=28&&(t-4)%8===0&&Math.abs(x-gateRoad.x)===8){
      const ground=surfaceAt(x,z);
@@ -291,7 +328,6 @@
       return Object.freeze({type,height:13+(t%5),color:.4});
      }
     }
-    if(gateRoad.foundation(x,z))return null;
    }
    const c=surfaceAt(x,z);if(!c||c.water||c.mouth||c.slope>18||c.river&&c.height<SEA_LEVEL+2)return null;
    const r=random(plantSeed,x,z),r2=random(plantSeed^0x91a3,x,z);
@@ -332,6 +368,83 @@
    const mid=surfaceAt(base.x,base.y);
    return Object.freeze({x:base.x,z:base.y,y:mid.height+1});
   }
+  // Resolve seeded actor sites once per world, not once per streamed chunk.
+  // Fixed search order and stable IDs preserve positions across reloads.
+  function actorSite(dx,dz,maxSlope,avoidRoad,excludedSite){
+   const ax=gateRoad.supplies.x+dx,az=gateRoad.supplies.z+dz;
+   // Sample the reference grade once; terrain queries are costly during startup.
+   const referenceHeight=surfaceAt(ax,az).height;
+   const offsets=[[0,0],[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2],
+    [3,0],[-3,0],[0,3],[0,-3],[4,0],[-4,0],[0,4],[0,-4]];
+   for(const [ox,oz] of offsets){
+    const x=ax+ox,z=az+oz,ground=surfaceAt(x,z);
+    // Separate independently generated populations without a second actor simulation.
+    if(excludedSite&&Math.hypot(x-excludedSite.x,z-excludedSite.z)<4)continue;
+    if(!ground||ground.water||ground.mouth||ground.slope>maxSlope||
+       (avoidRoad&&(ground.road||gateRoad.foundation(x,z))))continue;
+    if(Math.abs(ground.height-referenceHeight)>3)continue;
+    // Avoid spawning actors inside tall biome foliage. Sample the same
+    // deterministic vegetation contract consumed by streamed chunks.
+    // Short grass and flowers remain valid underfoot.
+    if([[0,0],[1,0],[0,1],[1,1]].some(([fx,fz])=>{
+     const vegetation=featureAt(x+fx,z+fz);
+     return vegetation&&vegetation.height>=6;
+    }))continue;
+    // Shared physics uses the original fortress boxes, not streamed mesh fragments.
+    // Do not seed a character inside a solid tower, wall or gate post.
+    // Check the full standing footprint against fortress collision, not only
+    // its center; corner overlap can otherwise embed actors in gate posts.
+    if([[.25,.25],[.75,.25],[.25,.75],[.75,.75]].some(([fx,fz])=>
+     gateRoad.obstructs(x+fx,ground.height+1,z+fz,PLAYER_HEIGHT,.35)))continue;
+    // A standing actor needs a stable 2x2 footprint, not merely one dry tile.
+    const footprint=[[1,0],[0,1],[1,1]].every(([ox2,oz2])=>{
+     const neighbor=surfaceAt(x+ox2,z+oz2);
+     return neighbor&&!neighbor.water&&!neighbor.mouth&&
+      (!avoidRoad||(!neighbor.road&&!gateRoad.foundation(x+ox2,z+oz2)))&&
+      Math.abs(neighbor.height-ground.height)<=2;
+    });
+    if(!footprint)continue;
+    return Object.freeze({x,z,y:ground.height+1,group:ground.group});
+   }
+   return null;
+  }
+  // Lightweight population query for render/AI activation. Do not allocate a
+  // 256-tile chunk merely to discover nearby actors. IDs and positions match
+  // chunkAt() exactly, so the shared runtime can deduplicate by stable ID.
+  // Build the two immutable descriptors once per seed. Nearby queries may run
+  // every render/AI activation tick; do not recreate actor objects each time.
+  function actorDescriptor(site,trader){
+   if(!site)return null;
+   const species=site.group==='desert'||site.group==='salt'?'lizard':
+    site.group==='tundra'||site.group==='alpine'?'hare':'deer';
+   return Object.freeze(trader?
+    {id:'starter-trader:'+seed,kind:'trader',role:'supplies',faction:'starter-settlement',rig:'shared-humanoid',
+     x:site.x,z:site.z,y:site.y,heading:Math.PI,homeId:'starter-fortress:'+seed,behavior:'idle-trade'}:
+    {id:'starter-wildlife:'+seed,kind:'wildlife',species,role:'forager',faction:'wild',rig:'shared-creature',
+     x:site.x,z:site.z,y:site.y,heading:random(plantSeed,site.x,site.z)*Math.PI*2,
+     homeId:'starter-fortress:'+seed,behavior:'graze-flee'});
+  }
+  function actorsNear(x,z,radius){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0)return EMPTY_ACTORS;
+   // Compare squared distances to avoid a square root on every activation query.
+   // Infinite squared radii (from finite but very large inputs) still mean all actors.
+   const radiusSquared=radius*radius,result=[];
+   for(const actor of starterActors){
+    const dx=actor.x-x,dz=actor.z-z;
+    // Extremely large finite coordinates can overflow both squared terms.
+    // Never treat Infinity <= Infinity as an in-range actor.
+    const within=Number.isFinite(radiusSquared)&&Number.isFinite(dx*dx+dz*dz)
+     ? dx*dx+dz*dz<=radiusSquared : Math.hypot(dx,dz)<=radius;
+    if(within)result.push(actor);
+   }
+   return result.length?Object.freeze(result):EMPTY_ACTORS;
+  }
+  // Resolve an interaction target by stable world ID without loading terrain
+  // chunks. Unknown or retired IDs are deliberately non-interactive.
+  function actorById(id){
+   if(typeof id!=='string')return null;
+   return actorsById.get(id)||null;
+  }
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
    const tiles=[],plants=[],roads=[];
@@ -342,12 +455,39 @@
      if(tile.road)roads.push(tile);
      if(plant)plants.push(Object.freeze({id:'plant:'+seed+':'+x+':'+z,x,z,y:tile.height+1,...plant}));
     }
+   // Each seed-stable descriptor belongs to exactly one floor-divided chunk.
+   // Distant populations remain declarative until the shared actor runtime activates them.
+   // Direct ownership check avoids a redundant radial query during chunk streaming.
+   // Stable descriptors are few and never activate an AI simulation here.
+   const npc=actorsByChunk.get(cx+','+cz)||EMPTY_ACTORS;
    return Object.freeze({cx,cz,seed,tiles:Object.freeze(tiles),plants:Object.freeze(plants),
-    structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze([]),roads:Object.freeze(roads)});
+    structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze(npc),roads:Object.freeze(roads)});
   }
   const naturalSpawn=spawnAt();
   gateRoad=buildGateRoad(naturalSpawn,rawColumn,seed);
+  // Actor sites require the initialized road and collision geometry.
+  const traderSite=actorSite(4,2,18,false);
+  const wildlifeSite=actorSite(-8,7,12,true,traderSite);
+  const EMPTY_ACTORS=Object.freeze([]);
+  const starterActors=Object.freeze([actorDescriptor(traderSite,true),actorDescriptor(wildlifeSite,false)].filter(Boolean));
+  // One seed-local identity index, shared with spatial and chunk descriptors.
+  // Retired/foreign IDs resolve to null without instantiating distant actors.
+  const actorsById=new Map(starterActors.map(actor=>[actor.id,actor]));
+  // Immutable seed-local chunk index: streaming a chunk must not scan all
+  // actors or instantiate/simulate distant populations. IDs and descriptors
+  // remain the same objects exposed by actorsNear/actorById.
+  const actorBuckets=new Map();
+  for(const actor of starterActors){
+   const key=Math.floor(actor.x/CHUNK_SIZE)+','+Math.floor(actor.z/CHUNK_SIZE);
+   if(!actorBuckets.has(key))actorBuckets.set(key,[]);
+   actorBuckets.get(key).push(actor);
+  }
+  const actorsByChunk=new Map(Array.from(actorBuckets,([key,actors])=>[key,Object.freeze(actors)]));
+  // Startup actor placement samples cave entrances; do not leave transient
+  // generation lookups resident before gameplay begins. Both caches regenerate
+  // deterministically on demand and retain their existing bounded policies.
   cache.clear();
+  caveCells.clear();
   // Emit each structure fragment in every intersected chunk. Keep the source
   // gateRoad.parts unchanged: collision uses those original world-space boxes.
   function gateParts(cx,cz){
@@ -360,12 +500,14 @@
     const w=Math.min(p.x+p.w,maxX)-x,d=Math.min(p.z+p.d,maxZ)-z;
     if(w<=0||d<=0)continue;
     fragments.push(Object.freeze({...p,x,z,w,d,
-     id:'starter-gate:'+seed+':'+i,structureId:'starter-fortress:'+seed}));
+     id:'starter-gate:'+seed+':'+i,
+     fragmentId:'starter-gate:'+seed+':'+i+':'+cx+':'+cz,
+     structureId:i>=gateRoad.lodgeStartIndex?gateRoad.lodge.id:'starter-fortress:'+seed}));
    }
    return fragments;
   }
   return Object.freeze({seed,atlas,gateRoad,gateParts,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,MIN_HEIGHT,MAX_HEIGHT,
-   SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,isWaterAt,featureAt,chunkAt,
+   SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,isWaterAt,featureAt,chunkAt,actorsNear,actorById,
    cacheSize:()=>cache.size,caveCacheSize:()=>caveCells.size,spawnAt:()=>({...naturalSpawn,y:surfaceAt(naturalSpawn.x,naturalSpawn.z).height+1})});
  }
  root.CityVoxelWorld=Object.freeze({createVoxelWorld,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,

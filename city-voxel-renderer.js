@@ -263,6 +263,28 @@
   for(const p of chunk.structures||world.gateParts?.(cx,cz)||[]){
    box(data,p.x,p.y,p.z,p.w,p.h,p.d,p.color);
   }
+  // Starter actor silhouettes share the exact seeded chunk descriptors used
+  // by world queries. This is a bounded visual placeholder, not an AI runtime:
+  // Graphics can replace the mesh with the shared animated rig by stable ID.
+  // Only near/high-detail chunks carry actors; distant LOD never duplicates them.
+  if(stride===1)for(const actor of chunk.npc||[]){
+   const x=actor.x+.5,z=actor.z+.5,y=actor.y;
+   if(actor.kind==='trader'){
+    const coat=[.26,.35,.51],skin=[.76,.60,.43],trim=[.78,.58,.25];
+    box(data,x-.43,y,z-.28,.86,2.8,.56,coat);
+    box(data,x-.33,y+2.8,z-.26,.66,.7,.52,skin);
+    box(data,x-.49,y+3.48,z-.37,.98,.24,.74,trim);
+    box(data,x-.34,y-.04,z-.26,.27,1,.49,[.20,.22,.28]);
+    box(data,x+.08,y-.04,z-.26,.27,1,.49,[.20,.22,.28]);
+   }else if(actor.kind==='wildlife'){
+    const fur=actor.species==='hare'?[.67,.65,.59]:actor.species==='lizard'?[.39,.53,.32]:[.56,.39,.27];
+    const bodyHeight=actor.species==='hare'?.65:1.25;
+    box(data,x-.65,y+.65,z-.28,1.3,bodyHeight,.56,fur);
+    box(data,x+.47,y+.75,z-.22,.46,.66,.44,fur);
+    for(const dx of [-.47,.35])for(const dz of [-.20,.18])
+     box(data,x+dx,y,z+dz,.16,.75,.16,fur);
+   }
+  }
   for(const plant of chunk.plants){
    if(['pine','palm','tree'].includes(plant.type)){
     // Cast a canopy footprint away from the same fixed sun used by the
@@ -657,6 +679,22 @@
     const bottom=horizon+(eye-part.y)*focal/depth;
     if(bottom<=0||top>=h)continue;
     projected.push({depth,x:center-width/2,top,width,height:bottom-top,color:part.color});
+   }
+   // Canvas compatibility uses the same stable actor descriptors and world
+   // coordinates as WebGL, never an alternate flat-map population.
+   for(const actor of world.actorsNear?.(player.x,player.z,far)||[]){
+    const dx=actor.x+.5-player.x,dz=actor.z+.5-player.z;
+    const depth=dx*forwardX+dz*forwardZ,side=dx*rightX+dz*rightZ;
+    if(depth<=1||depth>far||Math.abs(side)>depth*1.8+3)continue;
+    const height=actor.kind==='trader'?4.2:2.5;
+    const width=actor.kind==='trader'?.9:1.5;
+    const center=w*.5+side*focal/depth;
+    const top=horizon+(eye-actor.y-height)*focal/depth;
+    const bottom=horizon+(eye-actor.y)*focal/depth;
+    if(bottom<=0||top>=h)continue;
+    projected.push({depth,x:center-width*focal/depth/2,top,
+     width:width*focal/depth,height:bottom-top,
+     color:actor.kind==='trader'?[.26,.35,.51]:[.56,.39,.27]});
    }
    projected.sort((a,b)=>b.depth-a.depth);
    for(const p of projected){

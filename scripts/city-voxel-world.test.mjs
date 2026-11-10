@@ -175,6 +175,8 @@ test('seeded fortress pieces clip into every intersecting chunk without seam gap
     assert.equal(matching.length,1,'each touched chunk owns exactly one fragment');
     const q=matching[0];
     assert.equal(q.structureId,'starter-fortress:'+w.seed);
+    assert.equal(q.fragmentId,'starter-gate:'+w.seed+':'+i+':'+cx+':'+cz);
+    assert.equal(q.fragmentId,again.chunkAt(cx,cz).structures.find(s=>s.id===q.id).fragmentId);
     assert.ok(q.x>=cx*16&&q.x+q.w<=cx*16+16+1e-8);
     assert.ok(q.z>=cz*16&&q.z+q.d<=cz*16+16+1e-8);
     fragments.push(q);
@@ -210,8 +212,12 @@ test('fortress roadside foliage follows the local biome and avoids unsafe slopes
   for(let t=4;t<=28;t+=8)for(const side of [-1,1]){
    const x=road.x+side*8,z=road.z+t;
    const col=w.surfaceAt(x,z),plant=w.featureAt(x,z);
-   if(col.water||col.mouth||col.slope>18){
-    assert.equal(plant,null);
+   // Decorative roadside planting must yield to the actual fortress collision
+   // footprint, including tower and wall overhangs outside the graded road.
+   const blocked=w.gateRoad.foundation(x,z)||
+    w.gateRoad.obstructs(x+.5,col.height+1,z+.5,20,.5);
+   if(blocked||col.water||col.mouth||col.slope>18){
+    assert.equal(plant,null,'blocked or unsafe roadside tiles cannot grow foliage');
     continue;
    }
    const expected=col.group==='desert'||col.group==='salt'?'cactus':
@@ -219,5 +225,182 @@ test('fortress roadside foliage follows the local biome and avoids unsafe slopes
     ['evergreen','tundra','alpine'].includes(col.group)?'pine':'tree';
    assert.equal(plant?.type,expected);
   }
+ }
+});
+
+test('starter actor descriptors have unique chunk ownership and stable identities',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),again=create(seed),s=w.gateRoad.supplies;
+  const actors=[];
+  // Candidate search may move an actor across a chunk seam. Scan its bounded
+  // neighborhood instead of assuming it lives in the preferred origin chunk.
+  for(let cz=Math.floor((s.z-20)/16);cz<=Math.floor((s.z+20)/16);cz++)
+   for(let cx=Math.floor((s.x-20)/16);cx<=Math.floor((s.x+20)/16);cx++){
+    const local=w.chunkAt(cx,cz).npc;
+    assert.ok(local.length<=2,'starter population is bounded per chunk');
+    assert.deepEqual(plain(local),plain(again.chunkAt(cx,cz).npc));
+    for(const actor of local){
+     assert.equal(Math.floor(actor.x/16),cx,'actor belongs to its X chunk');
+     assert.equal(Math.floor(actor.z/16),cz,'actor belongs to its Z chunk');
+     assert.equal(actor.homeId,'starter-fortress:'+w.seed);
+     assert.equal(actor.y,w.surfaceAt(actor.x,actor.z).height+1);
+     if(actor.kind==='trader')assert.equal(actor.rig,'shared-humanoid');
+     actors.push(actor);
+    }
+   }
+  assert.equal(new Set(actors.map(n=>n.id)).size,actors.length,
+   'actors must not be duplicated across streamed chunks');
+  assert.ok(actors.filter(n=>n.kind==='trader').length<=1);
+  assert.ok(actors.filter(n=>n.kind==='wildlife').length<=1);
+ }
+});
+
+test('seeded actors have safe standing footprints and never intersect fortress collision',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),gate=w.gateRoad;
+  const candidates=[
+   [gate.supplies.x+4,gate.supplies.z+2],
+   [gate.supplies.x-8,gate.supplies.z+7]
+  ];
+  for(const [x,z] of candidates){
+   for(let cz=Math.floor((z-5)/16);cz<=Math.floor((z+5)/16);cz++)
+    for(let cx=Math.floor((x-5)/16);cx<=Math.floor((x+5)/16);cx++)
+     for(const actor of w.chunkAt(cx,cz).npc){
+      const ground=w.surfaceAt(actor.x,actor.z);
+      assert.equal(actor.y,ground.height+1);
+      for(const [dx,dz] of [[0,0],[1,0],[0,1],[1,1]]){
+       const vegetation=w.featureAt(actor.x+dx,actor.z+dz);
+       assert.ok(!vegetation||vegetation.height<6,
+        'actor spawn footprint must not intersect tall foliage');
+      }
+      assert.equal(gate.obstructs(actor.x+.5,actor.y,actor.z+.5,w.PLAYER_HEIGHT,.65),false);
+      for(const [fx,fz] of [[.25,.25],[.75,.25],[.25,.75],[.75,.75]])
+       assert.equal(gate.obstructs(actor.x+fx,actor.y,actor.z+fz,w.PLAYER_HEIGHT,.35),false,
+        'spawn footprint must not clip fortress collision');
+      for(const [dx,dz] of [[1,0],[0,1],[1,1]]){
+       const neighbor=w.surfaceAt(actor.x+dx,actor.z+dz);
+       assert.ok(!neighbor.water&&!neighbor.mouth);
+       if(actor.kind==='wildlife'){
+        assert.equal(Boolean(neighbor.road),false,'wildlife footprint must avoid road tiles');
+        assert.equal(Boolean(gate.foundation(actor.x+dx,actor.z+dz)),false,
+         'wildlife footprint must avoid the graded road foundation');
+       }
+       assert.ok(Math.abs(neighbor.height-ground.height)<=2);
+      }
+     }
+  }
+ }
+});
+
+
+test('starter wildlife never overlaps the trader standing area',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),s=w.gateRoad.supplies,actors=[];
+  for(let cz=Math.floor((s.z-20)/16);cz<=Math.floor((s.z+20)/16);cz++)
+   for(let cx=Math.floor((s.x-20)/16);cx<=Math.floor((s.x+20)/16);cx++)
+    actors.push(...w.chunkAt(cx,cz).npc);
+  const trader=actors.find(a=>a.kind==='trader');
+  const wildlife=actors.find(a=>a.kind==='wildlife');
+  if(trader&&wildlife)
+   assert.ok(Math.hypot(trader.x-wildlife.x,trader.z-wildlife.z)>=4,
+    'wildlife and trader must not share a spawn footprint');
+ }
+});
+
+test('nearby actor queries are bounded, chunk-free and match streamed descriptors',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),s=w.gateRoad.supplies;
+  const nearby=w.actorsNear(s.x,s.z,40);
+  assert.ok(nearby.length<=2);
+  assert.deepEqual(plain(nearby),plain(create(seed).actorsNear(s.x,s.z,40)));
+  const fromChunks=[];
+  for(let cz=Math.floor((s.z-40)/16);cz<=Math.floor((s.z+40)/16);cz++)
+   for(let cx=Math.floor((s.x-40)/16);cx<=Math.floor((s.x+40)/16);cx++)
+    fromChunks.push(...w.chunkAt(cx,cz).npc);
+  assert.deepEqual(plain(nearby.map(a=>a.id).sort()),plain(fromChunks.map(a=>a.id).sort()));
+  const before=w.cacheSize();
+  for(let i=0;i<50;i++)w.actorsNear(s.x+i,s.z,16);
+  assert.equal(w.cacheSize(),before,'actor queries must not generate terrain chunks');
+  assert.deepEqual(plain(w.actorsNear(NaN,s.z,20)),[]);
+  assert.deepEqual(plain(w.actorsNear(s.x,s.z,-1)),[]);
+ }
+});
+
+test('nearby actor queries reuse immutable descriptors across repeated activation',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),s=w.gateRoad.supplies;
+  const initial=w.actorsNear(s.x,s.z,40);
+  const before=w.cacheSize();
+  for(let i=0;i<100;i++){
+   const again=w.actorsNear(s.x,s.z,40);
+   assert.equal(again.length,initial.length);
+   for(let j=0;j<initial.length;j++){
+    assert.strictEqual(again[j],initial[j],'stable actors reuse descriptor objects');
+    assert.ok(Object.isFrozen(again[j]));
+   }
+  }
+  assert.equal(w.cacheSize(),before,'repeated activation must not expand terrain cache');
+  const empty=w.actorsNear(1e8,1e8,1);
+  assert.strictEqual(empty,w.actorsNear(1e8,1e8,1),'empty results reuse frozen array');
+  assert.ok(Object.isFrozen(empty));
+ }
+});
+
+
+test('actor proximity includes exact boundaries and rejects invalid ranges',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),s=w.gateRoad.supplies;
+  const actors=w.actorsNear(s.x,s.z,40);
+  for(const actor of actors){
+   assert.ok(w.actorsNear(actor.x,actor.z,0).some(a=>a.id===actor.id),
+    'zero-radius queries include the actor standing at their center');
+   const distance=Math.hypot(actor.x-s.x,actor.z-s.z);
+   assert.ok(w.actorsNear(s.x,s.z,distance+1e-9).some(a=>a.id===actor.id),
+    'queries include actors at the boundary within floating-point tolerance');
+  }
+  assert.deepEqual(plain(w.actorsNear(s.x,s.z,Number.POSITIVE_INFINITY)),[]);
+  assert.deepEqual(plain(w.actorsNear(s.x,s.z,Number.NaN)),[]);
+  assert.deepEqual(plain(w.actorsNear(1e200,1e200,1e100)),[],
+   'overflowed squared distances must not include distant actors');
+  assert.deepEqual(plain(w.actorsNear(-1e200,-1e200,1e100)),[],
+   'negative distant coordinates must not create false-positive actors');
+  assert.ok(w.actorsNear(s.x,s.z,Number.MAX_VALUE).length<=2,
+   'large finite radii still return only the bounded starter population');
+ }
+});
+
+
+test('actor ID resolution reuses stable descriptors without loading chunks',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),spawn=w.spawnAt();
+  const actors=w.actorsNear(spawn.x,spawn.z,256);
+  const before=w.cacheSize();
+  for(const actor of actors){
+   assert.strictEqual(w.actorById(actor.id),actor);
+   assert.deepEqual(plain(create(seed).actorById(actor.id)),plain(actor));
+  }
+  for(const unknown of [null,undefined,0,{},'','missing:actor',`starter-trader:${seed}:retired`])
+   assert.equal(w.actorById(unknown),null);
+  assert.equal(w.cacheSize(),before,'ID lookup must not generate terrain or chunks');
+ }
+});
+
+
+test('starter lodge identity, streamed geometry and doorway remain seed-stable',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const a=create(seed),b=create(seed),lodge=a.gateRoad.lodge;
+  assert.ok(lodge?.id,'lodge needs a stable structure ID');
+  assert.deepEqual(plain(lodge),plain(b.gateRoad.lodge));
+  const cx=Math.floor(lodge.x/16),cz=Math.floor(lodge.z/16);
+  const order=[[cx,cz],[cx+1,cz],[cx,cz+1],[cx+1,cz+1]];
+  const collect=(world,coords)=>coords.flatMap(([x,z])=>world.chunkAt(x,z).structures)
+   .filter(part=>part.structureId===lodge.id)
+   .map(part=>plain(part))
+   .sort((p,q)=>JSON.stringify(p).localeCompare(JSON.stringify(q)));
+  assert.deepEqual(collect(a,order),collect(b,[...order].reverse()),
+   'lodge geometry must not depend on chunk visitation order');
+  assert.ok(collect(a,order).length>0,'lodge geometry must stream as shared structures');
+  assert.equal(a.gateRoad.obstructs(lodge.doorX+.5,lodge.y+1,lodge.doorZ+.5,6,.2),false,
+   'lodge doorway must remain traversable at player height');
  }
 });
