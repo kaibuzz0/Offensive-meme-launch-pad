@@ -155,3 +155,29 @@ test('ambiguous storage acknowledgement never reports a successful build', async
     assert.equal(snapshot().journal.edits.length, 0);
   }
 });
+
+test('world occupancy is rechecked after delayed read before any supplies are spent', async () => {
+  const { store, snapshot } = fixture();
+  const read = store.read;
+  let releaseRead;
+  const gate = new Promise(resolve => { releaseRead = resolve; });
+  store.read = async (...args) => {
+    await gate;
+    return read(...args);
+  };
+  let blocked = false;
+  let occupancyChecks = 0;
+  const commands = createSoloBuildCommands(store, 'road:solo');
+  const pending = commands.placeWorkbench({
+    ...action(),
+    isOccupied: () => { occupancyChecks++; return blocked; }
+  });
+  // Terrain or another actor may occupy the cell while storage is pending.
+  blocked = true;
+  releaseRead();
+  await assert.rejects(pending, /occupied voxel/);
+  assert.equal(occupancyChecks, 1);
+  assert.equal(snapshot().revision, 0);
+  assert.equal(snapshot().inventory.supplies, 16);
+  assert.equal(snapshot().journal.edits.length, 0);
+});
