@@ -27,7 +27,11 @@ export function createSoloBuildCommands(store, key) {
     return result;
   }
   return Object.freeze({
-    read() { return store.read(key); },
+    async read() {
+      const record = await store.read(key);
+      if (record !== null && record !== undefined) validateBuildRecord(record);
+      return record;
+    },
     placeWorkbench(input) {
       const captured = capturePlacement(input);
       return enqueue(async () => {
