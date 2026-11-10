@@ -183,8 +183,57 @@ try{
  await request('Page.reload',{ignoreCache:true});
  await waitFor(()=>evalPage('!!document.querySelector("#city-road-canvas")'),'compatibility renderer boot');
  await evalPage('document.getElementById("start-button").click();true');
- await waitFor(()=>evalPage('!document.querySelector("#city-road-canvas").hidden && document.querySelector("#city-voxel-status").dataset.meshWorker==="canvas"'),'first-person rendering with WebGL unavailable',30000);
+ // Capture renderer state at the failure site, rather than leaving CI with
+ // an opaque timeout. These diagnostics do not weaken visual acceptance.
+ try {
+  await waitFor(()=>evalPage('!document.querySelector("#city-road-canvas").hidden && document.querySelector("#city-voxel-status").dataset.meshWorker==="canvas"'),'first-person rendering with WebGL unavailable',30000);
+ } catch (error) {
+  const diagnostic=await evalPage(`(()=>{
+   const c=document.querySelector('#city-road-canvas'),v=document.querySelector('#city-voxel-canvas');
+   const s=document.querySelector('#city-voxel-status'),h=document.querySelector('#city-render-hint');
+   const snapshot=el=>el?{hidden:el.hidden,width:el.width,height:el.height,
+    display:getComputedStyle(el).display,visibility:getComputedStyle(el).visibility,
+    rect:{width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height}}:null;
+   let pixels=null;
+   try{
+    if(c&&c.width&&c.height){
+     const data=c.getContext('2d').getImageData(Math.floor(c.width/2),Math.floor(c.height/2),1,1).data;
+     pixels=Array.from(data);
+    }
+   }catch(e){pixels=String(e);}
+   return {canvas:snapshot(c),webgl:snapshot(v),status:s?.textContent,
+    dataset:s?{...s.dataset}:null,hint:snapshot(h),hintText:h?.textContent,
+    introHidden:document.getElementById('city-intro')?.hidden,
+    renderer:s?.dataset.renderer,playerMode:s?.dataset.playerMode,
+    pixels,exceptions:window.__terrainQaExceptions||null};
+  })()`);
+  console.error('Canvas fallback startup diagnostics:',JSON.stringify(diagnostic));
+  console.error('Chromium uncaught exceptions:',JSON.stringify(exceptions));
+  throw error;
+ }
  assert.equal(await evalPage('document.getElementById("city-compatibility-toggle")?.textContent'),'TRY WEBGL 3D');
+ // The fallback must keep the SAME seed, saved progression and player
+ // position as WebGL. A rendered canvas alone is not gameplay parity.
+ const compatibility=await evalPage(`(()=>{
+  const seed=localStorage.getItem("meme-city-terrain-seed-v1");
+  const position=localStorage.getItem("meme-city-terrain-position-v1:"+seed);
+  return {
+   seed, position:position?JSON.parse(position):null,
+   supplies:localStorage.getItem("meme-city-road-supplies-v1:"+seed),
+   gate:localStorage.getItem("meme-city-gate-seal-v1:"+seed),
+   terrain:document.body.classList.contains("terrain-only-mode"),
+   pickupControl:!!document.getElementById("city-road-supplies"),
+   gateControl:!!document.getElementById("city-gate-seal")
+  };
+ })()`);
+ assert.equal(compatibility.seed,initial.seed,'Canvas fallback must retain the same world seed');
+ assert.deepEqual(compatibility.position,stored.saved,'Canvas fallback must not discard the WebGL position save on boot');
+ assert.equal(compatibility.supplies,'1','Canvas fallback must preserve collected supplies');
+ assert.equal(compatibility.gate,'1','Canvas fallback must preserve fortress gate progress');
+ assert.equal(compatibility.terrain,true,'Canvas fallback must remain in the canonical terrain world');
+ assert.equal(compatibility.pickupControl,true,'Canvas fallback must retain the supply interaction control');
+ assert.equal(compatibility.gateControl,true,'Canvas fallback must retain the gate interaction control');
+
  await waitFor(()=>evalPage('document.getElementById("city-render-hint")?.hidden===true'),'compatibility scene becomes visible',30000);
  assert.equal(await evalPage('!!document.querySelector("a[href*=\\\"render=canvas\\\"]")'),true,'there is an escape route to low graphics before starting');
  assert.equal(await evalPage('document.querySelector("#city-road-canvas").getContext("2d").getImageData(1,1,1,1).data[3]'),255);
@@ -200,6 +249,46 @@ try{
   return distinct.size;
  })()`);
  assert.ok(colorCount>=8,'compatibility renderer must paint actual scene pixels, not a black/gray viewport');
+ // Exercise the fallback as gameplay, not merely as a painted canvas.
+ // Key events travel through the normal player controller; do not alter
+ // localStorage directly to manufacture a movement result.
+ const beforeFallbackWalk=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");return localStorage.getItem("meme-city-terrain-position-v1:"+seed);})()');
+ await request('Input.dispatchKeyEvent',{type:'keyDown',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
+ try{await delay(1800);}finally{
+  await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
+ }
+ await evalPage('window.dispatchEvent(new Event("pagehide"));true');
+ const afterFallbackWalk=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");return localStorage.getItem("meme-city-terrain-position-v1:"+seed);})()');
+ assert.ok(afterFallbackWalk,'Canvas fallback movement must produce a position save');
+ // Compare actual horizontal coordinates rather than serialized JSON: timestamps,
+ // orientation and other metadata can change while the player remains stuck.
+ const horizontal=(raw)=>{
+  const saved=JSON.parse(raw);
+  // city-terrain-mode.js persists horizontal map coordinates as x/y;
+  // vertical feet elevation is a separate "vertical" field.
+  assert.equal(typeof saved?.x,'number','save must contain numeric horizontal x');
+  assert.equal(typeof saved?.y,'number','save must contain numeric horizontal y');
+  const x=saved.x,y=saved.y;
+  assert.ok(Number.isFinite(x)&&Number.isFinite(y),'position save must contain finite x/y controller coordinates');
+  return {x,y};
+ };
+ assert.ok(beforeFallbackWalk,'fallback must have a pre-movement position save');
+ const beforeCoords=horizontal(beforeFallbackWalk),afterCoords=horizontal(afterFallbackWalk);
+ const displacement=Math.hypot(afterCoords.x-beforeCoords.x,afterCoords.y-beforeCoords.y);
+ assert.ok(displacement>0.05,'Canvas fallback must move controller at least 5cm horizontally; observed '+displacement+'m');
+ // A compatibility session must also survive its own page-exit/reload
+ // without losing the previously earned WebGL progression. This exercises
+ // the fallback's save lifecycle, not just its first boot.
+ await evalPage('window.dispatchEvent(new Event("pagehide"));true');
+ const fallbackSave=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");return localStorage.getItem("meme-city-terrain-position-v1:"+seed);})()');
+ assert.ok(fallbackSave,'compatibility session must leave a recoverable position save');
+ await request('Page.reload',{ignoreCache:true});
+ await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'compatibility session reload');
+ const fallbackReload=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");return {seed,position:localStorage.getItem("meme-city-terrain-position-v1:"+seed),supplies:localStorage.getItem("meme-city-road-supplies-v1:"+seed),gate:localStorage.getItem("meme-city-gate-seal-v1:"+seed)};})()');
+ assert.equal(fallbackReload.seed,initial.seed,'compatibility reload must retain the seed');
+ assert.equal(fallbackReload.position,fallbackSave,'compatibility reload must retain its position save');
+ assert.equal(fallbackReload.supplies,'1','compatibility reload must retain supplies');
+ assert.equal(fallbackReload.gate,'1','compatibility reload must retain gate progress');
  assert.deepEqual(exceptions,[],'no uncaught JS exceptions in terrain-mode browser entry');
  console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
 }finally{
