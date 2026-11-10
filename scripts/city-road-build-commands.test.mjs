@@ -208,3 +208,21 @@ test('public read cannot mutate a store-owned record by reference', async () => 
   assert.equal(owned.inventory.supplies, 16);
   assert.equal(owned.journal.edits.length, 0);
 });
+
+test('successful placement result cannot mutate adapter-owned committed state', async () => {
+  const { store, snapshot } = fixture();
+  let adapterOwned;
+  const originalCAS = store.compareAndSwap;
+  store.compareAndSwap = async (key, revision, next) => {
+    adapterOwned = next; // Simulate a persistence adapter retaining the input.
+    return originalCAS(key, revision, next);
+  };
+  const commands = createSoloBuildCommands(store, 'road:solo');
+  const returned = await commands.placeWorkbench(action());
+  returned.inventory.supplies = 999;
+  returned.journal.edits.push({ x: 99, y: 0, z: 99, block: 'workbench' });
+  assert.equal(adapterOwned.inventory.supplies, 8);
+  assert.equal(adapterOwned.journal.edits.length, 1);
+  assert.equal(snapshot().inventory.supplies, 8);
+  assert.equal(snapshot().journal.edits.length, 1);
+});
