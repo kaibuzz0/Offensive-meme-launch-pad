@@ -27,3 +27,24 @@ test('lodge trader uses stable ID, shared chunk descriptor, and clear terrain ne
   assert.strictEqual(world(seed).actorById(trader.id)?.id,trader.id);
  }
 });
+
+test('starter actors remain bounded and uniquely owned across repeated chunk streams',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=world(seed);
+  const actors=['starter-trader:'+seed,'starter-wildlife:'+seed]
+   .map(id=>w.actorById(id)).filter(Boolean);
+  assert.ok(actors.length<=2);
+  assert.equal(new Set(actors.map(actor=>actor.id)).size,actors.length);
+  assert.equal(w.actorById('retired-or-unknown:'+seed),null);
+  for(const actor of actors){
+   const cx=Math.floor(actor.x/w.CHUNK_SIZE),cz=Math.floor(actor.z/w.CHUNK_SIZE);
+   const owner=w.chunkAt(cx,cz);
+   assert.equal(owner.npc.filter(a=>a.id===actor.id).length,1);
+   assert.strictEqual(w.chunkAt(cx,cz).npc.find(a=>a.id===actor.id),actor);
+   for(const [dx,dz] of [[-1,0],[1,0],[0,-1],[0,1]]){
+    assert.equal(w.chunkAt(cx+dx,cz+dz).npc.some(a=>a.id===actor.id),false,
+     'adjacent chunks must not duplicate persistent actors');
+   }
+  }
+ }
+});
