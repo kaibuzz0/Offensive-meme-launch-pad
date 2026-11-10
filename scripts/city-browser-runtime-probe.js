@@ -45,7 +45,9 @@
     stop() {
       if (!active) return null;
       // Drain queued entries before disconnecting; late callbacks remain ignored.
-      const pending = observer?.takeRecords?.() || [];
+      let pending = [];
+      try { pending = observer?.takeRecords?.() || []; }
+      catch (_) { /* A restricted or torn-down observer must not block cleanup. */ }
       for (const entry of pending) {
         if (entry.startTime >= started) {
           longTaskTotal++;
