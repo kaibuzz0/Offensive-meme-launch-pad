@@ -57,7 +57,16 @@
       cancelAnimationFrame(raf);
       observer?.disconnect();
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility);
-      const resources = performance.getEntriesByType('resource').filter(entry => entry.startTime >= started);
+      let resources = [], resourceTimingAvailable = false;
+      try {
+        if (typeof performance.getEntriesByType === 'function') {
+          const entries = performance.getEntriesByType('resource');
+          if (Array.isArray(entries)) {
+            resources = entries.filter(entry => entry && Number.isFinite(entry.startTime) && entry.startTime >= started);
+            resourceTimingAvailable = true;
+          }
+        }
+      } catch (_) { /* Some browser contexts restrict performance resource entries. */ }
       const grouped = new Map();
       let transferSizeUnknown = 0;
       for (const entry of resources) {
@@ -96,6 +105,7 @@
         longTaskSampleLimit: MAX_LONG_TASK_SAMPLES,
         longTaskMsP95: percentile(longTasks, .95),
         resourceCount: resources.length,
+        resourceTimingAvailable,
         sameOriginTransferBytes: [...grouped.values()].reduce((s,x)=>s+x.transferBytes,0),
         resourceTimingUnknownCount: transferSizeUnknown,
         repeatedSameOriginRequests: [...grouped].filter(([,x])=>x.requests>1).map(([url,x])=>({url,...x})),
