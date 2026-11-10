@@ -143,3 +143,15 @@ test('queued placement captures its own input before an earlier command finishes
   assert.equal(snapshot().journal.edits.length, 2);
   assert.equal(snapshot().journal.edits.every(edit => edit.x < 100), true);
 });
+
+
+test('ambiguous storage acknowledgement never reports a successful build', async () => {
+  for (const acknowledgement of [undefined, null, 0, 'ok', { committed: true }]) {
+    const { store, snapshot } = fixture();
+    store.compareAndSwap = async () => acknowledgement;
+    const commands = createSoloBuildCommands(store, 'road:solo');
+    await assert.rejects(commands.placeWorkbench(action()), /building changed in another session/);
+    assert.equal(snapshot().inventory.supplies, 16);
+    assert.equal(snapshot().journal.edits.length, 0);
+  }
+});
