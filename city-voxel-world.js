@@ -370,8 +370,11 @@
   }
   // Resolve seeded actor sites once per world, not once per streamed chunk.
   // Fixed search order and stable IDs preserve positions across reloads.
-  function actorSite(dx,dz,maxSlope,avoidRoad,excludedSite){
-   const ax=gateRoad.supplies.x+dx,az=gateRoad.supplies.z+dz;
+  function actorSite(dx,dz,maxSlope,avoidRoad,excludedSite,anchor){
+   // Use the lodge entrance as the trader search origin; retain existing
+   // terrain, foliage, standing-footprint and collision validation.
+   const ax=anchor?anchor.x:gateRoad.supplies.x+dx;
+   const az=anchor?anchor.z:gateRoad.supplies.z+dz;
    // Sample the reference grade once; terrain queries are costly during startup.
    const referenceHeight=surfaceAt(ax,az).height;
    const offsets=[[0,0],[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2],
@@ -466,7 +469,10 @@
   const naturalSpawn=spawnAt();
   gateRoad=buildGateRoad(naturalSpawn,rawColumn,seed);
   // Actor sites require the initialized road and collision geometry.
-  const traderSite=actorSite(4,2,18,false);
+  // Place the trader near the lodge rather than the roadside cache.
+  // The actor ID stays stable across existing saves and chunk load orders.
+  const traderSite=actorSite(4,2,18,false,null,
+   {x:gateRoad.lodge.doorX-3,z:gateRoad.lodge.doorZ});
   const wildlifeSite=actorSite(-8,7,12,true,traderSite);
   const EMPTY_ACTORS=Object.freeze([]);
   const starterActors=Object.freeze([actorDescriptor(traderSite,true),actorDescriptor(wildlifeSite,false)].filter(Boolean));
