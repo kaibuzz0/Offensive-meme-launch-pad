@@ -40,7 +40,7 @@
       }
     });
     observer.observe({ type: 'longtask', buffered: true });
-  } catch (_) { /* Unsupported browser: explicitly reported below. */ }
+  } catch (_) { observer = null; /* Unsupported or rejected observation: report unavailable. */ }
   globalThis.__memeCityQA = {
     stop() {
       if (!active) return null;
