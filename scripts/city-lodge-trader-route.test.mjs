@@ -14,10 +14,12 @@ const catalog=Array.from({length:132},(_,i)=>({
 const world=seed=>ctx.CityVoxelWorld.createVoxelWorld(ctx.CityTerrainWorld.createTerrain(seed,catalog));
 
 test('lodge trader uses stable ID, shared chunk descriptor, and clear terrain near entrance',()=>{
+ let validSpawns=0;
  for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
   const w=world(seed),lodge=w.gateRoad.lodge;
   const trader=w.actorById('starter-trader:'+seed);
   if(!trader)continue; // Unsafe seeds intentionally omit actors rather than clipping.
+  validSpawns++;
   assert.equal(trader.kind,'trader');
   assert.ok(Math.hypot(trader.x-(lodge.doorX-3),trader.z-lodge.doorZ)<=Math.SQRT2*8,
    'trader must remain within bounded lodge-entrance search radius');
@@ -26,6 +28,7 @@ test('lodge trader uses stable ID, shared chunk descriptor, and clear terrain ne
   assert.equal(w.gateRoad.obstructs(trader.x+.5,trader.y,trader.z+.5,w.PLAYER_HEIGHT,.35),false);
   assert.strictEqual(world(seed).actorById(trader.id)?.id,trader.id);
  }
+ assert.ok(validSpawns>0,'at least one representative seed must expose the playable lodge trader');
 });
 
 test('starter actors remain bounded and uniquely owned across repeated chunk streams',()=>{
