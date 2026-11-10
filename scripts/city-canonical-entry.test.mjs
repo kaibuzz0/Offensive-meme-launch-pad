@@ -24,3 +24,10 @@ test('primary Play is a normal link without wallet or mode selection', () => {
   assert.doesNotMatch(link, /onclick=|data-wallet|target=/i);
   assert.match(homepage, /No token purchase is needed to play\./);
 });
+
+test('compatibility and original Solo URLs remain available pending migration parity', () => {
+  const hrefs = [...homepage.matchAll(/<a\b[^>]*\bhref="([^"]+)"/g)]
+    .map(([, href]) => href.replaceAll('&amp;', '&'));
+  assert.ok(hrefs.includes('city.html?terrain=1&render=canvas'), 'compatibility entry must remain recoverable');
+  assert.ok(hrefs.includes('city.html?release=center-city-v1'), 'original Solo entry must remain recoverable');
+});
