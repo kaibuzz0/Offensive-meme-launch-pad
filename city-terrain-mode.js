@@ -509,7 +509,7 @@
      const nx=player.x+move.x*dt*5,nz=player.y+move.y*dt*5;
      if(Math.abs(nx)<999900&&Math.abs(nz)<999900){player.x=nx;player.y=nz;}
     }
-   }else{player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
+   }else{physicsAccumulator=0;status.dataset.physicsSteps='0';player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
    status.dataset.worldX=String(player.x);status.dataset.worldZ=String(player.y);
    status.dataset.lookYaw=String(player.yaw);status.dataset.lookPitch=String(player.pitch);
    status.dataset.inputForward=String(move.y);status.dataset.keyCount=String(keys.size);
@@ -561,7 +561,7 @@
     }
    }else drawWorld(size.w,size.h);
    if(t-lastSave>1100){lastSave=t;savePosition();updateHud();}
-  }
+  }else{physicsAccumulator=0;status.dataset.physicsSteps='0';}
   requestAnimationFrame(frame);
  }
  $('#pause-toggle').addEventListener('click',()=>{paused=!paused;$('#pause-toggle').textContent=paused?'▶ Resume':'Ⅱ Pause';});
@@ -588,9 +588,9 @@
   keys.add(e.key.length===1?e.key.toLowerCase():e.key);
  });
  window.addEventListener('keyup',e=>{const key=e.key.length===1?e.key.toLowerCase():e.key;if(keys.delete(key))savePosition();});
- window.addEventListener('blur',()=>{keys.clear();held.clear();stick.x=0;stick.y=0;lookStick.x=lookStick.y=0;lookPointerId=null;lookKnob.style.transform='';jumpHeld=false;jumpQueued=false;savePosition();});
+ window.addEventListener('blur',()=>{physicsAccumulator=0;keys.clear();held.clear();stick.x=0;stick.y=0;lookStick.x=lookStick.y=0;lookPointerId=null;lookKnob.style.transform='';jumpHeld=false;jumpQueued=false;savePosition();});
  window.addEventListener('pagehide',savePosition);
- document.addEventListener('visibilitychange',()=>{if(document.hidden)savePosition();});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden){physicsAccumulator=0;savePosition();}});
  for(const b of document.querySelectorAll('[data-move]')){
   const dir=b.dataset.move;
   b.addEventListener('pointerdown',e=>{e.preventDefault();held.add(dir);b.setPointerCapture?.(e.pointerId);});
@@ -612,7 +612,7 @@
  joystick.addEventListener('pointercancel',releaseStick);
  joystick.addEventListener('lostpointercapture',releaseStick);
  start.addEventListener('click',()=>{
-  intro.hidden=true;intro.style.display='none';running=true;last=performance.now();resize();updateHud();syncView();canvas.focus();
+  intro.hidden=true;intro.style.display='none';running=true;physicsAccumulator=0;last=performance.now();resize();updateHud();syncView();canvas.focus();
  });
  updateHud();requestAnimationFrame(frame);
 })();
