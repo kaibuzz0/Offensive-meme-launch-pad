@@ -57,7 +57,8 @@
       }
       active = false;
       cancelAnimationFrame(raf);
-      observer?.disconnect();
+      try { observer?.disconnect(); }
+      catch (_) { /* A disposed observer must not prevent listener and global cleanup. */ }
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility);
       let resources = [], resourceTimingAvailable = false;
       try {
