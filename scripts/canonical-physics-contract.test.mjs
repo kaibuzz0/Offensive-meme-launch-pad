@@ -30,5 +30,5 @@ test('atlas is read-only and pause clears simulation debt', () => {
   assert.match(frame, /Atlas is a view of the same world, not a collision-free movement mode/);
   assert.match(frame, /physicsAccumulator=0;status\.dataset\.physicsSteps='0'/);
   assert.match(source, /visibilitychange[^\n]*physicsAccumulator=0/);
-  assert.match(source, /start\.addEventListener\('click'[^\n]*physicsAccumulator=0/);
+  assert.match(source, /start\.addEventListener\('click',\(\)=>\{\s*intro\.hidden=true;[^\n]*physicsAccumulator=0/);
 });
