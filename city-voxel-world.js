@@ -431,7 +431,7 @@
    // Distant populations remain declarative until the shared actor runtime activates them.
    // Direct ownership check avoids a redundant radial query during chunk streaming.
    // Stable descriptors are few and never activate an AI simulation here.
-   const npc=starterActors.filter(actor=>Math.floor(actor.x/CHUNK_SIZE)===cx&&Math.floor(actor.z/CHUNK_SIZE)===cz);
+   const npc=actorsByChunk.get(cx+','+cz)||EMPTY_ACTORS;
    return Object.freeze({cx,cz,seed,tiles:Object.freeze(tiles),plants:Object.freeze(plants),
     structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze(npc),roads:Object.freeze(roads)});
   }
@@ -442,6 +442,16 @@
   const wildlifeSite=actorSite(-8,7,12,true,traderSite);
   const EMPTY_ACTORS=Object.freeze([]);
   const starterActors=Object.freeze([actorDescriptor(traderSite,true),actorDescriptor(wildlifeSite,false)].filter(Boolean));
+  // Immutable seed-local chunk index: streaming a chunk must not scan all
+  // actors or instantiate/simulate distant populations. IDs and descriptors
+  // remain the same objects exposed by actorsNear/actorById.
+  const actorBuckets=new Map();
+  for(const actor of starterActors){
+   const key=Math.floor(actor.x/CHUNK_SIZE)+','+Math.floor(actor.z/CHUNK_SIZE);
+   if(!actorBuckets.has(key))actorBuckets.set(key,[]);
+   actorBuckets.get(key).push(actor);
+  }
+  const actorsByChunk=new Map(Array.from(actorBuckets,([key,actors])=>[key,Object.freeze(actors)]));
   // Startup actor placement samples cave entrances; do not leave transient
   // generation lookups resident before gameplay begins. Both caches regenerate
   // deterministically on demand and retain their existing bounded policies.
