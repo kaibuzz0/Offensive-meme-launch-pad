@@ -50,7 +50,8 @@ export function createSoloBuildCommands(store, key) {
         validateBuildRecord(next);
         const committed = await store.compareAndSwap(key, current.revision, next);
         if (committed !== true) throw new Error('building changed in another session; retry');
-        return next;
+        // Return an isolated snapshot: adapters may retain the object passed to CAS.
+        return structuredClone(next);
       });
     }
   });
