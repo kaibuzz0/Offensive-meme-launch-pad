@@ -8,7 +8,7 @@ export function createSoloBuildCommands(store, key) {
       typeof store.compareAndSwap !== 'function' ||
       typeof key !== 'string' || !key || key.length > 256)
     throw new TypeError('invalid durable build command store');
-  // Serialize same-tab commands; IndexedDB CAS rejects stale cross-tab writes.
+  // Capture input before any queued command or IndexedDB read can yield.\n  // The occupancy callback is intentionally retained as a live world query;\n  // multiplayer must replace it with a server-derived occupancy check.\n  function capturePlacement(input) {\n    if (!input || typeof input !== 'object') throw new TypeError('invalid placement');\n    return {\n      player: input.player && { x: input.player.x, y: input.player.y, z: input.player.z },\n      position: input.position && { x: input.position.x, z: input.position.z },\n      groundHeight: input.groundHeight,\n      isOccupied: input.isOccupied\n    };\n  }\n  // Serialize same-tab commands; IndexedDB CAS rejects stale cross-tab writes.
   let pending = Promise.resolve();
   function enqueue(command) {
     const result = pending.then(command);
@@ -25,7 +25,7 @@ export function createSoloBuildCommands(store, key) {
         // Never trust a revision or inventory supplied by a UI control.
         // Multiplayer must derive player pose and occupancy on the server.
         const next = buildWorkbenchState(current, {
-          ...input,
+          ...captured,
           kind: 'place-workbench',
           expectedRevision: current.revision
         });
