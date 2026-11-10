@@ -81,19 +81,48 @@
   parts.push({x:supplies.x-.15,z:supplies.z-.15,y:supplies.y+2,w:3.3,h:.5,d:3.3,color:trim,solid:false});
   parts.push({x:supplies.x+1.3,z:supplies.z+1.1,y:supplies.y+2.5,w:.35,h:8,d:.35,color:stone,solid:false});
   parts.push({x:supplies.x+1.6,z:supplies.z+1.1,y:supplies.y+7,w:4,h:2.8,d:.22,color:amber,solid:false});
+  // Keep the lodge beyond the east curtain wall (which occupies z+3..7);
+  // the door must not intersect fortress collision geometry.
+  // The first clan-district building shares the fortress's graded pad and
+  // existing world-space cuboid renderer/collision contract. Its western
+  // doorway faces the road and stays open at player height.
+  const lodge=Object.freeze({id:'starter-lodge:'+seed,x:x+13,z:gateZ+9,
+   y:heights[42]+1,doorX:x+13,doorZ:gateZ+13});
+  const lodgeWall=[.48,.34,.23],lodgeRoof=[.20,.29,.34],lodgeGlow=[1,.69,.24];
+  function lodgePart(dx,dz,dy,w,h,d,color,solid=true){
+   parts.push({x:lodge.x+dx,z:lodge.z+dz,y:lodge.y+dy,w,h,d,color,solid});
+  }
+  const lodgeStartIndex=parts.length;
+  // 9x8 shell; west wall has a 3-voxel doorway from z+3 to z+6.
+  lodgePart(0,0,0,9,12,1,lodgeWall);
+  lodgePart(0,7,0,9,12,1,lodgeWall);
+  lodgePart(8,1,0,1,12,6,lodgeWall);
+  lodgePart(0,1,0,1,12,2,lodgeWall);
+  lodgePart(0,6,0,1,12,1,lodgeWall);
+  lodgePart(0,3,9,1,3,3,lodgeWall); // lintel, clear below
+  lodgePart(-1,-1,12,11,2,10,lodgeRoof);
+  lodgePart(2,2,0,2,1,2,stone); // visible interior workbench
+  lodgePart(-.25,3,6,.3,2,3,lodgeGlow,false); // lit door frame
+  lodgePart(0,2,5,.3,1,1,amber,false);
+  lodgePart(0,6,5,.3,1,1,amber,false);
+  // A raised clan banner makes the lodge readable from Fortress Road without
+  // blocking its open entrance or changing terrain, saves or collision.
+  // These are ordinary world cuboids, clipped into streamed chunks below.
+  lodgePart(-.45,2.5,10,.25,4,4,bronze,false); // crossbeam above doorway
+  lodgePart(-.65,3,11,.22,3,3,cloth,false); // hanging clan insignia
   function foundation(px,pz){
    const t=pz-z;
    if(t< -4||t>54)return null;
    const distance=Math.abs(px-center(t));
-   if(distance>(t>=31&&t<=47?24:6))return null;
+   if(distance>(t>=31&&t<=54?24:6))return null;
    return {height:heights[t+4],road:distance<=4,edge:distance===4};
   }
   function obstructs(px,py,pz,height,radius){
-   if(Math.abs(px-x)>25||Math.abs(pz-gateZ)>12)return false;
+   if(Math.abs(px-x)>25||Math.abs(pz-gateZ)>20)return false;
    return parts.some(p=>p.solid&&px+radius>p.x&&px-radius<p.x+p.w&&
     pz+radius>p.z&&pz-radius<p.z+p.d&&py+height>p.y&&py<p.y+p.h);
   }
-  return {x,z,gateX:x,gateZ,base,parts,foundation,obstructs,supplies};
+  return {x,z,gateX:x,gateZ,base,parts,foundation,obstructs,supplies,lodge,lodgeStartIndex};
  }
  function createVoxelWorld(atlas){
   if(!atlas?.seedHash||typeof atlas.biomeAt!=='function')throw Error('Seeded 132-biome atlas required');
@@ -473,7 +502,7 @@
     fragments.push(Object.freeze({...p,x,z,w,d,
      id:'starter-gate:'+seed+':'+i,
      fragmentId:'starter-gate:'+seed+':'+i+':'+cx+':'+cz,
-     structureId:'starter-fortress:'+seed}));
+     structureId:i>=gateRoad.lodgeStartIndex?gateRoad.lodge.id:'starter-fortress:'+seed}));
    }
    return fragments;
   }
