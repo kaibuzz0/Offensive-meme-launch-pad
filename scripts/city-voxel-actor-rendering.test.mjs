@@ -156,3 +156,26 @@ test('actor identities are isolated between different seeded worlds',()=>{
   assert.equal(world.actorById(actor.id),null,'cross-world actor IDs must not resolve');
  }
 });
+
+
+test('chunk request order cannot change seeded actor mesh or ownership',()=>{
+ const seed='fortress-road';
+ const a=ctx.CityVoxelWorld.createVoxelWorld(ctx.CityTerrainWorld.createTerrain(seed,catalog));
+ const b=ctx.CityVoxelWorld.createVoxelWorld(ctx.CityTerrainWorld.createTerrain(seed,catalog));
+ const actors=a.actorsNear(a.gateRoad.supplies.x,a.gateRoad.supplies.z,256);
+ assert.ok(actors.length>0);
+ for(const actor of actors){
+  const cx=Math.floor(actor.x/16),cz=Math.floor(actor.z/16);
+  // A streamed world may visit far chunks first or load adjacent chunks
+  // before the actor's home chunk; generation must not depend on visit order.
+  const first=a.chunkAt(cx,cz);
+  b.chunkAt(cx+64,cz-64);
+  b.chunkAt(cx+1,cz);
+  b.chunkAt(cx,cz+1);
+  const second=b.chunkAt(cx,cz);
+  assert.deepEqual(second.npc.map(n=>n.id),first.npc.map(n=>n.id));
+  assert.deepEqual(Array.from(renderer.generateMesh(a,cx,cz,1).data),
+   Array.from(renderer.generateMesh(b,cx,cz,1).data),
+   'first-person geometry must be independent of chunk activation order');
+ }
+});
