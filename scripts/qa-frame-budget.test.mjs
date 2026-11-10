@@ -15,7 +15,8 @@ test('bounded frame probe measures percentiles and reports discarded gaps',async
   assert.equal(result.medianMs,20);
   assert.equal(result.p95Ms,20);
   assert.equal(result.viewport.width,412);
-  assert.equal(summarizeFrameBudget(result).pass,true);
+  assert.equal(result.worstGapMs,1200);
+  assert.equal(result.interrupted,true);\n  assert.equal(summarizeFrameBudget(result).pass,false);
   assert.equal(summarizeFrameBudget(result,{medianMs:16,p95Ms:16}).pass,false);
  }finally{
   globalThis.requestAnimationFrame=original.raf;
@@ -25,6 +26,15 @@ test('bounded frame probe measures percentiles and reports discarded gaps',async
    if(original[k]===undefined)delete globalThis[k];else globalThis[k]=original[k];
   }
  }
+});
+test('probe times out rather than hanging on a stopped animation loop',async()=>{
+ const original=globalThis.requestAnimationFrame;
+ try{
+  globalThis.requestAnimationFrame=()=>1;
+  const result=await sampleFrameTimes({frames:5,timeoutMs:100});
+  assert.equal(result.timedOut,true);
+  assert.equal(summarizeFrameBudget(result).pass,false);
+ }finally{globalThis.requestAnimationFrame=original;}
 });
 test('probe rejects unbounded work',async()=>{
  await assert.rejects(sampleFrameTimes({frames:3601}),RangeError);
