@@ -477,8 +477,13 @@
   if(keys.has('s')||keys.has('ArrowDown')||held.has('down'))y+=1;
   const mag=Math.hypot(x,y);return mag>1?{x:x/mag,y:y/mag}:{x,y};
  }
+ // Shared simulation clock: fixed 60 Hz physics independent of renderer LOD.
+ // Cap catch-up to four steps so a suspended tab cannot monopolize the UI.
+ const PHYSICS_STEP=1/60,MAX_PHYSICS_STEPS=4;
+ let physicsAccumulator=0;
  function frame(t){
-  const dt=Math.min(.05,(t-last)/1000||0);last=t;
+  const elapsed=Math.max(0,(t-last)/1000||0);
+  const dt=Math.min(.05,elapsed);last=t;
   if(running&&!paused){
    const move=movement();
    if(firstPerson&&perspective&&!atlas){
@@ -487,10 +492,19 @@
     player.yaw+=lookStick.x*dt*2.55;
     player.pitch=Math.max(-1.32,Math.min(1.32,player.pitch-lookStick.y*dt*1.95));
     if(physics){
-     const position=physics.tick({right:move.x,forward:-move.y,yaw:player.yaw,
-      jump:keys.has(' ')||jumpHeld||jumpQueued},dt);
-     jumpQueued=false;
+     physicsAccumulator=Math.min(PHYSICS_STEP*MAX_PHYSICS_STEPS,physicsAccumulator+elapsed);
+     const input={right:move.x,forward:-move.y,yaw:player.yaw,
+      jump:keys.has(' ')||jumpHeld||jumpQueued};
+     let steps=0;
+     while(physicsAccumulator+1e-9>=PHYSICS_STEP&&steps<MAX_PHYSICS_STEPS){
+      physics.tick(input,PHYSICS_STEP);
+      physicsAccumulator-=PHYSICS_STEP;
+      if(jumpQueued){jumpQueued=false;input.jump=keys.has(' ')||jumpHeld;}
+      steps++;
+     }
+     const position=physics.snapshot();
      player.x=position.x;player.y=position.z;
+     status.dataset.physicsSteps=String(steps);
     }else{
      const nx=player.x+move.x*dt*5,nz=player.y+move.y*dt*5;
      if(Math.abs(nx)<999900&&Math.abs(nz)<999900){player.x=nx;player.y=nz;}
