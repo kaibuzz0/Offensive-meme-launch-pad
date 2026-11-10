@@ -201,7 +201,29 @@ try{
  await request('Page.reload',{ignoreCache:true});
  await waitFor(()=>evalPage('!!document.querySelector("#city-road-canvas")'),'compatibility renderer boot');
  await evalPage('document.getElementById("start-button").click();true');
- await waitFor(()=>evalPage('!document.querySelector("#city-road-canvas").hidden && document.querySelector("#city-voxel-status").dataset.meshWorker==="canvas"'),'first-person rendering with WebGL unavailable',30000);
+ try{
+  await waitFor(()=>evalPage('!document.querySelector("#city-road-canvas").hidden && document.querySelector("#city-voxel-status").dataset.meshWorker==="canvas"'),'first-person rendering with WebGL unavailable',30000);
+ }catch(error){
+  // Preserve the acceptance assertion while separating a missing canvas,
+  // stale status, saved-state restoration and startup exceptions.
+  const diagnostics=await evalPage(`(()=>{
+   const canvas=document.querySelector("#city-road-canvas");
+   const status=document.querySelector("#city-voxel-status");
+   const hint=document.getElementById("city-render-hint");
+   const seed=localStorage.getItem("meme-city-terrain-seed-v1");
+   const rect=canvas?.getBoundingClientRect();
+   return {seed,position:localStorage.getItem("meme-city-terrain-position-v1:"+seed),
+    canvas:{exists:!!canvas,hidden:canvas?.hidden,width:canvas?.width,height:canvas?.height,
+     cssDisplay:canvas?getComputedStyle(canvas).display:null,
+     rect:rect?{width:rect.width,height:rect.height}:null},
+    renderer:status?.dataset.meshWorker,statusData:status?Object.fromEntries(Object.entries(status.dataset)):null,
+    hint:{hidden:hint?.hidden,text:hint?.textContent?.slice(0,180)},
+    introHidden:document.getElementById("city-intro")?.hidden,
+    compatibilityToggle:document.getElementById("city-compatibility-toggle")?.textContent,
+    readyState:document.readyState,errors:window.__cityRuntimeErrors||null};
+  })()`).catch(e=>({diagnosticError:e.message}));
+  throw Error(error.message+" / compatibility renderer diagnostics: "+JSON.stringify({diagnostics,exceptions}));
+ }
  assert.equal(await evalPage('document.getElementById("city-compatibility-toggle")?.textContent'),'TRY WEBGL 3D');
  await waitFor(()=>evalPage('document.getElementById("city-render-hint")?.hidden===true'),'compatibility scene becomes visible',30000);
  assert.equal(await evalPage('!!document.querySelector("a[href*=\\\"render=canvas\\\"]")'),true,'there is an escape route to low graphics before starting');
