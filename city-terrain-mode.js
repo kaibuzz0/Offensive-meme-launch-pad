@@ -494,6 +494,7 @@
     player.yaw+=lookStick.x*dt*2.55;
     player.pitch=Math.max(-1.32,Math.min(1.32,player.pitch-lookStick.y*dt*1.95));
     if(physics){
+     status.dataset.physicsUnavailable='false';
      const pendingPhysicsSeconds=physicsAccumulator+elapsed;
      const allowedPhysicsSeconds=PHYSICS_STEP*MAX_PHYSICS_STEPS;
      droppedPhysicsSeconds+=Math.max(0,pendingPhysicsSeconds-allowedPhysicsSeconds);
@@ -518,8 +519,14 @@
      status.dataset.physicsDroppedMs=(droppedPhysicsSeconds*1000).toFixed(1);
      status.dataset.physicsActiveBodies='1';
     }else{
-     const nx=player.x+move.x*dt*5,nz=player.y+move.y*dt*5;
-     if(Math.abs(nx)<999900&&Math.abs(nz)<999900){player.x=nx;player.y=nz;}
+     // Never substitute uncollided movement when the shared controller fails
+     // to initialize. Preserve the pose and expose a recoverable diagnostic.
+     physicsAccumulator=0;
+     status.dataset.physicsSteps='0';
+     status.dataset.physicsActiveBodies='0';
+     status.dataset.physicsUnavailable='true';
+     renderHint.hidden=false;
+     renderHint.textContent='Movement unavailable · reload to restore world physics';
     }
    }else{
     // Atlas is a view of the same world, not a collision-free movement mode.
