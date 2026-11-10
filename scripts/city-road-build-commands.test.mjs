@@ -70,3 +70,25 @@ test('concurrent controllers reject stale write without double spending', async 
   assert.equal(snapshot().inventory.supplies, 8);
   assert.equal(snapshot().journal.edits.length, 1);
 });
+
+test('placement snapshots caller coordinates before delayed durable read', async () => {
+  const { store, snapshot } = fixture();
+  const read = store.read;
+  let releaseRead;
+  const gate = new Promise(resolve => { releaseRead = resolve; });
+  store.read = async (...args) => {
+    await gate;
+    return read(...args);
+  };
+  const commands = createSoloBuildCommands(store, 'road:solo');
+  const input = action(2);
+  const operation = commands.placeWorkbench(input);
+  input.player.x = 999;
+  input.position.x = 999;
+  input.groundHeight = 999;
+  releaseRead();
+  const committed = await operation;
+  assert.equal(committed.inventory.supplies, 8);
+  assert.equal(snapshot().journal.edits.length, 1);
+  assert.equal(snapshot().journal.edits[0].x < 100, true);
+});
