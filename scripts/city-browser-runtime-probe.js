@@ -61,7 +61,10 @@
       const grouped = new Map();
       let transferSizeUnknown = 0;
       for (const entry of resources) {
-        const url = new URL(entry.name);
+        // ResourceTiming names normally are absolute URLs, but malformed/opaque
+        // entries must not prevent the report or diagnostic cleanup.
+        let url;
+        try { url = new URL(entry.name, location.href); } catch (_) { continue; }
         if (url.origin !== location.origin) continue;
         const key = url.pathname + url.search;
         const item = grouped.get(key) || { requests: 0, transferBytes: 0, decodedBytes: 0 };
