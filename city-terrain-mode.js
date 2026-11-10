@@ -521,7 +521,11 @@
      const nx=player.x+move.x*dt*5,nz=player.y+move.y*dt*5;
      if(Math.abs(nx)<999900&&Math.abs(nz)<999900){player.x=nx;player.y=nz;}
     }
-   }else{physicsAccumulator=0;status.dataset.physicsSteps='0';player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
+   }else{
+    // Atlas is a view of the same world, not a collision-free movement mode.
+    // Keep the physics pose unchanged until the first-person view resumes.
+    physicsAccumulator=0;status.dataset.physicsSteps='0';
+   }
    status.dataset.worldX=String(player.x);status.dataset.worldZ=String(player.y);
    status.dataset.lookYaw=String(player.yaw);status.dataset.lookPitch=String(player.pitch);
    status.dataset.inputForward=String(move.y);status.dataset.keyCount=String(keys.size);
