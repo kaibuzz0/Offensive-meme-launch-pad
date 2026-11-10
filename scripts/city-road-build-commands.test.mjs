@@ -92,3 +92,29 @@ test('placement snapshots caller coordinates before delayed durable read', async
   assert.equal(snapshot().journal.edits.length, 1);
   assert.equal(snapshot().journal.edits[0].x < 100, true);
 });
+
+test('failed persistence leaves the ledger untouched and later placement can recover', async () => {
+  const { store, snapshot } = fixture();
+  const compareAndSwap = store.compareAndSwap;
+  let failOnce = true;
+  store.compareAndSwap = async (...args) => {
+    if (failOnce) { failOnce = false; throw new Error('storage transaction aborted'); }
+    return compareAndSwap(...args);
+  };
+  const commands = createSoloBuildCommands(store, 'road:solo');
+  await assert.rejects(commands.placeWorkbench(action()), /storage transaction aborted/);
+  assert.equal(snapshot().inventory.supplies, 16);
+  assert.equal(snapshot().journal.edits.length, 0);
+  const placed = await commands.placeWorkbench(action());
+  assert.equal(placed.inventory.supplies, 8);
+  assert.equal(placed.journal.edits.length, 1);
+});
+
+test('a missing occupancy query cannot spend supplies or write a voxel', async () => {
+  const { store, snapshot } = fixture();
+  const commands = createSoloBuildCommands(store, 'road:solo');
+  await assert.rejects(commands.placeWorkbench({ ...action(), isOccupied: undefined }), /world occupancy query required/);
+  assert.equal(snapshot().revision, 0);
+  assert.equal(snapshot().inventory.supplies, 16);
+  assert.equal(snapshot().journal.edits.length, 0);
+});
