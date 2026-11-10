@@ -134,7 +134,25 @@ try{
    await waitFor(()=>evalPage('!document.getElementById("city-road-supplies").hidden'),'walk to the roadside supply cache',90000);
    await evalPage('document.getElementById("city-road-supplies").click();true');
    assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
-   await waitFor(()=>evalPage('!document.getElementById("city-gate-seal").hidden'),'walk under the fortress arch',90000);
+   try{
+    await waitFor(()=>evalPage('!document.getElementById("city-gate-seal").hidden'),'walk under the fortress arch',90000);
+   }catch(error){
+    // Capture live state before releasing W. A timeout alone cannot distinguish
+    // structural collision, stalled input, camera orientation or interaction range.
+    const diagnostics=await evalPage(`(()=>{
+     const status=document.getElementById("city-voxel-status");
+     const gate=document.getElementById("city-gate-seal");
+     const supplies=document.getElementById("city-road-supplies");
+     return {seed:localStorage.getItem("meme-city-terrain-seed-v1"),
+      statusText:status?.textContent?.slice(0,500),
+      statusData:status?Object.fromEntries(Object.entries(status.dataset)):null,
+      gateHidden:gate?.hidden,gateText:gate?.textContent?.slice(0,160),
+      suppliesHidden:supplies?.hidden,visibility:document.visibilityState,
+      viewport:{width:innerWidth,height:innerHeight},
+      errors:window.__cityRuntimeErrors||null};
+    })()`).catch(e=>({diagnosticError:e.message}));
+    throw Error(error.message+" / gate traversal diagnostics: "+JSON.stringify(diagnostics));
+   }
   }finally{
    await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
   }
