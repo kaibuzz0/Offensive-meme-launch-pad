@@ -43,7 +43,7 @@ export function createSoloBuildCommands(store, key) {
         });
         validateBuildRecord(next);
         const committed = await store.compareAndSwap(key, current.revision, next);
-        if (!committed) throw new Error('building changed in another session; retry');
+        if (committed !== true) throw new Error('building changed in another session; retry');
         return next;
       });
     }
