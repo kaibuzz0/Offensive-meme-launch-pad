@@ -384,3 +384,23 @@ test('actor ID resolution reuses stable descriptors without loading chunks',()=>
   assert.equal(w.cacheSize(),before,'ID lookup must not generate terrain or chunks');
  }
 });
+
+
+test('starter lodge identity, streamed geometry and doorway remain seed-stable',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const a=create(seed),b=create(seed),lodge=a.gateRoad.lodge;
+  assert.ok(lodge?.id,'lodge needs a stable structure ID');
+  assert.deepEqual(plain(lodge),plain(b.gateRoad.lodge));
+  const cx=Math.floor(lodge.x/16),cz=Math.floor(lodge.z/16);
+  const order=[[cx,cz],[cx+1,cz],[cx,cz+1],[cx+1,cz+1]];
+  const collect=(world,coords)=>coords.flatMap(([x,z])=>world.chunkAt(x,z).structures)
+   .filter(part=>part.structureId===lodge.id)
+   .map(part=>plain(part))
+   .sort((p,q)=>JSON.stringify(p).localeCompare(JSON.stringify(q)));
+  assert.deepEqual(collect(a,order),collect(b,[...order].reverse()),
+   'lodge geometry must not depend on chunk visitation order');
+  assert.ok(collect(a,order).length>0,'lodge geometry must stream as shared structures');
+  assert.equal(a.gateRoad.obstructs(lodge.doorX+.5,lodge.y+1,lodge.doorZ+.5,6,.2),false,
+   'lodge doorway must remain traversable at player height');
+ }
+});
