@@ -39,7 +39,7 @@
    if(floor===null)return false;
    // Teleport must obey the same structural and underground headroom
    // constraints as walking; otherwise reload/respawn can bypass walls.
-   if(world.gateRoad?.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS))return false;
+   if((typeof world.gateRoad?.obstructs==='function' && world.gateRoad.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS)))return false;
    for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
     const gallery=world.caveRoomAt?.(Math.floor(x+ox),Math.floor(z+oz));
     if(gallery&&!gallery.exposed&&floor<gallery.ceiling&&floor+world.PLAYER_HEIGHT>gallery.ceiling)return false;
@@ -57,7 +57,7 @@
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
-    if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
+    if(floor===null||(typeof world.gateRoad?.obstructs==='function' && world.gateRoad.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS)))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
