@@ -58,6 +58,8 @@ test('budget gate rejects incomplete samples even if percentile numbers look hea
 test('budget gate rejects hidden-tab samples even with good percentiles',()=>{
  const sample={requestedFrames:60,measuredFrames:60,medianMs:16,p95Ms:17,p99Ms:18,worstGapMs:19,interrupted:false,timedOut:false,discardedLongGaps:0};
  assert.equal(summarizeFrameBudget({...sample,visibility:'hidden'}).pass,false);
+ assert.equal(summarizeFrameBudget({...sample,visibility:'prerender'}).pass,false);
+ assert.equal(summarizeFrameBudget({...sample,visibility:'unloaded'}).pass,false);
  assert.equal(summarizeFrameBudget({...sample,visibilityChanged:true}).pass,false);
  assert.equal(summarizeFrameBudget({...sample,visibility:'visible',visibilityChanged:false}).pass,true);
 });
