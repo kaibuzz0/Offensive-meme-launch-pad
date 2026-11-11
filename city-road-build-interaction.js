@@ -26,9 +26,15 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
     // Only a validated committed snapshot may be presented. Never treat an
     // animation/render failure as a failed durable transaction to be retried.
     last = structuredClone(record);
-    let rendered = true;
-    try { await onCommitted?.(structuredClone(last)); }
-    catch { rendered = false; feedback('render-error', 'Saved action succeeded; refresh the scene'); }
+    // A missing scene consumer is not a successful visual presentation.
+    // Preserve the durable commit and permit refreshScene() after renderer setup.
+    let rendered = typeof onCommitted === 'function';
+    if (rendered) {
+      try { await onCommitted(structuredClone(last)); }
+      catch { rendered = false; feedback('render-error', 'Saved action succeeded; refresh the scene'); }
+    } else {
+      feedback('render-error', 'Saved action succeeded; scene renderer not connected');
+    }
     if (rendered) lastRenderedRevision = last.revision;
     return { record: structuredClone(last), rendered };
   }
