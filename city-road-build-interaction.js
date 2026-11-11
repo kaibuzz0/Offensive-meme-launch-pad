@@ -68,8 +68,15 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
       busy = true;
       try {
         const record = await commands.read();
-        if (record !== null && record !== undefined) return (await displayCommitted(record)).record;
-        return null;
+        if (record === null || record === undefined) return null;
+        // A delayed IndexedDB read (or a cross-tab change) cannot replace a
+        // newer committed snapshot already presented by another interaction.
+        if (last && Number.isSafeInteger(last.revision) &&
+            Number.isSafeInteger(record.revision) && record.revision < last.revision) {
+          feedback('error', 'Stale saved construction state; refresh again');
+          return structuredClone(last);
+        }
+        return (await displayCommitted(record)).record;
       } catch (error) {
         feedback('error', error instanceof Error ? error.message : 'Save unavailable');
         return null;
