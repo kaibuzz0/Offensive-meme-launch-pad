@@ -15,7 +15,13 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
   const feedback = (kind, message) => {
     try { onFeedback?.({ kind, message }); } catch { /* presentation cannot undo commit */ }
   };
+  function validRecord(record) {
+    return record && typeof record === 'object' && !Array.isArray(record) &&
+      Number.isSafeInteger(record.revision) && record.revision >= 0 &&
+      record.inventory && typeof record.inventory === 'object' && !Array.isArray(record.inventory);
+  }
   async function displayCommitted(record) {
+    if (!validRecord(record)) throw new TypeError('Invalid committed construction record');
     // Only a validated committed snapshot may be presented. Never treat an
     // animation/render failure as a failed durable transaction to be retried.
     last = structuredClone(record);
@@ -38,7 +44,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
       const result = await action();
       // A command must return its committed record; null/undefined is not a save.
       // Never publish a success or replace the visible snapshot for an empty result.
-      if (result === null || result === undefined) {
+      if (!validRecord(result)) {
         feedback('error', 'No committed construction record returned');
         return null;
       }
@@ -60,7 +66,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
       if (error instanceof Error && /changed in another session/.test(error.message)) {
         try {
           const current = await commands.read();
-          if (current != null) await publishIfCurrent(current);
+          if (validRecord(current)) await publishIfCurrent(current);
         } catch { /* preserve the original transaction error */ }
       }
       feedback('error', error instanceof Error ? error.message : 'Action failed');
@@ -76,6 +82,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
       try {
         const record = await commands.read();
         if (record === null || record === undefined) return null;
+        if (!validRecord(record)) throw new TypeError('Invalid saved construction record');
         // A delayed IndexedDB read (or a cross-tab change) cannot replace a
         // newer committed snapshot already presented by another interaction.
         if (last && Number.isSafeInteger(last.revision) &&
