@@ -2,6 +2,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRoadBuildInteraction } from '../city-road-build-interaction.js';
 
+test('missing renderer never reports a displayed scene or saved visual success', async () => {
+  const record = { revision: 1, inventory: { supplies: 8 } };
+  const feedback = [];
+  let calls = 0;
+  const ui = createRoadBuildInteraction({
+    read: async () => record,
+    collectRoadSupplies: async () => { calls++; return record; },
+    placeWorkbench: async () => record
+  }, { onFeedback: event => feedback.push(event.kind) });
+  assert.equal((await ui.collect({ x: 0, y: 0, z: 0 })).revision, 1);
+  assert.equal(await ui.refreshScene(), false);
+  assert.equal(calls, 1);
+  assert.equal(ui.snapshot.inventory.supplies, 8);
+  assert.deepEqual(feedback, ['render-error', 'render-error']);
+  assert.equal(feedback.includes('success'), false);
+});
+
 test('only committed records are displayed, and reload restores a detached snapshot', async () => {
   const saved = { revision: 1, inventory: { supplies: 8 }, journal: { edits: [] } };
   const shown = [];
