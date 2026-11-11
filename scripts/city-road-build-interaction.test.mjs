@@ -19,7 +19,7 @@ test('only committed records are displayed, and reload restores a detached snaps
   assert.equal(await ui.place({}), null);
   assert.equal(shown.length, 1);
   await ui.restore();
-  assert.equal(shown.length, 2);
+  assert.equal(shown.length, 1);
   assert.equal(ui.snapshot.inventory.supplies, 8);
 });
 
@@ -191,4 +191,25 @@ test('malformed committed records never replace inventory or render a scene', as
   assert.deepEqual(ui.snapshot, valid);
   assert.equal(events.includes('success'), false);
   assert.equal(events.filter(kind => kind === 'error').length, 3);
+});
+
+
+test('equal-revision divergent save cannot silently replace a committed scene', async () => {
+  let saved = { revision: 4, inventory: { supplies: 8 } };
+  const scenes = [], feedback = [];
+  const ui = createRoadBuildInteraction({
+    read: async () => saved,
+    collectRoadSupplies: async () => saved,
+    placeWorkbench: async () => saved
+  }, {
+    onCommitted: record => scenes.push(record.inventory.supplies),
+    onFeedback: event => feedback.push(event.kind)
+  });
+  await ui.restore();
+  saved = { revision: 4, inventory: { supplies: 0 } };
+  assert.equal(await ui.restore(), null);
+  assert.equal(await ui.collect({ x: 0, y: 0, z: 0 }), null);
+  assert.equal(ui.snapshot.inventory.supplies, 8);
+  assert.deepEqual(scenes, [8]);
+  assert.deepEqual(feedback, ['error', 'error']);
 });
