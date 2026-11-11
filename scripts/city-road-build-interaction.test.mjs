@@ -94,3 +94,24 @@ test('restore returns the saved record even when the renderer fails', async () =
   assert.deepEqual(events, ['render-error']);
   assert.deepEqual(ui.snapshot, record);
 });
+
+
+test('empty command result cannot produce a false saved notification or overwrite the scene', async () => {
+  const events = [];
+  const committed = { revision: 3, inventory: { supplies: 8 } };
+  const ui = createRoadBuildInteraction({
+    read: async () => committed,
+    collectRoadSupplies: async () => null,
+    placeWorkbench: async () => undefined
+  }, {
+    onCommitted: record => events.push(['scene', record.revision]),
+    onFeedback: event => events.push([event.kind, event.message])
+  });
+  await ui.restore();
+  assert.equal(await ui.collect({ x: 0, y: 0, z: 0 }), null);
+  assert.equal(await ui.place({}), null);
+  assert.equal(ui.snapshot.revision, 3);
+  assert.equal(events.filter(event => event[0] === 'scene').length, 1);
+  assert.equal(events.filter(event => event[0] === 'success').length, 0);
+  assert.equal(events.filter(event => event[0] === 'error').length, 2);
+});
