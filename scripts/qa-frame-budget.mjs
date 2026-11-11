@@ -10,7 +10,10 @@ export async function sampleFrameTimes({frames=180,maxGapMs=1000,timeoutMs=30000
   let last=null, interruptions=0, timedOut=false;
   const initialVisibility=globalThis.document?.visibilityState??null;
   let visibilityChanged=false;
+  const visibilityListener=()=>{visibilityChanged=true;};
+  globalThis.document?.addEventListener?.('visibilitychange',visibilityListener);
   const started=performance.now();
+  try {
   for(let i=0;i<=frames;i++){
     const remaining=timeoutMs-(performance.now()-started);
     if(remaining<=0){timedOut=true;break;}
@@ -34,6 +37,9 @@ export async function sampleFrameTimes({frames=180,maxGapMs=1000,timeoutMs=30000
       }
     }
     last=now;
+  }
+  } finally {
+    globalThis.document?.removeEventListener?.('visibilitychange',visibilityListener);
   }
   const sorted=ordinary.slice().sort((a,b)=>a-b);
   const percentile=p=>sorted.length?sorted[Math.min(sorted.length-1,Math.ceil(p*sorted.length)-1)]:null;
