@@ -56,7 +56,7 @@ test('render callback failure does not misreport a committed transaction as fail
     onFeedback: event => events.push(event.kind)
   });
   assert.equal((await ui.collect({ x: 0, y: 0, z: 0 })).revision, 1);
-  assert.deepEqual(events, ['render-error', 'success']);
+  assert.deepEqual(events, ['render-error']);
 });
 
 test('cross-tab revision conflict refreshes committed scene without replaying spending', async () => {
@@ -77,4 +77,20 @@ test('cross-tab revision conflict refreshes committed scene without replaying sp
   assert.equal(ui.snapshot.inventory.supplies, 0);
   assert.equal(events[0][0], 'scene');
   assert.equal(events[1][0], 'error');
+});
+
+test('restore returns the saved record even when the renderer fails', async () => {
+  const record = { revision: 7, inventory: { supplies: 0 } };
+  const events = [];
+  const ui = createRoadBuildInteraction({
+    read: async () => record,
+    collectRoadSupplies: async () => record,
+    placeWorkbench: async () => record
+  }, {
+    onCommitted: () => { throw new Error('scene unavailable'); },
+    onFeedback: event => events.push(event.kind)
+  });
+  assert.deepEqual(await ui.restore(), record);
+  assert.deepEqual(events, ['render-error']);
+  assert.deepEqual(ui.snapshot, record);
 });
