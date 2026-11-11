@@ -62,7 +62,7 @@ export async function sampleFrameTimes({frames=180,maxGapMs=1000,timeoutMs=30000
   };
 }
 export function summarizeFrameBudget(result,{medianMs=33.3,p95Ms=50}={}){
-  if(!result||!Number.isInteger(result.requestedFrames)||result.measuredFrames!==result.requestedFrames||result.measuredFrames<2||result.interrupted||result.timedOut||result.visibilityChanged||(result.visibility!=null&&result.visibility!=='visible')||result.discardedLongGaps>0||![result.medianMs,result.p95Ms,result.p99Ms,result.worstGapMs].every(v=>Number.isFinite(v)&&v>=0))
+  if(!result||!Number.isInteger(result.requestedFrames)||result.measuredFrames!==result.requestedFrames||result.measuredFrames<2||result.interrupted||result.timedOut||result.visibilityChanged||(result.visibility!=null&&result.visibility!=='visible')||(!Number.isInteger(result.discardedLongGaps)||result.discardedLongGaps!==0)||![result.medianMs,result.p95Ms,result.p99Ms,result.worstGapMs].every(v=>Number.isFinite(v)&&v>=0)||result.medianMs>result.p95Ms||result.p95Ms>result.p99Ms||result.p99Ms>result.worstGapMs)
     return {pass:false,reason:'insufficient or interrupted frame sample'};
   return {pass:result.medianMs<=medianMs&&result.p95Ms<=p95Ms,
     medianPass:result.medianMs<=medianMs,p95Pass:result.p95Ms<=p95Ms,
