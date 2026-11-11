@@ -76,3 +76,18 @@ test('step-up cannot enter a cave cell with insufficient headroom at the raised 
   assert.ok(c.snapshot().x < 2 - 0.27,
     'the capsule must stop before its radius overlaps the low-roof cell');
 });
+
+test('partial structural metadata permits walking and teleport without an obstruction callback', () => {
+  const c = create({ gateRoad: { gates: [] } });
+  c.tick({ forward: 1 }, 0.05);
+  assert.ok(c.snapshot().z > 0, 'movement should not throw on partial metadata');
+  assert.equal(c.teleport(3, 0), true);
+  assert.equal(c.snapshot().x, 3);
+});
+
+test('callable structural obstruction remains enforced for movement and teleport', () => {
+  const c = create({ gateRoad: { obstructs: (x) => x >= 1 } });
+  for (let i = 0; i < 6; i++) c.tick({ forward: 1, yaw: Math.PI / 2 }, 0.05);
+  assert.ok(c.snapshot().x < 1, 'movement must stop at the wall');
+  assert.equal(c.teleport(3, 0), false, 'teleport must not bypass the wall');
+});
