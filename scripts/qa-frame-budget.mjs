@@ -41,15 +41,19 @@ export async function sampleFrameTimes({frames=180,maxGapMs=1000,timeoutMs=30000
   } finally {
     globalThis.document?.removeEventListener?.('visibilitychange',visibilityListener);
   }
+  const wallClockMs=performance.now()-started;
   const sorted=ordinary.slice().sort((a,b)=>a-b);
   const percentile=p=>sorted.length?sorted[Math.min(sorted.length-1,Math.ceil(p*sorted.length)-1)]:null;
   return {
     requestedFrames:frames,measuredFrames:all.length,ordinaryFrames:sorted.length,
+    wallClockMs,frameCoverage:all.length/frames,
     discardedLongGaps:interruptions,interrupted:interruptions>0||timedOut||visibilityChanged,timedOut,visibilityChanged,
     medianMs:percentile(.5),p95Ms:percentile(.95),p99Ms:percentile(.99),
     maxMs:sorted.at(-1)??null,worstGapMs:all.length?Math.max(...all):null,
     meanMs:sorted.length?sorted.reduce((a,b)=>a+b,0)/sorted.length:null,
     longFrames50Ms:all.filter(x=>x>50).length,
+    longFrames100Ms:all.filter(x=>x>100).length,
+    longFrames250Ms:all.filter(x=>x>250).length,
     userAgent:globalThis.navigator?.userAgent??null,
     viewport:{width:globalThis.innerWidth??null,height:globalThis.innerHeight??null,dpr:globalThis.devicePixelRatio??null},
     visibility:globalThis.document?.visibilityState??null,
