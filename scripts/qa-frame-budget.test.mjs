@@ -16,6 +16,10 @@ test('bounded frame probe measures percentiles and reports discarded gaps',async
   assert.equal(result.p95Ms,20);
   assert.equal(result.viewport.width,412);
   assert.equal(result.worstGapMs,1200);
+  assert.equal(result.frameCoverage,1);
+  assert.equal(result.longFrames100Ms,1);
+  assert.equal(result.longFrames250Ms,1);
+  assert.ok(result.wallClockMs>=0);
   assert.equal(result.interrupted,true);
   assert.equal(summarizeFrameBudget(result).pass,false);
   assert.equal(summarizeFrameBudget(result,{medianMs:16,p95Ms:16}).pass,false);
@@ -34,6 +38,8 @@ test('probe times out rather than hanging on a stopped animation loop',async()=>
   globalThis.requestAnimationFrame=()=>1;
   const result=await sampleFrameTimes({frames:5,timeoutMs:100});
   assert.equal(result.timedOut,true);
+  assert.equal(result.frameCoverage,0);
+  assert.ok(result.wallClockMs>=100);
   assert.equal(summarizeFrameBudget(result).pass,false);
  }finally{globalThis.requestAnimationFrame=original;}
 });
