@@ -44,3 +44,21 @@ test('vegetation identities and placement survive surface-cache eviction',()=>{
  const again=plain(create().chunkAt(cx,cz).plants);
  assert.deepEqual(again,before,'fresh world with the same seed must regenerate identical plants');
 });
+
+test('negative-coordinate chunk boundaries preserve deterministic vegetation ownership',()=>{
+ const world=create();
+ for(const [cx,cz] of [[-2,-2],[-1,0],[0,-1],[1,-1]]){
+  const chunk=world.chunkAt(cx,cz);
+  const ids=new Set();
+  for(const plant of chunk.plants){
+   assert.equal(Math.floor(plant.x/16),cx,'plant must belong to its X chunk');
+   assert.equal(Math.floor(plant.z/16),cz,'plant must belong to its Z chunk');
+   assert.ok(!ids.has(plant.id),'plant identity must be unique per chunk');
+   ids.add(plant.id);
+   assert.deepEqual(plain(world.featureAt(plant.x,plant.z)),plain({
+    type:plant.type,height:plant.height,color:plant.color
+   }));
+  }
+  assert.deepEqual(plain(chunk.plants),plain(create().chunkAt(cx,cz).plants));
+ }
+});
