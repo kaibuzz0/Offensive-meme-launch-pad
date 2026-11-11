@@ -19,17 +19,18 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
     // Only a validated committed snapshot may be presented. Never treat an
     // animation/render failure as a failed durable transaction to be retried.
     last = structuredClone(record);
+    let rendered = true;
     try { await onCommitted?.(structuredClone(last)); }
-    catch { feedback('render-error', 'Saved action succeeded; refresh the scene'); }
-    return structuredClone(last);
+    catch { rendered = false; feedback('render-error', 'Saved action succeeded; refresh the scene'); }
+    return { record: structuredClone(last), rendered };
   }
   async function perform(action) {
     if (busy) { feedback('busy', 'Action already in progress'); return null; }
     busy = true;
     try {
       const result = await action();
-      await displayCommitted(result);
-      feedback('success', 'Saved');
+      const presentation = await displayCommitted(result);
+      if (presentation.rendered) feedback('success', 'Saved');
       return structuredClone(result);
     } catch (error) {
       // A second tab may have won the durable compare-and-swap. Re-read the
@@ -54,7 +55,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
       busy = true;
       try {
         const record = await commands.read();
-        if (record !== null && record !== undefined) return await displayCommitted(record);
+        if (record !== null && record !== undefined) return (await displayCommitted(record)).record;
         return null;
       } catch (error) {
         feedback('error', error instanceof Error ? error.message : 'Save unavailable');
