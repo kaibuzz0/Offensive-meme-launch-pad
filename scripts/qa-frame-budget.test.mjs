@@ -78,3 +78,35 @@ test('visibility transition during sampling invalidates otherwise complete data'
   if(previousRaf===undefined)delete globalThis.requestAnimationFrame;else globalThis.requestAnimationFrame=previousRaf;
  }
 });
+
+test('brief visibility transitions between frames invalidate sample and unregister listener',async()=>{
+ const previousRaf=globalThis.requestAnimationFrame;
+ const previousDocument=globalThis.document;
+ let ticks=0, listener=null, removals=0;
+ const doc={
+  visibilityState:'visible',
+  addEventListener:(name,fn)=>{assert.equal(name,'visibilitychange');listener=fn;},
+  removeEventListener:(name,fn)=>{assert.equal(name,'visibilitychange');assert.equal(fn,listener);removals++;}
+ };
+ try{
+  globalThis.document=doc;
+  globalThis.requestAnimationFrame=cb=>{
+   ticks++;
+   if(ticks===3){
+    doc.visibilityState='hidden';listener();
+    doc.visibilityState='visible';listener();
+   }
+   queueMicrotask(()=>cb(ticks*16));
+   return ticks;
+  };
+  const sample=await sampleFrameTimes({frames:5});
+  assert.equal(sample.measuredFrames,5);
+  assert.equal(sample.visibility,'visible');
+  assert.equal(sample.visibilityChanged,true);
+  assert.equal(summarizeFrameBudget(sample).pass,false);
+  assert.equal(removals,1);
+ }finally{
+  if(previousDocument===undefined)delete globalThis.document;else globalThis.document=previousDocument;
+  if(previousRaf===undefined)delete globalThis.requestAnimationFrame;else globalThis.requestAnimationFrame=previousRaf;
+ }
+});
