@@ -52,6 +52,8 @@ export function createSoloBuildCommands(store, key, resolveRoadCrate) {
           crate: { x: crate.x, y: crate.y, z: crate.z },
           expectedRevision: current.revision
         });
+        // Reject malformed reducer output before it reaches durable storage.
+        validateBuildRecord(next);
         const committed = await store.compareAndSwap(key, current.revision, next);
         if (committed !== true) throw new Error('building changed in another session; retry');
         return structuredClone(next);
