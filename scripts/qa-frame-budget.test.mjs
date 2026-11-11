@@ -116,3 +116,13 @@ test('brief visibility transitions between frames invalidate sample and unregist
   if(previousRaf===undefined)delete globalThis.requestAnimationFrame;else globalThis.requestAnimationFrame=previousRaf;
  }
 });
+
+test('budget gate rejects missing, nonfinite, and negative metrics',()=>{
+ const sample={requestedFrames:60,measuredFrames:60,medianMs:16,p95Ms:17,p99Ms:18,worstGapMs:20,interrupted:false,timedOut:false,discardedLongGaps:0,visibility:'visible'};
+ assert.equal(summarizeFrameBudget(sample).pass,true);
+ for(const metric of ['medianMs','p95Ms','p99Ms','worstGapMs']){
+  for(const invalid of [null,undefined,NaN,Infinity,-1]){
+   assert.equal(summarizeFrameBudget({...sample,[metric]:invalid}).pass,false,`${metric}=${invalid}`);
+  }
+ }
+});
