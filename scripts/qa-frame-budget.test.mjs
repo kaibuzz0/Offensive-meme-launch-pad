@@ -42,3 +42,9 @@ test('probe rejects unbounded work',async()=>{
  await assert.rejects(sampleFrameTimes({frames:1}),RangeError);
  await assert.rejects(sampleFrameTimes({frames:5,maxGapMs:0}),RangeError);
 });
+
+test('budget gate rejects incomplete samples even if percentile numbers look healthy',()=>{
+ const sample={requestedFrames:180,measuredFrames:2,medianMs:16,p95Ms:16,interrupted:false,timedOut:false,discardedLongGaps:0};
+ assert.equal(summarizeFrameBudget(sample).pass,false);
+ assert.equal(summarizeFrameBudget({...sample,measuredFrames:180}).pass,true);
+});
