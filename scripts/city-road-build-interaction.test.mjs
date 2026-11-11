@@ -153,3 +153,19 @@ test('stale restore read cannot roll back a newer committed scene', async () => 
   assert.deepEqual(scenes, [5, 6]);
   assert.equal(ui.snapshot.inventory.supplies, 8);
 });
+
+test('conflict recovery cannot repaint a stale read over newer committed state', async () => {
+  const scenes = [];
+  let saved = { revision: 6, inventory: { supplies: 0 } };
+  const ui = createRoadBuildInteraction({
+    read: async () => saved,
+    collectRoadSupplies: async () => { throw new Error('building changed in another session; retry'); },
+    placeWorkbench: async () => null
+  }, { onCommitted: record => scenes.push(record.revision) });
+  await ui.restore();
+  saved = { revision: 5, inventory: { supplies: 8 } };
+  assert.equal(await ui.collect({ x: 0, y: 0, z: 0 }), null);
+  assert.deepEqual(scenes, [6]);
+  assert.equal(ui.snapshot.revision, 6);
+  assert.equal(ui.snapshot.inventory.supplies, 0);
+});
