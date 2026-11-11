@@ -24,6 +24,13 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
     catch { rendered = false; feedback('render-error', 'Saved action succeeded; refresh the scene'); }
     return { record: structuredClone(last), rendered };
   }
+  async function publishIfCurrent(record) {
+    // Conflict recovery must obey the same monotonic revision rule as restore.
+    if (last && Number.isSafeInteger(last.revision) &&
+        Number.isSafeInteger(record?.revision) && record.revision < last.revision)
+      return null;
+    return displayCommitted(record);
+  }
   async function perform(action) {
     if (busy) { feedback('busy', 'Action already in progress'); return null; }
     busy = true;
@@ -53,7 +60,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
       if (error instanceof Error && /changed in another session/.test(error.message)) {
         try {
           const current = await commands.read();
-          if (current != null) await displayCommitted(current);
+          if (current != null) await publishIfCurrent(current);
         } catch { /* preserve the original transaction error */ }
       }
       feedback('error', error instanceof Error ? error.message : 'Action failed');
