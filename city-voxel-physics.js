@@ -66,7 +66,10 @@
     let blocked=false;
     for(const [ox,oz] of samples){
      const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
-     if(gallery&&!gallery.exposed&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+     // Step-up raises the feet before the capsule occupies the next cell.
+     // Validate headroom at that prospective height, not the old feet height.
+     const candidateY=Math.max(state.y,floor);
+     if(gallery&&!gallery.exposed&&candidateY<gallery.ceiling&&candidateY+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
      }
     }
