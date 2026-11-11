@@ -12,6 +12,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
     throw new TypeError('onFeedback must be a function');
   let busy = false;
   let last = null;
+  let lastRenderedRevision = null;
   const feedback = (kind, message) => {
     try { onFeedback?.({ kind, message }); } catch { /* presentation cannot undo commit */ }
   };
@@ -28,6 +29,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
     let rendered = true;
     try { await onCommitted?.(structuredClone(last)); }
     catch { rendered = false; feedback('render-error', 'Saved action succeeded; refresh the scene'); }
+    if (rendered) lastRenderedRevision = last.revision;
     return { record: structuredClone(last), rendered };
   }
   async function publishIfCurrent(record) {
@@ -40,6 +42,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
       // divergent record indicates a conflicting writer or corrupted save.
       if (JSON.stringify(record) !== JSON.stringify(last))
         throw new Error('Conflicting construction snapshot at the same revision');
+      if (lastRenderedRevision !== last.revision) return displayCommitted(last);
       return { record: structuredClone(last), rendered: true };
     }
     return displayCommitted(record);
@@ -107,6 +110,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
         if (last && record.revision === last.revision) {
           if (JSON.stringify(record) !== JSON.stringify(last))
             throw new Error('Conflicting construction snapshot at the same revision');
+          if (lastRenderedRevision !== last.revision) await displayCommitted(last);
           return structuredClone(last);
         }
         return (await displayCommitted(record)).record;
