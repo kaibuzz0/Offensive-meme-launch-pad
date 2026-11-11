@@ -99,3 +99,27 @@ test('repeated actor proximity queries preserve canonical identities and cache b
   assert.equal(w.caveCacheSize(),cavesBefore,'actor proximity must not allocate caves');
  }
 });
+
+test('wildlife ecology and actor descriptors stay deterministic across regeneration',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const a=world(seed),b=world(seed);
+  for(const kind of ['starter-trader','starter-wildlife']){
+   const id=kind+':'+seed,first=a.actorById(id),second=b.actorById(id);
+   assert.equal(Boolean(first),Boolean(second),'seeded actor presence must be repeatable');
+   if(!first)continue;
+   assert.deepEqual(JSON.parse(JSON.stringify(first)),JSON.parse(JSON.stringify(second)),
+    'regeneration must preserve actor position, identity and appearance metadata');
+   assert.ok(Object.isFrozen(first),'shared actor descriptors must not be mutable simulation state');
+   assert.ok(Number.isFinite(first.x)&&Number.isFinite(first.y)&&Number.isFinite(first.z));
+   if(kind==='starter-wildlife'){
+    assert.equal(first.kind,'wildlife');
+    assert.ok(['lizard','hare','deer'].includes(first.species),
+     'wildlife must use a recognized biome-derived species');
+    assert.equal(first.behavior,'graze-flee');
+   }else{
+    assert.equal(first.faction,'starter-settlement');
+    assert.equal(first.rig,'shared-humanoid');
+   }
+  }
+ }
+});
