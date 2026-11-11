@@ -120,7 +120,7 @@ test('brief visibility transitions between frames invalidate sample and unregist
 });
 
 test('budget gate rejects missing, nonfinite, and negative metrics',()=>{
- const sample={requestedFrames:60,measuredFrames:60,medianMs:16,p95Ms:17,p99Ms:18,worstGapMs:20,interrupted:false,timedOut:false,discardedLongGaps:0,visibility:'visible'};
+ const sample={requestedFrames:60,measuredFrames:60,medianMs:16,p95Ms:17,p99Ms:18,worstGapMs:20,interrupted:false,timedOut:false,discardedLongGaps:0,ordinaryFrames:60,frameCoverage:1,longFrames50Ms:0,longFrames100Ms:0,longFrames250Ms:0,visibility:'visible'};
  assert.equal(summarizeFrameBudget(sample).pass,true);
  for(const metric of ['medianMs','p95Ms','p99Ms','worstGapMs']){
   for(const invalid of [null,undefined,NaN,Infinity,-1]){
@@ -131,7 +131,7 @@ test('budget gate rejects missing, nonfinite, and negative metrics',()=>{
 
 
 test('budget gate rejects internally inconsistent percentile data and gap counters',()=>{
- const sample={requestedFrames:60,measuredFrames:60,medianMs:16,p95Ms:17,p99Ms:18,worstGapMs:20,interrupted:false,timedOut:false,discardedLongGaps:0,visibility:'visible'};
+ const sample={requestedFrames:60,measuredFrames:60,medianMs:16,p95Ms:17,p99Ms:18,worstGapMs:20,interrupted:false,timedOut:false,discardedLongGaps:0,ordinaryFrames:60,frameCoverage:1,longFrames50Ms:0,longFrames100Ms:0,longFrames250Ms:0,visibility:'visible'};
  assert.equal(summarizeFrameBudget(sample).pass,true);
  for(const mutation of [
   {medianMs:19}, {p95Ms:19}, {p99Ms:21},
