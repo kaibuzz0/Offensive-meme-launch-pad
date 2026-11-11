@@ -123,3 +123,18 @@ test('wildlife ecology and actor descriptors stay deterministic across regenerat
   }
  }
 });
+
+test('actor activation rejects extreme coordinate overflow without changing world caches',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=world(seed),terrainBefore=w.cacheSize(),cavesBefore=w.caveCacheSize();
+  for(const [x,z,r] of [[1e308,1e308,1],[1e308,-1e308,1e308],[-1e308,1e308,1]]){
+   assert.equal(w.actorsNear(x,z,r).length,0,
+    'overflowing squared distances must not activate faraway actors');
+  }
+  for(const actor of w.actorsNear(0,0,1e308)){
+   assert.ok(Number.isFinite(actor.x)&&Number.isFinite(actor.z));
+  }
+  assert.equal(w.cacheSize(),terrainBefore);
+  assert.equal(w.caveCacheSize(),cavesBefore);
+ }
+});
