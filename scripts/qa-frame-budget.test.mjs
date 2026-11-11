@@ -16,7 +16,8 @@ test('bounded frame probe measures percentiles and reports discarded gaps',async
   assert.equal(result.p95Ms,20);
   assert.equal(result.viewport.width,412);
   assert.equal(result.worstGapMs,1200);
-  assert.equal(result.interrupted,true);\n  assert.equal(summarizeFrameBudget(result).pass,false);
+  assert.equal(result.interrupted,true);
+  assert.equal(summarizeFrameBudget(result).pass,false);
   assert.equal(summarizeFrameBudget(result,{medianMs:16,p95Ms:16}).pass,false);
  }finally{
   globalThis.requestAnimationFrame=original.raf;
