@@ -48,3 +48,33 @@ test('budget gate rejects incomplete samples even if percentile numbers look hea
  assert.equal(summarizeFrameBudget(sample).pass,false);
  assert.equal(summarizeFrameBudget({...sample,measuredFrames:180}).pass,true);
 });
+
+test('budget gate rejects hidden-tab samples even with good percentiles',()=>{
+ const sample={requestedFrames:60,measuredFrames:60,medianMs:16,p95Ms:17,interrupted:false,timedOut:false,discardedLongGaps:0};
+ assert.equal(summarizeFrameBudget({...sample,visibility:'hidden'}).pass,false);
+ assert.equal(summarizeFrameBudget({...sample,visibilityChanged:true}).pass,false);
+ assert.equal(summarizeFrameBudget({...sample,visibility:'visible',visibilityChanged:false}).pass,true);
+});
+test('visibility transition during sampling invalidates otherwise complete data',async()=>{
+ const previousRaf=globalThis.requestAnimationFrame;
+ const previousDocument=globalThis.document;
+ let ticks=0;
+ const doc={visibilityState:'visible'};
+ try{
+  globalThis.document=doc;
+  globalThis.requestAnimationFrame=cb=>{
+   ticks++;
+   if(ticks===3)doc.visibilityState='hidden';
+   queueMicrotask(()=>cb(ticks*16));
+   return ticks;
+  };
+  const sample=await sampleFrameTimes({frames:5});
+  assert.equal(sample.measuredFrames,5);
+  assert.equal(sample.visibilityChanged,true);
+  assert.equal(sample.interrupted,true);
+  assert.equal(summarizeFrameBudget(sample).pass,false);
+ }finally{
+  if(previousDocument===undefined)delete globalThis.document;else globalThis.document=previousDocument;
+  if(previousRaf===undefined)delete globalThis.requestAnimationFrame;else globalThis.requestAnimationFrame=previousRaf;
+ }
+});
