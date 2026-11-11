@@ -477,8 +477,15 @@
   if(keys.has('s')||keys.has('ArrowDown')||held.has('down'))y+=1;
   const mag=Math.hypot(x,y);return mag>1?{x:x/mag,y:y/mag}:{x,y};
  }
+ // Shared simulation clock: fixed 60 Hz physics independent of renderer LOD.
+ // Cap catch-up to four steps so a suspended tab cannot monopolize the UI.
+ const PHYSICS_STEP=1/60,MAX_PHYSICS_STEPS=4;
+ let physicsAccumulator=0;
+ let droppedPhysicsSeconds=0;
+ let peakPhysicsStepMs=0;
  function frame(t){
-  const dt=Math.min(.05,(t-last)/1000||0);last=t;
+  const elapsed=Math.max(0,(t-last)/1000||0);
+  const dt=Math.min(.05,elapsed);last=t;
   if(running&&!paused){
    const move=movement();
    if(firstPerson&&perspective&&!atlas){
@@ -487,15 +494,45 @@
     player.yaw+=lookStick.x*dt*2.55;
     player.pitch=Math.max(-1.32,Math.min(1.32,player.pitch-lookStick.y*dt*1.95));
     if(physics){
-     const position=physics.tick({right:move.x,forward:-move.y,yaw:player.yaw,
-      jump:keys.has(' ')||jumpHeld||jumpQueued},dt);
-     jumpQueued=false;
+     status.dataset.physicsUnavailable='false';
+     const pendingPhysicsSeconds=physicsAccumulator+elapsed;
+     const allowedPhysicsSeconds=PHYSICS_STEP*MAX_PHYSICS_STEPS;
+     droppedPhysicsSeconds+=Math.max(0,pendingPhysicsSeconds-allowedPhysicsSeconds);
+     physicsAccumulator=Math.min(allowedPhysicsSeconds,pendingPhysicsSeconds);
+     const input={right:move.x,forward:-move.y,yaw:player.yaw,
+      jump:keys.has(' ')||jumpHeld||jumpQueued};
+     let steps=0;
+     const physicsStart=performance.now();
+     while(physicsAccumulator+1e-9>=PHYSICS_STEP&&steps<MAX_PHYSICS_STEPS){
+      physics.tick(input,PHYSICS_STEP);
+      physicsAccumulator-=PHYSICS_STEP;
+      if(jumpQueued){jumpQueued=false;input.jump=keys.has(' ')||jumpHeld;}
+      steps++;
+     }
+     const physicsWorkMs=performance.now()-physicsStart;
+     peakPhysicsStepMs=Math.max(peakPhysicsStepMs,physicsWorkMs);
+     const position=physics.snapshot();
      player.x=position.x;player.y=position.z;
+     status.dataset.physicsSteps=String(steps);
+     status.dataset.physicsWorkMs=physicsWorkMs.toFixed(3);
+     status.dataset.physicsPeakWorkMs=peakPhysicsStepMs.toFixed(3);
+     status.dataset.physicsDroppedMs=(droppedPhysicsSeconds*1000).toFixed(1);
+     status.dataset.physicsActiveBodies='1';
     }else{
-     const nx=player.x+move.x*dt*5,nz=player.y+move.y*dt*5;
-     if(Math.abs(nx)<999900&&Math.abs(nz)<999900){player.x=nx;player.y=nz;}
+     // Never substitute uncollided movement when the shared controller fails
+     // to initialize. Preserve the pose and expose a recoverable diagnostic.
+     physicsAccumulator=0;
+     status.dataset.physicsSteps='0';
+     status.dataset.physicsActiveBodies='0';
+     status.dataset.physicsUnavailable='true';
+     renderHint.hidden=false;
+     renderHint.textContent='Movement unavailable · reload to restore world physics';
     }
-   }else{player.x+=move.x*dt*5;player.y+=move.y*dt*5;}
+   }else{
+    // Atlas is a view of the same world, not a collision-free movement mode.
+    // Keep the physics pose unchanged until the first-person view resumes.
+    physicsAccumulator=0;status.dataset.physicsSteps='0';
+   }
    status.dataset.worldX=String(player.x);status.dataset.worldZ=String(player.y);
    status.dataset.lookYaw=String(player.yaw);status.dataset.lookPitch=String(player.pitch);
    status.dataset.inputForward=String(move.y);status.dataset.keyCount=String(keys.size);
@@ -547,7 +584,7 @@
     }
    }else drawWorld(size.w,size.h);
    if(t-lastSave>1100){lastSave=t;savePosition();updateHud();}
-  }
+  }else{physicsAccumulator=0;status.dataset.physicsSteps='0';}
   requestAnimationFrame(frame);
  }
  $('#pause-toggle').addEventListener('click',()=>{paused=!paused;$('#pause-toggle').textContent=paused?'▶ Resume':'Ⅱ Pause';});
@@ -574,9 +611,9 @@
   keys.add(e.key.length===1?e.key.toLowerCase():e.key);
  });
  window.addEventListener('keyup',e=>{const key=e.key.length===1?e.key.toLowerCase():e.key;if(keys.delete(key))savePosition();});
- window.addEventListener('blur',()=>{keys.clear();held.clear();stick.x=0;stick.y=0;lookStick.x=lookStick.y=0;lookPointerId=null;lookKnob.style.transform='';jumpHeld=false;jumpQueued=false;savePosition();});
+ window.addEventListener('blur',()=>{physicsAccumulator=0;keys.clear();held.clear();stick.x=0;stick.y=0;lookStick.x=lookStick.y=0;lookPointerId=null;lookKnob.style.transform='';jumpHeld=false;jumpQueued=false;savePosition();});
  window.addEventListener('pagehide',savePosition);
- document.addEventListener('visibilitychange',()=>{if(document.hidden)savePosition();});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden){physicsAccumulator=0;savePosition();}});
  for(const b of document.querySelectorAll('[data-move]')){
   const dir=b.dataset.move;
   b.addEventListener('pointerdown',e=>{e.preventDefault();held.add(dir);b.setPointerCapture?.(e.pointerId);});
@@ -598,7 +635,7 @@
  joystick.addEventListener('pointercancel',releaseStick);
  joystick.addEventListener('lostpointercapture',releaseStick);
  start.addEventListener('click',()=>{
-  intro.hidden=true;intro.style.display='none';running=true;last=performance.now();resize();updateHud();syncView();canvas.focus();
+  intro.hidden=true;intro.style.display='none';running=true;physicsAccumulator=0;last=performance.now();resize();updateHud();syncView();canvas.focus();
  });
  updateHud();requestAnimationFrame(frame);
 })();

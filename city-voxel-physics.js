@@ -37,6 +37,13 @@
   function teleport(x,z,referenceY=Infinity){
    const floor=floorAt(x,z,referenceY);
    if(floor===null)return false;
+   // Teleport must obey the same structural and underground headroom
+   // constraints as walking; otherwise reload/respawn can bypass walls.
+   if(world.gateRoad?.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS))return false;
+   for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
+    const gallery=world.caveRoomAt?.(Math.floor(x+ox),Math.floor(z+oz));
+    if(gallery&&!gallery.exposed&&floor<gallery.ceiling&&floor+world.PLAYER_HEIGHT>gallery.ceiling)return false;
+   }
    state.x=x;state.z=z;state.y=floor;state.vy=0;state.grounded=true;
    return true;
   }
