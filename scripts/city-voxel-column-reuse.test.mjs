@@ -30,3 +30,17 @@ test('chunk vegetation matches direct seeded world queries after column reuse',(
  }
  assert.ok(world.cacheSize()<=22528);
 });
+
+
+test('vegetation identities and placement survive surface-cache eviction',()=>{
+ const world=create(),spawn=world.spawnAt();
+ const cx=Math.floor(spawn.x/16)+3,cz=Math.floor(spawn.z/16)+3;
+ const before=plain(world.chunkAt(cx,cz).plants);
+ // Exceed the documented bounded surface cache without changing seed or edits.
+ for(let i=0;i<23000;i++)world.surfaceAt(100000+i,100000);
+ assert.ok(world.cacheSize()<=22528,'surface cache must remain bounded');
+ const after=plain(world.chunkAt(cx,cz).plants);
+ assert.deepEqual(after,before,'cache eviction must not change plant identities or geometry');
+ const again=plain(create().chunkAt(cx,cz).plants);
+ assert.deepEqual(again,before,'fresh world with the same seed must regenerate identical plants');
+});
