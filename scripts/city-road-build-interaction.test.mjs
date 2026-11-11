@@ -136,3 +136,20 @@ test('stale command response cannot replace a newer restored revision', async ()
   assert.deepEqual(events.filter(event => event[0] === 'scene'), [['scene', 4]]);
   assert.equal(events.some(event => event[0] === 'success'), false);
 });
+
+test('stale restore read cannot roll back a newer committed scene', async () => {
+  let saved = { revision: 5, inventory: { supplies: 0 } };
+  const scenes = [];
+  const ui = createRoadBuildInteraction({
+    read: async () => saved,
+    collectRoadSupplies: async () => ({ revision: 6, inventory: { supplies: 8 } }),
+    placeWorkbench: async () => null
+  }, { onCommitted: record => scenes.push(record.revision) });
+  await ui.restore();
+  await ui.collect({ x: 1, y: 2, z: 3 });
+  assert.equal(ui.snapshot.revision, 6);
+  saved = { revision: 5, inventory: { supplies: 0 } };
+  assert.equal((await ui.restore()).revision, 6);
+  assert.deepEqual(scenes, [5, 6]);
+  assert.equal(ui.snapshot.inventory.supplies, 8);
+});
