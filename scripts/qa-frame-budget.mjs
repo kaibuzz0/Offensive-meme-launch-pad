@@ -49,7 +49,7 @@ export async function sampleFrameTimes({frames=180,maxGapMs=1000,timeoutMs=30000
   };
 }
 export function summarizeFrameBudget(result,{medianMs=33.3,p95Ms=50}={}){
-  if(!result||result.measuredFrames<2||result.interrupted||result.timedOut||result.discardedLongGaps>0)
+  if(!result||!Number.isInteger(result.requestedFrames)||result.measuredFrames!==result.requestedFrames||result.measuredFrames<2||result.interrupted||result.timedOut||result.discardedLongGaps>0)
     return {pass:false,reason:'insufficient or interrupted frame sample'};
   return {pass:result.medianMs<=medianMs&&result.p95Ms<=p95Ms,
     medianPass:result.medianMs<=medianMs,p95Pass:result.p95Ms<=p95Ms,
