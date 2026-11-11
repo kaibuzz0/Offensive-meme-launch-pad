@@ -279,3 +279,26 @@ test('refreshScene recovers renderer without repeating a committed pickup', asyn
   assert.equal(pickups, 1);
   assert.deepEqual(ui.snapshot, record);
 });
+
+test('idempotent command response retries failed scene without repeating resource spending', async () => {
+  const record = { revision: 12, inventory: { supplies: 8 } };
+  let attempts = 0, pickups = 0, ready = false;
+  const feedback = [];
+  const ui = createRoadBuildInteraction({
+    read: async () => record,
+    collectRoadSupplies: async () => { pickups++; return record; },
+    placeWorkbench: async () => record
+  }, {
+    onCommitted: () => { attempts++; if (!ready) throw Error('scene initializing'); },
+    onFeedback: event => feedback.push(event.kind)
+  });
+  await ui.restore();
+  assert.equal(attempts, 1);
+  ready = true;
+  assert.equal((await ui.collect({ x: 0, y: 0, z: 0 })).revision, 12);
+  assert.equal(attempts, 2);
+  assert.equal(pickups, 1);
+  assert.equal(feedback.filter(kind => kind === 'success').length, 1);
+  assert.equal(await ui.refreshScene(), true);
+  assert.equal(attempts, 2);
+});
