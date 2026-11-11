@@ -93,6 +93,16 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
   return Object.freeze({
     get busy() { return busy; },
     get snapshot() { return last === null ? null : structuredClone(last); },
+    // Renderer recovery must not repeat a pickup or spending command. The
+    // persisted snapshot is replayed to the scene without touching the ledger.
+    async refreshScene() {
+      if (busy || last === null) return false;
+      busy = true;
+      try {
+        if (lastRenderedRevision === last.revision) return true;
+        return (await displayCommitted(last)).rendered;
+      } finally { busy = false; }
+    },
     async restore() {
       if (busy) return null;
       busy = true;
