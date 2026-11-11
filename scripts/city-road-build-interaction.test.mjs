@@ -213,3 +213,26 @@ test('equal-revision divergent save cannot silently replace a committed scene', 
   assert.deepEqual(scenes, [8]);
   assert.deepEqual(feedback, ['error', 'error']);
 });
+
+test('restoring the same revision retries rendering after a transient scene failure', async () => {
+  const record = { revision: 9, inventory: { supplies: 0 }, journal: { edits: [{ block: 'workbench' }] } };
+  let fail = true;
+  const rendered = [];
+  const ui = createRoadBuildInteraction({
+    read: async () => record,
+    collectRoadSupplies: async () => record,
+    placeWorkbench: async () => record
+  }, {
+    onCommitted: snapshot => {
+      if (fail) throw new Error('renderer not ready');
+      rendered.push(snapshot.revision);
+    }
+  });
+  assert.equal((await ui.restore()).revision, 9);
+  assert.deepEqual(rendered, []);
+  fail = false;
+  assert.equal((await ui.restore()).revision, 9);
+  assert.deepEqual(rendered, [9]);
+  await ui.restore();
+  assert.deepEqual(rendered, [9]);
+});
