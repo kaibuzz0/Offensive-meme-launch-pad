@@ -115,3 +115,24 @@ test('empty command result cannot produce a false saved notification or overwrit
   assert.equal(events.filter(event => event[0] === 'success').length, 0);
   assert.equal(events.filter(event => event[0] === 'error').length, 2);
 });
+
+test('stale command response cannot replace a newer restored revision', async () => {
+  const events = [];
+  let resolveCollect;
+  const ui = createRoadBuildInteraction({
+    read: async () => ({ revision: 4, inventory: { supplies: 0 } }),
+    collectRoadSupplies: () => new Promise(resolve => { resolveCollect = resolve; }),
+    placeWorkbench: async () => null
+  }, {
+    onCommitted: record => events.push(['scene', record.revision]),
+    onFeedback: event => events.push([event.kind, event.message])
+  });
+  await ui.restore();
+  // A delayed response from a stale command must not roll back revision 4.
+  const pending = ui.collect({ x: 1, y: 2, z: 3 });
+  resolveCollect({ revision: 3, inventory: { supplies: 8 } });
+  assert.equal(await pending, null);
+  assert.equal(ui.snapshot.revision, 4);
+  assert.deepEqual(events.filter(event => event[0] === 'scene'), [['scene', 4]]);
+  assert.equal(events.some(event => event[0] === 'success'), false);
+});
