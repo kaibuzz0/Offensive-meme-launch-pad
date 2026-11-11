@@ -29,6 +29,12 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
     busy = true;
     try {
       const result = await action();
+      // A command must return its committed record; null/undefined is not a save.
+      // Never publish a success or replace the visible snapshot for an empty result.
+      if (result === null || result === undefined) {
+        feedback('error', 'No committed construction record returned');
+        return null;
+      }
       const presentation = await displayCommitted(result);
       if (presentation.rendered) feedback('success', 'Saved');
       return structuredClone(result);
