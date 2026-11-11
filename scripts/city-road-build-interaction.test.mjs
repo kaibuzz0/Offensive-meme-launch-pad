@@ -58,3 +58,23 @@ test('render callback failure does not misreport a committed transaction as fail
   assert.equal((await ui.collect({ x: 0, y: 0, z: 0 })).revision, 1);
   assert.deepEqual(events, ['render-error', 'success']);
 });
+
+test('cross-tab revision conflict refreshes committed scene without replaying spending', async () => {
+  const events = [];
+  const current = { revision: 2, inventory: { supplies: 0 }, journal: { edits: [{ block: 'workbench' }] } };
+  let attempts = 0;
+  const ui = createRoadBuildInteraction({
+    read: async () => current,
+    collectRoadSupplies: async () => { attempts++; throw new Error('building changed in another session; retry'); },
+    placeWorkbench: async () => current
+  }, {
+    onCommitted: record => events.push(['scene', record.revision]),
+    onFeedback: event => events.push([event.kind, event.message])
+  });
+  assert.equal(await ui.collect({ x: 1, y: 2, z: 3 }), null);
+  assert.equal(attempts, 1);
+  assert.equal(ui.snapshot.revision, 2);
+  assert.equal(ui.snapshot.inventory.supplies, 0);
+  assert.equal(events[0][0], 'scene');
+  assert.equal(events[1][0], 'error');
+});
