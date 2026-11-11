@@ -128,3 +128,16 @@ test('budget gate rejects missing, nonfinite, and negative metrics',()=>{
   }
  }
 });
+
+
+test('budget gate rejects internally inconsistent percentile data and gap counters',()=>{
+ const sample={requestedFrames:60,measuredFrames:60,medianMs:16,p95Ms:17,p99Ms:18,worstGapMs:20,interrupted:false,timedOut:false,discardedLongGaps:0,visibility:'visible'};
+ assert.equal(summarizeFrameBudget(sample).pass,true);
+ for(const mutation of [
+  {medianMs:19}, {p95Ms:19}, {p99Ms:21},
+  {discardedLongGaps:-1}, {discardedLongGaps:null},
+  {discardedLongGaps:0.5}, {discardedLongGaps:undefined}
+ ]){
+  assert.equal(summarizeFrameBudget({...sample,...mutation}).pass,false,JSON.stringify(mutation));
+ }
+});
