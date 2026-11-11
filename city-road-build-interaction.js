@@ -35,6 +35,13 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
         feedback('error', 'No committed construction record returned');
         return null;
       }
+      // A delayed command response must never roll the scene back behind a
+      // newer committed snapshot (for example, after another session refresh).
+      if (last && Number.isSafeInteger(last.revision) &&
+          Number.isSafeInteger(result.revision) && result.revision < last.revision) {
+        feedback('error', 'Stale construction result; refresh the scene');
+        return null;
+      }
       const presentation = await displayCommitted(result);
       if (presentation.rendered) feedback('success', 'Saved');
       return structuredClone(result);
