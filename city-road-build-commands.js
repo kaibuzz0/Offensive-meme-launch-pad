@@ -1,9 +1,10 @@
 // Solo construction command boundary: the durable record is the only authority.
 // UI renders only the committed record returned here, never optimistic edits.
 import { buildWorkbenchState } from './city-road-build-transaction.js';
+import { salvageRoadSupplies } from './city-road-salvage-transaction.js';
 import { validateBuildRecord } from './city-road-build-save-validation.js';
 
-export function createSoloBuildCommands(store, key) {
+export function createSoloBuildCommands(store, key, resolveRoadCrate) {
   if (!store || typeof store.read !== 'function' ||
       typeof store.compareAndSwap !== 'function' ||
       typeof key !== 'string' || !key || key.length > 256)
@@ -33,6 +34,28 @@ export function createSoloBuildCommands(store, key) {
       // Do not expose the store-owned object to UI code: a mutable alias could
       // change inventory or edits without an atomic committed transaction.
       return record == null ? record : structuredClone(record);
+    },
+    collectRoadSupplies(player) {
+      // The seeded-world resolver, not a caller-provided crate coordinate, owns
+      // pickup identity. Capture player pose before queued asynchronous work.
+      if (typeof resolveRoadCrate !== 'function')
+        return Promise.reject(new Error('canonical road crate resolver required'));
+      const captured = player && { x: player.x, y: player.y, z: player.z };
+      return enqueue(async () => {
+        const current = await store.read(key);
+        if (!current) throw new Error('building record not initialized');
+        validateBuildRecord(current);
+        const crate = resolveRoadCrate(current.seed);
+        if (!crate || typeof crate !== 'object') throw new Error('road crate unavailable');
+        const next = salvageRoadSupplies(current, {
+          player: captured,
+          crate: { x: crate.x, y: crate.y, z: crate.z },
+          expectedRevision: current.revision
+        });
+        const committed = await store.compareAndSwap(key, current.revision, next);
+        if (committed !== true) throw new Error('building changed in another session; retry');
+        return structuredClone(next);
+      });
     },
     placeWorkbench(input) {
       const captured = capturePlacement(input);
