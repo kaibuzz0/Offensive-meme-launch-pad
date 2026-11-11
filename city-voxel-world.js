@@ -279,11 +279,11 @@
    else if(depth>20&&mineral>.974)material='iron-ore';
    return Object.freeze({material,solid:true,mineable:true});
   }
-  function featureAt(x,z){
+  function featureAt(x,z,sampledColumn){
    if(gateRoad){
     const t=z-gateRoad.z;
     if(t>=4&&t<=28&&(t-4)%8===0&&Math.abs(x-gateRoad.x)===8){
-     const ground=surfaceAt(x,z);
+     const ground=sampledColumn||surfaceAt(x,z);
      if(!ground.water&&!ground.mouth&&ground.slope<=18){
       const type=ground.group==='desert'||ground.group==='salt'?'cactus':
        ground.group==='fungal'?'mushroom':ground.group==='tropical'?'palm':
@@ -293,7 +293,7 @@
     }
     if(gateRoad.foundation(x,z))return null;
    }
-   const c=surfaceAt(x,z);if(!c||c.water||c.mouth||c.slope>18||c.river&&c.height<SEA_LEVEL+2)return null;
+   const c=sampledColumn||surfaceAt(x,z);if(!c||c.water||c.mouth||c.slope>18||c.river&&c.height<SEA_LEVEL+2)return null;
    const r=random(plantSeed,x,z),r2=random(plantSeed^0x91a3,x,z);
    const g=c.group;
    const forest=g==='evergreen'||g==='tropical'||g==='fungal';
@@ -337,7 +337,7 @@
    const tiles=[],plants=[],roads=[];
    for(let z=cz*CHUNK_SIZE;z<(cz+1)*CHUNK_SIZE;z++)
     for(let x=cx*CHUNK_SIZE;x<(cx+1)*CHUNK_SIZE;x++){
-     const tile=surfaceAt(x,z),plant=featureAt(x,z);
+     const tile=surfaceAt(x,z),plant=featureAt(x,z,tile);
      tiles.push(tile);
      if(tile.road)roads.push(tile);
      if(plant)plants.push(Object.freeze({id:'plant:'+seed+':'+x+':'+z,x,z,y:tile.height+1,...plant}));
