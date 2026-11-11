@@ -76,3 +76,26 @@ test('spatial activation uses the same immutable actors without loading chunks',
    'actor activation must not populate cave caches');
  }
 });
+
+// Regression: active actor queries must not multiply streamed populations as
+// the player repeatedly crosses a chunk boundary or changes view distance.
+test('repeated actor proximity queries preserve canonical identities and cache budgets',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=world(seed);
+  const actors=['starter-trader:'+seed,'starter-wildlife:'+seed]
+   .map(id=>w.actorById(id)).filter(Boolean);
+  const terrainBefore=w.cacheSize(),cavesBefore=w.caveCacheSize();
+  for(const actor of actors){
+   const first=w.actorsNear(actor.x,actor.z,24);
+   for(let i=0;i<12;i++){
+    const again=w.actorsNear(actor.x,actor.z,24);
+    assert.equal(again.length,first.length,'repeated activation must not append duplicate actors');
+    assert.equal(new Set(again.map(item=>item.id)).size,again.length);
+    assert.strictEqual(again.find(item=>item.id===actor.id),actor,
+     'proximity query must retain the shared immutable actor descriptor');
+   }
+  }
+  assert.equal(w.cacheSize(),terrainBefore,'actor proximity must not allocate terrain chunks');
+  assert.equal(w.caveCacheSize(),cavesBefore,'actor proximity must not allocate caves');
+ }
+});
