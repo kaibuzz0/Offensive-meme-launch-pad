@@ -50,13 +50,13 @@ test('probe rejects unbounded work',async()=>{
 });
 
 test('budget gate rejects incomplete samples even if percentile numbers look healthy',()=>{
- const sample={requestedFrames:180,measuredFrames:2,medianMs:16,p95Ms:16,interrupted:false,timedOut:false,discardedLongGaps:0};
+ const sample={requestedFrames:180,measuredFrames:2,medianMs:16,p95Ms:16,p99Ms:17,worstGapMs:18,interrupted:false,timedOut:false,discardedLongGaps:0};
  assert.equal(summarizeFrameBudget(sample).pass,false);
  assert.equal(summarizeFrameBudget({...sample,measuredFrames:180}).pass,true);
 });
 
 test('budget gate rejects hidden-tab samples even with good percentiles',()=>{
- const sample={requestedFrames:60,measuredFrames:60,medianMs:16,p95Ms:17,interrupted:false,timedOut:false,discardedLongGaps:0};
+ const sample={requestedFrames:60,measuredFrames:60,medianMs:16,p95Ms:17,p99Ms:18,worstGapMs:19,interrupted:false,timedOut:false,discardedLongGaps:0};
  assert.equal(summarizeFrameBudget({...sample,visibility:'hidden'}).pass,false);
  assert.equal(summarizeFrameBudget({...sample,visibilityChanged:true}).pass,false);
  assert.equal(summarizeFrameBudget({...sample,visibility:'visible',visibilityChanged:false}).pass,true);
