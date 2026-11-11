@@ -41,8 +41,17 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
     // Preserve the durable commit and permit refreshScene() after renderer setup.
     let rendered = typeof onCommitted === 'function';
     if (rendered) {
-      try { await onCommitted(structuredClone(last)); }
-      catch { rendered = false; feedback('render-error', 'Saved action succeeded; refresh the scene'); }
+      try {
+        // Explicit false means the renderer declined the snapshot (for example,
+        // while its scene/chunks are not initialized). Retry on refreshScene().
+        if (await onCommitted(structuredClone(last)) === false) {
+          rendered = false;
+          feedback('render-error', 'Saved action succeeded; scene not ready');
+        }
+      } catch {
+        rendered = false;
+        feedback('render-error', 'Saved action succeeded; refresh the scene');
+      }
     } else {
       feedback('render-error', 'Saved action succeeded; scene renderer not connected');
     }
