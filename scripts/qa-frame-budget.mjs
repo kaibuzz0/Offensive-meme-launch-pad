@@ -8,6 +8,8 @@ export async function sampleFrameTimes({frames=180,maxGapMs=1000,timeoutMs=30000
   if (!(Number.isFinite(timeoutMs)&&timeoutMs>=100&&timeoutMs<=120000)) throw new RangeError('invalid timeoutMs');
   const all=[],ordinary=[];
   let last=null, interruptions=0, timedOut=false;
+  const initialVisibility=globalThis.document?.visibilityState??null;
+  let visibilityChanged=false;
   const started=performance.now();
   for(let i=0;i<=frames;i++){
     const remaining=timeoutMs-(performance.now()-started);
@@ -18,6 +20,7 @@ export async function sampleFrameTimes({frames=180,maxGapMs=1000,timeoutMs=30000
       new Promise(resolve=>{timer=setTimeout(()=>resolve(null),remaining);})
     ]);
     clearTimeout(timer);
+    if((globalThis.document?.visibilityState??null)!==initialVisibility)visibilityChanged=true;
     if(now===null){
       if(typeof cancelAnimationFrame==='function')cancelAnimationFrame(handle);
       timedOut=true;break;
@@ -36,7 +39,7 @@ export async function sampleFrameTimes({frames=180,maxGapMs=1000,timeoutMs=30000
   const percentile=p=>sorted.length?sorted[Math.min(sorted.length-1,Math.ceil(p*sorted.length)-1)]:null;
   return {
     requestedFrames:frames,measuredFrames:all.length,ordinaryFrames:sorted.length,
-    discardedLongGaps:interruptions,interrupted:interruptions>0||timedOut,timedOut,
+    discardedLongGaps:interruptions,interrupted:interruptions>0||timedOut||visibilityChanged,timedOut,visibilityChanged,
     medianMs:percentile(.5),p95Ms:percentile(.95),p99Ms:percentile(.99),
     maxMs:sorted.at(-1)??null,worstGapMs:all.length?Math.max(...all):null,
     meanMs:sorted.length?sorted.reduce((a,b)=>a+b,0)/sorted.length:null,
@@ -49,7 +52,7 @@ export async function sampleFrameTimes({frames=180,maxGapMs=1000,timeoutMs=30000
   };
 }
 export function summarizeFrameBudget(result,{medianMs=33.3,p95Ms=50}={}){
-  if(!result||!Number.isInteger(result.requestedFrames)||result.measuredFrames!==result.requestedFrames||result.measuredFrames<2||result.interrupted||result.timedOut||result.discardedLongGaps>0)
+  if(!result||!Number.isInteger(result.requestedFrames)||result.measuredFrames!==result.requestedFrames||result.measuredFrames<2||result.interrupted||result.timedOut||result.visibilityChanged||result.visibility==='hidden'||result.discardedLongGaps>0)
     return {pass:false,reason:'insufficient or interrupted frame sample'};
   return {pass:result.medianMs<=medianMs&&result.p95Ms<=p95Ms,
     medianPass:result.medianMs<=medianMs,p95Pass:result.p95Ms<=p95Ms,
