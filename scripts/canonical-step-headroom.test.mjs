@@ -10,7 +10,7 @@ function make(roof) {
   return context.CityVoxelPhysics.createController({
     PLAYER_HEIGHT: 1.8, SEA_LEVEL: -100,
     surfaceAt: (x) => ({ height: x >= 1 ? 0 : -1 }),
-    caveRoomAt: () => ({ floor: 0, ceiling: roof, exposed: false }),
+    caveRoomAt: (x) => ({ floor: x >= 1 ? 1 : 0, ceiling: roof, exposed: false }),
     gateRoad: { obstructs: () => false },
   }, { x: 0, z: 0, y: 0 });
 }
