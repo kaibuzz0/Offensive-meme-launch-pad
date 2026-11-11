@@ -131,7 +131,30 @@ try{
   assert.equal(await evalPage('document.getElementById("city-road-supplies")?.hidden'),true);
   await request('Input.dispatchKeyEvent',{type:'keyDown',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
   try{
-   await waitFor(()=>evalPage('!document.getElementById("city-road-supplies").hidden'),'walk to the roadside supply cache',90000);
+   // Sample the first leg too: a supply-cache timeout previously prevented
+   // the gate sampler from running and left no movement/physics evidence.
+   const supplySamples=[];
+   let lastSupplySample=0;
+   try{
+    await waitFor(async()=>{
+     const now=Date.now();
+     if(now-lastSupplySample>=5000){
+      lastSupplySample=now;
+      const sample=await evalPage(`(()=>{
+       const s=document.getElementById("city-voxel-status");
+       return {timeMs:Math.round(performance.now()),status:s?.textContent?.slice(0,180),
+        data:s?Object.fromEntries(Object.entries(s.dataset).filter(([k])=>
+         /position|player|world|yaw|physics|step|drop|frame|collision/i.test(k))):null,
+        suppliesHidden:document.getElementById("city-road-supplies")?.hidden};
+      })()`).catch(e=>({error:e.message}));
+      supplySamples.push(sample);
+      if(supplySamples.length>20)supplySamples.shift();
+     }
+     return evalPage('!document.getElementById("city-road-supplies").hidden');
+    },'walk to the roadside supply cache',90000);
+   }catch(error){
+    throw Error(error.message+' / sampled supply traversal: '+JSON.stringify(supplySamples));
+   }
    await evalPage('document.getElementById("city-road-supplies").click();true');
    assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
    // Sample the live first-person state during gate traversal, not only on timeout.
