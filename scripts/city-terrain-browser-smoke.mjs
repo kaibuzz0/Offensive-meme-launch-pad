@@ -123,6 +123,17 @@ try{
   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.textContent.startsWith("3D ·")'),'3D chunk rendering',30000);
   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.dataset.meshWorker==="ready"'),'Web Worker terrain mesher initializes',30000);
   await waitFor(()=>evalPage('Number(document.getElementById("city-voxel-status")?.dataset.gpuBytes)>0'),'transferred worker geometry draws in WebGL',30000);
+  // Measure the actual homepage Play session, not an isolated blank tab.
+  // SwiftShader Chromium is emulation, never physical Android evidence.
+  const frameProbe=await evalPage(`(async()=>{
+    const {sampleFrameTimes,summarizeFrameBudget}=await import('./scripts/qa-frame-budget.mjs');
+    const sample=await sampleFrameTimes({frames:120,timeoutMs:15000});
+    return {sample,gate:summarizeFrameBudget(sample)};
+  })()`);
+  assert.equal(frameProbe.sample.requestedFrames,120,'homepage Play sampler frame count');
+  assert.ok(frameProbe.sample.measuredFrames>0,'actual game rendered animation frames');
+  assert.ok(Number.isFinite(frameProbe.sample.wallClockMs),'gameplay sample has wall-clock timing');
+  console.log('QA_FRAME_BUDGET_WEBGL_SWIFTSHADER '+JSON.stringify(frameProbe));
   const workerMetrics=await evalPage('(()=>{const el=document.getElementById("city-voxel-status");return {status:el.dataset.meshWorker,pending:Number(el.dataset.meshPending),gpuBytes:Number(el.dataset.gpuBytes)};})()');
   assert.equal(workerMetrics.status,'ready','first-person browser uses off-thread deterministic mesher');
   assert.ok(workerMetrics.pending>=0&&workerMetrics.pending<=2,'mesh request backpressure is bounded');
