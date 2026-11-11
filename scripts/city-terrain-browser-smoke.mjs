@@ -4,6 +4,9 @@
 import assert from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
+// The local QA server intentionally does not expose scripts/; inject the
+// reviewed sampler into CDP rather than adding a public game download.
+const frameSamplerSource=(await readFile(new URL('./qa-frame-budget.mjs',import.meta.url),'utf8')).replace(/^export /gm,'');
 import path from 'node:path';
 import {tmpdir} from 'node:os';
 import {setTimeout as delay} from 'node:timers/promises';
@@ -126,7 +129,7 @@ try{
   // Measure the actual homepage Play session, not an isolated blank tab.
   // SwiftShader Chromium is emulation, never physical Android evidence.
   const frameProbe=await evalPage(`(async()=>{
-    const {sampleFrameTimes,summarizeFrameBudget}=await import('./scripts/qa-frame-budget.mjs');
+    ${frameSamplerSource}
     const sample=await sampleFrameTimes({frames:120,timeoutMs:15000});
     return {sample,gate:summarizeFrameBudget(sample)};
   })()`);
