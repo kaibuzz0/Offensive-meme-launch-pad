@@ -49,3 +49,18 @@ test('invalid negative and non-finite time steps are rejected', () => {
   assert.throws(() => c.tick({}, -0.01), /Invalid time step/);
   assert.throws(() => c.tick({}, Infinity), /Invalid time step/);
 });
+
+test('teleport cannot bypass a structural wall or insufficient cave headroom', () => {
+  const wall = create({ gateRoad: { obstructs: (x) => x >= 2 } });
+  const beforeWall = wall.snapshot();
+  assert.equal(wall.teleport(3, 0), false);
+  assert.deepEqual([wall.snapshot().x, wall.snapshot().z], [beforeWall.x, beforeWall.z]);
+
+  const cave = create({
+    surfaceAt: () => ({ height: 0 }),
+    caveRoomAt: (x) => x >= 2 ? { floor: 1, ceiling: 2, exposed: false } : null,
+  });
+  const beforeCave = cave.snapshot();
+  assert.equal(cave.teleport(3, 0, 1), false);
+  assert.deepEqual([cave.snapshot().x, cave.snapshot().z], [beforeCave.x, beforeCave.z]);
+});
