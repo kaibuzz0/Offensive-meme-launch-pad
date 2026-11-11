@@ -50,13 +50,13 @@ test('probe rejects unbounded work',async()=>{
 });
 
 test('budget gate rejects incomplete samples even if percentile numbers look healthy',()=>{
- const sample={requestedFrames:180,measuredFrames:2,medianMs:16,p95Ms:16,p99Ms:17,worstGapMs:18,interrupted:false,timedOut:false,discardedLongGaps:0};
+ const sample={requestedFrames:180,measuredFrames:2,medianMs:16,p95Ms:16,p99Ms:17,worstGapMs:18,interrupted:false,timedOut:false,discardedLongGaps:0,ordinaryFrames:2,frameCoverage:1,longFrames50Ms:0,longFrames100Ms:0,longFrames250Ms:0};
  assert.equal(summarizeFrameBudget(sample).pass,false);
- assert.equal(summarizeFrameBudget({...sample,measuredFrames:180}).pass,true);
+ assert.equal(summarizeFrameBudget({...sample,measuredFrames:180,ordinaryFrames:180}).pass,true);
 });
 
 test('budget gate rejects hidden-tab samples even with good percentiles',()=>{
- const sample={requestedFrames:60,measuredFrames:60,medianMs:16,p95Ms:17,p99Ms:18,worstGapMs:19,interrupted:false,timedOut:false,discardedLongGaps:0};
+ const sample={requestedFrames:60,measuredFrames:60,medianMs:16,p95Ms:17,p99Ms:18,worstGapMs:19,interrupted:false,timedOut:false,discardedLongGaps:0,ordinaryFrames:60,frameCoverage:1,longFrames50Ms:0,longFrames100Ms:0,longFrames250Ms:0};
  assert.equal(summarizeFrameBudget({...sample,visibility:'hidden'}).pass,false);
  assert.equal(summarizeFrameBudget({...sample,visibility:'prerender'}).pass,false);
  assert.equal(summarizeFrameBudget({...sample,visibility:'unloaded'}).pass,false);
@@ -138,6 +138,14 @@ test('budget gate rejects internally inconsistent percentile data and gap counte
   {discardedLongGaps:-1}, {discardedLongGaps:null},
   {discardedLongGaps:0.5}, {discardedLongGaps:undefined}
  ]){
+  assert.equal(summarizeFrameBudget({...sample,...mutation}).pass,false,JSON.stringify(mutation));
+ }
+});
+
+test('budget gate rejects inconsistent frame coverage and stall counters',()=>{
+ const sample={requestedFrames:60,measuredFrames:60,ordinaryFrames:60,frameCoverage:1,medianMs:16,p95Ms:17,p99Ms:18,worstGapMs:20,interrupted:false,timedOut:false,discardedLongGaps:0,longFrames50Ms:0,longFrames100Ms:0,longFrames250Ms:0,visibility:'visible'};
+ assert.equal(summarizeFrameBudget(sample).pass,true);
+ for(const mutation of [{frameCoverage:0.5},{ordinaryFrames:59},{longFrames50Ms:-1},{longFrames100Ms:1},{longFrames250Ms:1},{longFrames250Ms:61},{longFrames50Ms:0.5},{longFrames50Ms:null}]){
   assert.equal(summarizeFrameBudget({...sample,...mutation}).pass,false,JSON.stringify(mutation));
  }
 });
