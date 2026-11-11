@@ -32,6 +32,16 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
       feedback('success', 'Saved');
       return structuredClone(result);
     } catch (error) {
+      // A second tab may have won the durable compare-and-swap. Re-read the
+      // committed state instead of leaving the visible inventory/edits stale.
+      // Never retry the action automatically: pickup and spending are not
+      // safe to replay without fresh player intent and world validation.
+      if (error instanceof Error && /changed in another session/.test(error.message)) {
+        try {
+          const current = await commands.read();
+          if (current != null) await displayCommitted(current);
+        } catch { /* preserve the original transaction error */ }
+      }
       feedback('error', error instanceof Error ? error.message : 'Action failed');
       return null;
     } finally { busy = false; }
