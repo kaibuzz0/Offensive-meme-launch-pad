@@ -53,13 +53,14 @@
     if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
-    // Sample the player's radius, not just the center. A gallery with a
+    // Sample the proposed elevated feet position across the capsule radius.
+    // A gallery with a
     // solid roof must fit the entire player before entering it laterally.
     const samples=[[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]];
     let blocked=false;
     for(const [ox,oz] of samples){
      const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
-     if(gallery&&!gallery.exposed&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+     if(gallery&&!gallery.exposed&&Math.max(state.y,floor)<gallery.ceiling&&Math.max(state.y,floor)+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
      }
     }
