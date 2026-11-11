@@ -83,3 +83,11 @@ test('walkable steps and excessive ledges obey the same grounded step limit', ()
   assert.ok(tooHigh.snapshot().x < 1, 'four-meter ledge remains impassable');
   assert.equal(tooHigh.snapshot().y, 0, 'blocked player stays at original elevation');
 });
+
+
+test('quarter-voxel obstruction cannot be tunneled through on a capped mobile frame', () => {
+  const c = controller({ gateRoad: { obstructs: (x) => x >= 0.5 } });
+  c.tick({ right: 1 }, 0.05); // 0.75m requested travel, exceeding wall distance
+  assert.ok(c.snapshot().x < 0.5, 'swept collision must stop before the thin wall');
+  assert.ok(c.snapshot().x >= 0, 'movement must not reverse on collision');
+});
