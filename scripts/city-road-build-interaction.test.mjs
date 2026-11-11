@@ -236,3 +236,29 @@ test('restoring the same revision retries rendering after a transient scene fail
   await ui.restore();
   assert.deepEqual(rendered, [9]);
 });
+
+test('refreshScene recovers renderer without repeating a committed pickup', async () => {
+  const record = { revision: 11, inventory: { supplies: 8 }, journal: { edits: [] } };
+  let pickups = 0;
+  let renderAttempts = 0;
+  let ready = false;
+  const ui = createRoadBuildInteraction({
+    read: async () => record,
+    collectRoadSupplies: async () => { pickups++; return record; },
+    placeWorkbench: async () => record
+  }, {
+    onCommitted: () => {
+      renderAttempts++;
+      if (!ready) throw new Error('renderer not initialized');
+    }
+  });
+  assert.equal((await ui.collect({ x: 0, y: 0, z: 0 })).revision, 11);
+  assert.equal(pickups, 1);
+  assert.equal(renderAttempts, 1);
+  ready = true;
+  assert.equal(await ui.refreshScene(), true);
+  assert.equal(await ui.refreshScene(), true);
+  assert.equal(renderAttempts, 2);
+  assert.equal(pickups, 1);
+  assert.deepEqual(ui.snapshot, record);
+});
