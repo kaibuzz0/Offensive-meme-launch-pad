@@ -76,6 +76,12 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
           feedback('error', 'Conflicting construction snapshot at the same revision');
           return null;
         }
+        // An idempotent committed response may arrive after a failed scene
+        // callback. Retry presentation, never the resource-spending command.
+        if (lastRenderedRevision !== last.revision) {
+          const presentation = await displayCommitted(last);
+          if (presentation.rendered) feedback('success', 'Saved');
+        }
         return structuredClone(last);
       }
       const presentation = await displayCommitted(result);
