@@ -134,7 +134,30 @@ try{
    await waitFor(()=>evalPage('!document.getElementById("city-road-supplies").hidden'),'walk to the roadside supply cache',90000);
    await evalPage('document.getElementById("city-road-supplies").click();true');
    assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
-   await waitFor(()=>evalPage('!document.getElementById("city-gate-seal").hidden'),'walk under the fortress arch',90000);
+   // Sample the live first-person state during gate traversal, not only on timeout.
+   // Keep a bounded diagnostic history so failures distinguish no movement from slow movement.
+   const gateSamples=[];
+   let lastGateSample=0;
+   try{
+    await waitFor(async()=>{
+     const now=Date.now();
+     if(now-lastGateSample>=5000){
+      lastGateSample=now;
+      const sample=await evalPage(`(()=>{
+       const s=document.getElementById("city-voxel-status");
+       return {timeMs:Math.round(performance.now()),status:s?.textContent?.slice(0,180),
+        data:s?Object.fromEntries(Object.entries(s.dataset).filter(([k])=>
+         /position|player|world|yaw|physics|step|drop|frame|collision/i.test(k))):null,
+        gateHidden:document.getElementById("city-gate-seal")?.hidden};
+      })()`).catch(e=>({error:e.message}));
+      gateSamples.push(sample);
+      if(gateSamples.length>20)gateSamples.shift();
+     }
+     return evalPage('!document.getElementById("city-gate-seal").hidden');
+    },'walk under the fortress arch',90000);
+   }catch(error){
+    throw Error(error.message+' / sampled gate traversal: '+JSON.stringify(gateSamples));
+   }
   }finally{
    await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
   }
