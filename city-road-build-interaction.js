@@ -35,6 +35,13 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
     if (last && Number.isSafeInteger(last.revision) &&
         Number.isSafeInteger(record?.revision) && record.revision < last.revision)
       return null;
+    if (last && record.revision === last.revision) {
+      // Equal revisions are not evidence of an identical transaction. A
+      // divergent record indicates a conflicting writer or corrupted save.
+      if (JSON.stringify(record) !== JSON.stringify(last))
+        throw new Error('Conflicting construction snapshot at the same revision');
+      return { record: structuredClone(last), rendered: true };
+    }
     return displayCommitted(record);
   }
   async function perform(action) {
@@ -54,6 +61,13 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
           Number.isSafeInteger(result.revision) && result.revision < last.revision) {
         feedback('error', 'Stale construction result; refresh the scene');
         return null;
+      }
+      if (last && result.revision === last.revision) {
+        if (JSON.stringify(result) !== JSON.stringify(last)) {
+          feedback('error', 'Conflicting construction snapshot at the same revision');
+          return null;
+        }
+        return structuredClone(last);
       }
       const presentation = await displayCommitted(result);
       if (presentation.rendered) feedback('success', 'Saved');
@@ -88,6 +102,11 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
         if (last && Number.isSafeInteger(last.revision) &&
             Number.isSafeInteger(record.revision) && record.revision < last.revision) {
           feedback('error', 'Stale saved construction state; refresh again');
+          return structuredClone(last);
+        }
+        if (last && record.revision === last.revision) {
+          if (JSON.stringify(record) !== JSON.stringify(last))
+            throw new Error('Conflicting construction snapshot at the same revision');
           return structuredClone(last);
         }
         return (await displayCommitted(record)).record;
