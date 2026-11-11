@@ -169,3 +169,26 @@ test('conflict recovery cannot repaint a stale read over newer committed state',
   assert.equal(ui.snapshot.revision, 6);
   assert.equal(ui.snapshot.inventory.supplies, 0);
 });
+
+test('malformed committed records never replace inventory or render a scene', async () => {
+  const scenes = [], events = [];
+  const valid = { revision: 2, inventory: { supplies: 8 }, journal: { edits: [] } };
+  let saved = valid;
+  const ui = createRoadBuildInteraction({
+    read: async () => saved,
+    collectRoadSupplies: async () => ({ inventory: { supplies: 999 } }),
+    placeWorkbench: async () => ({ revision: 3, inventory: null })
+  }, {
+    onCommitted: record => scenes.push(record.revision),
+    onFeedback: event => events.push(event.kind)
+  });
+  await ui.restore();
+  assert.equal(await ui.collect({ x: 0, y: 0, z: 0 }), null);
+  assert.equal(await ui.place({}), null);
+  saved = { revision: '3', inventory: { supplies: 0 } };
+  assert.equal(await ui.restore(), null);
+  assert.deepEqual(scenes, [2]);
+  assert.deepEqual(ui.snapshot, valid);
+  assert.equal(events.includes('success'), false);
+  assert.equal(events.filter(kind => kind === 'error').length, 3);
+});
