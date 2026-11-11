@@ -21,6 +21,17 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
       Number.isSafeInteger(record.revision) && record.revision >= 0 &&
       record.inventory && typeof record.inventory === 'object' && !Array.isArray(record.inventory);
   }
+  // Object key insertion order is not part of the committed record identity.
+  // Compare canonicalized data so IndexedDB round trips cannot invent conflicts.
+  function canonical(value) {
+    if (Array.isArray(value)) return value.map(canonical);
+    if (value && typeof value === 'object')
+      return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])]));
+    return value;
+  }
+  function sameRecord(a, b) {
+    return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
+  }
   async function displayCommitted(record) {
     if (!validRecord(record)) throw new TypeError('Invalid committed construction record');
     // Only a validated committed snapshot may be presented. Never treat an
@@ -46,7 +57,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
     if (last && record.revision === last.revision) {
       // Equal revisions are not evidence of an identical transaction. A
       // divergent record indicates a conflicting writer or corrupted save.
-      if (JSON.stringify(record) !== JSON.stringify(last))
+      if (!sameRecord(record, last))
         throw new Error('Conflicting construction snapshot at the same revision');
       if (lastRenderedRevision !== last.revision) return displayCommitted(last);
       return { record: structuredClone(last), rendered: true };
@@ -72,7 +83,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
         return null;
       }
       if (last && result.revision === last.revision) {
-        if (JSON.stringify(result) !== JSON.stringify(last)) {
+        if (!sameRecord(result, last)) {
           feedback('error', 'Conflicting construction snapshot at the same revision');
           return null;
         }
@@ -130,7 +141,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
           return structuredClone(last);
         }
         if (last && record.revision === last.revision) {
-          if (JSON.stringify(record) !== JSON.stringify(last))
+          if (!sameRecord(record, last))
             throw new Error('Conflicting construction snapshot at the same revision');
           if (lastRenderedRevision !== last.revision) await displayCommitted(last);
           return structuredClone(last);
