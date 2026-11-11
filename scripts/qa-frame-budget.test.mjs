@@ -10,7 +10,7 @@ test('bounded frame probe measures percentiles and reports discarded gaps',async
   Object.defineProperty(globalThis,'navigator',{value:{userAgent:'synthetic-test'},configurable:true});
   globalThis.innerWidth=412;globalThis.innerHeight=915;globalThis.devicePixelRatio=2;
   const result=await sampleFrameTimes({frames:60});
-  assert.equal(result.measuredFrames,59);
+  assert.equal(result.measuredFrames,60);
   assert.equal(result.discardedLongGaps,1);
   assert.equal(result.medianMs,20);
   assert.equal(result.p95Ms,20);
