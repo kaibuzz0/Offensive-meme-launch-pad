@@ -64,3 +64,15 @@ test('teleport cannot bypass a structural wall or insufficient cave headroom', (
   assert.equal(cave.teleport(3, 0, 1), false);
   assert.deepEqual([cave.snapshot().x, cave.snapshot().z], [beforeCave.x, beforeCave.z]);
 });
+
+test('step-up cannot enter a cave cell with insufficient headroom at the raised feet height', () => {
+  const c = create({
+    surfaceAt: (x) => ({ height: x >= 2 ? 0 : -1 }),
+    caveRoomAt: (x) => x >= 2 ? { floor: 1, ceiling: 2.4, exposed: false } : null,
+  });
+  // A 1m step is within MAX_STEP, but the 1.4m gap above the step
+  // cannot fit the 1.8m player. Check the prospective, raised capsule.
+  for (let i = 0; i < 8; i++) c.tick({ forward: 1, yaw: Math.PI / 2 }, 0.05);
+  assert.ok(c.snapshot().x < 2 - 0.27,
+    'the capsule must stop before its radius overlaps the low-roof cell');
+});
