@@ -55,3 +55,31 @@ test('renderer-dependent metadata does not change canonical collision results', 
   assert.deepEqual({ x: a.x, z: a.z, y: a.y }, { x: b.x, z: b.z, y: b.y });
   assert.ok(a.x < 1, 'wall must block both visual detail paths');
 });
+
+
+test('touch-equivalent analog input and keyboard input share displacement and collision', () => {
+  const obstruction = (x, y, z) => x >= 0.75 && z >= 0.25;
+  const keyboard = controller({ gateRoad: { obstructs: obstruction } });
+  const touch = controller({ gateRoad: { obstructs: obstruction } });
+  for (let i = 0; i < 20; i++) {
+    keyboard.tick({ forward: 1, right: 1, yaw: Math.PI / 4 }, 1 / 60);
+    touch.tick({ forward: Math.SQRT1_2, right: Math.SQRT1_2, yaw: Math.PI / 4 }, 1 / 60);
+  }
+  const a = keyboard.snapshot(), b = touch.snapshot();
+  for (const axis of ['x', 'y', 'z']) {
+    assert.ok(Math.abs(a[axis] - b[axis]) < 1e-8, axis + ' must match across input devices');
+  }
+});
+
+test('walkable steps and excessive ledges obey the same grounded step limit', () => {
+  const walkable = controller({ surfaceAt: (x) => ({ height: x >= 1 ? 0 : -1 }) });
+  const tooHigh = controller({ surfaceAt: (x) => ({ height: x >= 1 ? 3 : -1 }) });
+  for (let i = 0; i < 20; i++) {
+    walkable.tick({ right: 1 }, 1 / 60);
+    tooHigh.tick({ right: 1 }, 1 / 60);
+  }
+  assert.ok(walkable.snapshot().x > 1, 'one-meter step is traversable');
+  assert.ok(walkable.snapshot().y >= 1, 'feet rise onto the step');
+  assert.ok(tooHigh.snapshot().x < 1, 'four-meter ledge remains impassable');
+  assert.equal(tooHigh.snapshot().y, 0, 'blocked player stays at original elevation');
+});
