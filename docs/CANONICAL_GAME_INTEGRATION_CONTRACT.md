@@ -56,3 +56,18 @@ The canonical contract itself was merged via PR #116. Open work must be re-evalu
 ### Merge/deployment gate
 
 Use the order **renderer recovery → lodge geometry → workbench ledger → collision/parity/save migration → canonical homepage/PWA smoke → Pages publication**. For each candidate record the exact head SHA, mergeability, required checks, gameplay evidence and compatibility with other open PRs. Do not mark green CI alone as release-ready. After a successful merge, verify the Pages workflow completed for that main SHA and follow the *public* homepage Play action into the same first-person world; report any inability to run an interactive browser as unverified, not as a pass. Flight and wardrobe follow only after the starter interaction route is stable; flight uses the existing world queries and vehicle control/save interfaces.
+
+## Terrain-runtime conflict resolution gate — 2026-11-09
+
+This is a **merge procedure, not evidence of implemented gameplay**. The current integration queue contains three overlapping terrain-runtime candidates (#83 recovery, #81 lodge, #82 workbench). Never use GitHub's automatic conflict resolution to choose one complete copy of `city-terrain-mode.js`; that can silently discard a second feature. Instead:
+
+1. Create a scoped integration branch from the latest main. For each candidate, record exact head SHA, changed files, tests, and the smallest required functions/hunks. Reject stale or superseded changes. Keep all original PR branches recoverable.
+2. Port **renderer recovery first**, preserving one camera/player/world instance and existing WebGL/fallback object IDs. Verify the initial fortress/skyline/road pixels before adding new scenery. A fallback must not switch to another map or independent save key.
+3. Port **lodge definitions second** as deterministic, terrain-fitted world content with stable ID and enterable collision. Geometry, lighting and doors must be visible in both adapters from the same seed; no second world generator.
+4. Port **workbench third** using the Sandbox-owned inventory/edit transaction and existing save slot. No Graphics-owned balance or crafting ledger. Test one gather → place → reload cycle, repeated inputs, interrupted writes and two simultaneous tabs.
+5. Run `npm test`, `npm run check`, desktop Chromium and mobile-emulated Chromium at the **integration branch head**, including original Solo, offline wallet-free start, fallback parity and old-save fixtures. QA must explicitly record which tests were actually run. Do not merge on an absent exact-head run.
+6. After approved merge, verify Pages completed for the resulting **main SHA** and inspect the actual homepage Play → fortress → wooded road → lit lodge → workbench → reload route. A successful deployment workflow alone is not visual acceptance.
+
+**File ownership while resolving conflicts:** Graphics/#43 is the sole integrator of `city-terrain-mode.js` and homepage routing; Living World contributes seeded lodge IDs/geometry; Sandbox contributes transaction API and persistence tests; Physics contributes collision/headroom tests; QA contributes screenshot, mobile and migration acceptance. Keep independent feature branches separate until the integrator ports and validates their behavior. Do not retire old URLs or delete saves in this batch.
+
+**Flight dependency:** #53 may prototype a bounded flight controller only against the #52 vehicle seat/control/save API and the canonical world collision query. No aircraft-only map, camera loop, save slot or public game mode. Ship it after the starter route and ground vehicle contract pass acceptance.
