@@ -240,6 +240,22 @@ try{
   return distinct.size;
  })()`);
  assert.ok(colorCount>=8,'compatibility renderer must paint actual scene pixels, not a black/gray viewport');
+ // The compatibility renderer must retain the SAME live camera controller.
+ // Pixel checks alone can pass while gameplay input is disconnected.
+ const fallbackYaw=await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)');
+ assert.ok(Number.isFinite(fallbackYaw),'Canvas2D exposes the live first-person camera yaw');
+ await request('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+ await request('Emulation.setDeviceMetricsOverride',{width:915,height:412,deviceScaleFactor:2,mobile:true});
+ await waitFor(()=>evalPage('matchMedia("(orientation:landscape)").matches && matchMedia("(pointer:coarse)").matches'),'Canvas2D landscape touch viewport',8000);
+ await evalPage('(()=>{const pad=document.getElementById("city-look-pad"),r=pad.getBoundingClientRect();pad.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:504,clientX:r.left+r.width*.82,clientY:r.top+r.height/2}));return true;})()');
+ try{
+  await waitFor(async()=>Number(await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)'))>fallbackYaw+.015,'Canvas2D right stick rotates live camera',8000);
+ }finally{
+  await evalPage('(()=>{document.getElementById("city-look-pad").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:504}));return true;})()');
+ }
+ assert.equal(await evalPage('document.getElementById("city-look-knob").style.transform'),'','Canvas2D look stick recenters');
+ await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
+ await request('Emulation.setTouchEmulationEnabled',{enabled:false});
  assert.deepEqual(exceptions,[],'no uncaught JS exceptions in terrain-mode browser entry');
  console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
 }finally{
