@@ -95,5 +95,5 @@ export function simulateAreaHits({ center, radius, actor, targets, friendlyFire 
     const surfaceDistance = Math.max(0, distance - t.radius);
     if (surfaceDistance > r) return null;
     return { targetId: t.id, distance: surfaceDistance, intensity: Math.max(0, 1 - surfaceDistance / r) };
-  }).filter(Boolean).sort((a, b) => a.distance - b.distance || a.targetId.localeCompare(b.targetId, 'en'));
+  }).filter(Boolean).sort((a, b) => a.distance - b.distance || (a.targetId < b.targetId ? -1 : a.targetId > b.targetId ? 1 : 0));
 }
