@@ -29,3 +29,16 @@ test('finite analog movement remains supported and bounded',()=>{
  assert.ok(moved.x>.3&&moved.x<.4,'half-speed axis should move 0.375 voxel units');
  assert.equal(moved.z,0);
 });
+
+test('teleport rejects low cave roof across capsule footprint without mutating state',()=>{
+ const caveWorld={
+  SEA_LEVEL:0,PLAYER_HEIGHT:7.2,
+  surfaceAt:()=>({height:10,water:false}),
+  caveRoomAt:(x,z)=>x===1&&z===0?{floor:4,ceiling:9,exposed:false}:null
+ };
+ const player=root.CityVoxelPhysics.createController(caveWorld,{x:0,z:0});
+ const before=player.snapshot();
+ assert.equal(player.teleport(1.5,.5,5),false);
+ assert.deepEqual(player.snapshot(),before);
+ assert.equal(player.teleport(3.5,.5),true);
+});
