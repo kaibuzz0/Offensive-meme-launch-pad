@@ -63,3 +63,23 @@ test('oversized frame delta cannot advance more than the bounded controller step
   const b = context.CityVoxelPhysics.createController(world(20), { x: .4, z: 0 });
   assert.deepEqual({ ...a.tick({ right: 1 }, 3) }, { ...b.tick({ right: 1 }, .05) });
 });
+
+test('fast diagonal motion cannot tunnel through a narrow gate boundary', () => {
+  const hits = [];
+  const w = world(20, (x, y, z) => {
+    hits.push([x, y, z]);
+    return x >= .73 && x < 1.05;
+  });
+  const p = context.CityVoxelPhysics.createController(w, { x: .4, z: 0 });
+  for (let i = 0; i < 6; i++) p.tick({ right: 1, forward: 1 }, .05);
+  assert.ok(hits.length > 0, 'must query the gate collision geometry');
+  assert.ok(p.snapshot().x < .73, 'quarter-voxel sweep must not skip a thin obstruction');
+  assert.ok(p.snapshot().z > 0, 'unblocked axis should still slide forward');
+});
+
+test('teleport to invalid coordinates leaves the player state unchanged', () => {
+  const p = context.CityVoxelPhysics.createController(world(20), { x: .4, z: 0 });
+  const before = { ...p.snapshot() };
+  assert.equal(p.teleport(1000000, 0), false);
+  assert.deepEqual({ ...p.snapshot() }, before);
+});
