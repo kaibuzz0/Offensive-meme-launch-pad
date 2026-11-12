@@ -45,3 +45,11 @@ Prefer the repository's existing Chromium and Node test harness and browser-nati
 ## Evidence checklist for every relevant PR
 
 Record commit SHA; CI run and exact-head result; physical Android model/OS/browser versus Chromium emulation; initial/warm transfer bytes; startup p50/p95; frame p95/p99; interaction stalls; worker count/queue; save/reload result; same-seed renderer parity; public Pages deployment and human-visible verification. Mark unmeasured fields **not measured**, not zero. A green unit suite does not replace browser evidence.
+
+## Source-audited browser coverage gap — November 12, 2026
+
+Current `scripts/city-terrain-browser-smoke.mjs` on main follows homepage Play into `city.html?terrain=1`, requires `terrain-only-mode`, and checks an initial chunk with zero sites, structures and roads. It cannot certify the requested canonical wallet-free Solo, inhabited starter district or lit interior. The WebGL path exercises actual pickup and gate interactions, whereas forced Canvas2D recovery currently checks only boot, nonblank pixels and startup exceptions. **Do not count that as gameplay parity.**
+
+The reload assertion checks seed and supply/gate flags but not restored controller coordinates. Issue #86 needs fresh post-reset controller coordinates, deterministic movement, saved position, two ordinary reloads and a comparison across both renderer paths with the same seed and save fixture. Preserve unknown legacy records and backup before migration. The current `Page.reload({ignoreCache:true})` is cache-bypassing, so its transferred bytes are not warm-reload evidence; add `ignoreCache:false` as a separate phase. Capture completed/canceled/pending worker requests at teardown.
+
+These are **verified test-coverage limitations from source inspection**, not proof of a public gameplay defect. Physical Android, process/GPU memory and public visual acceptance remain unmeasured. Keep legacy smoke intact until #43 validates canonical entry and save migration.
