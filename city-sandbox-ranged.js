@@ -40,9 +40,13 @@ function eligible(target, actor, friendlyFire) {
 }
 function normal(direction) {
   const d = vec(direction, 'direction');
-  const len = Math.hypot(d.x, d.y, d.z);
-  if (len < EPS) throw new RangeError('direction cannot be zero');
-  return { x: d.x / len, y: d.y / len, z: d.z / len };
+  // Scale before taking the norm: hypot(1e308, 1e308) overflows to
+  // Infinity even though the finite direction is mathematically valid.
+  const scale = Math.max(Math.abs(d.x), Math.abs(d.y), Math.abs(d.z));
+  if (scale === 0) throw new RangeError('direction cannot be zero');
+  const x = d.x / scale, y = d.y / scale, z = d.z / scale;
+  const len = Math.hypot(x, y, z);
+  return { x: x / len, y: y / len, z: z / len };
 }
 // Ray-sphere intersection: first nonnegative surface intersection, including origin inside sphere.
 export function simulateRayHit({ origin, direction, maxRange, actor, targets, friendlyFire = false }) {
