@@ -15,7 +15,8 @@ test('airborne structural query uses actual feet, not raised terrain ahead', () 
     gateRoad: { obstructs(x, y) { checked.push({ x, y }); return false; } },
   };
   const controller = context.CityVoxelPhysics.createController(world, { x: 0.4, z: 0 });
-  controller.tick({ right: 1, jump: true }, 0.05);
+  controller.tick({ jump: true }, 0.01);
+  controller.tick({ right: 1 }, 0.05);
   assert.ok(checked.some(p => p.x >= 0.73), 'sweep should query the raised terrain boundary');
   assert.ok(checked.every(p => p.y < 4), 'airborne collision must not snap query to the higher floor');
 });
