@@ -79,7 +79,8 @@ export function simulateAreaHits({ center, radius, actor, targets, friendlyFire 
   validActor(actor);
   if (typeof friendlyFire !== 'boolean') throw new TypeError('friendlyFire must be boolean');
   return targetsOf(targets).filter(t => eligible(t, actor, friendlyFire)).map(t => {
-    const distance = Math.sqrt(distanceSquared(c, t.center));
+    // hypot avoids squaring large finite world-space deltas into Infinity.
+    const distance = Math.hypot(c.x - t.center.x, c.y - t.center.y, c.z - t.center.z);
     const surfaceDistance = Math.max(0, distance - t.radius);
     if (surfaceDistance > r) return null;
     return { targetId: t.id, distance: surfaceDistance, intensity: Math.max(0, 1 - surfaceDistance / r) };
