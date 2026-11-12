@@ -50,25 +50,51 @@
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
-    if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
+    if(floor===null)break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
+    // Collision must use the position we will actually occupy. In the air,
+    // the floor ahead does not instantly lift the player. Checking that
+    // higher floor instead can miss a wall at the player's current height.
+    // On the ground, test the stepped-up height before entering a lintel.
+    const proposedY=state.grounded?Math.max(state.y,floor):state.y;
+    if(world.gateRoad?.obstructs(nx,proposedY,nz,world.PLAYER_HEIGHT,RADIUS))break;
     // Sample the player's radius, not just the center. A gallery with a
     // solid roof must fit the entire player before entering it laterally.
     const samples=[[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]];
     let blocked=false;
     for(const [ox,oz] of samples){
      const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
-     if(gallery&&!gallery.exposed&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+     if(gallery&&!gallery.exposed&&proposedY<gallery.ceiling&&proposedY+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
      }
     }
     if(blocked)break;
     if(axis==='x')state.x=nx;else state.z=nz;
-    if(state.grounded&&climb>0)state.y=floor;
+    // Leaving a raised step or roof starts gravity in this same tick.
+    // Otherwise grounded remains true for one frame and the player hovers
+    // beyond the edge before beginning to fall.
+    if(state.grounded){
+     if(climb>0)state.y=floor;
+     else if(climb<-.01)state.grounded=false;
+    }
     moved=true;
    }
    return moved;
+  }
+  // Solid roofs remain valid ground support after the landing frame. Only
+  // consider tops at or below the feet: nearby walls must never lift players.
+  function roofSupportAt(x,y,z){
+   let support=-Infinity;
+   for(const p of world.gateRoad?.parts||[]){
+    if(!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||
+       p.w<=0||p.h<=0||p.d<=0)continue;
+    const top=p.y+p.h;
+    if(top>y+.01||x+RADIUS<=p.x||x-RADIUS>=p.x+p.w||
+       z+RADIUS<=p.z||z-RADIUS>=p.z+p.d)continue;
+    support=Math.max(support,top);
+   }
+   return support;
   }
   function tick(input,dt){
    if(!Number.isFinite(dt)||dt<0)throw Error('Invalid time step');
@@ -91,6 +117,12 @@
    const dz=(vx*rightZ+vz*forwardZ)*speed*step;
    // Two-axis sweep permits sliding along terrain walls.
    moveAxis('x',dx);moveAxis('z',dz);
+   // A stationary player can lose terrain support when the underlying
+   // terrain is edited or loaded. Recheck support even without horizontal
+   // input; roof contact below is resolved by the downward sweep.
+   if(state.grounded&&Math.max(floorAt(state.x,state.z,state.y)??-Infinity,
+    roofSupportAt(state.x,state.y,state.z))<state.y-.01)
+    state.grounded=false;
    if(input?.jump&&state.grounded){state.grounded=false;state.vy=JUMP_SPEED;}
    // Swimming is deliberately opt-in: an explicit water-volume query enables
    // controlled ascent, reduced gravity and terminal sinking velocity.
@@ -129,7 +161,41 @@
     }
     if(ceiling<Infinity){state.y=ceiling-world.PLAYER_HEIGHT;state.vy=0;}
    }
-   const floor=floorAt(state.x,state.z,state.y);
+   // Sweep the rising capsule head against the underside of real fortress
+   // geometry. Horizontal collision alone misses a thin gate lintel when a
+   // jump crosses it entirely between two fixed physics updates.
+   if(state.vy>0&&Array.isArray(world.gateRoad?.parts)){
+    const height=world.PLAYER_HEIGHT;
+    for(const p of world.gateRoad.parts){
+     if(!p.solid||!Number.isFinite(p.y)||!Number.isFinite(p.h))continue;
+     if(state.x+RADIUS<=p.x||state.x-RADIUS>=p.x+p.w||
+        state.z+RADIUS<=p.z||state.z-RADIUS>=p.z+p.d)continue;
+     if(previousY+height<=p.y&&state.y+height>p.y&&state.y<p.y+p.h){
+      state.y=p.y-height;
+      state.vy=0;
+     }
+    }
+   }
+   // Land on the top of a real solid structure when falling across it.
+   // Only accept a top-face crossing from above: this prevents side-entry
+   // into a wall from snapping the player onto a roof.
+   if(state.vy<=0&&Array.isArray(world.gateRoad?.parts)){
+    let landing=-Infinity;
+    for(const p of world.gateRoad.parts){
+     if(!p.solid||![p.x,p.y,p.z,p.w,p.h,p.d].every(Number.isFinite)||
+        p.w<=0||p.h<=0||p.d<=0)continue;
+     if(state.x+RADIUS<=p.x||state.x-RADIUS>=p.x+p.w||
+        state.z+RADIUS<=p.z||state.z-RADIUS>=p.z+p.d)continue;
+     const top=p.y+p.h;
+     if(previousY>=top&&state.y<=top)landing=Math.max(landing,top);
+    }
+    if(landing>-Infinity){
+     state.y=landing;state.vy=0;state.grounded=true;
+    }
+   }
+   const terrainFloor=floorAt(state.x,state.z,state.y);
+   const roofFloor=roofSupportAt(state.x,state.y,state.z);
+   const floor=terrainFloor===null?null:Math.max(terrainFloor,roofFloor);
    if(floor!==null&&state.y<=floor){state.y=floor;state.vy=0;state.grounded=true;}
    else if(floor!==null&&state.y>floor+.01)state.grounded=false;
    return snapshot();
