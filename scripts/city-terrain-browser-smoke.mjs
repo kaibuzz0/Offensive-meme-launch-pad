@@ -120,7 +120,29 @@ try{
  if(view.gl){
   assert.equal(view.hidden,false,'first person is default when WebGL works');
   assert.equal(await evalPage('document.getElementById("city-jump").hidden'),false,'mobile jump must be visible in first person');
-  await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.textContent.startsWith("3D ·")'),'3D chunk rendering',30000);
+  try {
+   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.textContent.startsWith("3D ·")'),'3D chunk rendering',30000);
+  } catch(error) {
+   // Capture the actual renderer state before the browser closes. Do not
+   // confuse a fallback/status-label mismatch with absent terrain meshes.
+   let diagnostics;
+   try {
+    diagnostics=await evalPage(`(()=>{
+     const el=document.getElementById("city-voxel-status");
+     const canvas=document.querySelector("canvas");
+     return {
+      statusText:el?.textContent?.slice(0,240)??null,
+      statusData:el?{...el.dataset}:null,
+      canvas:{present:!!canvas,width:canvas?.width??null,height:canvas?.height??null},
+      compatibilityToggle:document.getElementById("city-compatibility-toggle")?.textContent??null,
+      location:location.pathname+location.search
+     };
+    })()`);
+   } catch(captureError) {
+    diagnostics={captureError:String(captureError)};
+   }
+   throw Error(error.message+' / renderer diagnostics: '+JSON.stringify(diagnostics));
+  }
   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.dataset.meshWorker==="ready"'),'Web Worker terrain mesher initializes',30000);
   await waitFor(()=>evalPage('Number(document.getElementById("city-voxel-status")?.dataset.gpuBytes)>0'),'transferred worker geometry draws in WebGL',30000);
   const workerMetrics=await evalPage('(()=>{const el=document.getElementById("city-voxel-status");return {status:el.dataset.meshWorker,pending:Number(el.dataset.meshPending),gpuBytes:Number(el.dataset.gpuBytes)};})()');
