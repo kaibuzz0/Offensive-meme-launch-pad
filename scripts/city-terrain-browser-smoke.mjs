@@ -15,6 +15,9 @@ const profile=await mkdtemp(path.join(tmpdir(),'meme-city-terrain-'));
 const app=createCityServer(),server=app.server;
 let browser,ws,seq=0;
 const pending=new Map(),exceptions=[];
+// CDP network accounting: report real transferred bytes and repeated requests.
+// These are Chromium/SwiftShader measurements, not physical Android evidence.
+const networkRequests=new Map(),networkTransfers=[];
 const request=(method,params={})=>new Promise((resolve,reject)=>{
  const id=++seq;pending.set(id,{resolve,reject});
  ws.send(JSON.stringify({id,method,params}));
@@ -53,8 +56,14 @@ try{
   const msg=JSON.parse(event.data);
   if(msg.id&&pending.has(msg.id)){const p=pending.get(msg.id);pending.delete(msg.id);msg.error?p.reject(Error(msg.error.message)):p.resolve(msg.result);}
   if(msg.method==='Runtime.exceptionThrown')exceptions.push(msg.params.exceptionDetails.text||'Runtime error');
+  if(msg.method==='Network.requestWillBeSent')networkRequests.set(msg.params.requestId,{url:msg.params.request.url,method:msg.params.request.method});
+  if(msg.method==='Network.loadingFinished'){
+   const entry=networkRequests.get(msg.params.requestId);
+   if(entry){networkTransfers.push({...entry,bytes:msg.params.encodedDataLength||0});networkRequests.delete(msg.params.requestId);}
+  }
+  if(msg.method==='Network.loadingFailed')networkRequests.delete(msg.params.requestId);
  });
- await request('Page.enable');await request('Runtime.enable');
+ await request('Page.enable');await request('Runtime.enable');await request('Network.enable');
  await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
  const url='http://127.0.0.1:'+server.address().port+'/city.html?terrain=1';
  await request('Page.navigate',{url:new URL('index.html',url).href});
@@ -246,6 +255,17 @@ try{
  })()`);
  assert.ok(colorCount>=8,'compatibility renderer must paint actual scene pixels, not a black/gray viewport');
  assert.deepEqual(exceptions,[],'no uncaught JS exceptions in terrain-mode browser entry');
+ // Transfer counts include forced reloads and renderer fallback in this smoke.
+ // Keep them observational until a separate cold/warm release budget is calibrated.
+ const byUrl=new Map();
+ for(const item of networkTransfers){
+  const key=item.method+' '+item.url;
+  const prior=byUrl.get(key)||{requests:0,bytes:0};
+  prior.requests++;prior.bytes+=item.bytes;byUrl.set(key,prior);
+ }
+ const repeated=[...byUrl].filter(([,v])=>v.requests>1).map(([url,v])=>({url,requests:v.requests,bytes:v.bytes}));
+ const totalBytes=networkTransfers.reduce((sum,v)=>sum+v.bytes,0);
+ console.log('QA network (Chromium emulation; includes reloads): '+JSON.stringify({requests:networkTransfers.length,encodedBytes:totalBytes,repeated:repeated.slice(0,20)}));
  console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
 }finally{
  for(const x of pending.values())x.reject(Error('Browser closed'));
