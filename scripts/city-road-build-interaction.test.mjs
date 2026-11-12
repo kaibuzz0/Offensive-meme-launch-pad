@@ -302,3 +302,39 @@ test('idempotent command response retries failed scene without repeating resourc
   assert.equal(await ui.refreshScene(), true);
   assert.equal(attempts, 2);
 });
+
+test('renderer recovery uses latest cross-tab ledger revision without repeating resource spending', async () => {
+  let saved = { revision: 1, inventory: { supplies: 8 }, journal: { edits: [] } };
+  const scenes = [];
+  let spending = 0;
+  const ui = createRoadBuildInteraction({
+    read: async () => structuredClone(saved),
+    collectRoadSupplies: async () => { spending++; return saved; },
+    placeWorkbench: async () => { spending++; return saved; }
+  }, { onCommitted: record => { scenes.push(record.revision); } });
+  await ui.restore();
+  saved = { revision: 2, inventory: { supplies: 0 }, journal: { edits: [{ block: 'workbench' }] } };
+  assert.equal(await ui.refreshScene({ force: true }), true);
+  assert.deepEqual(scenes, [1, 2]);
+  assert.equal(ui.snapshot.inventory.supplies, 0);
+  assert.equal(spending, 0);
+});
+
+test('renderer recovery rejects divergent equal-revision ledger records', async () => {
+  let saved = { revision: 3, inventory: { supplies: 8 } };
+  const scenes = [], events = [];
+  const ui = createRoadBuildInteraction({
+    read: async () => structuredClone(saved),
+    collectRoadSupplies: async () => saved,
+    placeWorkbench: async () => saved
+  }, {
+    onCommitted: record => scenes.push(record.inventory.supplies),
+    onFeedback: event => events.push(event.kind)
+  });
+  await ui.restore();
+  saved = { revision: 3, inventory: { supplies: 0 } };
+  assert.equal(await ui.refreshScene({ force: true }), false);
+  assert.deepEqual(scenes, [8]);
+  assert.equal(ui.snapshot.inventory.supplies, 8);
+  assert.ok(events.includes('error'));
+});
