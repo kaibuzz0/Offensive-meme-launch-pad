@@ -224,6 +224,13 @@ try{
   })()`).catch(e=>({diagnosticError:e.message}));
   throw Error(error.message+" / compatibility renderer diagnostics: "+JSON.stringify({diagnostics,exceptions}));
  }
+ // The compatibility renderer must restore the SAME seed and previously
+ // claimed interactions; a painted canvas alone is not state parity.
+ const fallbackState=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");return {seed,position:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+seed)),supplies:localStorage.getItem("meme-city-road-supplies-v1:"+seed),gate:localStorage.getItem("meme-city-gate-seal-v1:"+seed)};})()');
+ assert.equal(fallbackState.seed,initial.seed,'compatibility renderer retains the same world seed');
+ assert.deepEqual(fallbackState.position,stored.saved,'renderer switch must not rewrite saved player position');
+ assert.equal(fallbackState.supplies,'1','compatibility renderer retains collected supplies');
+ assert.equal(fallbackState.gate,'1','compatibility renderer retains opened fortress gate');
  assert.equal(await evalPage('document.getElementById("city-compatibility-toggle")?.textContent'),'TRY WEBGL 3D');
  await waitFor(()=>evalPage('document.getElementById("city-render-hint")?.hidden===true'),'compatibility scene becomes visible',30000);
  assert.equal(await evalPage('!!document.querySelector("a[href*=\\\"render=canvas\\\"]")'),true,'there is an escape route to low graphics before starting');
