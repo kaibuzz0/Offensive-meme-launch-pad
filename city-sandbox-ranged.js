@@ -31,7 +31,8 @@ function distanceSquared(a, b) {
   return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2;
 }
 function validActor(actor) {
-  if (!actor || typeof actor.id !== 'string' || !actor.id || typeof actor.team !== 'string') throw new TypeError('invalid actor');
+  if (!actor || typeof actor.id !== 'string' || !actor.id || actor.id.length > 128 ||
+      typeof actor.team !== 'string' || actor.team.length > 64) throw new TypeError('invalid actor');
   return actor;
 }
 function eligible(target, actor, friendlyFire) {
