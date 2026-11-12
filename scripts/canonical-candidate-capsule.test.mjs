@@ -38,3 +38,28 @@ test('airborne structural clearance uses actual feet rather than raised terrain'
   assert.ok(observed.length > 0, 'must query the raised boundary');
   for (const y of observed) assert.ok(Math.abs(y - before.y) < 1e-9);
 });
+
+test('visual detail changes do not alter shared controller movement or collision', () => {
+  const low = world(9);
+  const high = world(9);
+  low.visualDetail = 'compatibility';
+  high.visualDetail = 'accelerated';
+  const a = context.CityVoxelPhysics.createController(low, { x: .4, z: 0 });
+  const b = context.CityVoxelPhysics.createController(high, { x: .4, z: 0 });
+  const sequence = [
+    [{ right: 1 }, .05],
+    [{ right: 1, forward: 1, yaw: .3 }, .05],
+    [{ jump: true, right: 1 }, .05],
+    [{ forward: 1, yaw: -.4 }, .05],
+    [{ right: -1 }, .05],
+  ];
+  for (const [input, dt] of sequence) {
+    assert.deepEqual({ ...a.tick(input, dt) }, { ...b.tick(input, dt) });
+  }
+});
+
+test('oversized frame delta cannot advance more than the bounded controller step', () => {
+  const a = context.CityVoxelPhysics.createController(world(20), { x: .4, z: 0 });
+  const b = context.CityVoxelPhysics.createController(world(20), { x: .4, z: 0 });
+  assert.deepEqual({ ...a.tick({ right: 1 }, 3) }, { ...b.tick({ right: 1 }, .05) });
+});
