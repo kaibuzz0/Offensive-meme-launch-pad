@@ -152,6 +152,12 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
         if (current.revision > last.revision) return (await displayCommitted(current)).rendered;
         if (!force && lastRenderedRevision === last.revision) return true;
         return (await displayCommitted(last)).rendered;
+      } catch (error) {
+        // IndexedDB may be temporarily unavailable during an Android tab
+        // suspension or storage failure. Never replay an unverified snapshot.
+        // A later renderer reset may retry without spending resources again.
+        feedback('error', error instanceof Error ? error.message : 'Saved construction state unavailable');
+        return false;
       } finally { busy = false; }
     },
     async restore() {
