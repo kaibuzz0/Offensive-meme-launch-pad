@@ -85,8 +85,13 @@ export function simulateAreaHits({ center, radius, actor, targets, friendlyFire 
   validActor(actor);
   if (typeof friendlyFire !== 'boolean') throw new TypeError('friendlyFire must be boolean');
   return targetsOf(targets).filter(t => eligible(t, actor, friendlyFire)).map(t => {
+    // Reject outside the sphere-expanded axis bounds before computing a
+    // distance. This bounds expensive hypot calls in crowded/distant scenes.
+    const dx = c.x - t.center.x, dy = c.y - t.center.y, dz = c.z - t.center.z;
+    const bound = r + t.radius;
+    if (Math.abs(dx) > bound || Math.abs(dy) > bound || Math.abs(dz) > bound) return null;
     // hypot avoids squaring large finite world-space deltas into Infinity.
-    const distance = Math.hypot(c.x - t.center.x, c.y - t.center.y, c.z - t.center.z);
+    const distance = Math.hypot(dx, dy, dz);
     const surfaceDistance = Math.max(0, distance - t.radius);
     if (surfaceDistance > r) return null;
     return { targetId: t.id, distance: surfaceDistance, intensity: Math.max(0, 1 - surfaceDistance / r) };
