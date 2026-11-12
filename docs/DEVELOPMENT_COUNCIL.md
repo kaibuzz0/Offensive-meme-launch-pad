@@ -111,3 +111,23 @@ These are candidates, **not installed dependencies**. Confirm actual LICENSE fil
 **PR review rule:** record exact head SHA, merge conflicts, test and browser evidence, release dependency and Pages publication. Merge only reviewed green compatible PRs; verify public homepage, asset loads and actual interaction after deployment. Do not fabricate physical Android measurements from emulation. Update this queue when code or CI establishes a different blocker.
 
 **Reuse research:** consult #44 before adding a dependency. Verify upstream revision, LICENSE and attribution, browser/WebGL1/PWA compatibility, size and measured runtime effect. Existing Three.js/Babylon/Rapier candidates are not approved engine replacements. User-provided reference archive `makethegameactuallylooklikethis.zip` is art direction, not licensed source content.
+
+
+### Graphics/release integration acceptance matrix — 2026-11-12
+
+**Status:** contract and handoff only; this section does not claim code implementation, test passage or publication. The last reported main baseline is `90b3c191`; refresh it and every PR head before merging. The reported homepage still links `city.html?terrain=1`; do not make `?terrain=1` or `terrain-only-mode` a permanent game identity.
+
+| Release check | Producer / file ownership | Exact acceptance evidence |
+| --- | --- | --- |
+| Home → first-person fortress arch → wooded road → lit lodge | #43 bootstrap; #45 terrain/road IDs; #49 collision; #46 visible scene; #47 browser QA | Follow the actual homepage anchor, record loaded URL, visible screenshot, position trace through gate and console errors; no fixed timeout workaround for a slow/stuck controller |
+| Pickup → workbench → placement → reload | #48 owns ledger and atomic commands; #45 owns stable world IDs; #46 only renders committed edits; #57 migration fixtures | One unique pickup ID cannot be collected twice; inventory debit and world edit commit together; reload restores both on desktop and mobile viewport |
+| Shared renderer equivalence | #46 renderer adapters; #45 world snapshot; #49 collision; #47 profiling | Same seed, camera, worldgen version, geometry/object IDs, collision and interactable IDs in WebGL and compatibility renderer; detail adaptation changes only presentation |
+| Save migration | #43 schema coordination; #48 inventory; #57 validation | Back up original bytes, transform into new version, validate and read back, then activate; retry is idempotent; unknown legacy fields are retained for recovery |
+| Offline Solo and old URLs | #43 entry/routing; #57 browser fixtures | No wallet needed; old URLs and save fixtures remain functional until parity passes, then redirect and retire duplicate selectors in a separate reviewed PR |
+| Wardrobe/flight follow-ons | #46 rig/sockets/materials; #48 equipment ledger; #49/#52 movement and seat interface; #53 flight | First-person held item matches world avatar loadout, preview/equip/reload works; aircraft uses same world, seats, collision, save and touch controls; do not claim shipped before browser evidence |
+
+**Immediate smallest cross-owner batch:** #49 reconciles competing fortress capsule-clearance changes and proves the gate trace; #45 preserves deterministic road/gate object IDs across cache eviction; #48 connects existing durable workbench commands to the actual roadside controls; #46 consumes the same committed edits in both renderers and keeps the fortress/lodge silhouettes legible; #47/#57 capture repeatable screenshots, frame-time percentiles, stalls, memory and reload evidence. #43 owns integration order and exact-head review. Avoid simultaneous edits to `city-voxel-physics.js` by multiple owners.
+
+**Current review leads, not merge approvals:** #146 failed first-person traversal; #148 has a reported first-person Chromium regression and a temporary terrain-only assertion; #82 has reported draft/conflict and public wiring gaps; #149/#150 had reported green CI but need integrated gate/scene verification. Check each current head, draft state, conflicts and CI afresh. Do not merge solely from these historical observations.
+
+**Visual budget and reuse:** profile quiet fortress and crowded lodge with identical camera path and seed before and after any new mesh/material/LOD dependency. First prefer existing bounded meshing, instancing and texture/material reuse. #44 maintains the single license/revision/size/Android shortlist; no unverified external asset or engine import. Preserve original artwork provenance and the existing 24 MiB mesh budget until QA documents a measured replacement.
