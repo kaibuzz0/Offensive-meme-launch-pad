@@ -55,7 +55,12 @@ try{
  ws.addEventListener('message',event=>{
   const msg=JSON.parse(event.data);
   if(msg.id&&pending.has(msg.id)){const p=pending.get(msg.id);pending.delete(msg.id);msg.error?p.reject(Error(msg.error.message)):p.resolve(msg.result);}
-  if(msg.method==='Runtime.exceptionThrown')exceptions.push(msg.params.exceptionDetails.text||'Runtime error');
+  if(msg.method==='Runtime.exceptionThrown'){
+   const d=msg.params.exceptionDetails||{};
+   exceptions.push({text:d.text||'Runtime error',description:d.exception?.description||null,
+    url:d.url||null,line:d.lineNumber??null,column:d.columnNumber??null,
+    stack:d.stackTrace?.callFrames?.slice(0,6).map(f=>({functionName:f.functionName,url:f.url,line:f.lineNumber,column:f.columnNumber}))||[]});
+  }
   if(msg.method==='Network.requestWillBeSent'){
    const previous=networkRequests.get(msg.params.requestId);
    if(previous&&msg.params.redirectResponse)networkTransfers.push({...previous,redirect:true,bytes:msg.params.redirectResponse.encodedDataLength||0});
@@ -244,7 +249,9 @@ try{
     compatibilityToggle:document.getElementById("city-compatibility-toggle")?.textContent,
     readyState:document.readyState,errors:window.__cityRuntimeErrors||null};
   })()`).catch(e=>({diagnosticError:e.message}));
-  throw Error(error.message+" / compatibility renderer diagnostics: "+JSON.stringify({diagnostics,exceptions}));
+  const failures=networkTransfers.filter(item=>item.failed).slice(-15);
+  const pendingUrls=[...networkRequests.values()].slice(-15);
+  throw Error(error.message+" / compatibility renderer diagnostics: "+JSON.stringify({diagnostics,exceptions,failures,pendingUrls}));
  }
  assert.equal(await evalPage('document.getElementById("city-compatibility-toggle")?.textContent'),'TRY WEBGL 3D');
  await waitFor(()=>evalPage('document.getElementById("city-render-hint")?.hidden===true'),'compatibility scene becomes visible',30000);
