@@ -84,16 +84,19 @@ export function simulateAreaHits({ center, radius, actor, targets, friendlyFire 
   const c = vec(center, 'center'), r = positive(radius, 'radius', MAX_RADIUS);
   validActor(actor);
   if (typeof friendlyFire !== 'boolean') throw new TypeError('friendlyFire must be boolean');
-  return targetsOf(targets).filter(t => eligible(t, actor, friendlyFire)).map(t => {
-    // Reject outside the sphere-expanded axis bounds before computing a
-    // distance. This bounds expensive hypot calls in crowded/distant scenes.
+  // Validate the entire bounded input before producing results, then avoid
+  // allocating intermediate filter/map arrays for out-of-range targets.
+  const validated = targetsOf(targets);
+  const hits = [];
+  for (const t of validated) {
+    if (!eligible(t, actor, friendlyFire)) continue;
     const dx = c.x - t.center.x, dy = c.y - t.center.y, dz = c.z - t.center.z;
     const bound = r + t.radius;
-    if (Math.abs(dx) > bound || Math.abs(dy) > bound || Math.abs(dz) > bound) return null;
-    // hypot avoids squaring large finite world-space deltas into Infinity.
+    if (Math.abs(dx) > bound || Math.abs(dy) > bound || Math.abs(dz) > bound) continue;
     const distance = Math.hypot(dx, dy, dz);
     const surfaceDistance = Math.max(0, distance - t.radius);
-    if (surfaceDistance > r) return null;
-    return { targetId: t.id, distance: surfaceDistance, intensity: Math.max(0, 1 - surfaceDistance / r) };
-  }).filter(Boolean).sort((a, b) => a.distance - b.distance || (a.targetId < b.targetId ? -1 : a.targetId > b.targetId ? 1 : 0));
+    if (surfaceDistance > r) continue;
+    hits.push({ targetId: t.id, distance: surfaceDistance, intensity: Math.max(0, 1 - surfaceDistance / r) });
+  }
+  return hits.sort((a, b) => a.distance - b.distance || (a.targetId < b.targetId ? -1 : a.targetId > b.targetId ? 1 : 0));
 }
