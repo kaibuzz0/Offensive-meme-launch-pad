@@ -50,7 +50,8 @@
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
-    if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
+    const candidateY=state.grounded?Math.max(state.y,floor):state.y;
+    if(floor===null||world.gateRoad?.obstructs(nx,candidateY,nz,world.PLAYER_HEIGHT,RADIUS))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
@@ -59,7 +60,7 @@
     let blocked=false;
     for(const [ox,oz] of samples){
      const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
-     if(gallery&&!gallery.exposed&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+     if(gallery&&!gallery.exposed&&candidateY<gallery.ceiling&&candidateY+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
      }
     }
