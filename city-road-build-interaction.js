@@ -55,7 +55,10 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
     } else {
       feedback('render-error', 'Saved action succeeded; scene renderer not connected');
     }
-    if (rendered) lastRenderedRevision = last.revision;
+    // A renderer reset can fail while replaying the *same* revision. Clear the
+    // presentation marker so a later non-forced refresh retries the saved scene.
+    // The durable record remains committed and is never spent a second time.
+    lastRenderedRevision = rendered ? last.revision : null;
     return { record: structuredClone(last), rendered };
   }
   async function publishIfCurrent(record) {
