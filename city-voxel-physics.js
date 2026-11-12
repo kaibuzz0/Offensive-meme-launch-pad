@@ -50,9 +50,14 @@
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
-    if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
+    if(floor===null)break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
+    // Airborne motion stays at the current feet height; only a grounded
+    // step-up occupies the raised floor. Use the same candidate pose for
+    // structural and cave collision queries.
+    const proposedY=state.grounded?Math.max(state.y,floor):state.y;
+    if(world.gateRoad?.obstructs(nx,proposedY,nz,world.PLAYER_HEIGHT,RADIUS))break;
     // Sample the proposed elevated feet position across the capsule radius.
     // A gallery with a
     // solid roof must fit the entire player before entering it laterally.
@@ -60,7 +65,7 @@
     let blocked=false;
     for(const [ox,oz] of samples){
      const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
-     if(gallery&&!gallery.exposed&&Math.max(state.y,floor)<gallery.ceiling&&Math.max(state.y,floor)+world.PLAYER_HEIGHT>gallery.ceiling){
+     if(gallery&&!gallery.exposed&&proposedY<gallery.ceiling&&proposedY+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
      }
     }
