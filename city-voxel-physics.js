@@ -36,7 +36,9 @@
   function snapshot(){return Object.freeze({...state});}
   function teleport(x,z,referenceY=Infinity){
    const floor=floorAt(x,z,referenceY);
-   if(floor===null)return false;
+   // Teleports must honor the same structural obstruction query as walking.
+   // A rejected destination leaves the complete controller state unchanged.
+   if(floor===null||world.gateRoad?.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS))return false;
    state.x=x;state.z=z;state.y=floor;state.vy=0;state.grounded=true;
    return true;
   }
