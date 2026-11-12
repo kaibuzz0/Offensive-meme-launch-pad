@@ -133,6 +133,23 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
       try {
         // A renderer/context rebuild can discard visible geometry without changing
         // the durable revision. Explicit replay must never issue a game command.
+        // A renderer reset may occur after another tab has committed a build.
+        // Read the durable ledger before replaying geometry; never resurrect an
+        // obsolete local snapshot or repeat the resource-spending command.
+        const current = await commands.read();
+        if (!validRecord(current)) {
+          feedback('error', 'Saved construction state unavailable');
+          return false;
+        }
+        if (current.revision < last.revision) {
+          feedback('error', 'Stale saved construction state');
+          return false;
+        }
+        if (current.revision === last.revision && !sameRecord(current, last)) {
+          feedback('error', 'Conflicting construction snapshot at the same revision');
+          return false;
+        }
+        if (current.revision > last.revision) return (await displayCommitted(current)).rendered;
         if (!force && lastRenderedRevision === last.revision) return true;
         return (await displayCommitted(last)).rendered;
       } finally { busy = false; }
