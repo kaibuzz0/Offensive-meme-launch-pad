@@ -127,11 +127,13 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
     get snapshot() { return last === null ? null : structuredClone(last); },
     // Renderer recovery must not repeat a pickup or spending command. The
     // persisted snapshot is replayed to the scene without touching the ledger.
-    async refreshScene() {
+    async refreshScene({ force = false } = {}) {
       if (busy || last === null) return false;
       busy = true;
       try {
-        if (lastRenderedRevision === last.revision) return true;
+        // A renderer/context rebuild can discard visible geometry without changing
+        // the durable revision. Explicit replay must never issue a game command.
+        if (!force && lastRenderedRevision === last.revision) return true;
         return (await displayCommitted(last)).rendered;
       } finally { busy = false; }
     },
