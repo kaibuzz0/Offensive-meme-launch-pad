@@ -56,7 +56,13 @@ export function simulateRayHit({ origin, direction, maxRange, actor, targets, fr
   let best = null;
   for (const t of targetsOf(targets)) {
     if (!eligible(t, actor, friendlyFire)) continue;
-    const delta = { x: o.x - t.center.x, y: o.y - t.center.y, z: o.z - t.center.z };
+    // A target farther than range + radius on any axis cannot intersect.
+    // Reject before squaring enormous world-space deltas, which can overflow
+    // and produce NaN discriminants even for otherwise finite inputs.
+    const dx = o.x - t.center.x, dy = o.y - t.center.y, dz = o.z - t.center.z;
+    const bound = range + t.radius;
+    if (Math.abs(dx) > bound || Math.abs(dy) > bound || Math.abs(dz) > bound) continue;
+    const delta = { x: dx, y: dy, z: dz };
     const b = delta.x * d.x + delta.y * d.y + delta.z * d.z;
     const c = distanceSquared(o, t.center) - t.radius ** 2;
     const disc = b * b - c;
