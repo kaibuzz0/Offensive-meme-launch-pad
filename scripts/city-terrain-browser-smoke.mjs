@@ -4,6 +4,9 @@
 import assert from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
+// The local QA server intentionally does not expose scripts/; inject the
+// reviewed sampler into CDP rather than adding a public game download.
+const frameSamplerSource=(await readFile(new URL('./qa-frame-budget.mjs',import.meta.url),'utf8')).replace(/^export /gm,'');
 import path from 'node:path';
 import {tmpdir} from 'node:os';
 import {setTimeout as delay} from 'node:timers/promises';
@@ -120,9 +123,41 @@ try{
  if(view.gl){
   assert.equal(view.hidden,false,'first person is default when WebGL works');
   assert.equal(await evalPage('document.getElementById("city-jump").hidden'),false,'mobile jump must be visible in first person');
+  try {
   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.textContent.startsWith("3D ·")'),'3D chunk rendering',30000);
+  } catch (error) {
+    // Preserve the real 3D acceptance gate; collect bounded diagnostics before failing.
+    const diagnostics=await evalPage(`(()=>{
+      const status=document.getElementById("city-voxel-status");
+      const voxel=document.getElementById("city-voxel-canvas");
+      const road=document.getElementById("city-road-canvas");
+      return {
+        url:location.href,visibility:document.visibilityState,
+        statusText:status?.textContent?.slice(0,300),
+        statusData:status?Object.fromEntries(Object.entries(status.dataset)):null,
+        voxel:{exists:!!voxel,hidden:voxel?.hidden,width:voxel?.width,height:voxel?.height},
+        compatibility:{exists:!!road,hidden:road?.hidden},
+        introHidden:document.getElementById("city-intro")?.hidden,
+        workerCount:performance.getEntriesByType("resource").filter(r=>r.initiatorType==="worker").length,
+        resourceCount:performance.getEntriesByType("resource").length
+      };
+    })()`).catch(e=>({diagnosticError:e.message}));
+    throw Error(error.message+" / 3D startup diagnostics: "+JSON.stringify(diagnostics)+
+      " / runtime exceptions: "+JSON.stringify(exceptions.slice(-8)));
+  }
   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.dataset.meshWorker==="ready"'),'Web Worker terrain mesher initializes',30000);
   await waitFor(()=>evalPage('Number(document.getElementById("city-voxel-status")?.dataset.gpuBytes)>0'),'transferred worker geometry draws in WebGL',30000);
+  // Measure the actual homepage Play session, not an isolated blank tab.
+  // SwiftShader Chromium is emulation, never physical Android evidence.
+  const frameProbe=await evalPage(`(async()=>{
+    ${frameSamplerSource}
+    const sample=await sampleFrameTimes({frames:120,timeoutMs:15000});
+    return {sample,gate:summarizeFrameBudget(sample)};
+  })()`);
+  assert.equal(frameProbe.sample.requestedFrames,120,'homepage Play sampler frame count');
+  assert.ok(frameProbe.sample.measuredFrames>0,'actual game rendered animation frames');
+  assert.ok(Number.isFinite(frameProbe.sample.wallClockMs),'gameplay sample has wall-clock timing');
+  console.log('QA_FRAME_BUDGET_WEBGL_SWIFTSHADER '+JSON.stringify(frameProbe));
   const workerMetrics=await evalPage('(()=>{const el=document.getElementById("city-voxel-status");return {status:el.dataset.meshWorker,pending:Number(el.dataset.meshPending),gpuBytes:Number(el.dataset.gpuBytes)};})()');
   assert.equal(workerMetrics.status,'ready','first-person browser uses off-thread deterministic mesher');
   assert.ok(workerMetrics.pending>=0&&workerMetrics.pending<=2,'mesh request backpressure is bounded');
