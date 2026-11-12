@@ -51,3 +51,31 @@ test('renderer reset replays newer cross-tab state without replaying commands', 
   assert.equal(interaction.snapshot.revision, 3);
   assert.equal(writes, 0);
 });
+
+test('cold renderer refresh restores durable construction without any gameplay command', async () => {
+  const durable = { revision: 4, inventory: { timber: 0 }, edits: [{ id: 'bench', x: 6, z: 9 }] };
+  let reads = 0;
+  let commands = 0;
+  const shown = [];
+  const interaction = createRoadBuildInteraction({
+    read: async () => { reads++; return structuredClone(durable); },
+    collectRoadSupplies: async () => { commands++; throw new Error('must not collect'); },
+    placeWorkbench: async () => { commands++; throw new Error('must not place'); }
+  }, { onCommitted: record => { shown.push(record); } });
+  assert.equal(interaction.snapshot, null);
+  assert.equal(await interaction.refreshScene(), true);
+  assert.equal(reads, 1);
+  assert.equal(commands, 0);
+  assert.deepEqual(shown[0].edits, durable.edits);
+  assert.equal(interaction.snapshot.revision, 4);
+});
+
+test('cold renderer refresh reports failure when presentation is unavailable', async () => {
+  const interaction = createRoadBuildInteraction({
+    read: async () => ({ revision: 1, inventory: {}, edits: [] }),
+    collectRoadSupplies: async () => { throw new Error('unexpected'); },
+    placeWorkbench: async () => { throw new Error('unexpected'); }
+  }, { onCommitted: () => false });
+  assert.equal(await interaction.refreshScene(), false);
+  assert.equal(interaction.snapshot.revision, 1);
+});
