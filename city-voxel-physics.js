@@ -39,6 +39,13 @@
    // Teleports must honor the same structural obstruction query as walking.
    // A rejected destination leaves the complete controller state unchanged.
    if(floor===null||world.gateRoad?.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS))return false;
+   // Reject underground destinations whose roofs intersect the capsule,
+   // including adjacent cells touched by the player's footprint.
+   for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
+    const gallery=world.caveRoomAt?.(Math.floor(x+ox),Math.floor(z+oz));
+    if(gallery&&!gallery.exposed&&floor<gallery.ceiling
+       &&floor+world.PLAYER_HEIGHT>gallery.ceiling)return false;
+   }
    state.x=x;state.z=z;state.y=floor;state.vy=0;state.grounded=true;
    return true;
   }
