@@ -273,7 +273,10 @@ try{
  }
  const repeated=[...byUrl].filter(([,v])=>v.requests>1).map(([url,v])=>({url,requests:v.requests,bytes:v.bytes}));
  const totalBytes=networkTransfers.reduce((sum,v)=>sum+v.bytes,0);
- console.log('QA network (Chromium emulation; includes reloads): '+JSON.stringify({requests:networkTransfers.length,encodedBytes:totalBytes,repeated:repeated.slice(0,20)}));
+ const failed=networkTransfers.filter(item=>item.failed).map(item=>({url:item.url,error:item.error}));
+ const redirects=networkTransfers.filter(item=>item.redirect).map(item=>({url:item.url,bytes:item.bytes}));
+ const unfinished=[...networkRequests.values()].map(item=>({url:item.url,method:item.method}));
+ console.log('QA network (Chromium emulation; includes reloads): '+JSON.stringify({requests:networkTransfers.length,encodedBytes:totalBytes,failed,redirects,unfinished,repeated:repeated.slice(0,20)}));
  console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
 }finally{
  for(const x of pending.values())x.reject(Error('Browser closed'));
