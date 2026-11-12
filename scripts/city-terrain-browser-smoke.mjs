@@ -56,12 +56,20 @@ try{
   const msg=JSON.parse(event.data);
   if(msg.id&&pending.has(msg.id)){const p=pending.get(msg.id);pending.delete(msg.id);msg.error?p.reject(Error(msg.error.message)):p.resolve(msg.result);}
   if(msg.method==='Runtime.exceptionThrown')exceptions.push(msg.params.exceptionDetails.text||'Runtime error');
-  if(msg.method==='Network.requestWillBeSent')networkRequests.set(msg.params.requestId,{url:msg.params.request.url,method:msg.params.request.method});
+  if(msg.method==='Network.requestWillBeSent'){
+   const previous=networkRequests.get(msg.params.requestId);
+   if(previous&&msg.params.redirectResponse)networkTransfers.push({...previous,redirect:true,bytes:msg.params.redirectResponse.encodedDataLength||0});
+   networkRequests.set(msg.params.requestId,{url:msg.params.request.url,method:msg.params.request.method});
+  }
   if(msg.method==='Network.loadingFinished'){
    const entry=networkRequests.get(msg.params.requestId);
    if(entry){networkTransfers.push({...entry,bytes:msg.params.encodedDataLength||0});networkRequests.delete(msg.params.requestId);}
   }
-  if(msg.method==='Network.loadingFailed')networkRequests.delete(msg.params.requestId);
+  if(msg.method==='Network.loadingFailed'){
+   const entry=networkRequests.get(msg.params.requestId);
+   if(entry)networkTransfers.push({...entry,failed:true,error:msg.params.errorText||'unknown',bytes:0});
+   networkRequests.delete(msg.params.requestId);
+  }
  });
  await request('Page.enable');await request('Runtime.enable');await request('Network.enable');
  await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
