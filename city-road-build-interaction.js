@@ -128,7 +128,10 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
     // Renderer recovery must not repeat a pickup or spending command. The
     // persisted snapshot is replayed to the scene without touching the ledger.
     async refreshScene({ force = false } = {}) {
-      if (busy || last === null) return false;
+      if (busy) return false;
+      // Cold renderer initialization may precede restore(). Read the durable
+      // snapshot rather than silently leaving a saved build invisible.
+      if (last === null) return (await this.restore()) !== null && lastRenderedRevision !== null;
       busy = true;
       try {
         // A renderer/context rebuild can discard visible geometry without changing
