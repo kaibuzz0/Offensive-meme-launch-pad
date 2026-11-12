@@ -83,3 +83,17 @@ test('teleport to invalid coordinates leaves the player state unchanged', () => 
   assert.equal(p.teleport(1000000, 0), false);
   assert.deepEqual({ ...p.snapshot() }, before);
 });
+
+test('jumping under a neighboring cave roof respects capsule footprint clearance', () => {
+  const w = {
+    PLAYER_HEIGHT: 7.2, SEA_LEVEL: -100,
+    surfaceAt() { return { height: -1 }; },
+    caveRoomAt(x) { return x >= 1 ? { floor: 0, ceiling: 8, exposed: false } : null; },
+  };
+  // Center remains outside the roof tile; the capsule radius reaches into it.
+  const p = context.CityVoxelPhysics.createController(w, { x: .8, z: 0 });
+  p.tick({ jump: true }, .05);
+  p.tick({}, .05);
+  assert.ok(p.snapshot().y <= .8 + 1e-9, 'head must not cross adjacent cave roof');
+  assert.equal(p.snapshot().vy, 0, 'roof contact must cancel upward velocity');
+});
