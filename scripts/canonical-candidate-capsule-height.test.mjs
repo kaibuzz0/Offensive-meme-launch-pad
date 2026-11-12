@@ -11,14 +11,15 @@ test('airborne structural query uses actual feet, not raised terrain ahead', () 
   const world = {
     PLAYER_HEIGHT: 7.2,
     SEA_LEVEL: -100,
-    surfaceAt(x) { return { height: x >= 1 ? 3 : -1 }; },
+    surfaceAt(x) { return { height: x >= 1 ? -0.7 : -1 }; },
     gateRoad: { obstructs(x, y) { checked.push({ x, y }); return false; } },
   };
   const controller = context.CityVoxelPhysics.createController(world, { x: 0.4, z: 0 });
   controller.tick({ jump: true }, 0.01);
+  const airborneFeet = controller.snapshot().y;
   controller.tick({ right: 1 }, 0.05);
   assert.ok(checked.some(p => p.x >= 0.73), 'sweep should query the raised terrain boundary');
-  assert.ok(checked.every(p => p.y < 4), 'airborne collision must not snap query to the higher floor');
+  assert.ok(checked.every(p => Math.abs(p.y - airborneFeet) < 1e-9), 'airborne collision must query at current feet height');
 });
 
 test('grounded structural query uses stepped-up feet height', () => {
