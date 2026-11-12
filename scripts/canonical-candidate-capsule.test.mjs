@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+const context = vm.createContext({});
+vm.runInContext(readFileSync(new URL('../city-voxel-physics.js', import.meta.url), 'utf8'), context);
+function world(ceiling, obstructs = () => false) {
+  return {
+    PLAYER_HEIGHT: 7.2, SEA_LEVEL: -100,
+    surfaceAt(x) { return { height: x >= 1 ? 0 : -1 }; },
+    caveRoomAt(x) { return x >= 1 ? { floor: 1, ceiling, exposed: false } : null; },
+    gateRoad: { obstructs },
+  };
+}
+test('low raised roof rejects grounded step', () => {
+  const p = context.CityVoxelPhysics.createController(world(7.6), { x: .4, z: 0 });
+  for (let i = 0; i < 10; i++) p.tick({ right: 1 }, .05);
+  assert.ok(p.snapshot().x < .73);
+  assert.equal(p.snapshot().y, 0);
+});
+test('sufficient raised roof accepts grounded step', () => {
+  const p = context.CityVoxelPhysics.createController(world(9), { x: .4, z: 0 });
+  for (let i = 0; i < 10; i++) p.tick({ right: 1 }, .05);
+  assert.ok(p.snapshot().x > 1.1);
+  assert.equal(p.snapshot().y, 1);
+});
+test('airborne structural clearance uses actual feet rather than raised terrain', () => {
+  const observed = [];
+  const p = context.CityVoxelPhysics.createController(world(20, (x, y) => {
+    if (x >= .73) observed.push(y);
+    return false;
+  }), { x: .4, z: 0 });
+  p.tick({ jump: true }, .05);
+  const before = p.snapshot();
+  assert.equal(before.grounded, false);
+  p.tick({ right: 1 }, .05);
+  assert.ok(observed.length > 0, 'must query the raised boundary');
+  for (const y of observed) assert.ok(Math.abs(y - before.y) < 1e-9);
+});
