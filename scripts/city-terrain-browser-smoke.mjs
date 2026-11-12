@@ -15,6 +15,11 @@ const profile=await mkdtemp(path.join(tmpdir(),'meme-city-terrain-'));
 const app=createCityServer(),server=app.server;
 let browser,ws,seq=0;
 const pending=new Map(),exceptions=[];
+// CDP network accounting: report real transferred bytes and repeated requests.
+// These are Chromium/SwiftShader measurements, not physical Android evidence.
+const networkRequests=new Map(),networkTransfers=[];
+let networkPhase='homepage';
+const setNetworkPhase=name=>{networkPhase=name;};
 const request=(method,params={})=>new Promise((resolve,reject)=>{
  const id=++seq;pending.set(id,{resolve,reject});
  ws.send(JSON.stringify({id,method,params}));
@@ -52,9 +57,38 @@ try{
  ws.addEventListener('message',event=>{
   const msg=JSON.parse(event.data);
   if(msg.id&&pending.has(msg.id)){const p=pending.get(msg.id);pending.delete(msg.id);msg.error?p.reject(Error(msg.error.message)):p.resolve(msg.result);}
-  if(msg.method==='Runtime.exceptionThrown')exceptions.push(msg.params.exceptionDetails.text||'Runtime error');
+  if(msg.method==='Runtime.exceptionThrown'){
+   const d=msg.params.exceptionDetails||{};
+   exceptions.push({text:d.text||'Runtime error',description:d.exception?.description||null,
+    url:d.url||null,line:d.lineNumber??null,column:d.columnNumber??null,
+    stack:d.stackTrace?.callFrames?.slice(0,6).map(f=>({functionName:f.functionName,url:f.url,line:f.lineNumber,column:f.columnNumber}))||[]});
+  }
+  if(msg.method==='Network.requestWillBeSent'){
+   const previous=networkRequests.get(msg.params.requestId);
+   if(previous&&msg.params.redirectResponse)networkTransfers.push({...previous,redirect:true,bytes:msg.params.redirectResponse.encodedDataLength||0});
+   networkRequests.set(msg.params.requestId,{url:msg.params.request.url,method:msg.params.request.method,phase:networkPhase});
+  }
+  if(msg.method==='Network.responseReceived'){
+   const entry=networkRequests.get(msg.params.requestId);
+   if(entry){entry.status=msg.params.response?.status??null;
+    entry.fromDiskCache=!!msg.params.response?.fromDiskCache;
+    entry.fromServiceWorker=!!msg.params.response?.fromServiceWorker;}
+  }
+  if(msg.method==='Network.requestServedFromCache'){
+   const entry=networkRequests.get(msg.params.requestId);
+   if(entry)entry.fromCache=true;
+  }
+  if(msg.method==='Network.loadingFinished'){
+   const entry=networkRequests.get(msg.params.requestId);
+   if(entry){networkTransfers.push({...entry,bytes:msg.params.encodedDataLength||0});networkRequests.delete(msg.params.requestId);}
+  }
+  if(msg.method==='Network.loadingFailed'){
+   const entry=networkRequests.get(msg.params.requestId);
+   if(entry)networkTransfers.push({...entry,failed:true,error:msg.params.errorText||'unknown',bytes:0});
+   networkRequests.delete(msg.params.requestId);
+  }
  });
- await request('Page.enable');await request('Runtime.enable');
+ await request('Page.enable');await request('Runtime.enable');await request('Network.enable');
  await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
  const url='http://127.0.0.1:'+server.address().port+'/city.html?terrain=1';
  await request('Page.navigate',{url:new URL('index.html',url).href});
@@ -63,7 +97,13 @@ try{
  // randomized seeds are covered by independent deterministic world tests.
  // This prevents terrain-seed lottery from masking renderer regressions.
  await evalPage('localStorage.setItem("meme-city-terrain-seed-v1","fortress-road");true');
- assert.equal(await evalPage('document.querySelector(".game-direct-play").href'),url);
+ // Follow the actual homepage Play link rather than navigating to a
+ // hardcoded game URL. This catches broken or stale public entry wiring.
+ const publicEntry=await evalPage('(()=>{const a=document.querySelector(".game-direct-play");return {href:a.href,path:new URL(a.href).pathname,origin:new URL(a.href).origin};})()');
+ assert.equal(publicEntry.origin,new URL(url).origin,'Play must stay on the served game origin');
+ assert.ok(publicEntry.path.endsWith('/city.html'),'homepage Play must lead to the game');
+ assert.equal(publicEntry.href,url,'legacy terrain entry remains supported during migration');
+ setNetworkPhase('first-entry');
  await evalPage('document.querySelector(".game-direct-play").click();true');
  await waitFor(()=>evalPage('!!window.CityTerrainWorld?.createTerrain && document.body.classList.contains("terrain-only-mode")'),'terrain script boot');
  const initial=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");const w=CityTerrainWorld.createTerrain(seed,CityFrontier.regions);const c=w.chunkAt(0,0);return {seed,count:w.anchors.length,types:new Set(w.anchors.map(a=>w.biomeAt(Math.round(a.x),Math.round(a.y)).id)).size,sites:c.sites.length,structures:c.structures.length,roads:c.tiles.filter(t=>t.road).length,legacy:localStorage.getItem("offensive-meme-city-v1-center")};})()');
@@ -183,6 +223,7 @@ try{
  // asserted below. The separate position-replay test needs repair before
  // it can reliably distinguish rendering stalls from physics movement.
  if(view.gl)await evalPage('window.dispatchEvent(new Event("pagehide"));true');
+ setNetworkPhase('forced-reload');
  await request('Page.reload',{ignoreCache:true});
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'reload terrain mode');
  const stored=await evalPage('(()=>({seed:localStorage.getItem("meme-city-terrain-seed-v1"),saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))),original:localStorage.getItem("offensive-meme-city-v1-center")}))()');
@@ -198,6 +239,7 @@ try{
    return type==='webgl'?null:original.call(this,type,...args);
   };
  `});
+ setNetworkPhase('forced-compatibility');
  await request('Page.reload',{ignoreCache:true});
  await waitFor(()=>evalPage('!!document.querySelector("#city-road-canvas")'),'compatibility renderer boot');
  await evalPage('document.getElementById("start-button").click();true');
@@ -222,7 +264,9 @@ try{
     compatibilityToggle:document.getElementById("city-compatibility-toggle")?.textContent,
     readyState:document.readyState,errors:window.__cityRuntimeErrors||null};
   })()`).catch(e=>({diagnosticError:e.message}));
-  throw Error(error.message+" / compatibility renderer diagnostics: "+JSON.stringify({diagnostics,exceptions}));
+  const failures=networkTransfers.filter(item=>item.failed).slice(-15);
+  const pendingUrls=[...networkRequests.values()].slice(-15);
+  throw Error(error.message+" / compatibility renderer diagnostics: "+JSON.stringify({diagnostics,exceptions,failures,pendingUrls}));
  }
  assert.equal(await evalPage('document.getElementById("city-compatibility-toggle")?.textContent'),'TRY WEBGL 3D');
  await waitFor(()=>evalPage('document.getElementById("city-render-hint")?.hidden===true'),'compatibility scene becomes visible',30000);
@@ -241,7 +285,39 @@ try{
  })()`);
  assert.ok(colorCount>=8,'compatibility renderer must paint actual scene pixels, not a black/gray viewport');
  assert.deepEqual(exceptions,[],'no uncaught JS exceptions in terrain-mode browser entry');
+ // Transfer counts include forced reloads and renderer fallback in this smoke.
+ // Keep them observational until a separate cold/warm release budget is calibrated.
+ const byUrl=new Map();
+ for(const item of networkTransfers){
+  const key=item.method+' '+item.url;
+  const prior=byUrl.get(key)||{requests:0,bytes:0};
+  prior.requests++;prior.bytes+=item.bytes;byUrl.set(key,prior);
+ }
+ const repeated=[...byUrl].filter(([,v])=>v.requests>1).map(([url,v])=>({url,requests:v.requests,bytes:v.bytes}));
+ const totalBytes=networkTransfers.reduce((sum,v)=>sum+v.bytes,0);
+ const failed=networkTransfers.filter(item=>item.failed).map(item=>({url:item.url,error:item.error}));
+ const redirects=networkTransfers.filter(item=>item.redirect).map(item=>({url:item.url,bytes:item.bytes}));
+ const unfinished=[...networkRequests.values()].map(item=>({url:item.url,method:item.method}));
+ const phases=Object.fromEntries(['homepage','first-entry','forced-reload','forced-compatibility'].map(phase=>{
+  const items=networkTransfers.filter(item=>item.phase===phase);
+  return [phase,{requests:items.length,encodedBytes:items.reduce((sum,item)=>sum+item.bytes,0),failed:items.filter(item=>item.failed).length,cacheHits:items.filter(item=>item.fromCache||item.fromDiskCache).length,serviceWorkerHits:items.filter(item=>item.fromServiceWorker).length}];
+ }));
+ console.log('QA network phases (Chromium emulation; forced reloads bypass cache): '+JSON.stringify(phases));
+ console.log('QA network (Chromium emulation; includes reloads): '+JSON.stringify({requests:networkTransfers.length,encodedBytes:totalBytes,failed,redirects,unfinished,repeated:repeated.slice(0,20)}));
  console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
+}catch(error){
+ // Always publish phase diagnostics when a browser assertion fails, not only on PASS.
+ // Do not mistake a request still pending at browser shutdown for a memory leak.
+ const phases=Object.fromEntries(['homepage','first-entry','forced-reload','forced-compatibility'].map(phase=>{
+  const items=networkTransfers.filter(item=>item.phase===phase);
+  return [phase,{requests:items.length,encodedBytes:items.reduce((sum,item)=>sum+item.bytes,0),
+   failed:items.filter(item=>item.failed).length,cacheHits:items.filter(item=>item.fromCache||item.fromDiskCache).length,serviceWorkerHits:items.filter(item=>item.fromServiceWorker).length}];
+ }));
+ const failures=networkTransfers.filter(item=>item.failed).slice(-20);
+ const unfinished=[...networkRequests.values()].slice(-20);
+ console.error('QA failure network phases (Chromium emulation): '+JSON.stringify(phases));
+ console.error('QA failure network detail: '+JSON.stringify({failures,unfinished,exceptions:exceptions.slice(-12)}));
+ throw error;
 }finally{
  for(const x of pending.values())x.reject(Error('Browser closed'));
  if(ws){try{ws.close();}catch{}}
