@@ -63,7 +63,12 @@ try{
  // randomized seeds are covered by independent deterministic world tests.
  // This prevents terrain-seed lottery from masking renderer regressions.
  await evalPage('localStorage.setItem("meme-city-terrain-seed-v1","fortress-road");true');
- assert.equal(await evalPage('document.querySelector(".game-direct-play").href'),url);
+ // Follow the actual homepage Play link rather than navigating to a
+ // hardcoded game URL. This catches broken or stale public entry wiring.
+ const publicEntry=await evalPage('(()=>{const a=document.querySelector(".game-direct-play");return {href:a.href,path:new URL(a.href).pathname,origin:new URL(a.href).origin};})()');
+ assert.equal(publicEntry.origin,new URL(url).origin,'Play must stay on the served game origin');
+ assert.ok(publicEntry.path.endsWith('/city.html'),'homepage Play must lead to the game');
+ assert.equal(publicEntry.href,url,'legacy terrain entry remains supported during migration');
  await evalPage('document.querySelector(".game-direct-play").click();true');
  await waitFor(()=>evalPage('!!window.CityTerrainWorld?.createTerrain && document.body.classList.contains("terrain-only-mode")'),'terrain script boot');
  const initial=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");const w=CityTerrainWorld.createTerrain(seed,CityFrontier.regions);const c=w.chunkAt(0,0);return {seed,count:w.anchors.length,types:new Set(w.anchors.map(a=>w.biomeAt(Math.round(a.x),Math.round(a.y)).id)).size,sites:c.sites.length,structures:c.structures.length,roads:c.tiles.filter(t=>t.road).length,legacy:localStorage.getItem("offensive-meme-city-v1-center")};})()');
