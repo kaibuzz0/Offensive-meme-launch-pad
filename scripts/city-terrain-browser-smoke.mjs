@@ -18,6 +18,8 @@ const pending=new Map(),exceptions=[];
 // CDP network accounting: report real transferred bytes and repeated requests.
 // These are Chromium/SwiftShader measurements, not physical Android evidence.
 const networkRequests=new Map(),networkTransfers=[];
+let networkPhase='homepage';
+const setNetworkPhase=name=>{networkPhase=name;};
 const request=(method,params={})=>new Promise((resolve,reject)=>{
  const id=++seq;pending.set(id,{resolve,reject});
  ws.send(JSON.stringify({id,method,params}));
@@ -64,7 +66,7 @@ try{
   if(msg.method==='Network.requestWillBeSent'){
    const previous=networkRequests.get(msg.params.requestId);
    if(previous&&msg.params.redirectResponse)networkTransfers.push({...previous,redirect:true,bytes:msg.params.redirectResponse.encodedDataLength||0});
-   networkRequests.set(msg.params.requestId,{url:msg.params.request.url,method:msg.params.request.method});
+   networkRequests.set(msg.params.requestId,{url:msg.params.request.url,method:msg.params.request.method,phase:networkPhase});
   }
   if(msg.method==='Network.loadingFinished'){
    const entry=networkRequests.get(msg.params.requestId);
@@ -91,6 +93,7 @@ try{
  assert.equal(publicEntry.origin,new URL(url).origin,'Play must stay on the served game origin');
  assert.ok(publicEntry.path.endsWith('/city.html'),'homepage Play must lead to the game');
  assert.equal(publicEntry.href,url,'legacy terrain entry remains supported during migration');
+ setNetworkPhase('first-entry');
  await evalPage('document.querySelector(".game-direct-play").click();true');
  await waitFor(()=>evalPage('!!window.CityTerrainWorld?.createTerrain && document.body.classList.contains("terrain-only-mode")'),'terrain script boot');
  const initial=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");const w=CityTerrainWorld.createTerrain(seed,CityFrontier.regions);const c=w.chunkAt(0,0);return {seed,count:w.anchors.length,types:new Set(w.anchors.map(a=>w.biomeAt(Math.round(a.x),Math.round(a.y)).id)).size,sites:c.sites.length,structures:c.structures.length,roads:c.tiles.filter(t=>t.road).length,legacy:localStorage.getItem("offensive-meme-city-v1-center")};})()');
@@ -210,6 +213,7 @@ try{
  // asserted below. The separate position-replay test needs repair before
  // it can reliably distinguish rendering stalls from physics movement.
  if(view.gl)await evalPage('window.dispatchEvent(new Event("pagehide"));true');
+ setNetworkPhase('forced-reload');
  await request('Page.reload',{ignoreCache:true});
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'reload terrain mode');
  const stored=await evalPage('(()=>({seed:localStorage.getItem("meme-city-terrain-seed-v1"),saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))),original:localStorage.getItem("offensive-meme-city-v1-center")}))()');
@@ -225,6 +229,7 @@ try{
    return type==='webgl'?null:original.call(this,type,...args);
   };
  `});
+ setNetworkPhase('forced-compatibility');
  await request('Page.reload',{ignoreCache:true});
  await waitFor(()=>evalPage('!!document.querySelector("#city-road-canvas")'),'compatibility renderer boot');
  await evalPage('document.getElementById("start-button").click();true');
@@ -283,6 +288,11 @@ try{
  const failed=networkTransfers.filter(item=>item.failed).map(item=>({url:item.url,error:item.error}));
  const redirects=networkTransfers.filter(item=>item.redirect).map(item=>({url:item.url,bytes:item.bytes}));
  const unfinished=[...networkRequests.values()].map(item=>({url:item.url,method:item.method}));
+ const phases=Object.fromEntries(['homepage','first-entry','forced-reload','forced-compatibility'].map(phase=>{
+  const items=networkTransfers.filter(item=>item.phase===phase);
+  return [phase,{requests:items.length,encodedBytes:items.reduce((sum,item)=>sum+item.bytes,0),failed:items.filter(item=>item.failed).length}];
+ }));
+ console.log('QA network phases (Chromium emulation; forced reloads bypass cache): '+JSON.stringify(phases));
  console.log('QA network (Chromium emulation; includes reloads): '+JSON.stringify({requests:networkTransfers.length,encodedBytes:totalBytes,failed,redirects,unfinished,repeated:repeated.slice(0,20)}));
  console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
 }finally{
