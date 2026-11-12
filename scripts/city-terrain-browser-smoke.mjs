@@ -295,6 +295,19 @@ try{
  console.log('QA network phases (Chromium emulation; forced reloads bypass cache): '+JSON.stringify(phases));
  console.log('QA network (Chromium emulation; includes reloads): '+JSON.stringify({requests:networkTransfers.length,encodedBytes:totalBytes,failed,redirects,unfinished,repeated:repeated.slice(0,20)}));
  console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
+}catch(error){
+ // Always publish phase diagnostics when a browser assertion fails, not only on PASS.
+ // Do not mistake a request still pending at browser shutdown for a memory leak.
+ const phases=Object.fromEntries(['homepage','first-entry','forced-reload','forced-compatibility'].map(phase=>{
+  const items=networkTransfers.filter(item=>item.phase===phase);
+  return [phase,{requests:items.length,encodedBytes:items.reduce((sum,item)=>sum+item.bytes,0),
+   failed:items.filter(item=>item.failed).length}];
+ }));
+ const failures=networkTransfers.filter(item=>item.failed).slice(-20);
+ const unfinished=[...networkRequests.values()].slice(-20);
+ console.error('QA failure network phases (Chromium emulation): '+JSON.stringify(phases));
+ console.error('QA failure network detail: '+JSON.stringify({failures,unfinished,exceptions:exceptions.slice(-12)}));
+ throw error;
 }finally{
  for(const x of pending.values())x.reject(Error('Browser closed'));
  if(ws){try{ws.close();}catch{}}
