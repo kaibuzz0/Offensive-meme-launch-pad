@@ -68,6 +68,16 @@ try{
    if(previous&&msg.params.redirectResponse)networkTransfers.push({...previous,redirect:true,bytes:msg.params.redirectResponse.encodedDataLength||0});
    networkRequests.set(msg.params.requestId,{url:msg.params.request.url,method:msg.params.request.method,phase:networkPhase});
   }
+  if(msg.method==='Network.responseReceived'){
+   const entry=networkRequests.get(msg.params.requestId);
+   if(entry){entry.status=msg.params.response?.status??null;
+    entry.fromDiskCache=!!msg.params.response?.fromDiskCache;
+    entry.fromServiceWorker=!!msg.params.response?.fromServiceWorker;}
+  }
+  if(msg.method==='Network.requestServedFromCache'){
+   const entry=networkRequests.get(msg.params.requestId);
+   if(entry)entry.fromCache=true;
+  }
   if(msg.method==='Network.loadingFinished'){
    const entry=networkRequests.get(msg.params.requestId);
    if(entry){networkTransfers.push({...entry,bytes:msg.params.encodedDataLength||0});networkRequests.delete(msg.params.requestId);}
@@ -290,7 +300,7 @@ try{
  const unfinished=[...networkRequests.values()].map(item=>({url:item.url,method:item.method}));
  const phases=Object.fromEntries(['homepage','first-entry','forced-reload','forced-compatibility'].map(phase=>{
   const items=networkTransfers.filter(item=>item.phase===phase);
-  return [phase,{requests:items.length,encodedBytes:items.reduce((sum,item)=>sum+item.bytes,0),failed:items.filter(item=>item.failed).length}];
+  return [phase,{requests:items.length,encodedBytes:items.reduce((sum,item)=>sum+item.bytes,0),failed:items.filter(item=>item.failed).length,cacheHits:items.filter(item=>item.fromCache||item.fromDiskCache).length,serviceWorkerHits:items.filter(item=>item.fromServiceWorker).length}];
  }));
  console.log('QA network phases (Chromium emulation; forced reloads bypass cache): '+JSON.stringify(phases));
  console.log('QA network (Chromium emulation; includes reloads): '+JSON.stringify({requests:networkTransfers.length,encodedBytes:totalBytes,failed,redirects,unfinished,repeated:repeated.slice(0,20)}));
@@ -301,7 +311,7 @@ try{
  const phases=Object.fromEntries(['homepage','first-entry','forced-reload','forced-compatibility'].map(phase=>{
   const items=networkTransfers.filter(item=>item.phase===phase);
   return [phase,{requests:items.length,encodedBytes:items.reduce((sum,item)=>sum+item.bytes,0),
-   failed:items.filter(item=>item.failed).length}];
+   failed:items.filter(item=>item.failed).length,cacheHits:items.filter(item=>item.fromCache||item.fromDiskCache).length,serviceWorkerHits:items.filter(item=>item.fromServiceWorker).length}];
  }));
  const failures=networkTransfers.filter(item=>item.failed).slice(-20);
  const unfinished=[...networkRequests.values()].slice(-20);
