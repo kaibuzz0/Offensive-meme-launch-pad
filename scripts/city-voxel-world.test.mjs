@@ -221,3 +221,22 @@ test('fortress roadside foliage follows the local biome and avoids unsafe slopes
   }
  }
 });
+
+
+test('chunk foliage reuses terrain samples without changing public feature identities',()=>{
+ for(const seed of ['plants-001','fortress-road','fortress-snow']){
+  const world=create(seed),spawn=world.spawnAt();
+  const cx=Math.floor(spawn.x/16),cz=Math.floor(spawn.z/16);
+  for(const [dx,dz] of [[0,0],[1,0],[-1,0],[0,1]]){
+   const chunk=world.chunkAt(cx+dx,cz+dz);
+   const expected=[];
+   for(const tile of chunk.tiles){
+    const feature=world.featureAt(tile.x,tile.z);
+    if(feature)expected.push({id:'plant:'+world.seed+':'+tile.x+':'+tile.z,
+     x:tile.x,z:tile.z,y:tile.height+1,...feature});
+   }
+   assert.deepEqual(plain(chunk.plants),expected);
+   assert.ok(chunk.plants.length<=256);
+  }
+ }
+});
