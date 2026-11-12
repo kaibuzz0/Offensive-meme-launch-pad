@@ -74,7 +74,9 @@
   function tick(input,dt){
    if(!Number.isFinite(dt)||dt<0)throw Error('Invalid time step');
    const step=clamp(dt,0,.05);
-   let vx=clamp(Number(input?.right)||0,-1,1),vz=clamp(Number(input?.forward)||0,-1,1);
+   // Reject non-finite axis values rather than interpreting Infinity as full-speed input.
+   const axis=n=>Number.isFinite(n)?clamp(n,-1,1):0;
+   let vx=axis(input?.right),vz=axis(input?.forward);
    const len=Math.hypot(vx,vz);
    if(len>1){vx/=len;vz/=len;}
    const yaw=Number.isFinite(input?.yaw)?input.yaw:0;
