@@ -180,3 +180,31 @@ test('detached scene does not receive late durable completion status', async () 
   assert.equal(await pending, true); // Durable write may finish; detached UI stays silent.
   assert.deepEqual(statuses, []);
 });
+
+test('nested editable controls do not trigger construction shortcuts', async () => {
+  const target = events();
+  let calls = 0, prevented = 0;
+  const bridge = attachRoadBuildControls({
+    interaction: {
+      busy: false,
+      async collect() { calls++; return { revision: calls }; },
+      async place() { calls++; return { revision: calls }; }
+    },
+    target,
+    getPlayerPose: () => ({ x: 0, y: 0, z: 0 }),
+    getPlacement: () => ({ position: { x: 1, z: 1 }, groundHeight: 0, isOccupied: () => false })
+  });
+  const fire = node => target.fire('keydown', {
+    key: 'e', target: node, preventDefault() { prevented++; }
+  });
+  fire({ tagName: 'SPAN', parentElement: { tagName: 'DIV', isContentEditable: true } });
+  fire({ tagName: 'SPAN', parentElement: { tagName: 'BUTTON' } });
+  fire({ tagName: 'SPAN', host: { tagName: 'INPUT' } });
+  assert.equal(calls, 0);
+  assert.equal(prevented, 0);
+  fire({ tagName: 'CANVAS' });
+  await tick();
+  assert.equal(calls, 1);
+  assert.equal(prevented, 1);
+  bridge.dispose();
+});
