@@ -159,3 +159,24 @@ test('inactive or failing activity guard leaves keyboard shortcuts available to 
   assert.equal(commands, 1);
   bridge.dispose();
 });
+
+test('detached scene does not receive late durable completion status', async () => {
+  const target = events(), statuses = [];
+  let finish;
+  const bridge = attachRoadBuildControls({
+    interaction: {
+      busy: false,
+      collect() { return new Promise(resolve => { finish = resolve; }); },
+      async place() { throw new Error('unexpected placement'); }
+    },
+    target,
+    getPlayerPose: () => ({ x: 0, y: 0, z: 0 }),
+    getPlacement: () => ({ position: { x: 1, z: 1 }, groundHeight: 0, isOccupied: () => false }),
+    onStatus: status => statuses.push(status)
+  });
+  const pending = bridge.collect();
+  bridge.dispose();
+  finish({ revision: 2 });
+  assert.equal(await pending, true); // Durable write may finish; detached UI stays silent.
+  assert.deepEqual(statuses, []);
+});
