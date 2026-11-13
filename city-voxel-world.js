@@ -332,6 +332,20 @@
    const mid=surfaceAt(base.x,base.y);
    return Object.freeze({x:base.x,z:base.y,y:mid.height+1});
   }
+  // Compact, deterministic actor descriptors. Runtime AI state belongs to the
+  // shared actor manager, not the regenerable chunk snapshot.
+  function roadsideWildlife(){
+   const x=gateRoad.x+3,z=gateRoad.z+22;
+   const ground=surfaceAt(x,z);
+   return Object.freeze({id:'wildlife:'+seed+':fortress-road:0',type:'wildlife',species:'fox',
+    faction:'neutral',behavior:'idle',x,z,y:ground.height+1,
+    homeX:x,homeZ:z,range:5,worldgenVersion:1});
+  }
+  function actorsInChunk(cx,cz){
+   const actor=roadsideWildlife();
+   return Math.floor(actor.x/CHUNK_SIZE)===cx&&Math.floor(actor.z/CHUNK_SIZE)===cz
+    ?Object.freeze([actor]):Object.freeze([]);
+  }
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
    const tiles=[],plants=[],roads=[];
@@ -343,7 +357,7 @@
      if(plant)plants.push(Object.freeze({id:'plant:'+seed+':'+x+':'+z,x,z,y:tile.height+1,...plant}));
     }
    return Object.freeze({cx,cz,seed,tiles:Object.freeze(tiles),plants:Object.freeze(plants),
-    structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze([]),roads:Object.freeze(roads)});
+    structures:Object.freeze(gateParts(cx,cz)),npc:actorsInChunk(cx,cz),roads:Object.freeze(roads)});
   }
   const naturalSpawn=spawnAt();
   gateRoad=buildGateRoad(naturalSpawn,rawColumn,seed);
