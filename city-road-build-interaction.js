@@ -1,6 +1,8 @@
 // Canonical first-person UI boundary for the durable road construction ledger.
 // No localStorage writes, speculative inventory credits, or optimistic voxel edits.
 // #43/#46 wire onCommitted to the shared scene and both renderers.
+import { validateBuildRecord } from './city-road-build-save-validation.js';
+
 export function createRoadBuildInteraction(commands, { onCommitted, onFeedback } = {}) {
   if (!commands || typeof commands.read !== 'function' ||
       typeof commands.collectRoadSupplies !== 'function' ||
@@ -17,9 +19,10 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
     try { onFeedback?.({ kind, message }); } catch { /* presentation cannot undo commit */ }
   };
   function validRecord(record) {
-    return record && typeof record === 'object' && !Array.isArray(record) &&
-      Number.isSafeInteger(record.revision) && record.revision >= 0 &&
-      record.inventory && typeof record.inventory === 'object' && !Array.isArray(record.inventory);
+    // Use the same complete schema/voxel journal validation as durable commands.
+    // A shallow shape check could display malformed or cross-seed world edits.
+    try { validateBuildRecord(record); return true; }
+    catch { return false; }
   }
   // Object key insertion order is not part of the committed record identity.
   // Compare canonicalized data so IndexedDB round trips cannot invent conflicts.
