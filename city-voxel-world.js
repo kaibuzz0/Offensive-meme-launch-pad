@@ -341,13 +341,17 @@
     faction:'neutral',behavior:'idle',x,z,y:ground.height+1,
     homeX:x,homeZ:z,range:5,worldgenVersion:1});
   }
+  // One immutable descriptor per world, not one terrain query/allocation per
+  // chunk reload. Persistent changes remain in the shared save/actor state.
+  const EMPTY_ACTORS=Object.freeze([]);
+  let roadsideActors=null;
   function actorsInChunk(cx,cz){
    // Reject non-owning chunks before terrain sampling or allocating an actor.
-   // Streaming distant chunks must not regenerate the same wildlife descriptor.
    const x=gateRoad.x+3,z=gateRoad.z+22;
    if(Math.floor(x/CHUNK_SIZE)!==cx||Math.floor(z/CHUNK_SIZE)!==cz)
-    return Object.freeze([]);
-   return Object.freeze([roadsideWildlife()]);
+    return EMPTY_ACTORS;
+   if(!roadsideActors)roadsideActors=Object.freeze([roadsideWildlife()]);
+   return roadsideActors;
   }
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
