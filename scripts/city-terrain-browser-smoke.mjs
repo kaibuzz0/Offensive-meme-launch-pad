@@ -200,6 +200,9 @@ try{
  // reload below deliberately bypasses cache to isolate compatibility startup.
  await request('Page.reload',{ignoreCache:false});
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'reload terrain mode');
+ // Guard against a no-op reload: the persistence checks below are only
+ // meaningful after Chromium has performed a real document navigation.
+ assert.equal(await evalPage('performance.getEntriesByType("navigation")[0]?.type'),'reload','ordinary persistence check must follow a real browser reload');
  const stored=await evalPage('(()=>({seed:localStorage.getItem("meme-city-terrain-seed-v1"),saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))),original:localStorage.getItem("offensive-meme-city-v1-center")}))()');
  assert.equal(stored.seed,initial.seed);
 
