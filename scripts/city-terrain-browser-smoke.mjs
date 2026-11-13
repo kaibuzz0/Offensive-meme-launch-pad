@@ -134,8 +134,21 @@ try{
    await waitFor(()=>evalPage('!document.getElementById("city-road-supplies").hidden'),'walk to the roadside supply cache',90000);
    await evalPage('document.getElementById("city-road-supplies").click();true');
    assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
+   // Sample actual controller displacement during gate traversal. A 90-second
+   // timeout without a trajectory cannot distinguish collision from low FPS.
+   const gateStart=Date.now();
+   const gateSamples=[];
+   let lastGateSample=0;
    try{
-    await waitFor(()=>evalPage('!document.getElementById("city-gate-seal").hidden'),'walk under the fortress arch',90000);
+    await waitFor(async()=>{
+     const now=Date.now();
+     if(now-lastGateSample>=5000){
+      lastGateSample=now;
+      const sample=await evalPage(`(()=>{const s=document.getElementById("city-voxel-status");return {x:s?.dataset.playerX,z:s?.dataset.playerZ,yaw:s?.dataset.lookYaw,fps:s?.dataset.fps,frame:s?.dataset.frameMs,gateHidden:document.getElementById("city-gate-seal")?.hidden};})()`);
+      gateSamples.push({elapsedMs:now-gateStart,...sample});
+     }
+     return evalPage('!document.getElementById("city-gate-seal").hidden');
+    },'walk under the fortress arch',90000);
    }catch(error){
     // Capture live state before releasing W. A timeout alone cannot distinguish
     // structural collision, stalled input, camera orientation or interaction range.
@@ -151,7 +164,7 @@ try{
       viewport:{width:innerWidth,height:innerHeight},
       errors:window.__cityRuntimeErrors||null};
     })()`).catch(e=>({diagnosticError:e.message}));
-    throw Error(error.message+" / gate traversal diagnostics: "+JSON.stringify(diagnostics));
+    throw Error(error.message+" / gate trajectory: "+JSON.stringify(gateSamples)+" / gate traversal diagnostics: "+JSON.stringify(diagnostics));
    }
   }finally{
    await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
