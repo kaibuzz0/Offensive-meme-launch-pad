@@ -67,7 +67,8 @@ export function attachRoadBuildControls({
   const onKey = event => {
     if (disposed || event.repeat || event.defaultPrevented ||
         event.altKey || event.ctrlKey || event.metaKey || event.isComposing || event.keyCode === 229 ||
-        isEditingTarget(event.target))
+        (isEditingTarget(event.target) ||
+         (typeof event.composedPath === 'function' && event.composedPath().some(isEditingTarget))))
       return;
     const key = event.key?.toLowerCase();
     if (key !== 'e' && key !== 'b') return;
