@@ -53,11 +53,21 @@ export function attachRoadBuildControls({
       active = false;
     }
   }
+  function isEditingTarget(node) {
+    // Keyboard events can originate inside nested editable widgets or shadow DOM.
+    // Do not consume construction shortcuts while an ancestor owns text input.
+    for (let current = node, depth = 0; current && depth < 32; depth++) {
+      if (current.isContentEditable ||
+          ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(current.tagName))
+        return true;
+      current = current.parentElement || current.parentNode || current.host;
+    }
+    return false;
+  }
   const onKey = event => {
     if (disposed || event.repeat || event.defaultPrevented ||
         event.altKey || event.ctrlKey || event.metaKey || event.isComposing || event.keyCode === 229 ||
-        event.target?.isContentEditable ||
-        ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(event.target?.tagName))
+        isEditingTarget(event.target))
       return;
     const key = event.key?.toLowerCase();
     if (key !== 'e' && key !== 'b') return;
