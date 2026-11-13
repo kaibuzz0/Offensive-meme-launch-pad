@@ -33,6 +33,10 @@ test('keyboard and touch controls use current pose, committed actions, and dispo
   });
   target.fire('keydown', { key: 'e', repeat: true });
   target.fire('keydown', { key: 'e', target: { tagName: 'INPUT' } });
+  target.fire('keydown', { key: 'e', target: { tagName: 'BUTTON' } });
+  target.fire('keydown', { key: 'b', target: { tagName: 'A' } });
+  target.fire('keydown', { key: 'e', isComposing: true });
+  target.fire('keydown', { key: 'e', keyCode: 229 });
   assert.equal(collected, 0);
   target.fire('keydown', { key: 'e', preventDefault() {} });
   await tick();
