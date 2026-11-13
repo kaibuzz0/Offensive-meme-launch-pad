@@ -8,7 +8,7 @@ export function validateBuildRecord(record) {
       record.version !== BUILD_STATE_VERSION ||
       typeof record.seed !== 'string' || !record.seed || record.seed.length > 128 ||
       !Number.isSafeInteger(record.revision) || record.revision < 0 ||
-      !record.inventory || typeof record.inventory !== 'object' ||
+      !record.inventory || typeof record.inventory !== 'object' || Array.isArray(record.inventory) ||
       !Number.isSafeInteger(record.inventory.supplies) || record.inventory.supplies < 0)
     throw new Error('invalid durable building record');
   // A record from another voxel scale cannot be safely replayed into this world.
