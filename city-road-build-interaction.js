@@ -125,7 +125,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
       return null;
     } finally { busy = false; }
   }
-  return Object.freeze({
+  const api = {
     get busy() { return busy; },
     get snapshot() { return last === null ? null : structuredClone(last); },
     // Renderer recovery must not repeat a pickup or spending command. The
@@ -134,7 +134,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
       if (busy) return false;
       // Cold renderer initialization may precede restore(). Read the durable
       // snapshot rather than silently leaving a saved build invisible.
-      if (last === null) return (await this.restore()) !== null && lastRenderedRevision !== null;
+      if (last === null) return (await api.restore()) !== null && lastRenderedRevision !== null;
       busy = true;
       try {
         // A renderer/context rebuild can discard visible geometry without changing
