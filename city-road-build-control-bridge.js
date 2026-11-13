@@ -34,11 +34,12 @@ export function attachRoadBuildControls({
       const result = kind === 'collect'
         ? await interaction.collect(pose)
         : await interaction.place({ ...getPlacement(), player: pose });
-      if (result === null) {
+      if (!result || !Number.isSafeInteger(result.revision) || result.revision < 0) {
         status('error', 'Construction action not committed');
         return false;
       }
-      status('committed', kind === 'collect' ? 'Supplies saved' : 'Build saved');
+      // Durable commit is not proof that the renderer displayed the change.
+      status('saved', kind === 'collect' ? 'Supplies saved; scene may need refresh' : 'Build saved; scene may need refresh');
       return true;
     } catch (error) {
       status('error', error instanceof Error ? error.message : 'Construction unavailable');
