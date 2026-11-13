@@ -28,6 +28,7 @@ export function saveVehicle(vehicle){return JSON.stringify(loadVehicle(vehicle))
 export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   finite(dt,'dt');
   if(dt<=0||dt>0.1) throw new RangeError('dt must be in (0, 0.1]');
+  if(typeof environment?.canOccupy!=='function') throw new TypeError('vehicle world collision predicate required');
   const v=loadVehicle(vehicle),cfg=VEHICLE_PRESETS[v.type];
   const throttle=clamp(finite(controls.throttle??0,'throttle'),-1,1);
   const brake=clamp(finite(controls.brake??0,'brake'),0,1);
@@ -40,9 +41,9 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   speed=clamp(speed,-cfg.maxSpeed*.35,cfg.maxSpeed);
   const heading=angle(v.heading+Math.tan(steer*cfg.steering)*speed/cfg.wheelbase*dt);
   const candidate={x:v.position.x+Math.sin(heading)*speed*dt,y:v.position.y,z:v.position.z+Math.cos(heading)*speed*dt};
-  if(environment.canOccupy&&!environment.canOccupy(candidate,v)) speed=0;
-  else v.position=candidate;
-  v.heading=heading;v.speed=speed;
+  if(!environment.canOccupy(candidate,v)) speed=0;
+  else {v.position=candidate;v.heading=heading;}
+  v.speed=speed;
   if(active) v.fuel=Math.max(0,v.fuel-Math.abs(throttle)*dt*.002);
   return v;
 }
