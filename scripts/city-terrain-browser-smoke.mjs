@@ -323,7 +323,7 @@ try{
  // CDP measurements are from synthetic Chromium/SwiftShader, NOT physical Android.
  // Keep this diagnostic non-gating until representative device baselines exist.
  const perf=(await request('Performance.getMetrics')).metrics||[];
- const metric=Object.fromEntries(perf.filter(m=>['JSHeapUsedSize','JSHeapTotalSize','Nodes','Documents','Frames','TaskDuration'].includes(m.name)).map(m=>[m.name,m.value]));
+ const metric=Object.fromEntries(perf.filter(m=>['JSHeapUsedSize','JSHeapTotalSize','Nodes','Documents','Frames','TaskDuration','ScriptDuration','LayoutDuration','RecalcStyleDuration'].includes(m.name)).map(m=>[m.name,m.value]));
  console.log('QA_BROWSER_METRICS '+JSON.stringify({environment:'headless Chromium / SwiftShader / mobile viewport emulation',viewport:'915x412 compatibility',metrics:metric}));
  assert.deepEqual(exceptions,[],'no uncaught JS exceptions in terrain-mode browser entry');
  console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
