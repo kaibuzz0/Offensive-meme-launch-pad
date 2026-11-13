@@ -96,3 +96,32 @@ test('missing durable receipt never reports a saved construction action', async 
   assert.match(statuses.at(-1).message, /scene may need refresh/);
   bridge.dispose();
 });
+
+test('paused gameplay rejects keyboard and touch spending without sampling world', async () => {
+  const target = events(), placeButton = events();
+  let active = false, calls = 0, sampled = 0;
+  const bridge = attachRoadBuildControls({
+    interaction: {
+      busy: false,
+      async collect() { calls++; return { revision: calls }; },
+      async place() { calls++; return { revision: calls }; }
+    },
+    target, placeButton,
+    isGameplayActive: () => active,
+    getPlayerPose: () => { sampled++; return { x: 0, y: 0, z: 0 }; },
+    getPlacement: () => ({ position: { x: 1, z: 1 }, groundHeight: 0, isOccupied: () => false })
+  });
+  target.fire('keydown', { key: 'e' });
+  placeButton.fire('click');
+  assert.equal(await bridge.collect(), false);
+  await tick();
+  assert.equal(calls, 0);
+  assert.equal(sampled, 0);
+  active = true;
+  assert.equal(await bridge.collect(), true);
+  assert.equal(calls, 1);
+  active = false;
+  assert.equal(await bridge.place(), false);
+  assert.equal(calls, 1);
+  bridge.dispose();
+});
