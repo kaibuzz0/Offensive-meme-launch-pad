@@ -41,7 +41,18 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   speed=clamp(speed,-cfg.maxSpeed*.35,cfg.maxSpeed);
   const heading=angle(v.heading+Math.tan(steer*cfg.steering)*speed/cfg.wheelbase*dt);
   const candidate={x:v.position.x+Math.sin(heading)*speed*dt,y:v.position.y,z:v.position.z+Math.cos(heading)*speed*dt};
-  if(!environment.canOccupy(candidate,v)) speed=0;
+  // Sweep the path rather than checking only its endpoint: a fast car must not
+  // cross a thin wall between fixed-step samples. The 0.25m spacing matches
+  // the canonical voxel scale; maximum travel is bounded by speed and dt.
+  const distance=Math.hypot(candidate.x-v.position.x,candidate.z-v.position.z);
+  const samples=Math.max(1,Math.ceil(distance/0.25));
+  let clear=true;
+  for(let i=1;i<=samples;i++){
+    const t=i/samples;
+    const probe={x:v.position.x+(candidate.x-v.position.x)*t,y:v.position.y,z:v.position.z+(candidate.z-v.position.z)*t};
+    if(!environment.canOccupy(probe,v)){clear=false;break;}
+  }
+  if(!clear) speed=0;
   else {v.position=candidate;v.heading=heading;}
   v.speed=speed;
   if(active) v.fuel=Math.max(0,v.fuel-Math.abs(throttle)*dt*.002);
