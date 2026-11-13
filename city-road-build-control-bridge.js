@@ -24,7 +24,7 @@ export function attachRoadBuildControls({
     listeners.push(() => node.removeEventListener(event, handler));
   }
   function status(kind, message) {
-    try { onStatus?.({ kind, message }); } catch { /* UI failure cannot change save */ }
+    try { if (!disposed) onStatus?.({ kind, message }); } catch { /* UI failure cannot change save */ }
   }
   async function run(kind) {
     // Paused scenes, menus and inactive game views must not spend supplies.
