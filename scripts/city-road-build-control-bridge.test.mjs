@@ -70,3 +70,29 @@ test('in-flight duplicate input cannot issue another durable command', async () 
   await tick();
   bridge.dispose();
 });
+
+test('missing durable receipt never reports a saved construction action', async () => {
+  const target = events();
+  const statuses = [];
+  let response;
+  const bridge = attachRoadBuildControls({
+    interaction: {
+      busy: false,
+      async collect() { return response; },
+      async place() { return response; }
+    },
+    target,
+    getPlayerPose: () => ({ x: 0, y: 0, z: 0 }),
+    getPlacement: () => ({ position: { x: 1, z: 1 }, groundHeight: 0, isOccupied: () => false }),
+    onStatus: status => statuses.push(status)
+  });
+  for (response of [undefined, null, false, {}, { revision: -1 }]) {
+    assert.equal(await bridge.collect(), false);
+    assert.equal(statuses.at(-1).kind, 'error');
+  }
+  response = { revision: 1 };
+  assert.equal(await bridge.place(), true);
+  assert.equal(statuses.at(-1).kind, 'saved');
+  assert.match(statuses.at(-1).message, /scene may need refresh/);
+  bridge.dispose();
+});
