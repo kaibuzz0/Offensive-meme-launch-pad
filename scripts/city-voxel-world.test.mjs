@@ -175,6 +175,7 @@ test('seeded fortress pieces clip into every intersecting chunk without seam gap
     assert.equal(matching.length,1,'each touched chunk owns exactly one fragment');
     const q=matching[0];
     assert.equal(q.structureId,'starter-fortress:'+w.seed);
+    assert.equal(q.fragmentId,'starter-gate:'+w.seed+':'+i+':'+cx+':'+cz,'fragments have unique render identities while sharing a source ID');
     assert.ok(q.x>=cx*16&&q.x+q.w<=cx*16+16+1e-8);
     assert.ok(q.z>=cz*16&&q.z+q.d<=cz*16+16+1e-8);
     fragments.push(q);
