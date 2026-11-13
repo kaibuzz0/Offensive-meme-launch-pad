@@ -111,3 +111,21 @@ These are candidates, **not installed dependencies**. Confirm actual LICENSE fil
 **PR review rule:** record exact head SHA, merge conflicts, test and browser evidence, release dependency and Pages publication. Merge only reviewed green compatible PRs; verify public homepage, asset loads and actual interaction after deployment. Do not fabricate physical Android measurements from emulation. Update this queue when code or CI establishes a different blocker.
 
 **Reuse research:** consult #44 before adding a dependency. Verify upstream revision, LICENSE and attribution, browser/WebGL1/PWA compatibility, size and measured runtime effect. Existing Three.js/Babylon/Rapier candidates are not approved engine replacements. User-provided reference archive `makethegameactuallylooklikethis.zip` is art direction, not licensed source content.
+
+
+## Integration owner acceptance matrix — 2026-11-12 (graphics / release)
+
+**Status:** This is a proposed contract, not a deployed gameplay feature. Current homepage source still exposes first-person `city.html?terrain=1`, forced `&render=canvas`, and original `?release=center-city-v1`. Do not remove any route or save key before migration and parity pass. Current rung remains A→B.
+
+| Boundary | Owner and consumer | Required contract / proof |
+| --- | --- | --- |
+| World snapshot | #45 generates; #46, #49 and #48 consume | Stable `worldId`, `seed`, `worldgenVersion`, chunk/object IDs, voxel edit IDs, authoritative collision and interaction metadata. Same IDs in both renderers. |
+| Player and interaction | #49 owns movement, #48 owns ledger; #46 consumes pose/loadout | Fixed-step bounded movement, world-space pose and socket transforms, single equip/inventory/edit event stream. No renderer-authored rewards or collision. |
+| Render adaptation | #46 owns; #47 verifies | Select WebGL/compatibility automatically; share snapshot, camera, object IDs, collision and interaction results. Only distance, LOD, resolution, shadow/effects and scheduling vary. Preserve silhouettes and gameplay. |
+| Saves and migration | #57 + #48 implement, #43 releases | Inventory legacy keys first; copy old data to recoverable backup, migrate to versioned candidate, validate and read back, then activate atomically. Re-running is idempotent; unknown IDs are retained as quarantined opaque records, not discarded. |
+| Flight and seats | #49/#52 define seat and controls, #53 implements, #46 renders | One player entity and world coordinate system; enter/exit, airborne collision, camera, save and optional multiplayer authority use existing interfaces. Do not start a separate flight scene. |
+| Content / wardrobe | #46 visual rigs, #48 equip IDs, #49 grip/poses, #45 NPC styling | Small free curated headgear/jacket choices first; same loadout in first-person hands and world avatar; preview, equip, reload, clipping and touch checks before catalog expansion. |
+
+**Smallest coordinated batch:** #49 reconcile current-head movement acceptance; #48 connect road supply pickup to atomic build placement and saved replay; #45 ensure stable lodge/road/placed-object identities; #46 render the placed object and a recognizable lit interior in both backends without new gameplay state; #47/#57 capture desktop/mobile Chromium screenshots, interaction logs, save/reload, memory and frame-time evidence. #43 owns homepage-to-game navigation and only merges reviewed exact-head-green, conflict-free compatible PRs. Avoid competing edits to `index.html`, shared bootstrap, controller and save keys.
+
+**Acceptance order:** homepage Play → fortress skyline → wooded road → lit lodge/interior → collect → build → reload → identical saved object and interaction in WebGL and compatibility renderer → offline Solo without wallet → legacy-save fixture migration/repeat/interruption → mobile budgets and published Pages inspection. Only then remove public mode selectors and redirect old URLs. Keep historical source and saves recoverable. Flight and wardrobe remain downstream of this gate. Research remains deduplicated in #44; evaluate an already queued meshing/material candidate before adding dependencies.
