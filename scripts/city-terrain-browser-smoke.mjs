@@ -203,6 +203,15 @@ try{
  assert.ok(positionBeforeReload,'position save must exist before reload');
  const positionBeforeParsed=JSON.parse(positionBeforeReload);
  assert.ok(positionBeforeParsed&&typeof positionBeforeParsed==='object','position save must be an object');
+ // Reject malformed coordinates before calling a stored payload a valid save.
+ // A byte-for-byte replay of NaN/null/out-of-range coordinates is not persistence.
+ const savedCoordinates=Object.entries(positionBeforeParsed).filter(([key])=>/^(x|y|z|worldX|worldY|worldZ)$/.test(key));
+ assert.ok(savedCoordinates.length>=2,'saved player position must contain at least two coordinate axes');
+ for(const [axis,value] of savedCoordinates){
+  assert.equal(typeof value,'number','saved '+axis+' must be numeric');
+  assert.ok(Number.isFinite(value),'saved '+axis+' must be finite');
+ }
+
  // Preserve browser cache on ordinary player reload; the separate renderer-failure
  // reload below deliberately bypasses cache to isolate compatibility startup.
  await request('Page.reload',{ignoreCache:false});
