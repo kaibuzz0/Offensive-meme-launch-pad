@@ -196,6 +196,13 @@ try{
  // asserted below. The separate position-replay test needs repair before
  // it can reliably distinguish rendering stalls from physics movement.
  if(view.gl)await evalPage('window.dispatchEvent(new Event("pagehide"));true');
+ // Snapshot the actual persisted position before navigation. This verifies
+ // reload does not silently overwrite a valid saved location with spawn data;
+ // controller displacement is a separate, stricter acceptance requirement.
+ const positionBeforeReload=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");return localStorage.getItem("meme-city-terrain-position-v1:"+seed);})()');
+ assert.ok(positionBeforeReload,'position save must exist before reload');
+ const positionBeforeParsed=JSON.parse(positionBeforeReload);
+ assert.ok(positionBeforeParsed&&typeof positionBeforeParsed==='object','position save must be an object');
  // Preserve browser cache on ordinary player reload; the separate renderer-failure
  // reload below deliberately bypasses cache to isolate compatibility startup.
  await request('Page.reload',{ignoreCache:false});
@@ -205,6 +212,8 @@ try{
  assert.equal(await evalPage('performance.getEntriesByType("navigation")[0]?.type'),'reload','ordinary persistence check must follow a real browser reload');
  const stored=await evalPage('(()=>({seed:localStorage.getItem("meme-city-terrain-seed-v1"),saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))),original:localStorage.getItem("offensive-meme-city-v1-center")}))()');
  assert.equal(stored.seed,initial.seed);
+ assert.deepEqual(stored.saved,positionBeforeParsed,'normal reload must preserve the pre-navigation saved coordinates');
+
 
  if(view.gl)assert.equal(await evalPage('localStorage.getItem("meme-city-gate-seal-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
  assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1','roadside supplies persist across reload');
