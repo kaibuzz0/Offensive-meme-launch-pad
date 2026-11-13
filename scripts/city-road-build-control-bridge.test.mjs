@@ -125,3 +125,33 @@ test('paused gameplay rejects keyboard and touch spending without sampling world
   assert.equal(calls, 1);
   bridge.dispose();
 });
+
+test('inactive or failing activity guard leaves keyboard shortcuts available to menus', async () => {
+  const target = events();
+  let active = false, throws = false, prevented = 0, commands = 0;
+  const bridge = attachRoadBuildControls({
+    interaction: {
+      busy: false,
+      async collect() { commands++; return { revision: commands }; },
+      async place() { commands++; return { revision: commands }; }
+    },
+    target,
+    isGameplayActive: () => { if (throws) throw new Error('scene not ready'); return active; },
+    getPlayerPose: () => ({ x: 0, y: 0, z: 0 }),
+    getPlacement: () => ({ position: { x: 1, z: 1 }, groundHeight: 0, isOccupied: () => false })
+  });
+  const key = letter => target.fire('keydown', { key: letter, preventDefault() { prevented++; } });
+  key('e');
+  assert.equal(prevented, 0);
+  throws = true;
+  key('b');
+  assert.equal(prevented, 0);
+  assert.equal(await bridge.collect(), false);
+  throws = false;
+  active = true;
+  key('e');
+  await tick();
+  assert.equal(prevented, 1);
+  assert.equal(commands, 1);
+  bridge.dispose();
+});
