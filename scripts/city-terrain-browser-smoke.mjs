@@ -52,7 +52,12 @@ try{
  ws.addEventListener('message',event=>{
   const msg=JSON.parse(event.data);
   if(msg.id&&pending.has(msg.id)){const p=pending.get(msg.id);pending.delete(msg.id);msg.error?p.reject(Error(msg.error.message)):p.resolve(msg.result);}
-  if(msg.method==='Runtime.exceptionThrown')exceptions.push(msg.params.exceptionDetails.text||'Runtime error');
+  if(msg.method==='Runtime.exceptionThrown'){
+   const detail=msg.params.exceptionDetails;
+   exceptions.push({text:detail.text,description:detail.exception?.description||null,
+    url:detail.url||null,line:detail.lineNumber,column:detail.columnNumber,
+    frames:detail.stackTrace?.callFrames?.slice(0,8).map(f=>({url:f.url,line:f.lineNumber,column:f.columnNumber,functionName:f.functionName}))||[]});
+  }
  });
  await request('Page.enable');await request('Runtime.enable');
  await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
@@ -198,6 +203,9 @@ try{
  assert.equal(stored.original,null);
  // Force WebGL initialization failure in this isolated browser session.
  await request('Page.addScriptToEvaluateOnNewDocument',{source:`
+  window.__cityRuntimeErrors=[];
+  window.addEventListener('error',event=>window.__cityRuntimeErrors.push({type:'error',message:event.message,source:event.filename,line:event.lineno,column:event.colno,stack:event.error?.stack||null}));
+  window.addEventListener('unhandledrejection',event=>window.__cityRuntimeErrors.push({type:'rejection',message:String(event.reason),stack:event.reason?.stack||null}));
   const original=HTMLCanvasElement.prototype.getContext;
   HTMLCanvasElement.prototype.getContext=function(type,...args){
    return type==='webgl'?null:original.call(this,type,...args);
