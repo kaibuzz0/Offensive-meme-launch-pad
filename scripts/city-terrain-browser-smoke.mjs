@@ -183,7 +183,7 @@ try{
  // asserted below. The separate position-replay test needs repair before
  // it can reliably distinguish rendering stalls from physics movement.
  if(view.gl)await evalPage('window.dispatchEvent(new Event("pagehide"));true');
- await request('Page.reload',{ignoreCache:true});
+ // Preserve browser cache on ordinary player reload; the separate renderer-failure\n // reload below deliberately bypasses cache to isolate compatibility startup.\n await request('Page.reload',{ignoreCache:false});
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'reload terrain mode');
  const stored=await evalPage('(()=>({seed:localStorage.getItem("meme-city-terrain-seed-v1"),saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))),original:localStorage.getItem("offensive-meme-city-v1-center")}))()');
  assert.equal(stored.seed,initial.seed);
