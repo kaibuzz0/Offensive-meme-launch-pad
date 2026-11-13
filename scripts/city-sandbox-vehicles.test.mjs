@@ -43,3 +43,22 @@ test('blocked steering cannot rotate vehicle through an obstacle',()=>{
  assert.equal(v.heading,0);
  assert.equal(v.speed,0);
 });
+
+test('vehicle sweep cannot tunnel through a quarter-meter obstacle at speed',()=>{
+ let v=createVehicle();
+ v.speed=32;
+ const wall={canOccupy:p=>p.z<0.12||p.z>0.38};
+ const next=stepVehicle(v,{throttle:1},0.1,wall);
+ assert.deepEqual(next.position,v.position);
+ assert.equal(next.heading,v.heading);
+ assert.equal(next.speed,0);
+});
+test('vehicle sweep uses bounded local probes and preserves clear-road travel',()=>{
+ let v=createVehicle();
+ v.speed=32;
+ const samples=[];
+ const next=stepVehicle(v,{},0.1,{canOccupy:p=>{samples.push(p);return true;}});
+ assert.ok(samples.length>1 && samples.length<=16);
+ assert.ok(samples.every(p=>p.z>=v.position.z&&p.z<=next.position.z));
+ assert.ok(next.position.z>v.position.z);
+});
