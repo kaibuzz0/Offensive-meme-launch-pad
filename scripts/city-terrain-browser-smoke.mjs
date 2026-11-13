@@ -247,6 +247,29 @@ try{
   return distinct.size;
  })()`);
  assert.ok(colorCount>=8,'compatibility renderer must paint actual scene pixels, not a black/gray viewport');
+
+ // Exercise the same live camera controller after WebGL failure, not only
+ // storage restoration and nonblank Canvas2D pixels. This remains a synthetic
+ // touch-emulation check; physical Android is a separate release gate.
+ await request('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+ await request('Emulation.setDeviceMetricsOverride',{width:915,height:412,deviceScaleFactor:2,mobile:true});
+ await waitFor(()=>evalPage('matchMedia("(orientation:landscape)").matches && matchMedia("(pointer:coarse)").matches'),'compatibility touch viewport',8000);
+ const fallbackYaw=await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)');
+ assert.ok(Number.isFinite(fallbackYaw),'compatibility camera exposes numeric yaw');
+ await evalPage(`(()=>{
+  const pad=document.getElementById("city-look-pad"),r=pad.getBoundingClientRect();
+  if(!r.width||!r.height)throw Error("compatibility look pad has no touch target");
+  pad.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:501,clientX:r.left+r.width*.82,clientY:r.top+r.height/2}));
+  return true;
+ })()`);
+ try{
+  await waitFor(()=>evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)') .then(yaw=>yaw>fallbackYaw+.015),'compatibility right stick rotates shared camera',8000);
+ }finally{
+  await evalPage('document.getElementById("city-look-pad").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:501}));true');
+ }
+ assert.equal(await evalPage('document.getElementById("city-look-knob").style.transform'),'','compatibility look stick recenters');
+ await request('Emulation.setTouchEmulationEnabled',{enabled:false});
+
  assert.deepEqual(exceptions,[],'no uncaught JS exceptions in terrain-mode browser entry');
  console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
 }finally{
