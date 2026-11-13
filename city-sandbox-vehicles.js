@@ -45,7 +45,10 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   // cross a thin wall between fixed-step samples. The 0.25m spacing matches
   // the canonical voxel scale; maximum travel is bounded by speed and dt.
   const distance=Math.hypot(candidate.x-v.position.x,candidate.z-v.position.z);
-  const samples=Math.max(1,Math.ceil(distance/0.25));
+  // Include the swept arc of the chassis when steering. Sampling center travel
+  // alone can skip a corner clipping a wall during a tight turn.
+  const turnArc=Math.abs(angle(heading-v.heading))*cfg.wheelbase/2;
+  const samples=Math.max(1,Math.ceil((distance+turnArc)/0.25));
   let clear=true;
   for(let i=1;i<=samples;i++){
     const t=i/samples;
