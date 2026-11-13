@@ -206,5 +206,6 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
       };
       return perform(() => commands.placeWorkbench(input));
     }
-  });
+  };
+  return api;
 }
