@@ -64,3 +64,44 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   if(active) v.fuel=Math.max(0,v.fuel-Math.abs(throttle)*dt*.002);
   return v;
 }
+
+/**
+ * Canonical seeded-world clearance adapter. The caller supplies the SAME
+ * structural obstruction predicate used by player capsules (including edits).
+ * Never infer collision from render meshes or LOD. Vehicle y is wheel-ground
+ * height; terrain support must stay within maxGroundDelta at every probe.
+ * This adapter is intentionally not wired to Play until that shared
+ * structural predicate is available in the first-person runtime.
+ */
+export function createTerrainVehicleClearance(world,structuralObstructs,{maxGroundDelta=0.45}={}){
+  if(typeof world?.surfaceAt!=='function'||typeof structuralObstructs!=='function')
+    throw new TypeError('seeded surface and shared structural obstruction query required');
+  if(!Number.isFinite(maxGroundDelta)||maxGroundDelta<0||maxGroundDelta>2)
+    throw new RangeError('invalid ground clearance tolerance');
+  return function canOccupy(position,vehicle){
+    if(!position||!vehicle||!Object.hasOwn(VEHICLE_PRESETS,vehicle.type)||
+       ![position.x,position.y,position.z,vehicle.heading].every(Number.isFinite))return false;
+    // The outer chassis perimeter is tested in 0.25m intervals, so a narrow
+    // pillar cannot be skipped between corners. Broadphase is delegated to
+    // the world's spatially indexed obstruction predicate.
+    const length=VEHICLE_PRESETS[vehicle.type].wheelbase+0.8;
+    const width=vehicle.type==='truck'?2.25:1.9;
+    const halfL=length/2,halfW=width/2,height=vehicle.type==='truck'?2.7:1.8;
+    const countL=Math.ceil(length/0.25),countW=Math.ceil(width/0.25);
+    const s=Math.sin(vehicle.heading),c=Math.cos(vehicle.heading);
+    for(let i=0;i<=countL;i++)for(let j=0;j<=countW;j++){
+      // Check the complete footprint, including thin structures in its center.
+      const longitudinal=-halfL+length*i/countL;
+      const lateral=-halfW+width*j/countW;
+      const x=position.x+s*longitudinal+c*lateral;
+      const z=position.z+c*longitudinal-s*lateral;
+      const column=world.surfaceAt(Math.floor(x),Math.floor(z));
+      if(!column||!Number.isFinite(column.height))return false;
+      const floor=column.height+1;
+      if(Math.abs(floor-position.y)>maxGroundDelta)return false;
+      if(world.gateRoad?.obstructs?.(x,position.y,z,height,0)===true)return false;
+      if(structuralObstructs(x,position.y,z,height,0)!==false)return false;
+    }
+    return true;
+  };
+}
