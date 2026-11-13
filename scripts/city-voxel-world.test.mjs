@@ -238,3 +238,24 @@ test('roadside wildlife has one deterministic chunk owner and safe terrain footi
    assert.equal(world.chunkAt(cx+dx,cz+dz).npc.filter(a=>a.id===actor.id).length,0);
  }
 });
+
+test('roadside wildlife descriptors remain bounded, immutable and seed-isolated',()=>{
+ const ids=new Set();
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),x=w.gateRoad.x+3,z=w.gateRoad.z+22;
+  const cx=Math.floor(x/w.CHUNK_SIZE),cz=Math.floor(z/w.CHUNK_SIZE);
+  const actor=w.chunkAt(cx,cz).npc[0];
+  assert.ok(Object.isFrozen(actor),'generated actor definition must be immutable');
+  assert.ok(Object.isFrozen(w.chunkAt(cx,cz).npc),'chunk population must be immutable');
+  for(const key of ['x','y','z','homeX','homeZ','range'])
+   assert.ok(Number.isFinite(actor[key]),key+' must be finite');
+  assert.ok(actor.range>0&&actor.range<=8,'bounded home radius');
+  assert.equal(actor.worldgenVersion,1);
+  assert.equal(actor.homeX,actor.x);
+  assert.equal(actor.homeZ,actor.z);
+  assert.equal(ids.has(actor.id),false,'different world seeds must not share persistence IDs');
+  ids.add(actor.id);
+  const repeat=w.chunkAt(cx,cz).npc[0];
+  assert.deepEqual(plain(actor),plain(repeat),'unloading/reloading a chunk must not reroll actors');
+ }
+});
