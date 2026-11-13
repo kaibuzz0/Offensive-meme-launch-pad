@@ -120,7 +120,24 @@ try{
  if(view.gl){
   assert.equal(view.hidden,false,'first person is default when WebGL works');
   assert.equal(await evalPage('document.getElementById("city-jump").hidden'),false,'mobile jump must be visible in first person');
-  await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.textContent.startsWith("3D ·")'),'3D chunk rendering',30000);
+  try{
+   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.textContent.startsWith("3D ·")'),'3D chunk rendering',30000);
+  }catch(error){
+   // Preserve the first failure's evidence instead of retrying blindly: this
+   // timeout previously appeared intermittently in mobile Chromium CI.
+   const diagnostics=await evalPage(`(()=>{
+    const status=document.getElementById("city-voxel-status");
+    const canvas=document.getElementById("city-voxel-canvas");
+    const gl=canvas?.getContext("webgl");
+    return {statusText:status?.textContent?.slice(0,500),
+     statusData:status?Object.fromEntries(Object.entries(status.dataset)):null,
+     canvas:{exists:!!canvas,hidden:canvas?.hidden,width:canvas?.width,height:canvas?.height},
+     webgl:{available:!!gl,lost:gl?.isContextLost(),error:gl?.getError()},
+     visibility:document.visibilityState,viewport:{width:innerWidth,height:innerHeight},
+     runtimeErrors:window.__cityRuntimeErrors||null};
+   })()`).catch(e=>({diagnosticError:e.message}));
+   throw Error(error.message+" / first-person startup diagnostics: "+JSON.stringify({diagnostics,exceptions}));
+  }
   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.dataset.meshWorker==="ready"'),'Web Worker terrain mesher initializes',30000);
   await waitFor(()=>evalPage('Number(document.getElementById("city-voxel-status")?.dataset.gpuBytes)>0'),'transferred worker geometry draws in WebGL',30000);
   const workerMetrics=await evalPage('(()=>{const el=document.getElementById("city-voxel-status");return {status:el.dataset.meshWorker,pending:Number(el.dataset.meshPending),gpuBytes:Number(el.dataset.gpuBytes)};})()');
