@@ -29,9 +29,10 @@ export function attachRoadBuildControls({
   async function run(kind) {
     // Paused scenes, menus and inactive game views must not spend supplies.
     // Sample activity at action time, including touch actions.
-    if (disposed || active || interaction.busy || !isGameplayActive()) return false;
+    if (disposed || active || interaction.busy) return false;
     active = true;
     try {
+      if (!isGameplayActive()) return false;
       // Sample the live player pose only on explicit input; never cache a
       // position from before travel or a previous scene.
       const pose = getPlayerPose();
@@ -60,6 +61,11 @@ export function attachRoadBuildControls({
       return;
     const key = event.key?.toLowerCase();
     if (key !== 'e' && key !== 'b') return;
+    // Do not intercept ordinary E/B keys while the game is paused or inactive.
+    // run() independently rechecks activity before any durable command.
+    try { if (!isGameplayActive()) return; }
+    catch { return; }
+    if (disposed || active || interaction.busy) return;
     event.preventDefault?.();
     void run(key === 'e' ? 'collect' : 'place');
   };
