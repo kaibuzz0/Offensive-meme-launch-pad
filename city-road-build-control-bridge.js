@@ -36,9 +36,19 @@ export function attachRoadBuildControls({
       // Sample the live player pose only on explicit input; never cache a
       // position from before travel or a previous scene.
       const pose = getPlayerPose();
+      if (!pose || ![pose.x, pose.y, pose.z].every(Number.isFinite))
+        throw new TypeError('Current player position unavailable');
+      let placement;
+      if (kind === 'place') {
+        placement = getPlacement();
+        if (!placement || !placement.position ||
+            ![placement.position.x, placement.position.z, placement.groundHeight].every(Number.isFinite) ||
+            typeof placement.isOccupied !== 'function')
+          throw new TypeError('Canonical placement query unavailable');
+      }
       const result = kind === 'collect'
         ? await interaction.collect(pose)
-        : await interaction.place({ ...getPlacement(), player: pose });
+        : await interaction.place({ ...placement, player: pose });
       if (!result || !Number.isSafeInteger(result.revision) || result.revision < 0) {
         status('error', 'Construction action not committed');
         return false;
