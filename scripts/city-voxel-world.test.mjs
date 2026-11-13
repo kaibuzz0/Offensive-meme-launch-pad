@@ -256,6 +256,7 @@ test('roadside wildlife descriptors remain bounded, immutable and seed-isolated'
   assert.equal(ids.has(actor.id),false,'different world seeds must not share persistence IDs');
   ids.add(actor.id);
   const repeat=w.chunkAt(cx,cz).npc[0];
+  assert.strictEqual(actor,repeat,'chunk reload reuses the same immutable actor descriptor');
   assert.deepEqual(plain(actor),plain(repeat),'unloading/reloading a chunk must not reroll actors');
  }
 });
