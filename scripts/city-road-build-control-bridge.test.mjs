@@ -212,3 +212,34 @@ test('nested editable controls do not trigger construction shortcuts', async () 
   assert.equal(prevented, 1);
   bridge.dispose();
 });
+
+test('invalid live player or placement queries never reach durable commands', async () => {
+  const target = events(), statuses = [];
+  let pose = { x: NaN, y: 0, z: 0 };
+  let placement = null;
+  let writes = 0;
+  const bridge = attachRoadBuildControls({
+    target,
+    interaction: {
+      busy: false,
+      async collect() { writes++; return { revision: writes }; },
+      async place() { writes++; return { revision: writes }; }
+    },
+    getPlayerPose: () => pose,
+    getPlacement: () => placement,
+    onStatus: event => statuses.push(event)
+  });
+  assert.equal(await bridge.collect(), false);
+  assert.equal(writes, 0);
+  pose = { x: 0, y: 0, z: 0 };
+  assert.equal(await bridge.place(), false);
+  assert.equal(writes, 0);
+  placement = { position: { x: 1, z: Infinity }, groundHeight: 0, isOccupied: () => false };
+  assert.equal(await bridge.place(), false);
+  assert.equal(writes, 0);
+  placement = { position: { x: 1, z: 2 }, groundHeight: 0, isOccupied: () => false };
+  assert.equal(await bridge.place(), true);
+  assert.equal(writes, 1);
+  assert.equal(statuses.at(-1).kind, 'saved');
+  bridge.dispose();
+});
