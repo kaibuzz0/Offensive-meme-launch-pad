@@ -89,13 +89,18 @@ export function createTerrainVehicleClearance(world,structuralObstructs,{maxGrou
     const halfL=length/2,halfW=width/2,height=vehicle.type==='truck'?2.7:1.8;
     const countL=Math.ceil(length/0.25),countW=Math.ceil(width/0.25);
     const s=Math.sin(vehicle.heading),c=Math.cos(vehicle.heading);
+    // Cache terrain columns only for this query; future edits remain observable.
+    const terrainColumns=new Map();
     for(let i=0;i<=countL;i++)for(let j=0;j<=countW;j++){
       // Check the complete footprint, including thin structures in its center.
       const longitudinal=-halfL+length*i/countL;
       const lateral=-halfW+width*j/countW;
       const x=position.x+s*longitudinal+c*lateral;
       const z=position.z+c*longitudinal-s*lateral;
-      const column=world.surfaceAt(Math.floor(x),Math.floor(z));
+      const key=`${Math.floor(x)},${Math.floor(z)}`;
+      let column;
+      if(terrainColumns.has(key))column=terrainColumns.get(key);
+      else {column=world.surfaceAt(Math.floor(x),Math.floor(z));terrainColumns.set(key,column);}
       if(!column||!Number.isFinite(column.height))return false;
       const floor=column.height+1;
       if(Math.abs(floor-position.y)>maxGroundDelta)return false;
