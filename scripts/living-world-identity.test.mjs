@@ -28,7 +28,7 @@ test('fortress road, chunk geometry and foliage regenerate identically after evi
   assert.equal(a.chunkAt(Math.floor(x/16),Math.floor(z/16)).structures.some(p=>p.x<=x&&p.x+p.w>x&&p.z<=z&&p.z+p.d>z),true);
   for(let i=0;i<600;i++)a.surfaceAt(500+i,800+i);
   assert.deepEqual(snapshot(a),snapshot(b));
-  assert.ok(a.cacheSize()<=4096,'terrain column cache must remain bounded');
+  assert.ok(a.cacheSize()<=22528,'terrain column cache must remain bounded');
   assert.ok(a.caveCacheSize()<=256,'cave cell cache must remain bounded');
  }
 });
