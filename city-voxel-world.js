@@ -337,7 +337,7 @@
   function roadsideWildlife(){
    const x=gateRoad.x+3,z=gateRoad.z+22;
    const ground=surfaceAt(x,z);
-   return Object.freeze({id:'wildlife:'+seed+':fortress-road:0',type:'wildlife',species:'fox',
+   return Object.freeze({id:'wildlife:'+seed+':fortress-road:0',type:'wildlife',kind:'wildlife',species:'fox',
     faction:'neutral',behavior:'idle',x,z,y:ground.height+1,
     homeX:x,homeZ:z,range:5,worldgenVersion:1});
   }
