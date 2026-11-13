@@ -261,3 +261,21 @@ test('roadside wildlife descriptors remain bounded, immutable and seed-isolated'
   assert.deepEqual(plain(actor),plain(repeat),'unloading/reloading a chunk must not reroll actors');
  }
 });
+
+test('nearby actor queries reuse canonical chunk identities without allocating terrain chunks',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),x=w.gateRoad.x+3,z=w.gateRoad.z+22;
+  const cx=Math.floor(x/w.CHUNK_SIZE),cz=Math.floor(z/w.CHUNK_SIZE);
+  const actor=w.chunkAt(cx,cz).npc[0];
+  const near=w.actorsNear(x,z,0);
+  assert.strictEqual(near,w.chunkAt(cx,cz).npc);
+  assert.strictEqual(near[0],actor);
+  assert.strictEqual(w.actorById(actor.id),actor);
+  assert.equal(w.actorById('retired:actor'),null);
+  assert.equal(w.actorById(null),null);
+  assert.equal(w.actorsNear(x+20,z,5).length,0);
+  assert.equal(w.actorsNear(x,z,-1).length,0);
+  assert.equal(w.actorsNear(NaN,z,5).length,0);
+  assert.equal(w.actorsNear(x,z,Infinity).length,0);
+ }
+});
