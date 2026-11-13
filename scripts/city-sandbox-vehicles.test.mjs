@@ -90,3 +90,24 @@ test('vehicle collision adapter must explicitly accept each probe',()=>{
  assert.deepEqual(next.position,v.position);
  assert.equal(next.speed,0);
 });
+
+test('tight steering samples the swept chassis arc, not only center travel',()=>{
+ const v=createVehicle('truck');v.speed=24;
+ const headings=[];
+ const next=stepVehicle(v,{steering:1},0.1,{canOccupy:(_p,chassis)=>{
+   headings.push(chassis.heading);return true;
+ }});
+ const translation=Math.hypot(next.position.x-v.position.x,next.position.z-v.position.z);
+ assert.ok(headings.length>Math.ceil(translation/0.25));
+ assert.equal(headings.at(-1),next.heading);
+});
+
+test('steering chassis arc detects obstruction between center-only probes',()=>{
+ const v=createVehicle('truck');v.speed=24;
+ const next=stepVehicle(v,{steering:1},0.1,{canOccupy:(_p,chassis)=>
+   !(chassis.heading>0.015&&chassis.heading<0.025)
+ });
+ assert.deepEqual(next.position,v.position);
+ assert.equal(next.heading,v.heading);
+ assert.equal(next.speed,0);
+});
