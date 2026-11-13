@@ -353,6 +353,21 @@
    if(!roadsideActors)roadsideActors=Object.freeze([roadsideWildlife()]);
    return roadsideActors;
   }
+  // Lightweight actor queries share chunk descriptors without generating 256 tiles.
+  // Keep mutable AI and save state in the shared actor runtime, never in worldgen.
+  function actorById(id){
+   if(typeof id!=='string')return null;
+   const x=gateRoad.x+3,z=gateRoad.z+22;
+   return id==='wildlife:'+seed+':fortress-road:0'
+    ? actorsInChunk(Math.floor(x/CHUNK_SIZE),Math.floor(z/CHUNK_SIZE))[0]:null;
+  }
+  function actorsNear(x,z,radius){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0)
+    return EMPTY_ACTORS;
+   const ax=gateRoad.x+3,az=gateRoad.z+22;
+   if(Math.hypot(x-ax,z-az)>radius)return EMPTY_ACTORS;
+   return actorsInChunk(Math.floor(ax/CHUNK_SIZE),Math.floor(az/CHUNK_SIZE));
+  }
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
    const tiles=[],plants=[],roads=[];
@@ -386,7 +401,7 @@
    return fragments;
   }
   return Object.freeze({seed,atlas,gateRoad,gateParts,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,MIN_HEIGHT,MAX_HEIGHT,
-   SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,isWaterAt,featureAt,chunkAt,
+   SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,isWaterAt,featureAt,chunkAt,actorsNear,actorById,
    cacheSize:()=>cache.size,caveCacheSize:()=>caveCells.size,spawnAt:()=>({...naturalSpawn,y:surfaceAt(naturalSpawn.x,naturalSpawn.z).height+1})});
  }
  root.CityVoxelWorld=Object.freeze({createVoxelWorld,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,
