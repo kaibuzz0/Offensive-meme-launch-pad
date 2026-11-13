@@ -221,3 +221,20 @@ test('fortress roadside foliage follows the local biome and avoids unsafe slopes
   }
  }
 });
+
+test('roadside wildlife has one deterministic chunk owner and safe terrain footing',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const world=create(seed),road=world.gateRoad;
+  const x=road.x+3,z=road.z+22,cx=Math.floor(x/16),cz=Math.floor(z/16);
+  const actors=world.chunkAt(cx,cz).npc;
+  assert.equal(actors.length,1);
+  const actor=actors[0];
+  assert.equal(actor.id,'wildlife:'+world.seed+':fortress-road:0');
+  assert.equal(actor.species,'fox');
+  assert.equal(actor.y,world.surfaceAt(x,z).height+1);
+  assert.equal(world.surfaceAt(x,z).water,false);
+  assert.deepEqual(plain(actors),plain(create(seed).chunkAt(cx,cz).npc));
+  for(const [dx,dz] of [[-1,0],[1,0],[0,-1],[0,1]])
+   assert.equal(world.chunkAt(cx+dx,cz+dz).npc.filter(a=>a.id===actor.id).length,0);
+ }
+});
