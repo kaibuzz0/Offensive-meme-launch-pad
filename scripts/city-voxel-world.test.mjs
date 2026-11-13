@@ -231,6 +231,7 @@ test('roadside wildlife has one deterministic chunk owner and safe terrain footi
   const actor=actors[0];
   assert.equal(actor.id,'wildlife:'+world.seed+':fortress-road:0');
   assert.equal(actor.species,'fox');
+  assert.equal(actor.kind,'wildlife','shared actor renderer dispatches on kind');
   assert.equal(actor.y,world.surfaceAt(x,z).height+1);
   assert.equal(world.surfaceAt(x,z).water,false);
   assert.deepEqual(plain(actors),plain(create(seed).chunkAt(cx,cz).npc));
