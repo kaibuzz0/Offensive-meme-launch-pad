@@ -342,9 +342,12 @@
     homeX:x,homeZ:z,range:5,worldgenVersion:1});
   }
   function actorsInChunk(cx,cz){
-   const actor=roadsideWildlife();
-   return Math.floor(actor.x/CHUNK_SIZE)===cx&&Math.floor(actor.z/CHUNK_SIZE)===cz
-    ?Object.freeze([actor]):Object.freeze([]);
+   // Reject non-owning chunks before terrain sampling or allocating an actor.
+   // Streaming distant chunks must not regenerate the same wildlife descriptor.
+   const x=gateRoad.x+3,z=gateRoad.z+22;
+   if(Math.floor(x/CHUNK_SIZE)!==cx||Math.floor(z/CHUNK_SIZE)!==cz)
+    return Object.freeze([]);
+   return Object.freeze([roadsideWildlife()]);
   }
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
