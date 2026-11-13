@@ -62,3 +62,31 @@ test('vehicle sweep uses bounded local probes and preserves clear-road travel',(
  assert.ok(samples.every(p=>p.z>=v.position.z&&p.z<=next.position.z));
  assert.ok(next.position.z>v.position.z);
 });
+
+test('steering sweep exposes interpolated chassis heading and position to collision adapter',()=>{
+ const v=createVehicle();v.speed=32;
+ const seen=[];
+ const next=stepVehicle(v,{steering:1},0.1,{canOccupy:(point,chassis)=>{
+   seen.push({point,heading:chassis.heading,position:chassis.position});
+   return true;
+ }});
+ assert.ok(seen.length>1);
+ assert.ok(seen[0].heading>v.heading);
+ assert.ok(seen[0].heading<next.heading);
+ assert.equal(seen.at(-1).heading,next.heading);
+ assert.deepEqual(seen.at(-1).position,next.position);
+ assert.ok(seen.every(s=>s.point===s.position));
+});
+test('steering sweep rejects an intermediate oriented chassis obstruction',()=>{
+ const v=createVehicle();v.speed=32;
+ const next=stepVehicle(v,{steering:1},0.1,{canOccupy:(_point,chassis)=>chassis.heading<0.1});
+ assert.deepEqual(next.position,v.position);
+ assert.equal(next.heading,v.heading);
+ assert.equal(next.speed,0);
+});
+test('vehicle collision adapter must explicitly accept each probe',()=>{
+ const v=createVehicle();v.speed=4;
+ const next=stepVehicle(v,{},1/60,{canOccupy:()=>({clear:true})});
+ assert.deepEqual(next.position,v.position);
+ assert.equal(next.speed,0);
+});
