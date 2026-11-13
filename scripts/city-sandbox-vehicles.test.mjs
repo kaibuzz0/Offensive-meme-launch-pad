@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createVehicle,stepVehicle,saveVehicle,loadVehicle,VEHICLE_PRESETS} from '../city-sandbox-vehicles.js';
+import {createVehicle,stepVehicle,saveVehicle,loadVehicle,VEHICLE_PRESETS,createTerrainVehicleClearance} from '../city-sandbox-vehicles.js';
 const clearWorld={canOccupy:()=>true};
 test('car and truck presets initialize independently',()=>{
  for(const type of Object.keys(VEHICLE_PRESETS)){const v=createVehicle(type);assert.equal(v.type,type);assert.equal(v.fuel,VEHICLE_PRESETS[type].fuelCapacity);assert.deepEqual(v.position,{x:0,y:0,z:0});}
@@ -110,4 +110,22 @@ test('steering chassis arc detects obstruction between center-only probes',()=>{
  assert.deepEqual(next.position,v.position);
  assert.equal(next.heading,v.heading);
  assert.equal(next.speed,0);
+});
+
+
+test('seeded terrain samples reuse columns only within each clearance call',()=>{
+ let calls=0;
+ const world={surfaceAt:()=>{calls++;return {height:0};}};
+ const clearance=createTerrainVehicleClearance(world,()=>false);
+ const vehicle=createVehicle('car',{x:0,y:1,z:0});
+ assert.equal(clearance(vehicle.position,vehicle),true);
+ const first=calls;
+ assert.ok(first>0&&first<100);
+ assert.equal(clearance(vehicle.position,vehicle),true);
+ assert.equal(calls,first*2);
+});
+test('clearance rejects structures and missing terrain',()=>{
+ const vehicle=createVehicle('car',{x:0,y:1,z:0});
+ assert.equal(createTerrainVehicleClearance({surfaceAt:()=>({height:0})},()=>true)(vehicle.position,vehicle),false);
+ assert.equal(createTerrainVehicleClearance({surfaceAt:()=>null},()=>false)(vehicle.position,vehicle),false);
 });
