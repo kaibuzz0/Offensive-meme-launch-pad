@@ -3,7 +3,7 @@
 // world collision data used by the renderer. Never create a second inventory store.
 export function attachRoadBuildControls({
   interaction, target = document, collectButton, placeButton,
-  getPlayerPose, getPlacement, onStatus
+  getPlayerPose, getPlacement, isGameplayActive = () => true, onStatus
 } = {}) {
   if (!interaction || typeof interaction.collect !== 'function' ||
       typeof interaction.place !== 'function' ||
@@ -13,6 +13,8 @@ export function attachRoadBuildControls({
   if (!target || typeof target.addEventListener !== 'function' ||
       typeof target.removeEventListener !== 'function')
     throw new TypeError('event target required');
+  if (typeof isGameplayActive !== 'function')
+    throw new TypeError('isGameplayActive must be a function');
   let disposed = false;
   let active = false;
   const listeners = [];
@@ -25,7 +27,9 @@ export function attachRoadBuildControls({
     try { onStatus?.({ kind, message }); } catch { /* UI failure cannot change save */ }
   }
   async function run(kind) {
-    if (disposed || active || interaction.busy) return false;
+    // Paused scenes, menus and inactive game views must not spend supplies.
+    // Sample activity at action time, including touch actions.
+    if (disposed || active || interaction.busy || !isGameplayActive()) return false;
     active = true;
     try {
       // Sample the live player pose only on explicit input; never cache a
