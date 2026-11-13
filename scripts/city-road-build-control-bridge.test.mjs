@@ -200,6 +200,10 @@ test('nested editable controls do not trigger construction shortcuts', async () 
   fire({ tagName: 'SPAN', parentElement: { tagName: 'DIV', isContentEditable: true } });
   fire({ tagName: 'SPAN', parentElement: { tagName: 'BUTTON' } });
   fire({ tagName: 'SPAN', host: { tagName: 'INPUT' } });
+  // Shadow DOM retargeting can expose only the host as event.target.
+  target.fire('keydown', { key: 'e', target: { tagName: 'GAME-HUD' },
+    composedPath: () => [{ tagName: 'INPUT' }, { tagName: 'GAME-HUD' }],
+    preventDefault() { prevented++; } });
   assert.equal(calls, 0);
   assert.equal(prevented, 0);
   fire({ tagName: 'CANVAS' });
