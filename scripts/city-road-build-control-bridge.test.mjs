@@ -243,3 +243,30 @@ test('invalid live player or placement queries never reach durable commands', as
   assert.equal(statuses.at(-1).kind, 'saved');
   bridge.dispose();
 });
+
+
+test('async activity guards fail closed for keyboard, touch and direct actions', async () => {
+  const target = events(), placeButton = events();
+  let writes = 0, prevented = 0, sampled = 0;
+  const bridge = attachRoadBuildControls({
+    target, placeButton,
+    interaction: {
+      busy: false,
+      async collect() { writes++; return { revision: writes }; },
+      async place() { writes++; return { revision: writes }; }
+    },
+    // A Promise is truthy, but must never authorize resource spending.
+    isGameplayActive: async () => true,
+    getPlayerPose: () => { sampled++; return { x: 0, y: 0, z: 0 }; },
+    getPlacement: () => ({ position: { x: 1, z: 1 }, groundHeight: 0, isOccupied: () => false })
+  });
+  target.fire('keydown', { key: 'e', preventDefault() { prevented++; } });
+  placeButton.fire('click');
+  assert.equal(await bridge.collect(), false);
+  assert.equal(await bridge.place(), false);
+  await tick();
+  assert.equal(writes, 0);
+  assert.equal(sampled, 0);
+  assert.equal(prevented, 0);
+  bridge.dispose();
+});
