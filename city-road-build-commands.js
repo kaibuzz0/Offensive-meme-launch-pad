@@ -29,6 +29,9 @@ export function createSoloBuildCommands(store, key, resolveRoadCrate) {
   }
   return Object.freeze({
     async read() {
+      // A same-tab refresh must observe queued commits before reading storage.
+      // The queue absorbs failed writes, so recovery still reads the durable winner.
+      await pending;
       const record = await store.read(key);
       if (record !== null && record !== undefined) validateBuildRecord(record);
       // Do not expose the store-owned object to UI code: a mutable alias could
