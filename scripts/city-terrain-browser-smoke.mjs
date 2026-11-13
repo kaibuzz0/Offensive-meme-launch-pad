@@ -268,6 +268,20 @@ try{
   await evalPage('document.getElementById("city-look-pad").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:501}));true');
  }
  assert.equal(await evalPage('document.getElementById("city-look-knob").style.transform'),'','compatibility look stick recenters');
+ // Confirm the compatibility path accepts movement input independently of
+ // camera look. This is an input contract, not yet a position-replay proof.
+ const fallbackMove=await evalPage(`(()=>{
+  const pad=document.getElementById("joystick"),r=pad.getBoundingClientRect();
+  if(!r.width||!r.height)throw Error("compatibility movement pad has no touch target");
+  pad.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:502,clientX:r.left+r.width/2,clientY:r.top+r.height*.18}));
+  return document.getElementById("joystick-knob").style.transform;
+ })()`);
+ try{
+  assert.match(fallbackMove,/translate/,'compatibility movement stick responds to touch');
+ }finally{
+  await evalPage('document.getElementById("joystick").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:502}));true');
+ }
+ assert.equal(await evalPage('document.getElementById("joystick-knob").style.transform'),'','compatibility movement stick recenters');
  await request('Emulation.setTouchEmulationEnabled',{enabled:false});
 
  assert.deepEqual(exceptions,[],'no uncaught JS exceptions in terrain-mode browser entry');
