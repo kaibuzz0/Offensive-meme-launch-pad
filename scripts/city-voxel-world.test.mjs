@@ -221,3 +221,94 @@ test('fortress roadside foliage follows the local biome and avoids unsafe slopes
   }
  }
 });
+
+test('roadside wildlife has one deterministic chunk owner and safe terrain footing',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const world=create(seed),road=world.gateRoad;
+  const x=road.x+3,z=road.z+22,cx=Math.floor(x/16),cz=Math.floor(z/16);
+  const actors=world.chunkAt(cx,cz).npc;
+  assert.equal(actors.length,1);
+  const actor=actors[0];
+  assert.equal(actor.id,'wildlife:'+world.seed+':fortress-road:0');
+  assert.equal(actor.species,'fox');
+  assert.equal(actor.kind,'wildlife','shared actor renderer dispatches on kind');
+  assert.equal(actor.y,world.surfaceAt(x,z).height+1);
+  assert.equal(world.surfaceAt(x,z).water,false);
+  assert.deepEqual(plain(actors),plain(create(seed).chunkAt(cx,cz).npc));
+  for(const [dx,dz] of [[-1,0],[1,0],[0,-1],[0,1]])
+   assert.equal(world.chunkAt(cx+dx,cz+dz).npc.filter(a=>a.id===actor.id).length,0);
+ }
+});
+
+test('roadside wildlife descriptors remain bounded, immutable and seed-isolated',()=>{
+ const ids=new Set();
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),x=w.gateRoad.x+3,z=w.gateRoad.z+22;
+  const cx=Math.floor(x/w.CHUNK_SIZE),cz=Math.floor(z/w.CHUNK_SIZE);
+  const actor=w.chunkAt(cx,cz).npc[0];
+  assert.ok(Object.isFrozen(actor),'generated actor definition must be immutable');
+  assert.ok(Object.isFrozen(w.chunkAt(cx,cz).npc),'chunk population must be immutable');
+  for(const key of ['x','y','z','homeX','homeZ','range'])
+   assert.ok(Number.isFinite(actor[key]),key+' must be finite');
+  assert.ok(actor.range>0&&actor.range<=8,'bounded home radius');
+  assert.equal(actor.worldgenVersion,1);
+  assert.equal(actor.homeX,actor.x);
+  assert.equal(actor.homeZ,actor.z);
+  assert.equal(ids.has(actor.id),false,'different world seeds must not share persistence IDs');
+  ids.add(actor.id);
+  const repeat=w.chunkAt(cx,cz).npc[0];
+  assert.strictEqual(actor,repeat,'chunk reload reuses the same immutable actor descriptor');
+  assert.deepEqual(plain(actor),plain(repeat),'unloading/reloading a chunk must not reroll actors');
+ }
+});
+
+test('nearby actor queries reuse canonical chunk identities without allocating terrain chunks',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),x=w.gateRoad.x+3,z=w.gateRoad.z+22;
+  const cx=Math.floor(x/w.CHUNK_SIZE),cz=Math.floor(z/w.CHUNK_SIZE);
+  const actor=w.chunkAt(cx,cz).npc[0];
+  const near=w.actorsNear(x,z,0);
+  assert.strictEqual(near,w.chunkAt(cx,cz).npc);
+  assert.strictEqual(near[0],actor);
+  assert.strictEqual(w.actorById(actor.id),actor);
+  assert.equal(w.actorById('retired:actor'),null);
+  assert.equal(w.actorById(null),null);
+  assert.equal(w.actorsNear(x+20,z,5).length,0);
+  assert.equal(w.actorsNear(x,z,-1).length,0);
+  assert.equal(w.actorsNear(NaN,z,5).length,0);
+  assert.equal(w.actorsNear(x,z,Infinity).length,0);
+ }
+});
+
+
+test('actor lookup does not materialize terrain chunks or grow cached terrain on distant queries',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),x=w.gateRoad.x+3,z=w.gateRoad.z+22;
+  const before=w.cacheSize(),caves=w.caveCacheSize();
+  for(let i=0;i<100;i++){
+   assert.equal(w.actorsNear(x+1000+i,z+1000,4).length,0);
+   assert.equal(w.actorById('unknown:'+i),null);
+  }
+  assert.equal(w.cacheSize(),before,'distant actor queries must not sample terrain');
+  assert.equal(w.caveCacheSize(),caves,'actor queries must not generate caves');
+  const actor=w.actorsNear(x,z,1)[0];
+  assert.ok(actor,'nearby actor must be discoverable without chunk materialization');
+  assert.strictEqual(w.actorById(actor.id),actor);
+ }
+});
+
+test('WebGL wildlife silhouette is generated only in its canonical near-detail chunk',()=>{
+ for(const seed of ['fortress-road','fortress-highlands']){
+  const world=create(seed),x=world.gateRoad.x+3,z=world.gateRoad.z+22;
+  const cx=Math.floor(x/16),cz=Math.floor(z/16);
+  assert.equal(world.chunkAt(cx,cz).npc.length,1);
+  const withoutActors={...world,chunkAt:(a,b)=>({...world.chunkAt(a,b),npc:[]})};
+  const withFox=ctx.CityVoxelRenderer.generateMesh(world,cx,cz,1);
+  const withoutFox=ctx.CityVoxelRenderer.generateMesh(withoutActors,cx,cz,1);
+  assert.ok(withFox.vertices>withoutFox.vertices,'fox must contribute visible WebGL triangles');
+  assert.equal(withFox.vertices-withoutFox.vertices,240,'fox geometry must remain bounded');
+  const far=ctx.CityVoxelRenderer.generateMesh(world,cx,cz,4);
+  const farWithout=ctx.CityVoxelRenderer.generateMesh(withoutActors,cx,cz,4);
+  assert.equal(far.vertices,farWithout.vertices,'distant LOD must not duplicate actor meshes');
+ }
+});

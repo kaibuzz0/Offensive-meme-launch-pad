@@ -263,6 +263,19 @@
   for(const p of chunk.structures||world.gateParts?.(cx,cz)||[]){
    box(data,p.x,p.y,p.z,p.w,p.h,p.d,p.color);
   }
+  // Canonical seeded actors: draw only the owning near-detail chunk.
+  // Shared actor IDs and runtime state remain owned by the world/actor manager.
+  if(stride===1)for(const actor of chunk.npc||[]){
+   if(actor.kind!=='wildlife'||actor.species!=='fox')continue;
+   const x=actor.x+.5,z=actor.z+.5,y=actor.y;
+   const fur=[.58,.34,.17],dark=[.20,.18,.16],light=[.78,.72,.58];
+   box(data,x-.58,y+.48,z-.24,1.12,.68,.48,fur);
+   box(data,x+.37,y+.66,z-.25,.48,.47,.50,fur);
+   box(data,x+.72,y+.62,z-.19,.25,.20,.38,light);
+   for(const dx of [-.43,.29])for(const dz of [-.19,.15])
+    box(data,x+dx,y,z+dz,.14,.52,.14,dark);
+   box(data,x-.90,y+.71,z-.10,.42,.18,.20,fur);
+  }
   for(const plant of chunk.plants){
    if(['pine','palm','tree'].includes(plant.type)){
     // Cast a canopy footprint away from the same fixed sun used by the
@@ -658,11 +671,48 @@
     if(bottom<=0||top>=h)continue;
     projected.push({depth,x:center-width/2,top,width,height:bottom-top,color:part.color});
    }
+   // Project the same immutable, seed-owned nearby wildlife descriptors as
+   // WebGL. Keep this a silhouette-only compatibility path: no second actor
+   // generator, no terrain cache expansion and no separate collision state.
+   const nearby=typeof world.actorsNear==='function'
+    ? world.actorsNear(player.x,player.z,far):[];
+   for(const actor of nearby.slice(0,12)){
+    if(actor.kind!=='wildlife'||actor.species!=='fox')continue;
+    const dx=actor.x+.5-player.x,dz=actor.z+.5-player.z;
+    const depth=dx*forwardX+dz*forwardZ,side=dx*rightX+dz*rightZ;
+    if(depth<=1||depth>far||Math.abs(side)>depth*1.2+2)continue;
+    const center=w*.5+side*focal/depth;
+    const width=Math.max(2,Math.min(w*.22,1.35*focal/depth));
+    const top=horizon+(eye-actor.y-1.25)*focal/depth;
+    const bottom=horizon+(eye-actor.y)*focal/depth;
+    if(bottom<=0||top>=h)continue;
+    projected.push({depth,x:center-width/2,top,width,height:bottom-top,
+     color:[.58,.34,.17],fox:true});
+   }
    projected.sort((a,b)=>b.depth-a.depth);
    for(const p of projected){
     const tint=clamp(.9-p.depth/370,.48,.92);
     ctx.fillStyle='rgb('+p.color.map(v=>Math.round(clamp(v*tint,0,1)*255)).join(',')+')';
-    ctx.fillRect(p.x,p.top,p.width,p.height);
+    if(p.fox){
+     // Distinct profile, ears, tail and legs share one projected actor.
+     const bodyY=p.top+p.height*.42,bodyH=p.height*.34;
+     ctx.fillRect(p.x,bodyY,p.width,bodyH);
+     ctx.fillRect(p.x+p.width*.68,p.top,p.width*.24,p.height*.5);
+     ctx.beginPath();
+     ctx.moveTo(p.x+p.width*.72,p.top+p.height*.13);
+     ctx.lineTo(p.x+p.width*.76,p.top-p.height*.16);
+     ctx.lineTo(p.x+p.width*.84,p.top+p.height*.13);
+     ctx.lineTo(p.x+p.width*.9,p.top-p.height*.13);
+     ctx.lineTo(p.x+p.width*.96,p.top+p.height*.19);
+     ctx.fill();
+     ctx.beginPath();
+     ctx.moveTo(p.x+p.width*.12,bodyY+p.height*.08);
+     ctx.lineTo(p.x-p.width*.46,bodyY-p.height*.14);
+     ctx.lineTo(p.x-p.width*.31,bodyY+p.height*.23);
+     ctx.closePath();ctx.fill();
+     ctx.fillRect(p.x+p.width*.19,bodyY+bodyH*.7,p.width*.12,p.height*.28);
+     ctx.fillRect(p.x+p.width*.69,bodyY+bodyH*.7,p.width*.12,p.height*.28);
+    }else ctx.fillRect(p.x,p.top,p.width,p.height);
    }
    // Subtle near-foreground road guide, so a player can tell at a glance
    // that the camera is oriented toward the traversable first-person route.
