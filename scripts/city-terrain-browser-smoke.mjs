@@ -224,14 +224,34 @@ try{
   console.log('QA_BROWSER_METRICS '+JSON.stringify({stage,environment:'headless Chromium / SwiftShader / mobile viewport emulation',metrics}));
   return metrics;
  };
- await readQaMetrics('before-cached-reload');
+ // Same-document observation window: cumulative CDP duration counters are
+ // comparable only while the document remains alive. This is a diagnostic,
+ // not a leak verdict or a physical Android benchmark.
+ const sampleQaWindow=async(stage)=>{
+  const before=await readQaMetrics(stage+'-window-start');
+  await delay(250);
+  const after=await readQaMetrics(stage+'-window-end');
+  const delta={};
+  for(const key of ['TaskDuration','ScriptDuration','LayoutDuration','RecalcStyleDuration']){
+   if(Number.isFinite(before[key])&&Number.isFinite(after[key]))
+    delta[key]=Math.max(0,after[key]-before[key]);
+  }
+  console.log('QA_BROWSER_WINDOW '+JSON.stringify({
+   stage,elapsedMs:250,environment:'headless Chromium / SwiftShader / mobile viewport emulation',
+   cumulativeDurationDeltaSeconds:delta,
+   heapUsedDeltaBytes:Number.isFinite(before.JSHeapUsedSize)&&Number.isFinite(after.JSHeapUsedSize)
+    ?after.JSHeapUsedSize-before.JSHeapUsedSize:null,
+   caveat:'Short same-document diagnostic; heap growth alone does not establish a leak'
+  }));
+ };
+ await sampleQaWindow('before-cached-reload');
  await request('Page.reload',{ignoreCache:false});
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'reload terrain mode');
  // Guard against a no-op reload: the persistence checks below are only
  // meaningful after Chromium has performed a real document navigation.
  assert.equal(await evalPage('performance.getEntriesByType("navigation")[0]?.type'),'reload','ordinary persistence check must follow a real browser reload');
  const stored=await evalPage('(()=>({seed:localStorage.getItem("meme-city-terrain-seed-v1"),saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))),original:localStorage.getItem("offensive-meme-city-v1-center")}))()');
- await readQaMetrics('after-cached-reload');
+ await sampleQaWindow('after-cached-reload');
  assert.equal(stored.seed,initial.seed);
  assert.deepEqual(stored.saved,positionBeforeParsed,'normal reload must preserve the pre-navigation saved coordinates');
 
