@@ -127,10 +127,15 @@ try{
  // A fresh game starts with the world's authored heading, which need not be
  // zero radians. Check against the heading observed before the joystick test,
  // not against an invented global north-facing orientation.
- await waitFor(async()=>{
+ try{
+await waitFor(async()=>{
   const yaw=Number(await evalPage('document.getElementById("city-voxel-status")?.dataset.lookYaw'));
   return Number.isFinite(yaw)&&Math.abs(Math.atan2(Math.sin(yaw-firstYaw),Math.cos(yaw-firstYaw)))<0.02;
  },'initial camera heading restored after reload',30000);
+ }catch(error){
+  const diagnostics=await evalPage('(()=>{const status=document.getElementById("city-voxel-status");return {yaw:status?.dataset.lookYaw,playerX:status?.dataset.playerX,playerZ:status?.dataset.playerZ,status:status?.textContent,introHidden:document.getElementById("city-intro")?.hidden,seed:localStorage.getItem("meme-city-terrain-seed-v1")};})()').catch(e=>({evaluationError:e.message}));
+  throw Error(error.message+' / expected initial yaw '+firstYaw+' / reload state '+JSON.stringify(diagnostics));
+ }
 
  if(view.gl){
   assert.equal(view.hidden,false,'first person is default when WebGL works');
