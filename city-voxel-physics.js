@@ -33,12 +33,21 @@
   const initial=floorAt(start.x,start.z,requestedY);
   if(initial===null)throw Error('Spawn outside supported world');
   const state={x:start.x,z:start.z,y:initial,vy:0,grounded:true};
+  // Generated structures and player edits use the same authoritative query
+  // for walking and teleporting. Absence retains compatibility with worlds
+  // whose structural adapter has not yet been connected; unknown answers
+  // from a configured adapter are blocked, never assumed empty.
+  function structureClear(x,y,z){
+   const query=world.structuralObstructs;
+   return query===undefined || (typeof query==='function' &&
+    query(x,y,z,world.PLAYER_HEIGHT,RADIUS)===false);
+  }
   function snapshot(){return Object.freeze({...state});}
   function teleport(x,z,referenceY=Infinity){
    const floor=floorAt(x,z,referenceY);
    // Teleports must honor the same structural obstruction query as walking.
    // A rejected destination leaves the complete controller state unchanged.
-   if(floor===null||(world.gateRoad && (typeof world.gateRoad.obstructs!=='function' || world.gateRoad.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS)!==false)))return false;
+   if(floor===null||!structureClear(x,floor,z)||(world.gateRoad && (typeof world.gateRoad.obstructs!=='function' || world.gateRoad.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS)!==false)))return false;
    // Reject underground destinations whose roofs intersect the capsule,
    // including adjacent cells touched by the player's footprint.
    for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
@@ -60,7 +69,7 @@
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
     const candidateY=state.grounded?Math.max(state.y,floor):state.y;
-    if(floor===null||(world.gateRoad && (typeof world.gateRoad.obstructs!=='function' || world.gateRoad.obstructs(nx,candidateY,nz,world.PLAYER_HEIGHT,RADIUS)!==false)))break;
+    if(floor===null||!structureClear(nx,candidateY,nz)||(world.gateRoad && (typeof world.gateRoad.obstructs!=='function' || world.gateRoad.obstructs(nx,candidateY,nz,world.PLAYER_HEIGHT,RADIUS)!==false)))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
