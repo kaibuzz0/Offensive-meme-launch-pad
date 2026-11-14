@@ -35,7 +35,11 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   const steer=clamp(finite(controls.steering??0,'steering'),-1,1);
   const active=v.health>0&&v.fuel>0;
   const drag=cfg.drag*v.speed*Math.abs(v.speed)+cfg.rolling*Math.sign(v.speed);
-  let speed=v.speed+((active?throttle*cfg.acceleration:0)-drag-brake*cfg.braking*Math.sign(v.speed))*dt;
+  // Braking is dissipative: it cannot accelerate a nearly stopped chassis
+  // backward through zero, even when throttle is held simultaneously.
+  const driven=v.speed+((active?throttle*cfg.acceleration:0)-drag)*dt;
+  const brakeDelta=brake*cfg.braking*dt;
+  let speed=Math.sign(driven)*Math.max(0,Math.abs(driven)-brakeDelta);
   if(Math.sign(speed)!==Math.sign(v.speed)&&throttle===0) speed=0;
   if(Math.abs(speed)<0.02&&throttle===0) speed=0;
   speed=clamp(speed,-cfg.maxSpeed*.35,cfg.maxSpeed);
