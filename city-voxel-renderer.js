@@ -687,13 +687,32 @@
     const bottom=horizon+(eye-actor.y)*focal/depth;
     if(bottom<=0||top>=h)continue;
     projected.push({depth,x:center-width/2,top,width,height:bottom-top,
-     color:[.58,.34,.17]});
+     color:[.58,.34,.17],fox:true});
    }
    projected.sort((a,b)=>b.depth-a.depth);
    for(const p of projected){
     const tint=clamp(.9-p.depth/370,.48,.92);
     ctx.fillStyle='rgb('+p.color.map(v=>Math.round(clamp(v*tint,0,1)*255)).join(',')+')';
-    ctx.fillRect(p.x,p.top,p.width,p.height);
+    if(p.fox){
+     // Distinct profile, ears, tail and legs share one projected actor.
+     const bodyY=p.top+p.height*.42,bodyH=p.height*.34;
+     ctx.fillRect(p.x,bodyY,p.width,bodyH);
+     ctx.fillRect(p.x+p.width*.68,p.top,p.width*.24,p.height*.5);
+     ctx.beginPath();
+     ctx.moveTo(p.x+p.width*.72,p.top+p.height*.13);
+     ctx.lineTo(p.x+p.width*.76,p.top-p.height*.16);
+     ctx.lineTo(p.x+p.width*.84,p.top+p.height*.13);
+     ctx.lineTo(p.x+p.width*.9,p.top-p.height*.13);
+     ctx.lineTo(p.x+p.width*.96,p.top+p.height*.19);
+     ctx.fill();
+     ctx.beginPath();
+     ctx.moveTo(p.x+p.width*.12,bodyY+p.height*.08);
+     ctx.lineTo(p.x-p.width*.46,bodyY-p.height*.14);
+     ctx.lineTo(p.x-p.width*.31,bodyY+p.height*.23);
+     ctx.closePath();ctx.fill();
+     ctx.fillRect(p.x+p.width*.19,bodyY+bodyH*.7,p.width*.12,p.height*.28);
+     ctx.fillRect(p.x+p.width*.69,bodyY+bodyH*.7,p.width*.12,p.height*.28);
+    }else ctx.fillRect(p.x,p.top,p.width,p.height);
    }
    // Subtle near-foreground road guide, so a player can tell at a glance
    // that the camera is oriented toward the traversable first-person route.
