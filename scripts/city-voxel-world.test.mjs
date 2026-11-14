@@ -279,3 +279,20 @@ test('nearby actor queries reuse canonical chunk identities without allocating t
   assert.equal(w.actorsNear(x,z,Infinity).length,0);
  }
 });
+
+
+test('actor lookup does not materialize terrain chunks or grow cached terrain on distant queries',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow','fortress-water']){
+  const w=create(seed),x=w.gateRoad.x+3,z=w.gateRoad.z+22;
+  const before=w.cacheSize(),caves=w.caveCacheSize();
+  for(let i=0;i<100;i++){
+   assert.equal(w.actorsNear(x+1000+i,z+1000,4).length,0);
+   assert.equal(w.actorById('unknown:'+i),null);
+  }
+  assert.equal(w.cacheSize(),before,'distant actor queries must not sample terrain');
+  assert.equal(w.caveCacheSize(),caves,'actor queries must not generate caves');
+  const actor=w.actorsNear(x,z,1)[0];
+  assert.ok(actor,'nearby actor must be discoverable without chunk materialization');
+  assert.strictEqual(w.actorById(actor.id),actor);
+ }
+});
