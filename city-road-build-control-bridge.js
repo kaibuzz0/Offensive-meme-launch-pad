@@ -13,7 +13,8 @@ export function attachRoadBuildControls({
   if (!target || typeof target.addEventListener !== 'function' ||
       typeof target.removeEventListener !== 'function')
     throw new TypeError('event target required');
-  // A pending Promise is not authorization to spend resources. Require literal true.\n  if (typeof isGameplayActive !== 'function')
+  // A pending Promise is not authorization to spend resources. Require literal true.
+  if (typeof isGameplayActive !== 'function')
     throw new TypeError('isGameplayActive must be a function');
   let disposed = false;
   let active = false;
