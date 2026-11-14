@@ -9,7 +9,7 @@ test('homepage primary Play enters the existing canonical first-person route', (
   const gameCard = home.match(/<article class="home-portal game-portal">([\s\S]*?)<\/article>/)?.[1];
   assert.ok(gameCard, 'Meme City game card must exist');
   assert.match(gameCard, /<a\s+class="button primary game-direct-play"\s+href="city\.html\?terrain=1"/);
-  assert.match(home, /<a\s+class="nav-cta"[^>]*href="city\.html\?terrain=1"/);
+  assert.match(home, /<nav\s+aria-label="Main navigation">[\s\S]*?<a\s+href="city\.html\?terrain=1">Meme City<\/a>/);
 });
 
 test('wallet-free offline Solo and legacy recovery links remain reachable during migration', () => {
