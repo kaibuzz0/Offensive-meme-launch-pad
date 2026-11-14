@@ -57,3 +57,21 @@ test('unknown structural collision results fail closed when adapter is configure
   assert.equal(player.snapshot().z,0);
   assert.equal(player.teleport(0,2),false);
 });
+
+test('throwing structural adapter fails closed without interrupting walking or teleport',()=>{
+  const context={};vm.runInNewContext(source,context);
+  let unavailable=true;
+  const world={surfaceAt:()=>({height:0}),PLAYER_HEIGHT:1.8,SEA_LEVEL:-100,
+    gateRoad:{obstructs:()=>false},
+    structuralObstructs:()=>{if(unavailable)throw new Error('chunk unavailable');return false;}};
+  const player=context.CityVoxelPhysics.createController(world,{x:0,z:0});
+  const before=player.snapshot();
+  assert.doesNotThrow(()=>player.tick({forward:1},1/60));
+  assert.equal(player.snapshot().z,before.z);
+  assert.equal(player.teleport(0,2),false);
+  assert.deepEqual(player.snapshot(),before);
+  unavailable=false;
+  player.tick({forward:1},1/60);
+  assert.ok(player.snapshot().z>0);
+  assert.equal(player.teleport(0,2),true);
+});
