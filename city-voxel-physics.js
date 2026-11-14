@@ -39,8 +39,12 @@
   // from a configured adapter are blocked, never assumed empty.
   function structureClear(x,y,z){
    const query=world.structuralObstructs;
-   return query===undefined || (typeof query==='function' &&
-    query(x,y,z,world.PLAYER_HEIGHT,RADIUS)===false);
+   if(query===undefined)return true; // Legacy worlds without structural data.
+   if(typeof query!=='function')return false;
+   // Chunk eviction, unloaded edits or a failing adapter must not crash the
+   // fixed-step loop or permit passage through unknown solid geometry.
+   try{return query(x,y,z,world.PLAYER_HEIGHT,RADIUS)===false;}
+   catch(_error){return false;}
   }
   function snapshot(){return Object.freeze({...state});}
   function teleport(x,z,referenceY=Infinity){
