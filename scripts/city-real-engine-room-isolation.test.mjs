@@ -40,8 +40,14 @@ test('real engine keeps authenticated private-room state isolated from forged se
   // A duplicate sequence must be accepted as an idempotent no-op.
   assert.equal((await post('/input', {x: 1, y: 1, seq: 7, ...foreign}, a.session)).status, 200);
   const afterB = await state(b.session);
-  assert.deepEqual(afterB.self, beforeB.self, 'foreign room player must not change');
-  assert.deepEqual(afterB.players, beforeB.players, 'foreign room roster must not change');
+  // The production engine advances timers and adds transient fields between HTTP reads.
+  // Compare security-relevant durable state, not the entire live simulation snapshot.
+  const durable = player => ({id: player.id, x: player.x, y: player.y,
+    credits: player.credits, xp: player.xp, inventory: player.inventory,
+    equipped: player.equipped, rising: player.rising, plot: player.plot});
+  assert.deepEqual(durable(afterB.self), durable(beforeB.self), 'foreign room durable player state must not change');
+  assert.deepEqual(afterB.players.map(player => player.id), beforeB.players.map(player => player.id),
+    'foreign room roster membership must not change');
   assert.equal(afterB.roomInfo.code, beforeB.roomInfo.code);
   assert.equal((await post('/leave', {}, a.session)).status, 200);
   assert.equal((await fetch(base + '/state', {headers: {Authorization: 'Bearer ' + a.session}})).status, 401);
