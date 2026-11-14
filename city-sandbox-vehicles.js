@@ -104,13 +104,24 @@ export function createTerrainVehicleClearance(world,structuralObstructs,{maxGrou
       const key=`${Math.floor(x)},${Math.floor(z)}`;
       let column;
       if(terrainColumns.has(key))column=terrainColumns.get(key);
-      else {column=world.surfaceAt(Math.floor(x),Math.floor(z));terrainColumns.set(key,column);}
+      else {
+        // A missing/unloaded chunk or failed query is not proof of clearance.
+        // Keep the vehicle in place until the authoritative world can answer.
+        try { column=world.surfaceAt(Math.floor(x),Math.floor(z)); }
+        catch { return false; }
+        terrainColumns.set(key,column);
+      }
       if(!column||!Number.isFinite(column.height))return false;
       const floor=column.height+1;
       if(Math.abs(floor-position.y)>maxGroundDelta)return false;
-      if(world.gateRoad && (typeof world.gateRoad.obstructs!=='function'||
-         world.gateRoad.obstructs(x,position.y,z,height,0)!==false))return false;
-      if(structuralObstructs(x,position.y,z,height,0)!==false)return false;
+      try {
+        if(world.gateRoad && (typeof world.gateRoad.obstructs!=='function'||
+           world.gateRoad.obstructs(x,position.y,z,height,0)!==false))return false;
+        if(structuralObstructs(x,position.y,z,height,0)!==false)return false;
+      } catch {
+        // Never turn a transient collision-query failure into permission to pass.
+        return false;
+      }
     }
     return true;
   };
