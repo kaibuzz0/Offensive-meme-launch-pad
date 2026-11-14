@@ -143,6 +143,7 @@
    // Sweep both ascent and descent through the same authoritative solid
    // query. A fast fall must not tunnel through thin player-built floors.
    // Unknown/failed occupancy queries stop the body at its last valid pose.
+   let structuralLanding=false;
    if(state.y!==previousY){
     const destinationY=state.y;
     const intervals=Math.max(1,Math.ceil(Math.abs(destinationY-previousY)/.25));
@@ -157,7 +158,7 @@
      state.vy=0;
      // A downward structural collision is a landing, not an airborne stall.
      // Subsequent horizontal movement still checks the same occupancy query.
-     if(destinationY<previousY)state.grounded=true;
+     if(destinationY<previousY){state.grounded=true;structuralLanding=true;}
     }
    }
    // A solid underground roof cannot be jumped through. Leave roofless
@@ -184,7 +185,7 @@
    }
    const floor=floorAt(state.x,state.z,state.y);
    if(floor!==null&&state.y<=floor){state.y=floor;state.vy=0;state.grounded=true;}
-   else if(floor!==null&&state.y>floor+.01)state.grounded=false;
+   else if(floor!==null&&state.y>floor+.01&&!structuralLanding)state.grounded=false;
    return snapshot();
   }
   return Object.freeze({tick,snapshot,teleport,floorAt,
