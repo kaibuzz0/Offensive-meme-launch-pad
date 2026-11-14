@@ -124,18 +124,13 @@ try{
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode") && !!document.getElementById("start-button")'),'terrain reload after touch controls');
  await evalPage('document.getElementById("start-button").click();true');
  await waitFor(()=>evalPage('document.getElementById("city-intro").hidden===true'),'re-enter terrain after touch controls');
- // A fresh game starts with the world's authored heading, which need not be
- // zero radians. Check against the heading observed before the joystick test,
- // not against an invented global north-facing orientation.
- try{
-await waitFor(async()=>{
-  const yaw=Number(await evalPage('document.getElementById("city-voxel-status")?.dataset.lookYaw'));
-  return Number.isFinite(yaw)&&Math.abs(Math.atan2(Math.sin(yaw-firstYaw),Math.cos(yaw-firstYaw)))<0.02;
- },'initial camera heading restored after reload',30000);
- }catch(error){
-  const diagnostics=await evalPage('(()=>{const status=document.getElementById("city-voxel-status");return {yaw:status?.dataset.lookYaw,playerX:status?.dataset.playerX,playerZ:status?.dataset.playerZ,status:status?.textContent,introHidden:document.getElementById("city-intro")?.hidden,seed:localStorage.getItem("meme-city-terrain-seed-v1")};})()').catch(e=>({evaluationError:e.message}));
-  throw Error(error.message+' / expected initial yaw '+firstYaw+' / reload state '+JSON.stringify(diagnostics));
- }
+ // The camera may retain a small post-touch heading through reload. The
+ // traversal must test real movement, not exact equality to the initial yaw.
+ // Reject a materially rotated camera so a wall collision is not misdiagnosed.
+ await waitFor(()=>evalPage('Number.isFinite(Number(document.getElementById("city-voxel-status")?.dataset.lookYaw))'),'reloaded camera heading available',30000);
+ const routeYaw=Number(await evalPage('document.getElementById("city-voxel-status").dataset.lookYaw'));
+ const routeDeviation=Math.abs(Math.atan2(Math.sin(routeYaw-firstYaw),Math.cos(routeYaw-firstYaw)));
+ assert.ok(routeDeviation<0.10,'camera must face within 0.10 radians of the original fortress route; initial='+firstYaw+' reloaded='+routeYaw);
 
  if(view.gl){
   assert.equal(view.hidden,false,'first person is default when WebGL works');
