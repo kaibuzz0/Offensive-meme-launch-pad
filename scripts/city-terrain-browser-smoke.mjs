@@ -310,6 +310,18 @@ try{
  await readResourceAccounting('after-cached-reload');
  assert.equal(stored.seed,initial.seed);
  assert.deepEqual(stored.saved,positionBeforeParsed,'normal reload must preserve the pre-navigation saved coordinates');
+ // Separate live-controller telemetry from stored coordinates. A save-key
+ // round trip does not prove that physics restored the player's location.
+ const liveReloadPosition=await evalPage(`(()=>{
+  const s=document.getElementById("city-voxel-status");
+  const values={x:s?.dataset.playerX,z:s?.dataset.playerZ,yaw:s?.dataset.lookYaw};
+  return {values,finiteAxes:["x","z"].filter(k=>values[k]!==undefined&&Number.isFinite(Number(values[k]))).length,
+   renderer:s?.dataset.meshWorker,seed:localStorage.getItem("meme-city-terrain-seed-v1")};
+ })()`);
+ console.log('QA_LIVE_POSITION_RELOAD '+JSON.stringify({stage:'cached-reload-before-start',
+  saved:stored.saved,live:liveReloadPosition,
+  caveat:'Controller may not initialize until Start; diagnostic only, not position parity'}));
+
 
 
  if(view.gl)assert.equal(await evalPage('localStorage.getItem("meme-city-gate-seal-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
