@@ -21,3 +21,28 @@ export function projectCommittedConstruction(record, expectedSeed) {
     edits: Object.freeze(edits)
   });
 }
+
+
+// A deterministic renderer reconciliation plan. This is presentation-only:
+// the ledger remains authoritative, and repeated snapshots spend nothing.
+export function diffCommittedConstruction(previous, next, expectedSeed) {
+  const current = projectCommittedConstruction(next, expectedSeed);
+  const prior = previous === null || previous === undefined
+    ? null : projectCommittedConstruction(previous, expectedSeed);
+  if (prior && current.revision < prior.revision)
+    throw new Error('stale construction revision');
+  const oldEdits = new Map((prior?.edits ?? []).map(edit => [edit.id, edit]));
+  const newEdits = new Map(current.edits.map(edit => [edit.id, edit]));
+  const remove = [...oldEdits.values()].filter(edit => !newEdits.has(edit.id));
+  const upsert = current.edits.filter(edit => {
+    const old = oldEdits.get(edit.id);
+    return !old || old.block !== edit.block;
+  });
+  return Object.freeze({
+    seed: current.seed,
+    revision: current.revision,
+    supplies: current.supplies,
+    remove: Object.freeze(remove),
+    upsert: Object.freeze(upsert)
+  });
+}
