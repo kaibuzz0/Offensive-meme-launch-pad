@@ -104,7 +104,8 @@ export function createTerrainVehicleClearance(world,structuralObstructs,{maxGrou
       if(!column||!Number.isFinite(column.height))return false;
       const floor=column.height+1;
       if(Math.abs(floor-position.y)>maxGroundDelta)return false;
-      if(world.gateRoad?.obstructs?.(x,position.y,z,height,0)===true)return false;
+      if(world.gateRoad && (typeof world.gateRoad.obstructs!=='function'||
+         world.gateRoad.obstructs(x,position.y,z,height,0)!==false))return false;
       if(structuralObstructs(x,position.y,z,height,0)!==false)return false;
     }
     return true;
