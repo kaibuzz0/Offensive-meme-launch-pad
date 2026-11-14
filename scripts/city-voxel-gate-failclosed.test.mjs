@@ -75,3 +75,17 @@ test('throwing structural adapter fails closed without interrupting walking or t
   assert.ok(player.snapshot().z>0);
   assert.equal(player.teleport(0,2),true);
 });
+
+test('throwing gate query fails closed and recovers for walking and teleport',()=>{
+  let unavailable=true;
+  const player=controller(()=>{if(unavailable)throw new Error('gate chunk evicted');return false;});
+  const before=player.snapshot();
+  assert.doesNotThrow(()=>player.tick({forward:1},1/60));
+  assert.equal(player.snapshot().z,before.z);
+  assert.equal(player.teleport(2,2),false);
+  assert.deepEqual(player.snapshot(),before);
+  unavailable=false;
+  player.tick({forward:1},1/60);
+  assert.ok(player.snapshot().z>0);
+  assert.equal(player.teleport(2,2),true);
+});
