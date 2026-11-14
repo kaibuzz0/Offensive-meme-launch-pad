@@ -60,7 +60,9 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
     // Collision adapters may inspect the full oriented chassis, not just its center.
     // Test the heading at each swept position so turning cannot clip a wall.
     const probeVehicle={...v,position:probe,heading:angle(v.heading+angle(heading-v.heading)*t),speed};
-    if(environment.canOccupy(probe,probeVehicle)!==true){clear=false;break;}
+    // Unknown collision state must stop motion without crashing the fixed-step loop.
+    try { if(environment.canOccupy(probe,probeVehicle)!==true){clear=false;break;} }
+    catch { clear=false;break; }
   }
   if(!clear) speed=0;
   else {v.position=candidate;v.heading=heading;}
