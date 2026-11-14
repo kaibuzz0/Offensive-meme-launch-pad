@@ -38,11 +38,25 @@ try{
  });
  browser=spawn(executable,['--headless=new','--no-sandbox','--disable-dev-shm-usage',
   '--enable-unsafe-swiftshader','--use-angle=swiftshader','--remote-debugging-port=0','--user-data-dir='+profile,
-  '--no-first-run','about:blank'],{stdio:'ignore'});
+  '--no-first-run','about:blank'],{stdio:['ignore','pipe','pipe']});
+ // Preserve bounded browser diagnostics when CI fails before CDP connects.
+ // Chrome startup failures must not be confused with game-render failures.
+ let chromeOutput='';
+ const capture=chunk=>{chromeOutput=(chromeOutput+chunk.toString()).slice(-12000);};
+ browser.stdout.on('data',capture);
+ browser.stderr.on('data',capture);
+ let browserLaunchError=null;
+ browser.on('error',error=>{browserLaunchError=error;});
  const port=await waitFor(async()=>{
+  if(browserLaunchError)throw Error('Chrome spawn error: '+browserLaunchError.message);
+  if(browser.exitCode!==null||browser.signalCode!==null)
+   throw Error('Chrome exited before CDP: code='+browser.exitCode+' signal='+browser.signalCode+' output='+chromeOutput);
   try{return Number((await readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0])||null;}
   catch{return null;}
- },'CDP port');
+ },'CDP port').catch(error=>{
+  throw Error(error.message+' / chrome='+executable+' / exit='+browser.exitCode+
+   ' / signal='+browser.signalCode+' / output='+chromeOutput.slice(-6000));
+ });
  const response=await fetch('http://127.0.0.1:'+port+'/json/new?about:blank',{method:'PUT'});
  assert.equal(response.status,200);
  const page=await response.json();ws=new WebSocket(page.webSocketDebuggerUrl);
@@ -54,7 +68,7 @@ try{
   if(msg.id&&pending.has(msg.id)){const p=pending.get(msg.id);pending.delete(msg.id);msg.error?p.reject(Error(msg.error.message)):p.resolve(msg.result);}
   if(msg.method==='Runtime.exceptionThrown')exceptions.push(msg.params.exceptionDetails.text||'Runtime error');
  });
- await request('Page.enable');await request('Runtime.enable');
+ await request('Page.enable');await request('Runtime.enable');await request('Performance.enable');
  await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
  const url='http://127.0.0.1:'+server.address().port+'/city.html?terrain=1';
  await request('Page.navigate',{url:new URL('index.html',url).href});
@@ -66,6 +80,16 @@ try{
  assert.equal(await evalPage('document.querySelector(".game-direct-play").href'),url);
  await evalPage('document.querySelector(".game-direct-play").click();true');
  await waitFor(()=>evalPage('!!window.CityTerrainWorld?.createTerrain && document.body.classList.contains("terrain-only-mode")'),'terrain script boot');
+ // Verify the browser followed the actual homepage CTA, not a synthetic direct
+ // navigation to city.html. This still tests the transitional terrain route;
+ // a separate wallet-free canonical Solo journey remains a release gate.
+ const enteredUrl=await evalPage('location.href');
+ assert.equal(enteredUrl,url,'homepage Play must navigate to its advertised URL');
+ const entryState=await evalPage('(()=>({intro:!!document.getElementById("city-intro"),start:!!document.getElementById("start-button"),walletGate:!!document.querySelector("[data-wallet-required=true]")}))()');
+ assert.equal(entryState.intro&&entryState.start,true,'homepage Play must expose the game start action');
+ assert.equal(entryState.walletGate,false,'wallet-free Solo entry must not require a wallet gate');
+ console.log('QA_HOMEPAGE_PLAY',JSON.stringify({enteredUrl,viewport:'412x915',renderer:'SwiftShader Chromium',walletGate:entryState.walletGate,canonicalSoloVerified:false}));
+
  const initial=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");const w=CityTerrainWorld.createTerrain(seed,CityFrontier.regions);const c=w.chunkAt(0,0);return {seed,count:w.anchors.length,types:new Set(w.anchors.map(a=>w.biomeAt(Math.round(a.x),Math.round(a.y)).id)).size,sites:c.sites.length,structures:c.structures.length,roads:c.tiles.filter(t=>t.road).length,legacy:localStorage.getItem("offensive-meme-city-v1-center")};})()');
  assert.equal(initial.count,132);assert.equal(initial.types,132);
  const voxel=await evalPage('(()=>{const atlas=CityTerrainWorld.createTerrain(localStorage.getItem("meme-city-terrain-seed-v1"),CityFrontier.regions);const world=CityVoxelWorld.createVoxelWorld(atlas);const ground=world.surfaceAt(0,0);const mesh=CityVoxelRenderer.generateMesh(world,0,0);return {block:world.VOXEL_METERS,eye:world.EYE_HEIGHT,caves:typeof world.caveAt==="function",height:ground.height,vertices:mesh.vertices,plants:mesh.plants};})()');
@@ -134,8 +158,21 @@ try{
    await waitFor(()=>evalPage('!document.getElementById("city-road-supplies").hidden'),'walk to the roadside supply cache',90000);
    await evalPage('document.getElementById("city-road-supplies").click();true');
    assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
+   // Sample actual controller displacement during gate traversal. A 90-second
+   // timeout without a trajectory cannot distinguish collision from low FPS.
+   const gateStart=Date.now();
+   const gateSamples=[];
+   let lastGateSample=0;
    try{
-    await waitFor(()=>evalPage('!document.getElementById("city-gate-seal").hidden'),'walk under the fortress arch',90000);
+    await waitFor(async()=>{
+     const now=Date.now();
+     if(now-lastGateSample>=5000){
+      lastGateSample=now;
+      const sample=await evalPage(`(()=>{const s=document.getElementById("city-voxel-status");return {x:s?.dataset.playerX,z:s?.dataset.playerZ,yaw:s?.dataset.lookYaw,fps:s?.dataset.fps,frame:s?.dataset.frameMs,gateHidden:document.getElementById("city-gate-seal")?.hidden};})()`);
+      gateSamples.push({elapsedMs:now-gateStart,...sample});
+     }
+     return evalPage('!document.getElementById("city-gate-seal").hidden');
+    },'walk under the fortress arch',90000);
    }catch(error){
     // Capture live state before releasing W. A timeout alone cannot distinguish
     // structural collision, stalled input, camera orientation or interaction range.
@@ -151,7 +188,7 @@ try{
       viewport:{width:innerWidth,height:innerHeight},
       errors:window.__cityRuntimeErrors||null};
     })()`).catch(e=>({diagnosticError:e.message}));
-    throw Error(error.message+" / gate traversal diagnostics: "+JSON.stringify(diagnostics));
+    throw Error(error.message+" / gate trajectory: "+JSON.stringify(gateSamples)+" / gate traversal diagnostics: "+JSON.stringify(diagnostics));
    }
   }finally{
    await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
@@ -183,10 +220,109 @@ try{
  // asserted below. The separate position-replay test needs repair before
  // it can reliably distinguish rendering stalls from physics movement.
  if(view.gl)await evalPage('window.dispatchEvent(new Event("pagehide"));true');
- await request('Page.reload',{ignoreCache:true});
+ // Snapshot the actual persisted position before navigation. This verifies
+ // reload does not silently overwrite a valid saved location with spawn data;
+ // controller displacement is a separate, stricter acceptance requirement.
+ const positionBeforeReload=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");return localStorage.getItem("meme-city-terrain-position-v1:"+seed);})()');
+ assert.ok(positionBeforeReload,'position save must exist before reload');
+ const positionBeforeParsed=JSON.parse(positionBeforeReload);
+ assert.ok(positionBeforeParsed&&typeof positionBeforeParsed==='object','position save must be an object');
+ // Reject malformed coordinates before calling a stored payload a valid save.
+ // A byte-for-byte replay of NaN/null/out-of-range coordinates is not persistence.
+ const savedCoordinates=Object.entries(positionBeforeParsed).filter(([key])=>/^(x|y|z|worldX|worldY|worldZ)$/.test(key));
+ assert.ok(savedCoordinates.length>=2,'saved player position must contain at least two coordinate axes');
+ for(const [axis,value] of savedCoordinates){
+  assert.equal(typeof value,'number','saved '+axis+' must be numeric');
+  assert.ok(Number.isFinite(value),'saved '+axis+' must be finite');
+ }
+
+ // Preserve browser cache on ordinary player reload; the separate renderer-failure
+ // reload below deliberately bypasses cache to isolate compatibility startup.
+ // Capture comparable document-scoped metrics before the normal cached reload.
+ // CDP cumulative durations reset with navigation; never interpret their
+ // difference across documents as an in-process memory leak.
+ const readQaMetrics=async(stage)=>{
+  const values=(await request('Performance.getMetrics')).metrics||[];
+  const names=['JSHeapUsedSize','JSHeapTotalSize','Nodes','Documents','Frames','TaskDuration','ScriptDuration','LayoutDuration','RecalcStyleDuration'];
+  const metrics=Object.fromEntries(values.filter(m=>names.includes(m.name)).map(m=>[m.name,m.value]));
+  console.log('QA_BROWSER_METRICS '+JSON.stringify({stage,environment:'headless Chromium / SwiftShader / mobile viewport emulation',metrics}));
+  return metrics;
+ };
+ // Same-document observation window: cumulative CDP duration counters are
+ // comparable only while the document remains alive. This is a diagnostic,
+ // not a leak verdict or a physical Android benchmark.
+ const sampleQaWindow=async(stage)=>{
+  const before=await readQaMetrics(stage+'-window-start');
+  await delay(250);
+  const after=await readQaMetrics(stage+'-window-end');
+  const delta={};
+  for(const key of ['TaskDuration','ScriptDuration','LayoutDuration','RecalcStyleDuration']){
+   if(Number.isFinite(before[key])&&Number.isFinite(after[key]))
+    delta[key]=Math.max(0,after[key]-before[key]);
+  }
+  console.log('QA_BROWSER_WINDOW '+JSON.stringify({
+   stage,elapsedMs:250,environment:'headless Chromium / SwiftShader / mobile viewport emulation',
+   cumulativeDurationDeltaSeconds:delta,
+   heapUsedDeltaBytes:Number.isFinite(before.JSHeapUsedSize)&&Number.isFinite(after.JSHeapUsedSize)
+    ?after.JSHeapUsedSize-before.JSHeapUsedSize:null,
+   caveat:'Short same-document diagnostic; heap growth alone does not establish a leak'
+  }));
+ };
+ // Resource Timing is scoped to each navigation. Capture transfer accounting
+ // within each document instead of subtracting cumulative counters across reloads.
+ // Duplicate URL entries are diagnostics, not proof of duplicate network transfers:
+ // cached and service-worker responses can have transferSize=0.
+ const readResourceAccounting=async(stage)=>{
+  const resources=await evalPage(`(()=>{
+   const rows=performance.getEntriesByType("resource").map(e=>({
+    name:e.name,initiatorType:e.initiatorType,
+    transferSize:e.transferSize,encodedBodySize:e.encodedBodySize,
+    decodedBodySize:e.decodedBodySize,duration:e.duration
+   }));
+   return rows;
+  })()`);
+  const grouped=new Map();
+  for(const entry of resources){
+   const old=grouped.get(entry.name)||{url:entry.name,count:0,transferBytes:0,encodedBytes:0};
+   old.count++;old.transferBytes+=entry.transferSize||0;
+   old.encodedBytes+=entry.encodedBodySize||0;grouped.set(entry.name,old);
+  }
+  const repeats=[...grouped.values()].filter(x=>x.count>1)
+   .sort((a,b)=>b.count-a.count).slice(0,12);
+  const report={stage,environment:'headless Chromium / SwiftShader / mobile viewport emulation',
+   resourceEntries:resources.length,uniqueUrls:grouped.size,
+   transferBytes:resources.reduce((n,e)=>n+(e.transferSize||0),0),
+   encodedBytes:resources.reduce((n,e)=>n+(e.encodedBodySize||0),0),
+   repeatedUrls:repeats,
+   caveat:'Resource Timing excludes some worker/subresource traffic; repeated entries do not prove duplicate downloads'};
+  console.log('QA_RESOURCE_ACCOUNTING '+JSON.stringify(report));
+  return report;
+ };
+ await readResourceAccounting('before-cached-reload');
+ await sampleQaWindow('before-cached-reload');
+ await request('Page.reload',{ignoreCache:false});
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'reload terrain mode');
+ // Guard against a no-op reload: the persistence checks below are only
+ // meaningful after Chromium has performed a real document navigation.
+ assert.equal(await evalPage('performance.getEntriesByType("navigation")[0]?.type'),'reload','ordinary persistence check must follow a real browser reload');
  const stored=await evalPage('(()=>({seed:localStorage.getItem("meme-city-terrain-seed-v1"),saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))),original:localStorage.getItem("offensive-meme-city-v1-center")}))()');
+ await sampleQaWindow('after-cached-reload');
+ await readResourceAccounting('after-cached-reload');
  assert.equal(stored.seed,initial.seed);
+ assert.deepEqual(stored.saved,positionBeforeParsed,'normal reload must preserve the pre-navigation saved coordinates');
+ // Separate live-controller telemetry from stored coordinates. A save-key
+ // round trip does not prove that physics restored the player's location.
+ const liveReloadPosition=await evalPage(`(()=>{
+  const s=document.getElementById("city-voxel-status");
+  const values={x:s?.dataset.playerX,z:s?.dataset.playerZ,yaw:s?.dataset.lookYaw};
+  return {values,finiteAxes:["x","z"].filter(k=>values[k]!==undefined&&Number.isFinite(Number(values[k]))).length,
+   renderer:s?.dataset.meshWorker,seed:localStorage.getItem("meme-city-terrain-seed-v1")};
+ })()`);
+ console.log('QA_LIVE_POSITION_RELOAD '+JSON.stringify({stage:'cached-reload-before-start',
+  saved:stored.saved,live:liveReloadPosition,
+  caveat:'Controller may not initialize until Start; diagnostic only, not position parity'}));
+
+
 
  if(view.gl)assert.equal(await evalPage('localStorage.getItem("meme-city-gate-seal-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
  assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1','roadside supplies persist across reload');
@@ -224,8 +360,19 @@ try{
   })()`).catch(e=>({diagnosticError:e.message}));
   throw Error(error.message+" / compatibility renderer diagnostics: "+JSON.stringify({diagnostics,exceptions}));
  }
+ // The compatibility renderer must restore the SAME seed and previously
+ // claimed interactions; a painted canvas alone is not state parity.
+ const fallbackState=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");return {seed,position:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+seed)),supplies:localStorage.getItem("meme-city-road-supplies-v1:"+seed),gate:localStorage.getItem("meme-city-gate-seal-v1:"+seed)};})()');
+ assert.equal(fallbackState.seed,initial.seed,'compatibility renderer retains the same world seed');
+ assert.deepEqual(fallbackState.position,stored.saved,'renderer switch must not rewrite saved player position');
+ assert.equal(fallbackState.supplies,'1','compatibility renderer retains collected supplies');
+ assert.equal(fallbackState.gate,'1','compatibility renderer retains opened fortress gate');
  assert.equal(await evalPage('document.getElementById("city-compatibility-toggle")?.textContent'),'TRY WEBGL 3D');
  await waitFor(()=>evalPage('document.getElementById("city-render-hint")?.hidden===true'),'compatibility scene becomes visible',30000);
+ // Compare the compatibility renderer's actual document resource footprint
+ // with the accelerated route without conflating navigation-scoped timings.
+ await readResourceAccounting('compatibility-renderer-startup');
+ await sampleQaWindow('compatibility-renderer-startup');
  assert.equal(await evalPage('!!document.querySelector("a[href*=\\\"render=canvas\\\"]")'),true,'there is an escape route to low graphics before starting');
  assert.equal(await evalPage('document.querySelector("#city-road-canvas").getContext("2d").getImageData(1,1,1,1).data[3]'),255);
  const colorCount=await evalPage(`(()=>{
@@ -240,6 +387,46 @@ try{
   return distinct.size;
  })()`);
  assert.ok(colorCount>=8,'compatibility renderer must paint actual scene pixels, not a black/gray viewport');
+
+ // Exercise the same live camera controller after WebGL failure, not only
+ // storage restoration and nonblank Canvas2D pixels. This remains a synthetic
+ // touch-emulation check; physical Android is a separate release gate.
+ await request('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+ await request('Emulation.setDeviceMetricsOverride',{width:915,height:412,deviceScaleFactor:2,mobile:true});
+ await waitFor(()=>evalPage('matchMedia("(orientation:landscape)").matches && matchMedia("(pointer:coarse)").matches'),'compatibility touch viewport',8000);
+ const fallbackYaw=await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)');
+ assert.ok(Number.isFinite(fallbackYaw),'compatibility camera exposes numeric yaw');
+ await evalPage(`(()=>{
+  const pad=document.getElementById("city-look-pad"),r=pad.getBoundingClientRect();
+  if(!r.width||!r.height)throw Error("compatibility look pad has no touch target");
+  pad.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:501,clientX:r.left+r.width*.82,clientY:r.top+r.height/2}));
+  return true;
+ })()`);
+ try{
+  await waitFor(()=>evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)') .then(yaw=>yaw>fallbackYaw+.015),'compatibility right stick rotates shared camera',8000);
+ }finally{
+  await evalPage('document.getElementById("city-look-pad").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:501}));true');
+ }
+ assert.equal(await evalPage('document.getElementById("city-look-knob").style.transform'),'','compatibility look stick recenters');
+ // Confirm the compatibility path accepts movement input independently of
+ // camera look. This is an input contract, not yet a position-replay proof.
+ const fallbackMove=await evalPage(`(()=>{
+  const pad=document.getElementById("joystick"),r=pad.getBoundingClientRect();
+  if(!r.width||!r.height)throw Error("compatibility movement pad has no touch target");
+  pad.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:502,clientX:r.left+r.width/2,clientY:r.top+r.height*.18}));
+  return document.getElementById("joystick-knob").style.transform;
+ })()`);
+ try{
+  assert.match(fallbackMove,/translate/,'compatibility movement stick responds to touch');
+ }finally{
+  await evalPage('document.getElementById("joystick").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:502}));true');
+ }
+ assert.equal(await evalPage('document.getElementById("joystick-knob").style.transform'),'','compatibility movement stick recenters');
+ await request('Emulation.setTouchEmulationEnabled',{enabled:false});
+
+ // CDP measurements are from synthetic Chromium/SwiftShader, NOT physical Android.
+ // Keep this diagnostic non-gating until representative device baselines exist.
+ await readQaMetrics('compatibility-after-reload');
  assert.deepEqual(exceptions,[],'no uncaught JS exceptions in terrain-mode browser entry');
  console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
 }finally{
