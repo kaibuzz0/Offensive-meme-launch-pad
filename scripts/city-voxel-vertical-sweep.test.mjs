@@ -64,3 +64,31 @@ test('falling onto an edited structural floor lands and remains supported', () =
  for (let i = 0; i < 5; i++) player.tick({}, .05);
  assert.ok(player.snapshot().y >= standing.y - .001, 'landing must not sink through the slab');
 });
+
+test('edited floor remains stable and releases player after removal', () => {
+ const world = worldWithRoof();
+ let enabled = false;
+ world.structuralObstructs = (_x, y) => enabled && y >= 1.35 && y <= 1.55;
+ const player = controller(world);
+ for (let i = 0; i < 12; i++) player.tick({ jump: i === 0 }, .05);
+ enabled = true;
+ let landed = false;
+ for (let i = 0; i < 50; i++) {
+  const s = player.tick({}, .05);
+  if (s.grounded && s.y > 1.55) { landed = true; break; }
+ }
+ assert.ok(landed, 'must land on the structural floor');
+ const height = player.snapshot().y;
+ for (let i = 0; i < 8; i++) {
+  const s = player.tick({}, .05);
+  assert.equal(s.grounded, true);
+  assert.equal(s.y, height, 'stationary player must not bob');
+ }
+ enabled = false;
+ let falling = false;
+ for (let i = 0; i < 8; i++) {
+  const s = player.tick({}, .05);
+  if (!s.grounded && s.y < height) falling = true;
+ }
+ assert.ok(falling, 'removing floor should resume falling');
+});
