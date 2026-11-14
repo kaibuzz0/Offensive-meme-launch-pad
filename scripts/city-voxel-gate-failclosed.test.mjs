@@ -29,3 +29,31 @@ test('missing gate query blocks movement and teleport, explicit clear allows bot
   assert.ok(clear.snapshot().z>0);
   assert.equal(clear.teleport(2,2),true);
 });
+
+test('player-built structure edits affect walking and teleport immediately',()=>{
+  const context={};vm.runInNewContext(source,context);
+  let blocked=true;
+  const world={surfaceAt:()=>({height:0}),PLAYER_HEIGHT:1.8,SEA_LEVEL:-100,
+    gateRoad:{obstructs:()=>false},
+    structuralObstructs:(x,y,z)=>blocked&&z>0};
+  const player=context.CityVoxelPhysics.createController(world,{x:0,z:0});
+  player.tick({forward:1},1/60);
+  assert.equal(player.snapshot().z,0,'edit must block movement');
+  const before=player.snapshot();
+  assert.equal(player.teleport(0,2),false);
+  assert.deepEqual(player.snapshot(),before,'failed teleport must preserve state');
+  blocked=false;
+  player.tick({forward:1},1/60);
+  assert.ok(player.snapshot().z>0,'removal must be observed without stale cache');
+  assert.equal(player.teleport(0,2),true);
+});
+
+test('unknown structural collision results fail closed when adapter is configured',()=>{
+  const context={};vm.runInNewContext(source,context);
+  const world={surfaceAt:()=>({height:0}),PLAYER_HEIGHT:1.8,SEA_LEVEL:-100,
+    gateRoad:{obstructs:()=>false},structuralObstructs:()=>undefined};
+  const player=context.CityVoxelPhysics.createController(world,{x:0,z:0});
+  player.tick({forward:1},1/60);
+  assert.equal(player.snapshot().z,0);
+  assert.equal(player.teleport(0,2),false);
+});
