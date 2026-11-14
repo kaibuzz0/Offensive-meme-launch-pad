@@ -185,7 +185,11 @@
    }
    const floor=floorAt(state.x,state.z,state.y);
    if(floor!==null&&state.y<=floor){state.y=floor;state.vy=0;state.grounded=true;}
-   else if(floor!==null&&state.y>floor+.01&&!structuralLanding)state.grounded=false;
+   else if(floor!==null&&state.y>floor+.01&&!structuralLanding){
+    // Keep an edited platform stable without alternating airborne/grounded.
+    // If the edit disappears, the next tick resumes ordinary gravity.
+    state.grounded=state.grounded&&!structureClear(state.x,state.y-.05,state.z);
+   }
    return snapshot();
   }
   return Object.freeze({tick,snapshot,teleport,floorAt,
