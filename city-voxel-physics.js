@@ -140,23 +140,24 @@
     state.vy=Math.max(-40,state.vy-GRAVITY*step);
     state.y+=state.vy*step;
    }
-   // Structural ceilings use the same occupancy predicate as horizontal
-   // movement. A jump cannot bypass a generated or player-built roof.
-   // Restore the last valid feet position if the next vertical pose is unknown.
-   if(state.y>previousY){
-    // Check every quarter-voxel vertical interval, not only the endpoint:
-    // a thin roof can otherwise be crossed in a single fast jump frame.
+   // Sweep both ascent and descent through the same authoritative solid
+   // query. A fast fall must not tunnel through thin player-built floors.
+   // Unknown/failed occupancy queries stop the body at its last valid pose.
+   if(state.y!==previousY){
     const destinationY=state.y;
-    const intervals=Math.max(1,Math.ceil((destinationY-previousY)/.25));
-    let safeY=previousY;
+    const intervals=Math.max(1,Math.ceil(Math.abs(destinationY-previousY)/.25));
+    let safeY=previousY,blocked=false;
     for(let i=1;i<=intervals;i++){
      const candidateY=previousY+(destinationY-previousY)*i/intervals;
-     if(!structureClear(state.x,candidateY,state.z))break;
+     if(!structureClear(state.x,candidateY,state.z)){blocked=true;break;}
      safeY=candidateY;
     }
-    if(safeY<destinationY){
+    if(blocked){
      state.y=safeY;
      state.vy=0;
+     // A downward structural collision is a landing, not an airborne stall.
+     // Subsequent horizontal movement still checks the same occupancy query.
+     if(destinationY<previousY)state.grounded=true;
     }
    }
    // A solid underground roof cannot be jumped through. Leave roofless
