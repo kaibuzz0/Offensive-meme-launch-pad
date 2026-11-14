@@ -254,6 +254,37 @@ try{
    caveat:'Short same-document diagnostic; heap growth alone does not establish a leak'
   }));
  };
+ // Resource Timing is scoped to each navigation. Capture transfer accounting
+ // within each document instead of subtracting cumulative counters across reloads.
+ // Duplicate URL entries are diagnostics, not proof of duplicate network transfers:
+ // cached and service-worker responses can have transferSize=0.
+ const readResourceAccounting=async(stage)=>{
+  const resources=await evalPage(`(()=>{
+   const rows=performance.getEntriesByType("resource").map(e=>({
+    name:e.name,initiatorType:e.initiatorType,
+    transferSize:e.transferSize,encodedBodySize:e.encodedBodySize,
+    decodedBodySize:e.decodedBodySize,duration:e.duration
+   }));
+   return rows;
+  })()`);
+  const grouped=new Map();
+  for(const entry of resources){
+   const old=grouped.get(entry.name)||{url:entry.name,count:0,transferBytes:0,encodedBytes:0};
+   old.count++;old.transferBytes+=entry.transferSize||0;
+   old.encodedBytes+=entry.encodedBodySize||0;grouped.set(entry.name,old);
+  }
+  const repeats=[...grouped.values()].filter(x=>x.count>1)
+   .sort((a,b)=>b.count-a.count).slice(0,12);
+  const report={stage,environment:'headless Chromium / SwiftShader / mobile viewport emulation',
+   resourceEntries:resources.length,uniqueUrls:grouped.size,
+   transferBytes:resources.reduce((n,e)=>n+(e.transferSize||0),0),
+   encodedBytes:resources.reduce((n,e)=>n+(e.encodedBodySize||0),0),
+   repeatedUrls:repeats,
+   caveat:'Resource Timing excludes some worker/subresource traffic; repeated entries do not prove duplicate downloads'};
+  console.log('QA_RESOURCE_ACCOUNTING '+JSON.stringify(report));
+  return report;
+ };
+ await readResourceAccounting('before-cached-reload');
  await sampleQaWindow('before-cached-reload');
  await request('Page.reload',{ignoreCache:false});
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'reload terrain mode');
@@ -262,6 +293,7 @@ try{
  assert.equal(await evalPage('performance.getEntriesByType("navigation")[0]?.type'),'reload','ordinary persistence check must follow a real browser reload');
  const stored=await evalPage('(()=>({seed:localStorage.getItem("meme-city-terrain-seed-v1"),saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))),original:localStorage.getItem("offensive-meme-city-v1-center")}))()');
  await sampleQaWindow('after-cached-reload');
+ await readResourceAccounting('after-cached-reload');
  assert.equal(stored.seed,initial.seed);
  assert.deepEqual(stored.saved,positionBeforeParsed,'normal reload must preserve the pre-navigation saved coordinates');
 
