@@ -296,3 +296,20 @@ test('actor lookup does not materialize terrain chunks or grow cached terrain on
   assert.strictEqual(w.actorById(actor.id),actor);
  }
 });
+
+test('WebGL wildlife silhouette is generated only in its canonical near-detail chunk',()=>{
+ for(const seed of ['fortress-road','fortress-highlands']){
+  const world=create(seed),x=world.gateRoad.x+3,z=world.gateRoad.z+22;
+  const cx=Math.floor(x/16),cz=Math.floor(z/16);
+  assert.equal(world.chunkAt(cx,cz).npc.length,1);
+  const withoutActors=Object.create(world);
+  withoutActors.chunkAt=(a,b)=>({...world.chunkAt(a,b),npc:[]});
+  const withFox=ctx.CityVoxelRenderer.generateMesh(world,cx,cz,1);
+  const withoutFox=ctx.CityVoxelRenderer.generateMesh(withoutActors,cx,cz,1);
+  assert.ok(withFox.vertices>withoutFox.vertices,'fox must contribute visible WebGL triangles');
+  assert.equal(withFox.vertices-withoutFox.vertices,240,'fox geometry must remain bounded');
+  const far=ctx.CityVoxelRenderer.generateMesh(world,cx,cz,4);
+  const farWithout=ctx.CityVoxelRenderer.generateMesh(withoutActors,cx,cz,4);
+  assert.equal(far.vertices,farWithout.vertices,'distant LOD must not duplicate actor meshes');
+ }
+});
