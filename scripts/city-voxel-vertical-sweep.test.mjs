@@ -43,3 +43,24 @@ test('a failing intermediate roof query cannot escape the simulation', () => {
  assert.doesNotThrow(() => player.tick({ jump: true }, .05));
  assert.ok(player.snapshot().y < 1.35);
 });
+
+test('falling onto an edited structural floor lands and remains supported', () => {
+ const world = worldWithRoof();
+ let floorEnabled = false;
+ // The edit is placed after the player has jumped above the slab.
+ world.structuralObstructs = (_x, y) => floorEnabled && y >= 1.35 && y <= 1.55;
+ const player = controller(world);
+ for (let i = 0; i < 12; i++) player.tick({ jump: i === 0 }, .05);
+ assert.ok(player.snapshot().y > 1.8, 'player must rise above the future floor');
+ floorEnabled = true;
+ let landed = false;
+ for (let i = 0; i < 50; i++) {
+  const state = player.tick({}, .05);
+  if (state.grounded && state.y > 1.55) { landed = true; break; }
+ }
+ assert.ok(landed, 'fall should land on the edited floor above terrain');
+ const standing = player.snapshot();
+ assert.equal(standing.vy, 0);
+ for (let i = 0; i < 5; i++) player.tick({}, .05);
+ assert.ok(player.snapshot().y >= standing.y - .001, 'landing must not sink through the slab');
+});
