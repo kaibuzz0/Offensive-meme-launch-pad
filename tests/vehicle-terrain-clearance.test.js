@@ -28,3 +28,28 @@ test('LOD-independent world predicate blocks gate structure',()=>{
   const car=createVehicle('car',{x:0,y:1,z:0});
   assert.equal(createTerrainVehicleClearance(world,()=>false)(car.position,car),false);
 });
+
+test('terrain clearance observes edits between physics queries without stale column cache',()=>{
+  let elevation=0;
+  let calls=0;
+  const world={surfaceAt:()=>{calls++;return {height:elevation};}};
+  const clear=createTerrainVehicleClearance(world,()=>false);
+  const car=createVehicle('car',{x:0,y:1,z:0});
+  assert.equal(clear(car.position,car),true);
+  const firstCalls=calls;
+  assert.ok(firstCalls>0);
+  elevation=2;
+  assert.equal(clear(car.position,car),false);
+  assert.ok(calls>firstCalls,'new physics query must resample edited terrain');
+  elevation=0;
+  assert.equal(clear(car.position,car),true);
+});
+
+test('structural edit removal is immediately reflected in clearance',()=>{
+  let blocked=true;
+  const clear=createTerrainVehicleClearance(flat,()=>blocked);
+  const car=createVehicle('car',{x:0,y:1,z:0});
+  assert.equal(clear(car.position,car),false);
+  blocked=false;
+  assert.equal(clear(car.position,car),true);
+});
