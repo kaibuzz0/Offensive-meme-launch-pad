@@ -124,7 +124,13 @@ try{
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode") && !!document.getElementById("start-button")'),'terrain reload after touch controls');
  await evalPage('document.getElementById("start-button").click();true');
  await waitFor(()=>evalPage('document.getElementById("city-intro").hidden===true'),'re-enter terrain after touch controls');
- await waitFor(()=>evalPage('Math.abs(Number(document.getElementById("city-voxel-status")?.dataset.lookYaw))<0.02'),'straight-ahead camera restored',30000);
+ // A fresh game starts with the world's authored heading, which need not be
+ // zero radians. Check against the heading observed before the joystick test,
+ // not against an invented global north-facing orientation.
+ await waitFor(async()=>{
+  const yaw=Number(await evalPage('document.getElementById("city-voxel-status")?.dataset.lookYaw'));
+  return Number.isFinite(yaw)&&Math.abs(Math.atan2(Math.sin(yaw-firstYaw),Math.cos(yaw-firstYaw)))<0.02;
+ },'initial camera heading restored after reload',30000);
 
  if(view.gl){
   assert.equal(view.hidden,false,'first person is default when WebGL works');
