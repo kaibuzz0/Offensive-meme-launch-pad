@@ -129,3 +129,14 @@ test('clearance rejects structures and missing terrain',()=>{
  assert.equal(createTerrainVehicleClearance({surfaceAt:()=>({height:0})},()=>true)(vehicle.position,vehicle),false);
  assert.equal(createTerrainVehicleClearance({surfaceAt:()=>null},()=>false)(vehicle.position,vehicle),false);
 });
+
+test('seeded gate clearance fails closed on unknown results or missing gate query',()=>{
+ const vehicle=createVehicle('car',{x:0,y:1,z:0});
+ const surfaceAt=()=>({height:0});
+ for(const gateRoad of [{obstructs:()=>undefined},{obstructs:()=>null},{obstructs:()=>1},{}]){
+   const clearance=createTerrainVehicleClearance({surfaceAt,gateRoad},()=>false);
+   assert.equal(clearance(vehicle.position,vehicle),false);
+ }
+ const clear=createTerrainVehicleClearance({surfaceAt,gateRoad:{obstructs:()=>false}},()=>false);
+ assert.equal(clear(vehicle.position,vehicle),true);
+});
