@@ -41,3 +41,20 @@ test('collision decisions are independent of cosmetic renderer detail', () => {
   assert.equal(occupied(v.position, { ...v, visualLOD: 'high' }), false);
   assert.equal(occupied(v.position, { ...v, visualLOD: 'low' }), false);
 });
+
+test('unavailable terrain chunks fail closed without crashing the physics step', () => {
+  const occupied = createTerrainVehicleClearance({ surfaceAt: () => { throw new Error('chunk unavailable'); } }, () => false);
+  const v = vehicle();
+  assert.equal(occupied(v.position, v), false);
+  const next = stepVehicle(v, { throttle: 1 }, 1 / 60, { canOccupy: occupied });
+  assert.deepEqual(next.position, v.position);
+  assert.equal(next.speed, 0);
+});
+
+test('structural and gate query exceptions fail closed', () => {
+  const v = vehicle();
+  const structural = createTerrainVehicleClearance(ground, () => { throw new Error('edit index rebuilding'); });
+  assert.equal(structural(v.position, v), false);
+  const gate = createTerrainVehicleClearance({ ...ground, gateRoad: { obstructs: () => { throw new Error('gate unavailable'); } } }, () => false);
+  assert.equal(gate(v.position, v), false);
+});
