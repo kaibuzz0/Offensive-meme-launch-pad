@@ -38,11 +38,25 @@ try{
  });
  browser=spawn(executable,['--headless=new','--no-sandbox','--disable-dev-shm-usage',
   '--enable-unsafe-swiftshader','--use-angle=swiftshader','--remote-debugging-port=0','--user-data-dir='+profile,
-  '--no-first-run','about:blank'],{stdio:'ignore'});
+  '--no-first-run','about:blank'],{stdio:['ignore','pipe','pipe']});
+ // Preserve bounded browser diagnostics when CI fails before CDP connects.
+ // Chrome startup failures must not be confused with game-render failures.
+ let chromeOutput='';
+ const capture=chunk=>{chromeOutput=(chromeOutput+chunk.toString()).slice(-12000);};
+ browser.stdout.on('data',capture);
+ browser.stderr.on('data',capture);
+ let browserLaunchError=null;
+ browser.on('error',error=>{browserLaunchError=error;});
  const port=await waitFor(async()=>{
+  if(browserLaunchError)throw Error('Chrome spawn error: '+browserLaunchError.message);
+  if(browser.exitCode!==null||browser.signalCode!==null)
+   throw Error('Chrome exited before CDP: code='+browser.exitCode+' signal='+browser.signalCode+' output='+chromeOutput);
   try{return Number((await readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0])||null;}
   catch{return null;}
- },'CDP port');
+ },'CDP port').catch(error=>{
+  throw Error(error.message+' / chrome='+executable+' / exit='+browser.exitCode+
+   ' / signal='+browser.signalCode+' / output='+chromeOutput.slice(-6000));
+ });
  const response=await fetch('http://127.0.0.1:'+port+'/json/new?about:blank',{method:'PUT'});
  assert.equal(response.status,200);
  const page=await response.json();ws=new WebSocket(page.webSocketDebuggerUrl);
