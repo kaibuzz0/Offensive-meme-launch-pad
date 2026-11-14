@@ -159,3 +159,12 @@ test('braking from rest never creates reverse motion',()=>{
  assert.equal(next.speed,0);
  assert.deepEqual(next.position,v.position);
 });
+
+test('throwing occupancy predicate stops vehicle without crashing fixed-step physics',()=>{
+ const v=createVehicle('car',{x:0,y:0,z:0});
+ v.speed=3;
+ const next=stepVehicle(v,{throttle:1,steering:1},1/60,{canOccupy:()=>{throw Error('chunk index rebuilding');}});
+ assert.deepEqual(next.position,v.position);
+ assert.equal(next.heading,v.heading);
+ assert.equal(next.speed,0);
+});
