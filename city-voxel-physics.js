@@ -143,9 +143,21 @@
    // Structural ceilings use the same occupancy predicate as horizontal
    // movement. A jump cannot bypass a generated or player-built roof.
    // Restore the last valid feet position if the next vertical pose is unknown.
-   if(state.y>previousY&&!structureClear(state.x,state.y,state.z)){
-    state.y=previousY;
-    state.vy=0;
+   if(state.y>previousY){
+    // Check every quarter-voxel vertical interval, not only the endpoint:
+    // a thin roof can otherwise be crossed in a single fast jump frame.
+    const destinationY=state.y;
+    const intervals=Math.max(1,Math.ceil((destinationY-previousY)/.25));
+    let safeY=previousY;
+    for(let i=1;i<=intervals;i++){
+     const candidateY=previousY+(destinationY-previousY)*i/intervals;
+     if(!structureClear(state.x,candidateY,state.z))break;
+     safeY=candidateY;
+    }
+    if(safeY<destinationY){
+     state.y=safeY;
+     state.vy=0;
+    }
    }
    // A solid underground roof cannot be jumped through. Leave roofless
    // mouth tiles open so the transition is continuous with the outside.
