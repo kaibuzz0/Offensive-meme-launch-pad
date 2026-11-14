@@ -214,12 +214,24 @@ try{
 
  // Preserve browser cache on ordinary player reload; the separate renderer-failure
  // reload below deliberately bypasses cache to isolate compatibility startup.
+ // Capture comparable document-scoped metrics before the normal cached reload.
+ // CDP cumulative durations reset with navigation; never interpret their
+ // difference across documents as an in-process memory leak.
+ const readQaMetrics=async(stage)=>{
+  const values=(await request('Performance.getMetrics')).metrics||[];
+  const names=['JSHeapUsedSize','JSHeapTotalSize','Nodes','Documents','Frames','TaskDuration','ScriptDuration','LayoutDuration','RecalcStyleDuration'];
+  const metrics=Object.fromEntries(values.filter(m=>names.includes(m.name)).map(m=>[m.name,m.value]));
+  console.log('QA_BROWSER_METRICS '+JSON.stringify({stage,environment:'headless Chromium / SwiftShader / mobile viewport emulation',metrics}));
+  return metrics;
+ };
+ await readQaMetrics('before-cached-reload');
  await request('Page.reload',{ignoreCache:false});
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'reload terrain mode');
  // Guard against a no-op reload: the persistence checks below are only
  // meaningful after Chromium has performed a real document navigation.
  assert.equal(await evalPage('performance.getEntriesByType("navigation")[0]?.type'),'reload','ordinary persistence check must follow a real browser reload');
  const stored=await evalPage('(()=>({seed:localStorage.getItem("meme-city-terrain-seed-v1"),saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))),original:localStorage.getItem("offensive-meme-city-v1-center")}))()');
+ await readQaMetrics('after-cached-reload');
  assert.equal(stored.seed,initial.seed);
  assert.deepEqual(stored.saved,positionBeforeParsed,'normal reload must preserve the pre-navigation saved coordinates');
 
@@ -322,9 +334,7 @@ try{
 
  // CDP measurements are from synthetic Chromium/SwiftShader, NOT physical Android.
  // Keep this diagnostic non-gating until representative device baselines exist.
- const perf=(await request('Performance.getMetrics')).metrics||[];
- const metric=Object.fromEntries(perf.filter(m=>['JSHeapUsedSize','JSHeapTotalSize','Nodes','Documents','Frames','TaskDuration','ScriptDuration','LayoutDuration','RecalcStyleDuration'].includes(m.name)).map(m=>[m.name,m.value]));
- console.log('QA_BROWSER_METRICS '+JSON.stringify({environment:'headless Chromium / SwiftShader / mobile viewport emulation',viewport:'915x412 compatibility',metrics:metric}));
+ await readQaMetrics('compatibility-after-reload');
  assert.deepEqual(exceptions,[],'no uncaught JS exceptions in terrain-mode browser entry');
  console.log('PASS: mobile Chromium quarter-scale terrain, first-person viewport '+(view.gl?'WebGL':'fallback')+', 132 biomes, fortress road and gate seal, movement and seed restoration');
 }finally{
