@@ -140,6 +140,13 @@
     state.vy=Math.max(-40,state.vy-GRAVITY*step);
     state.y+=state.vy*step;
    }
+   // Structural ceilings use the same occupancy predicate as horizontal
+   // movement. A jump cannot bypass a generated or player-built roof.
+   // Restore the last valid feet position if the next vertical pose is unknown.
+   if(state.y>previousY&&!structureClear(state.x,state.y,state.z)){
+    state.y=previousY;
+    state.vy=0;
+   }
    // A solid underground roof cannot be jumped through. Leave roofless
    // mouth tiles open so the transition is continuous with the outside.
    // Check all capsule footprint corners when rising beneath a cave roof.
