@@ -46,12 +46,20 @@
    try{return query(x,y,z,world.PLAYER_HEIGHT,RADIUS)===false;}
    catch(_error){return false;}
   }
+  // Gate collision shares fail-closed semantics with generated structures.
+  // A temporarily unloaded gate index must not abort a teleport or frame.
+  function gateClear(x,y,z){
+   if(!world.gateRoad)return true;
+   if(typeof world.gateRoad.obstructs!=='function')return false;
+   try{return world.gateRoad.obstructs(x,y,z,world.PLAYER_HEIGHT,RADIUS)===false;}
+   catch(_error){return false;}
+  }
   function snapshot(){return Object.freeze({...state});}
   function teleport(x,z,referenceY=Infinity){
    const floor=floorAt(x,z,referenceY);
    // Teleports must honor the same structural obstruction query as walking.
    // A rejected destination leaves the complete controller state unchanged.
-   if(floor===null||!structureClear(x,floor,z)||(world.gateRoad && (typeof world.gateRoad.obstructs!=='function' || world.gateRoad.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS)!==false)))return false;
+   if(floor===null||!structureClear(x,floor,z)||!gateClear(x,floor,z))return false;
    // Reject underground destinations whose roofs intersect the capsule,
    // including adjacent cells touched by the player's footprint.
    for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
@@ -73,7 +81,7 @@
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
     const candidateY=state.grounded?Math.max(state.y,floor):state.y;
-    if(floor===null||!structureClear(nx,candidateY,nz)||(world.gateRoad && (typeof world.gateRoad.obstructs!=='function' || world.gateRoad.obstructs(nx,candidateY,nz,world.PLAYER_HEIGHT,RADIUS)!==false)))break;
+    if(floor===null||!structureClear(nx,candidateY,nz)||!gateClear(nx,candidateY,nz))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
