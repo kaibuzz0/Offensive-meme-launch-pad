@@ -671,6 +671,24 @@
     if(bottom<=0||top>=h)continue;
     projected.push({depth,x:center-width/2,top,width,height:bottom-top,color:part.color});
    }
+   // Project the same immutable, seed-owned nearby wildlife descriptors as
+   // WebGL. Keep this a silhouette-only compatibility path: no second actor
+   // generator, no terrain cache expansion and no separate collision state.
+   const nearby=typeof world.actorsNear==='function'
+    ? world.actorsNear(player.x,player.z,far):[];
+   for(const actor of nearby.slice(0,12)){
+    if(actor.kind!=='wildlife'||actor.species!=='fox')continue;
+    const dx=actor.x+.5-player.x,dz=actor.z+.5-player.z;
+    const depth=dx*forwardX+dz*forwardZ,side=dx*rightX+dz*rightZ;
+    if(depth<=1||depth>far||Math.abs(side)>depth*1.2+2)continue;
+    const center=w*.5+side*focal/depth;
+    const width=Math.max(2,Math.min(w*.22,1.35*focal/depth));
+    const top=horizon+(eye-actor.y-1.25)*focal/depth;
+    const bottom=horizon+(eye-actor.y)*focal/depth;
+    if(bottom<=0||top>=h)continue;
+    projected.push({depth,x:center-width/2,top,width,height:bottom-top,
+     color:[.58,.34,.17]});
+   }
    projected.sort((a,b)=>b.depth-a.depth);
    for(const p of projected){
     const tint=clamp(.9-p.depth/370,.48,.92);
