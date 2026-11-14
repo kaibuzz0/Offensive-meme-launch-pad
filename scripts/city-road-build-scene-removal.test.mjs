@@ -36,3 +36,16 @@ test('independent voxel changes reconcile as one removal and one addition', () =
   assert.deepEqual(delta.remove.map(edit => edit.id), ['edit:starter:1,0,0']);
   assert.deepEqual(delta.upsert.map(edit => edit.id), ['edit:starter:2,0,0']);
 });
+
+test('equal-revision snapshots with reordered journal entries are equivalent', () => {
+  const before = snapshot(7, [
+    { x: 1, y: 0, z: 0, block: 'stone' },
+    { x: 2, y: 0, z: 0, block: 'workbench' }
+  ], 3);
+  const reordered = structuredClone(before);
+  reordered.journal.edits.reverse();
+  const delta = diffCommittedConstruction(before, reordered, 'starter');
+  assert.equal(delta.remove.length, 0);
+  assert.equal(delta.upsert.length, 0);
+  assert.equal(delta.supplies, 3);
+});
