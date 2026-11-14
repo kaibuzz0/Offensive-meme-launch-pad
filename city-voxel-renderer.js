@@ -263,6 +263,19 @@
   for(const p of chunk.structures||world.gateParts?.(cx,cz)||[]){
    box(data,p.x,p.y,p.z,p.w,p.h,p.d,p.color);
   }
+  // Canonical seeded actors: draw only the owning near-detail chunk.
+  // Shared actor IDs and runtime state remain owned by the world/actor manager.
+  if(stride===1)for(const actor of chunk.npc||[]){
+   if(actor.kind!=='wildlife'||actor.species!=='fox')continue;
+   const x=actor.x+.5,z=actor.z+.5,y=actor.y;
+   const fur=[.58,.34,.17],dark=[.20,.18,.16],light=[.78,.72,.58];
+   box(data,x-.58,y+.48,z-.24,1.12,.68,.48,fur);
+   box(data,x+.37,y+.66,z-.25,.48,.47,.50,fur);
+   box(data,x+.72,y+.62,z-.19,.25,.20,.38,light);
+   for(const dx of [-.43,.29])for(const dz of [-.19,.15])
+    box(data,x+dx,y,z+dz,.14,.52,.14,dark);
+   box(data,x-.90,y+.71,z-.10,.42,.18,.20,fur);
+  }
   for(const plant of chunk.plants){
    if(['pine','palm','tree'].includes(plant.type)){
     // Cast a canopy footprint away from the same fixed sun used by the
