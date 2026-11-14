@@ -49,3 +49,18 @@ test('renderer delta reconciles edits without duplicate spending or stale replay
   assert.throws(() => diffCommittedConstruction(next, first, 'starter'), /stale/);
   assert.throws(() => diffCommittedConstruction(first, next, 'different'), /seed mismatch/);
 });
+
+
+test('equal-revision renderer snapshots cannot silently diverge', async () => {
+  const { diffCommittedConstruction } = await import('../city-road-build-scene-projection.js');
+  const make = (supplies, block) => {
+    const journal = createVoxelEditJournal('starter');
+    journal.apply({ x: 4, y: 2, z: -8, block });
+    return { version: 1, seed: 'starter', revision: 1,
+      inventory: { supplies }, journal: journal.snapshot() };
+  };
+  const original = make(4, 'workbench');
+  assert.throws(() => diffCommittedConstruction(original, make(3, 'workbench'), 'starter'), /conflicting construction snapshot/);
+  assert.throws(() => diffCommittedConstruction(original, make(4, 'stone'), 'starter'), /conflicting construction snapshot/);
+  assert.deepEqual(diffCommittedConstruction(original, structuredClone(original), 'starter').upsert, []);
+});
