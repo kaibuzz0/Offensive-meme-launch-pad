@@ -66,6 +66,16 @@ try{
  assert.equal(await evalPage('document.querySelector(".game-direct-play").href'),url);
  await evalPage('document.querySelector(".game-direct-play").click();true');
  await waitFor(()=>evalPage('!!window.CityTerrainWorld?.createTerrain && document.body.classList.contains("terrain-only-mode")'),'terrain script boot');
+ // Verify the browser followed the actual homepage CTA, not a synthetic direct
+ // navigation to city.html. This still tests the transitional terrain route;
+ // a separate wallet-free canonical Solo journey remains a release gate.
+ const enteredUrl=await evalPage('location.href');
+ assert.equal(enteredUrl,url,'homepage Play must navigate to its advertised URL');
+ const entryState=await evalPage('(()=>({intro:!!document.getElementById("city-intro"),start:!!document.getElementById("start-button"),walletGate:!!document.querySelector("[data-wallet-required=true]")}))()');
+ assert.equal(entryState.intro&&entryState.start,true,'homepage Play must expose the game start action');
+ assert.equal(entryState.walletGate,false,'wallet-free Solo entry must not require a wallet gate');
+ console.log('QA_HOMEPAGE_PLAY',JSON.stringify({enteredUrl,viewport:'412x915',renderer:'SwiftShader Chromium',walletGate:entryState.walletGate,canonicalSoloVerified:false}));
+
  const initial=await evalPage('(()=>{const seed=localStorage.getItem("meme-city-terrain-seed-v1");const w=CityTerrainWorld.createTerrain(seed,CityFrontier.regions);const c=w.chunkAt(0,0);return {seed,count:w.anchors.length,types:new Set(w.anchors.map(a=>w.biomeAt(Math.round(a.x),Math.round(a.y)).id)).size,sites:c.sites.length,structures:c.structures.length,roads:c.tiles.filter(t=>t.road).length,legacy:localStorage.getItem("offensive-meme-city-v1-center")};})()');
  assert.equal(initial.count,132);assert.equal(initial.types,132);
  const voxel=await evalPage('(()=>{const atlas=CityTerrainWorld.createTerrain(localStorage.getItem("meme-city-terrain-seed-v1"),CityFrontier.regions);const world=CityVoxelWorld.createVoxelWorld(atlas);const ground=world.surfaceAt(0,0);const mesh=CityVoxelRenderer.generateMesh(world,0,0);return {block:world.VOXEL_METERS,eye:world.EYE_HEIGHT,caves:typeof world.caveAt==="function",height:ground.height,vertices:mesh.vertices,plants:mesh.plants};})()');
