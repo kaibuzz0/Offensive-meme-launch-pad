@@ -77,6 +77,27 @@ These are candidates, **not installed dependencies**. Confirm actual LICENSE fil
 - To start an eligible GitHub Copilot coding agent, open a numbered issue, choose **Assignees → Copilot**, and review its created PR. Availability depends on the repository and GitHub Copilot plan.
 - Pause research by disabling `meme-city-council.yml` in GitHub Actions or removing its scheduled trigger. Scheduled GitHub Actions runs are not precise real-time timers.
 
+
+## Release integration checkpoint — 2026-11-14 (Graphics #46 / Flight #53 / Council #43)
+
+**Status: blocked on rung A/B; this section is a dependency contract, not proof of deployed gameplay.** The public entry remains `https://kaibuzz0.github.io/Offensive-meme-launch-pad/` → `city.html?terrain=1`; legacy entry routes must remain accessible until tested save migration and renderer parity. No new quality-mode editions are permitted. Do not equate passing Node tests with a traversable mobile fortress gate.
+
+**First executable acceptance slice:** From the homepage Play action, launch wallet-free Solo, see fortress/mountains, traverse the gate and wooded road on touch controls, enter a lit building, collect a supply, place a workbench, reload and see the same workbench with the same ledger. Run this both with WebGL enabled and forcibly disabled, against the *same seed, actor/structure IDs, collision and saved edits*. Capture screenshots, browser errors and FPS/frame-time distributions, and distinguish Chromium emulation from physical Android.
+
+**Integration dependency and ownership:**
+
+1. **QA #47/#57:** reproduce PR #161's mobile Chromium fortress-gate timeout (reported ~12 FPS, 89 chunks, 260k vertices), capture frame-time percentiles, render/mesh/chunk queues, controller position/velocity and collision contacts at each gate step. Determine whether movement is blocked or frames are starved before changing acceptance thresholds. Establish measured numerical budgets and verify WebGL-disabled startup.
+2. **Physics #49:** own controller/arch collision and touch traversal; publish a fixed-seed reproducible route and contact diagnostics. Graphics must not rewrite movement/physics.
+3. **Living World #45/#55/#56:** own deterministic actor and structure descriptors, immutable chunk/world snapshots, stable IDs and seed/version rules. Fox visuals in PR #161 must derive from these same descriptors in both backends; never mutate frozen world objects in tests.
+4. **Sandbox #48:** own one atomic supply pickup → inventory debit → workbench placement transaction, persistence and repeat-safe reload; document the stable object ID, placement transform and save schema consumed by renderers. No duplicate item ledger.
+5. **Graphics #46 / integration #43:** own scene materials, WebGL/Canvas parity, adaptive rendering scheduler and canonical Play routing. First isolate gate performance without reducing interaction/collision or replacing the scene with a flat map. Merge only exact-head green, nonconflicting PRs with browser and migration evidence; verify Pages publication and the actual homepage-to-game path. Flight #53 consumes Physics' common vehicle/seat controls and Living World's world queries *after* the ground vehicle contract passes; do not add a second flight-only world or controller.
+
+**Migration release order:** inventory every current entry URL, state key and worldgen version → read legacy saves into immutable backups → transform to versioned canonical records → validate IDs, transforms, inventory balances and world edits → preserve unknown/unmappable records in a recovery envelope → commit active save only after validation → repeat migration to prove idempotence → compare WebGL/Canvas and offline Solo gameplay → then redirect old URLs and remove public duplicate selectors. Preserve the atlas as an in-game feature. Roll back on any failed validation; never delete original data automatically.
+
+**PR disposition:** PR #161's source-level fox/test work is not a public release; gate traversal and compatibility-renderer browser acceptance remain blockers. Historical PR #80 and PRs #82/#160/#162 are investigation leads, not automatic merge instructions. Re-check exact head, draft/mergeability, CI and overlapping files before action. Continue using the existing #44 deduplicated reuse shortlist; no engine replacement without license, bundle and mobile measurements.
+
+**Release evidence template:** source commit and PR; exact-head `npm test`/`npm run check`; desktop and mobile Chromium Play→gate→road→interaction→reload; WebGL-disabled parity; screenshots and frame-time/RAM/mesh measurements; merged main SHA; Pages deploy SHA/time; live URL and what a visitor actually sees. Mark absent evidence explicitly as *not verified*.
+
 ## Unified game contract — 2026-11-07 (supersedes permanent parallel-mode requirements)
 
 **Current delivery rung: A → B.** Ship the homepage → first-person fortress/mountain skyline → wooded road → lit clan building → persistent gather/build interaction, then measure mobile frame-time and memory. Do not claim that a module or green test alone is a public visual release. The canonical first-person entry is currently `city.html?terrain=1`; `city.html` and historic query URLs remain recoverable until equivalent gameplay, saves, and entry redirects are tested. The public homepage must offer one prominent Play action and an accessible wallet-free offline Solo option. **Do not remove or redirect old entrypoints yet.**
