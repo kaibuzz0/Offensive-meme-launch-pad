@@ -140,3 +140,22 @@ test('seeded gate clearance fails closed on unknown results or missing gate quer
  const clear=createTerrainVehicleClearance({surfaceAt,gateRoad:{obstructs:()=>false}},()=>false);
  assert.equal(clear(vehicle.position,vehicle),true);
 });
+
+test('brake is dissipative near zero even with simultaneous throttle',()=>{
+ const v=createVehicle();
+ v.speed=0.03;
+ const next=stepVehicle(v,{throttle:1,brake:1},1/60,clearWorld);
+ assert.equal(next.speed,0);
+ assert.ok(next.position.z>=v.position.z);
+ const backwards=createVehicle();
+ backwards.speed=-0.03;
+ const stopped=stepVehicle(backwards,{throttle:-1,brake:1},1/60,clearWorld);
+ assert.equal(stopped.speed,0);
+ assert.ok(stopped.position.z<=backwards.position.z);
+});
+test('braking from rest never creates reverse motion',()=>{
+ const v=createVehicle();
+ const next=stepVehicle(v,{brake:1},1/60,clearWorld);
+ assert.equal(next.speed,0);
+ assert.deepEqual(next.position,v.position);
+});
