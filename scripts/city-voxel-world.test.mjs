@@ -302,8 +302,7 @@ test('WebGL wildlife silhouette is generated only in its canonical near-detail c
   const world=create(seed),x=world.gateRoad.x+3,z=world.gateRoad.z+22;
   const cx=Math.floor(x/16),cz=Math.floor(z/16);
   assert.equal(world.chunkAt(cx,cz).npc.length,1);
-  const withoutActors=Object.create(world);
-  withoutActors.chunkAt=(a,b)=>({...world.chunkAt(a,b),npc:[]});
+  const withoutActors={...world,chunkAt:(a,b)=>({...world.chunkAt(a,b),npc:[]})};
   const withFox=ctx.CityVoxelRenderer.generateMesh(world,cx,cz,1);
   const withoutFox=ctx.CityVoxelRenderer.generateMesh(withoutActors,cx,cz,1);
   assert.ok(withFox.vertices>withoutFox.vertices,'fox must contribute visible WebGL triangles');
