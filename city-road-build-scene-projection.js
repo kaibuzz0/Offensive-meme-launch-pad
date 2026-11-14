@@ -31,6 +31,14 @@ export function diffCommittedConstruction(previous, next, expectedSeed) {
     ? null : projectCommittedConstruction(previous, expectedSeed);
   if (prior && current.revision < prior.revision)
     throw new Error('stale construction revision');
+  // Same revision must identify the same committed state. Otherwise two tabs or
+  // stale renderer callbacks could silently display divergent inventory/geometry.
+  if (prior && current.revision === prior.revision &&
+      (current.supplies !== prior.supplies ||
+       current.edits.length !== prior.edits.length ||
+       current.edits.some((edit, index) =>
+         edit.id !== prior.edits[index].id || edit.block !== prior.edits[index].block)))
+    throw new Error('conflicting construction snapshot at equal revision');
   const oldEdits = new Map((prior?.edits ?? []).map(edit => [edit.id, edit]));
   const newEdits = new Map(current.edits.map(edit => [edit.id, edit]));
   const remove = [...oldEdits.values()].filter(edit => !newEdits.has(edit.id));
