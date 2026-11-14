@@ -89,3 +89,20 @@ test('throwing gate query fails closed and recovers for walking and teleport',()
   assert.ok(player.snapshot().z>0);
   assert.equal(player.teleport(2,2),true);
 });
+
+test('jump cannot cross a structural ceiling, and resumes after roof removal',()=>{
+  const context={};vm.runInNewContext(source,context);
+  let roof=true;
+  const world={surfaceAt:()=>({height:0}),PLAYER_HEIGHT:1.8,SEA_LEVEL:-100,
+    gateRoad:{obstructs:()=>false},
+    structuralObstructs:(_x,y)=>roof&&y>1.01};
+  const player=context.CityVoxelPhysics.createController(world,{x:0,z:0});
+  const feet=player.snapshot().y;
+  assert.doesNotThrow(()=>player.tick({jump:true},1/60));
+  assert.equal(player.snapshot().y,feet,'jump must not pass structural ceiling');
+  assert.equal(player.snapshot().vy,0);
+  roof=false;
+  player.tick({},1/60);
+  player.tick({jump:true},1/60);
+  assert.ok(player.snapshot().y>feet,'cleared roof must allow subsequent jump');
+});
