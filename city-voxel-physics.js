@@ -38,7 +38,7 @@
    const floor=floorAt(x,z,referenceY);
    // Teleports must honor the same structural obstruction query as walking.
    // A rejected destination leaves the complete controller state unchanged.
-   if(floor===null||world.gateRoad?.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS))return false;
+   if(floor===null||(world.gateRoad && (typeof world.gateRoad.obstructs!=='function' || world.gateRoad.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS)!==false)))return false;
    // Reject underground destinations whose roofs intersect the capsule,
    // including adjacent cells touched by the player's footprint.
    for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
@@ -60,7 +60,7 @@
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
     const candidateY=state.grounded?Math.max(state.y,floor):state.y;
-    if(floor===null||world.gateRoad?.obstructs(nx,candidateY,nz,world.PLAYER_HEIGHT,RADIUS))break;
+    if(floor===null||(world.gateRoad && (typeof world.gateRoad.obstructs!=='function' || world.gateRoad.obstructs(nx,candidateY,nz,world.PLAYER_HEIGHT,RADIUS)!==false)))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
