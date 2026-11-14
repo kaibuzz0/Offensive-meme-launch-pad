@@ -22,3 +22,30 @@ test('committed scene projection is read-only, seed-scoped and repeatable', () =
   corrupt.journal.revision = 0;
   assert.throws(() => projectCommittedConstruction(corrupt, 'starter'), /revision mismatch/);
 });
+
+
+test('renderer delta reconciles edits without duplicate spending or stale replay', async () => {
+  const { diffCommittedConstruction } = await import('../city-road-build-scene-projection.js');
+  const make = (revision, edits, supplies) => {
+    const journal = createVoxelEditJournal('starter');
+    for (const edit of edits) journal.apply(edit);
+    return { version: 1, seed: 'starter', revision,
+      inventory: { supplies }, journal: journal.snapshot() };
+  };
+  const block = { x: 4, y: 2, z: -8, block: 'workbench' };
+  const first = make(1, [block], 4);
+  const next = make(2, [{ ...block, block: 'stone' }], 3);
+  const initial = diffCommittedConstruction(null, first, 'starter');
+  assert.equal(initial.upsert.length, 1);
+  assert.equal(initial.remove.length, 0);
+  assert.equal(initial.supplies, 4);
+  const repeated = diffCommittedConstruction(first, first, 'starter');
+  assert.equal(repeated.upsert.length, 0);
+  assert.equal(repeated.remove.length, 0);
+  const changed = diffCommittedConstruction(first, next, 'starter');
+  assert.equal(changed.upsert.length, 1);
+  assert.equal(changed.upsert[0].block, 'stone');
+  assert.equal(changed.supplies, 3);
+  assert.throws(() => diffCommittedConstruction(next, first, 'starter'), /stale/);
+  assert.throws(() => diffCommittedConstruction(first, next, 'different'), /seed mismatch/);
+});
