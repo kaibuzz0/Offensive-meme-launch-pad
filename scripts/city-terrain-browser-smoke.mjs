@@ -343,6 +343,10 @@ try{
  assert.equal(fallbackState.gate,'1','compatibility renderer retains opened fortress gate');
  assert.equal(await evalPage('document.getElementById("city-compatibility-toggle")?.textContent'),'TRY WEBGL 3D');
  await waitFor(()=>evalPage('document.getElementById("city-render-hint")?.hidden===true'),'compatibility scene becomes visible',30000);
+ // Compare the compatibility renderer's actual document resource footprint
+ // with the accelerated route without conflating navigation-scoped timings.
+ await readResourceAccounting('compatibility-renderer-startup');
+ await sampleQaWindow('compatibility-renderer-startup');
  assert.equal(await evalPage('!!document.querySelector("a[href*=\\\"render=canvas\\\"]")'),true,'there is an escape route to low graphics before starting');
  assert.equal(await evalPage('document.querySelector("#city-road-canvas").getContext("2d").getImageData(1,1,1,1).data[3]'),255);
  const colorCount=await evalPage(`(()=>{
