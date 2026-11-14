@@ -116,6 +116,15 @@ try{
  assert.equal(await evalPage('document.getElementById("city-look-knob").style.transform'),'','right thumbstick must recenter after release');
  await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
  await request('Emulation.setTouchEmulationEnabled',{enabled:false});
+ // The dual-stick check intentionally rotates the camera. Re-enter the same
+ // seeded world before the straight-ahead fortress traversal, otherwise W
+ // follows the rotated heading into the gate wall rather than the road.
+ // This also exercises the public entry again without mutating a save key.
+ await request('Page.reload',{ignoreCache:true});
+ await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode") && !!document.getElementById("start-button")'),'terrain reload after touch controls');
+ await evalPage('document.getElementById("start-button").click();true');
+ await waitFor(()=>evalPage('document.getElementById("city-intro").hidden===true'),'re-enter terrain after touch controls');
+ await waitFor(()=>evalPage('Math.abs(Number(document.getElementById("city-voxel-status")?.dataset.lookYaw))<0.02'),'straight-ahead camera restored',30000);
 
  if(view.gl){
   assert.equal(view.hidden,false,'first person is default when WebGL works');
