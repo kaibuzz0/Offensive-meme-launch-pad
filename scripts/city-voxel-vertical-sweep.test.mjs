@@ -92,3 +92,34 @@ test('edited floor remains stable and releases player after removal', () => {
  }
  assert.ok(falling, 'removing floor should resume falling');
 });
+
+test('a failed intermediate downward occupancy query stops the fall without throwing', () => {
+ const world = worldWithRoof();
+ let unavailable = false;
+ world.structuralObstructs = (_x, y) => {
+  if (unavailable && y >= 1.35 && y <= 1.55) throw Error('edited chunk evicted');
+  return false;
+ };
+ const player = controller(world);
+ for (let i = 0; i < 12; i++) player.tick({ jump: i === 0 }, .05);
+ assert.ok(player.snapshot().y > 1.8, 'player must begin above the missing chunk');
+ unavailable = true;
+ let stopped = false;
+ for (let i = 0; i < 50; i++) {
+  assert.doesNotThrow(() => player.tick({}, .05));
+  const s = player.snapshot();
+  if (s.grounded && s.y > 1.55) {
+   assert.equal(s.vy, 0);
+   stopped = true;
+   break;
+  }
+ }
+ assert.ok(stopped, 'unknown structural occupancy must block falling through it');
+ unavailable = false;
+ let resumed = false;
+ for (let i = 0; i < 20; i++) {
+  const s = player.tick({}, .05);
+  if (s.y < 1.35) { resumed = true; break; }
+ }
+ assert.ok(resumed, 'fall should resume when authoritative occupancy returns clear');
+});
