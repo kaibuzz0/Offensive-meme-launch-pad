@@ -15,7 +15,7 @@ test('homepage primary Play enters the existing canonical first-person route', (
 test('wallet-free offline Solo and legacy recovery links remain reachable during migration', () => {
   assert.match(home, /href="city\.html\?terrain=1&amp;render=canvas"/);
   assert.match(home, /href="city\.html\?release=center-city-v1"/);
-  const gameCard = home.match(/<article class="home-portal game-portal">([\\s\\S]*?)<\\/article>/)?.[1];
+  const gameCard = home.match(/<article class="home-portal game-portal">([\s\S]*?)<\/article>/)?.[1];
   assert.ok(gameCard);
   assert.match(gameCard, /No wallet required/, 'wallet-free promise must be on the game card');
   assert.match(city, /id="start-button"/);
