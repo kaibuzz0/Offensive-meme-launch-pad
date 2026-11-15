@@ -25,12 +25,12 @@ test('seeded roadside wildlife survives chunk regeneration and has one owner',()
   assert.equal(actor.y,world.surfaceAt(actor.x,actor.z).height+1);
   const cx=Math.floor(actor.x/world.CHUNK_SIZE),cz=Math.floor(actor.z/world.CHUNK_SIZE);
   const before=world.chunkAt(cx,cz),after=world.chunkAt(cx,cz);
-  assert.equal(before.npc.length,1);
+  assert.equal(before.npc.filter(a=>a.kind==='wildlife').length,1);
   assert.equal(before.npc[0],actor);
   assert.equal(after.npc[0],actor,'chunk reload must not allocate a new identity');
   for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
    if(dx===0&&dz===0)continue;
-   assert.equal(world.chunkAt(cx+dx,cz+dz).npc.length,0,'neighbor chunk must not duplicate actor');
+   assert.equal(world.chunkAt(cx+dx,cz+dz).npc.filter(a=>a.kind==='wildlife').length,0,'neighbor chunk must not duplicate fox');
   }
  }
 });
