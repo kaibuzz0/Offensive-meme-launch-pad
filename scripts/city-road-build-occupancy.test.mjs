@@ -49,3 +49,23 @@ test('replay and presentation reset do not mutate saved record', () => {
   assert.equal(index.hasBlock(0, 0, 0), true);
   assert.equal(saved.inventory.supplies, 8);
 });
+
+test('effective collision combines seeded terrain and committed edits without trusting unknown cells', () => {
+  const index = createCommittedBuildOccupancy('fortress');
+  index.restore(record('fortress', [
+    { x: 2, y: 1, z: 0, block: null },
+    { x: 3, y: 1, z: 0, block: 'workbench' }
+  ]));
+  let calls = 0;
+  const generated = () => { calls++; return true; };
+  assert.equal(index.isSolid(2, 1, 0, generated), false);
+  assert.equal(index.isSolid(3, 1, 0, generated), true);
+  assert.equal(calls, 0, 'journal edits override generator queries');
+  assert.equal(index.isSolid(4, 1, 0, () => false), false);
+  assert.equal(index.isSolid(4, 1, 0, generated), true);
+  assert.equal(index.isSolid(4, 1, 0, () => undefined), true);
+  assert.equal(index.isSolid(4, 1, 0), true);
+  assert.equal(index.isSolid(0.25, 1, 0, () => false), true);
+  index.clearPresentation();
+  assert.equal(index.isSolid(2, 1, 0, generated), true);
+});
