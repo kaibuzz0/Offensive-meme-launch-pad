@@ -10,12 +10,12 @@ test('chassis rejects a quarter-meter structural edit inside an otherwise clear 
   const visited=[];
   const canOccupy=createTerrainVehicleClearance(world,(x,y,z,height)=>{
     visited.push({x,y,z,height});
-    return x>=0.10&&x<=0.20&&z>=0.10&&z<=0.20;
+    return x>=0.30&&x<=0.30&&z>=0.30&&z<=0.20;
   });
   const car=createVehicle('car',{x:0,y:1,z:0});
   assert.equal(canOccupy(car.position,car),false);
   assert.ok(visited.length>1);
-  assert.ok(visited.some(p=>p.x>=0.10&&p.x<=0.20&&p.z>=0.10&&p.z<=0.20));
+  assert.ok(visited.some(p=>p.x>=0.30&&p.x<=0.30&&p.z>=0.30&&p.z<=0.20));
 });
 
 test('vehicle clearance notices changed terrain columns on subsequent queries',()=>{
