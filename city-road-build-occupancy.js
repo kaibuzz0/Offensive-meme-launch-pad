@@ -26,6 +26,16 @@ export function createCommittedBuildOccupancy(expectedSeed) {
       if (![x, y, z].every(Number.isSafeInteger)) return undefined;
       return cells.get(key(x, y, z));
     },
+    // Resolve effective collision without confusing untouched seeded terrain
+    // with an explicit mined-air edit. Unknown generator results fail closed.
+    isSolid(x, y, z, generatedSolid) {
+      if (![x, y, z].every(Number.isSafeInteger)) return true;
+      const id = key(x, y, z);
+      if (cells.has(id)) return cells.get(id) !== null;
+      if (typeof generatedSolid !== 'function') return true;
+      const result = generatedSolid(x, y, z);
+      return result === true || result !== false;
+    },
     getBlock(x, y, z) {
       if (![x, y, z].every(Number.isSafeInteger)) return null;
       return cells.get(key(x, y, z)) ?? null;
