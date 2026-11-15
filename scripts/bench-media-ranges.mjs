@@ -35,8 +35,8 @@ const port = await new Promise((resolve, reject) => {
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', chunk => {
     buffer += chunk;
-    const line = buffer.split('\\n')[0];
-    if (buffer.includes('\\n')) {
+    const line = buffer.split('\n')[0];
+    if (buffer.includes('\n')) {
       const value = Number(line);
       if (!Number.isInteger(value) || value < 1) reject(new Error(`Invalid server port: ${line}`));
       else resolve(value);
@@ -46,7 +46,7 @@ const port = await new Promise((resolve, reject) => {
 const url = `http://127.0.0.1:${port}/assets/media/meme-city-trailer.mp4`;
 const serverRss = () => {
   const status = readFileSync(`/proc/${child.pid}/status`, 'utf8');
-  const kb = Number(status.match(/^VmRSS:\\s+(\\d+) kB/m)?.[1]);
+  const kb = Number(status.match(/^VmRSS:\s+(\d+) kB/m)?.[1]);
   if (!Number.isFinite(kb)) throw new Error('Missing server VmRSS');
   return kb * 1024;
 };
