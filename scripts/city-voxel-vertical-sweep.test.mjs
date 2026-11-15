@@ -123,3 +123,17 @@ test('a failed intermediate downward occupancy query stops the fall without thro
  }
  assert.ok(resumed, 'fall should resume when authoritative occupancy returns clear');
 });
+
+test('swept horizontal movement rejects a thin edited wall and resumes after removal', () => {
+ const world = worldWithRoof();
+ let wallEnabled = true;
+ world.structuralObstructs = (x) => wallEnabled && x >= .45 && x <= .65;
+ const player = controller(world);
+ for (let i = 0; i < 5; i++) player.tick({ right: 1 }, .05);
+ const blocked = player.snapshot();
+ assert.ok(blocked.x < .45, 'capsule must stop before a thin wall');
+ assert.equal(blocked.z, 0);
+ wallEnabled = false;
+ for (let i = 0; i < 3; i++) player.tick({ right: 1 }, .05);
+ assert.ok(player.snapshot().x > .65, 'movement must resume when the edit is removed');
+});
