@@ -31,7 +31,8 @@ function distanceSquared(a, b) {
   return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2;
 }
 function validActor(actor) {
-  if (!actor || typeof actor.id !== 'string' || !actor.id || typeof actor.team !== 'string') throw new TypeError('invalid actor');
+  if (!actor || typeof actor.id !== 'string' || !actor.id || actor.id.length > 128 ||
+      typeof actor.team !== 'string' || actor.team.length > 64) throw new TypeError('invalid actor');
   return actor;
 }
 function eligible(target, actor, friendlyFire) {
@@ -39,9 +40,13 @@ function eligible(target, actor, friendlyFire) {
 }
 function normal(direction) {
   const d = vec(direction, 'direction');
-  const len = Math.hypot(d.x, d.y, d.z);
-  if (len < EPS) throw new RangeError('direction cannot be zero');
-  return { x: d.x / len, y: d.y / len, z: d.z / len };
+  // Scale before taking the norm: hypot(1e308, 1e308) overflows to
+  // Infinity even though the finite direction is mathematically valid.
+  const scale = Math.max(Math.abs(d.x), Math.abs(d.y), Math.abs(d.z));
+  if (scale === 0) throw new RangeError('direction cannot be zero');
+  const x = d.x / scale, y = d.y / scale, z = d.z / scale;
+  const len = Math.hypot(x, y, z);
+  return { x: x / len, y: y / len, z: z / len };
 }
 // Ray-sphere intersection: first nonnegative surface intersection, including origin inside sphere.
 export function simulateRayHit({ origin, direction, maxRange, actor, targets, friendlyFire = false }) {
@@ -51,7 +56,13 @@ export function simulateRayHit({ origin, direction, maxRange, actor, targets, fr
   let best = null;
   for (const t of targetsOf(targets)) {
     if (!eligible(t, actor, friendlyFire)) continue;
-    const delta = { x: o.x - t.center.x, y: o.y - t.center.y, z: o.z - t.center.z };
+    // A target farther than range + radius on any axis cannot intersect.
+    // Reject before squaring enormous world-space deltas, which can overflow
+    // and produce NaN discriminants even for otherwise finite inputs.
+    const dx = o.x - t.center.x, dy = o.y - t.center.y, dz = o.z - t.center.z;
+    const bound = range + t.radius;
+    if (Math.abs(dx) > bound || Math.abs(dy) > bound || Math.abs(dz) > bound) continue;
+    const delta = { x: dx, y: dy, z: dz };
     const b = delta.x * d.x + delta.y * d.y + delta.z * d.z;
     const c = distanceSquared(o, t.center) - t.radius ** 2;
     const disc = b * b - c;
@@ -73,10 +84,19 @@ export function simulateAreaHits({ center, radius, actor, targets, friendlyFire 
   const c = vec(center, 'center'), r = positive(radius, 'radius', MAX_RADIUS);
   validActor(actor);
   if (typeof friendlyFire !== 'boolean') throw new TypeError('friendlyFire must be boolean');
-  return targetsOf(targets).filter(t => eligible(t, actor, friendlyFire)).map(t => {
-    const distance = Math.sqrt(distanceSquared(c, t.center));
+  // Validate the entire bounded input before producing results, then avoid
+  // allocating intermediate filter/map arrays for out-of-range targets.
+  const validated = targetsOf(targets);
+  const hits = [];
+  for (const t of validated) {
+    if (!eligible(t, actor, friendlyFire)) continue;
+    const dx = c.x - t.center.x, dy = c.y - t.center.y, dz = c.z - t.center.z;
+    const bound = r + t.radius;
+    if (Math.abs(dx) > bound || Math.abs(dy) > bound || Math.abs(dz) > bound) continue;
+    const distance = Math.hypot(dx, dy, dz);
     const surfaceDistance = Math.max(0, distance - t.radius);
-    if (surfaceDistance > r) return null;
-    return { targetId: t.id, distance: surfaceDistance, intensity: Math.max(0, 1 - surfaceDistance / r) };
-  }).filter(Boolean).sort((a, b) => a.distance - b.distance || a.targetId.localeCompare(b.targetId, 'en'));
+    if (surfaceDistance > r) continue;
+    hits.push({ targetId: t.id, distance: surfaceDistance, intensity: Math.max(0, 1 - surfaceDistance / r) });
+  }
+  return hits.sort((a, b) => a.distance - b.distance || (a.targetId < b.targetId ? -1 : a.targetId > b.targetId ? 1 : 0));
 }
