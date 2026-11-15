@@ -46,3 +46,29 @@ test('invalid and remote actor queries avoid chunk allocation and cache growth',
  assert.equal(world.cacheSize(),before);
  assert.equal(world.caveCacheSize(),caves);
 });
+
+test('lodge keeper retains seed identity, single-chunk ownership and bounded proximity queries',()=>{
+ for(const seed of ['keeper-owner-a','keeper-owner-b']){
+  const world=make(seed),replay=make(seed);
+  const id='npc:'+seed+':roadside-lodge:keeper';
+  const keeper=world.actorById(id);
+  assert.ok(keeper,'keeper must be addressable without generating a chunk');
+  assert.equal(keeper.role,'supply-keeper');
+  assert.equal(keeper.faction,'roadside-neutral');
+  assert.ok(Object.isFrozen(keeper));
+  assert.deepEqual(plain(keeper),plain(replay.actorById(id)));
+  const cx=Math.floor(keeper.x/world.CHUNK_SIZE),cz=Math.floor(keeper.z/world.CHUNK_SIZE);
+  for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
+   const actors=world.chunkAt(cx+dx,cz+dz).npc.filter(a=>a.id===id);
+   assert.equal(actors.length,dx===0&&dz===0?1:0,'keeper must have exactly one owning chunk');
+   if(dx===0&&dz===0)assert.equal(actors[0],keeper);
+  }
+  const near=world.actorsNear(keeper.x,keeper.z,0);
+  assert.equal(near.filter(a=>a.id===id).length,1);
+  assert.equal(near.find(a=>a.id===id),keeper);
+  const before=world.cacheSize(),caves=world.caveCacheSize();
+  assert.equal(world.actorsNear(keeper.x+10000,keeper.z+10000,1).length,0);
+  assert.equal(world.cacheSize(),before);
+  assert.equal(world.caveCacheSize(),caves);
+ }
+});
