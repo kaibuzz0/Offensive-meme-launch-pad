@@ -127,12 +127,12 @@ export function createCityServer({origins=[],now=()=>Date.now(),themeReader=null
      res.writeHead(206,{...headers,'Content-Range':`bytes ${start}-${end}/${stat.size}`,'Content-Length':end-start+1});
      if(req.method==='HEAD')return res.end();
      const stream=createReadStream(file,{start,end});
-     stream.on('error',()=>res.destroy());req.on('close',()=>stream.destroy());return stream.pipe(res);
+     stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
     }
     res.writeHead(200,headers);
     if(req.method==='HEAD')return res.end();
     const stream=createReadStream(file);
-    stream.on('error',()=>res.destroy());req.on('close',()=>stream.destroy());return stream.pipe(res);
+    stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
    }
    if(req.method==='HEAD'){res.writeHead(200,headers);return res.end();}
    const data=await fs.readFile(file);
