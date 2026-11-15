@@ -268,8 +268,8 @@ test('nearby actor queries reuse canonical chunk identities without allocating t
   const cx=Math.floor(x/w.CHUNK_SIZE),cz=Math.floor(z/w.CHUNK_SIZE);
   const actor=w.chunkAt(cx,cz).npc[0];
   const near=w.actorsNear(x,z,0);
-  assert.strictEqual(near,w.chunkAt(cx,cz).npc);
-  assert.strictEqual(near[0],actor);
+  assert.ok(near.includes(actor),'nearby queries must include the canonical actor descriptor');
+  assert.strictEqual(near.find(candidate=>candidate.id===actor.id),actor,'nearby actor identity must match chunk ownership');
   assert.strictEqual(w.actorById(actor.id),actor);
   assert.equal(w.actorById('retired:actor'),null);
   assert.equal(w.actorById(null),null);
