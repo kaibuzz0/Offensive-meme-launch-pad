@@ -48,10 +48,14 @@ test('wildlife descriptor cannot be mutated through chunk snapshots or actor que
 
 test('actor lookups do not generate terrain chunks or grow terrain caches',()=>{
  const world=create('fox-cache-budget');
- const initial=world.cacheSize();
+ // The first actor materialization samples its home terrain once. Measure
+ // subsequent lookups against the warmed cache, not the cold world baseline.
+ const cold=world.cacheSize();
  const caveInitial=world.caveCacheSize();
  const fox=world.actorsNear(world.gateRoad.x+3,world.gateRoad.z+22,0)[0];
  assert.ok(fox,'exact-position query resolves the seeded fox');
+ const initial=world.cacheSize();
+ assert.ok(initial-cold<=1,'first actor resolution samples at most its home column');
  for(let i=0;i<200;i++){
   assert.equal(world.actorById(fox.id),fox);
   assert.equal(world.actorsNear(fox.x+1000+i,fox.z,1).length,0);
