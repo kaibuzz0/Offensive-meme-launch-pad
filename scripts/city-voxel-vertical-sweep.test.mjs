@@ -137,3 +137,30 @@ test('swept horizontal movement rejects a thin edited wall and resumes after rem
  for (let i = 0; i < 3; i++) player.tick({ right: 1 }, .05);
  assert.ok(player.snapshot().x > .65, 'movement must resume when the edit is removed');
 });
+
+test('diagonal movement slides along an edited wall without crossing it', () => {
+ const world = worldWithRoof();
+ world.structuralObstructs = x => x >= .45 && x <= .65;
+ const player = controller(world);
+ for (let i = 0; i < 8; i++) player.tick({ right: 1, forward: 1 }, .05);
+ const state = player.snapshot();
+ assert.ok(state.x < .45, 'solid wall must stop lateral penetration');
+ assert.ok(state.z > 1, 'unblocked axis must continue sliding along wall');
+});
+
+test('temporary horizontal occupancy failure blocks movement and recovers', () => {
+ const world = worldWithRoof();
+ let unavailable = true;
+ world.structuralObstructs = x => {
+  if (unavailable && x >= .25) throw Error('chunk unavailable');
+  return false;
+ };
+ const player = controller(world);
+ for (let i = 0; i < 4; i++) {
+  assert.doesNotThrow(() => player.tick({ right: 1 }, .05));
+ }
+ assert.ok(player.snapshot().x < .25, 'unknown occupancy must not be traversed');
+ unavailable = false;
+ for (let i = 0; i < 3; i++) player.tick({ right: 1 }, .05);
+ assert.ok(player.snapshot().x > .25, 'controller must recover after chunk returns');
+});
