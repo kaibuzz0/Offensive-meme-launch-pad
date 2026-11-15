@@ -45,3 +45,21 @@ test('wildlife descriptor cannot be mutated through chunk snapshots or actor que
  assert.equal(world.actorById('missing'),null);
  assert.equal(world.actorById(null),null);
 });
+
+test('actor lookups do not generate terrain chunks or grow terrain caches',()=>{
+ const world=create('fox-cache-budget');
+ const initial=world.cacheSize();
+ const caveInitial=world.caveCacheSize();
+ const fox=world.actorsNear(world.gateRoad.x+3,world.gateRoad.z+22,0)[0];
+ assert.ok(fox,'exact-position query resolves the seeded fox');
+ for(let i=0;i<200;i++){
+  assert.equal(world.actorById(fox.id),fox);
+  assert.equal(world.actorsNear(fox.x+1000+i,fox.z,1).length,0);
+  assert.equal(world.actorsNear(fox.x,fox.z,0)[0],fox);
+ }
+ assert.equal(world.cacheSize(),initial,'actor queries must not materialize terrain tiles');
+ assert.equal(world.caveCacheSize(),caveInitial,'actor queries must not materialize caves');
+ assert.equal(world.chunkAt(62501,0),null,'out-of-bounds chunk rejected');
+ assert.equal(world.chunkAt(0,NaN),null,'noninteger chunk rejected');
+ assert.equal(world.actorById({id:fox.id}),null,'untrusted object ID rejected');
+});
