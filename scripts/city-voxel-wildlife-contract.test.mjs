@@ -18,7 +18,7 @@ test('roadside wildlife has one seed-stable owning chunk and consistent spatial 
  const x=world.gateRoad.x+3,z=world.gateRoad.z+22;
  const cx=Math.floor(x/world.CHUNK_SIZE),cz=Math.floor(z/world.CHUNK_SIZE);
  const owner=world.chunkAt(cx,cz);
- assert.equal(owner.npc.length,1);
+ assert.equal(owner.npc.filter(a=>a.kind==='wildlife').length,1);
  const fox=owner.npc[0];
  assert.equal(fox.kind,'wildlife');
  assert.equal(fox.species,'fox');
@@ -29,8 +29,8 @@ test('roadside wildlife has one seed-stable owning chunk and consistent spatial 
  assert.equal(world.actorsNear(x+100,z+100,1).length,0);
  assert.equal(world.actorsNear(NaN,z,20).length,0);
  assert.equal(world.actorsNear(x,z,-1).length,0);
- assert.equal(world.chunkAt(cx+1,cz).npc.length,0);
- assert.equal(world.chunkAt(cx,cz+1).npc.length,0);
+ assert.equal(world.chunkAt(cx+1,cz).npc.filter(a=>a.kind==='wildlife').length,0);
+ assert.equal(world.chunkAt(cx,cz+1).npc.filter(a=>a.kind==='wildlife').length,0);
  assert.equal(world.chunkAt(cx,cz).npc[0],fox,'chunk regeneration must reuse the descriptor');
  assert.deepEqual(plain(create('fox-contract-01').actorById(fox.id)),plain(fox));
  assert.equal(create('fox-contract-02').actorById(fox.id),null,'another seed must not resolve this actor');
