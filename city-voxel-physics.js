@@ -90,7 +90,7 @@
      const steps=Math.ceil(rise/.05);
      let clear=true;
      for(let j=1;j<steps;j++){
-      if(!structureClear(nx,state.y+rise*j/steps,nz)){clear=false;break;}
+      if(!structureClear(nx,state.y+rise*j/steps,nz)||!gateClear(nx,state.y+rise*j/steps,nz)){clear=false;break;}
      }
      if(!clear)break;
     }
