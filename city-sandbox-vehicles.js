@@ -40,6 +40,9 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   const driven=v.speed+((active?throttle*cfg.acceleration:0)-drag)*dt;
   const brakeDelta=brake*cfg.braking*dt;
   let speed=Math.sign(driven)*Math.max(0,Math.abs(driven)-brakeDelta);
+  // Math.sign(negative) * 0 yields -0, which breaks strict state equality
+  // and can leak into deterministic snapshots after braking in reverse.
+  if(speed===0) speed=0;
   if(Math.sign(speed)!==Math.sign(v.speed)&&throttle===0) speed=0;
   if(Math.abs(speed)<0.02&&throttle===0) speed=0;
   speed=clamp(speed,-cfg.maxSpeed*.35,cfg.maxSpeed);
