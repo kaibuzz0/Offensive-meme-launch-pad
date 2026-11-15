@@ -92,8 +92,17 @@ export function attachRoadBuildControls({
     void run(key === 'e' ? 'collect' : 'place');
   };
   listen(target, 'keydown', onKey);
-  listen(collectButton, 'click', () => { void run('collect'); });
-  listen(placeButton, 'click', () => { void run('place'); });
+  // Touch controls can be nested inside the PWA's menu/form shell. A click
+  // must not submit a form or navigate away while the durable write is pending.
+  // Keyboard shortcuts are handled separately and keep their own focus guard.
+  listen(collectButton, 'click', event => {
+    event?.preventDefault?.();
+    void run('collect');
+  });
+  listen(placeButton, 'click', event => {
+    event?.preventDefault?.();
+    void run('place');
+  });
   return Object.freeze({
     collect: () => run('collect'),
     place: () => run('place'),
