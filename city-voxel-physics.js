@@ -82,6 +82,18 @@
     const floor=floorAt(nx,nz,state.y);
     const candidateY=state.grounded?Math.max(state.y,floor):state.y;
     if(floor===null||!structureClear(nx,candidateY,nz)||!gateClear(nx,candidateY,nz))break;
+    // Stepping onto raised terrain moves the capsule upward as well as
+    // sideways. Sweep that lift through edited roofs instead of checking
+    // only the destination, which can skip a thin structural slab.
+    if(state.grounded&&candidateY>state.y){
+     const rise=candidateY-state.y;
+     const steps=Math.ceil(rise/.05);
+     let clear=true;
+     for(let j=1;j<steps;j++){
+      if(!structureClear(nx,state.y+rise*j/steps,nz)){clear=false;break;}
+     }
+     if(!clear)break;
+    }
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
