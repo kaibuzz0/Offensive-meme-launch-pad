@@ -33,8 +33,13 @@ export function createCommittedBuildOccupancy(expectedSeed) {
       const id = key(x, y, z);
       if (cells.has(id)) return cells.get(id) !== null;
       if (typeof generatedSolid !== 'function') return true;
-      const result = generatedSolid(x, y, z);
-      return result === true || result !== false;
+      // A missing/unloaded chunk or failing generator must not become
+      // traversable air. Retry after the terrain provider recovers.
+      try {
+        return generatedSolid(x, y, z) !== false;
+      } catch {
+        return true;
+      }
     },
     getBlock(x, y, z) {
       if (![x, y, z].every(Number.isSafeInteger)) return null;
