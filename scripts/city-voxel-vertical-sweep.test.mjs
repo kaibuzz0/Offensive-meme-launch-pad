@@ -181,3 +181,22 @@ test('teleport rejects unavailable edited destination without mutating player st
  assert.equal(player.teleport(3, 0), true);
  assert.equal(player.snapshot().x, 3);
 });
+
+
+test('unknown structural occupancy is blocked until the adapter explicitly reports clear', () => {
+ const world = worldWithRoof();
+ let answer;
+ world.structuralObstructs = () => answer;
+ const player = controller(world);
+ const initial = player.snapshot();
+ for (const unknown of [undefined, null, 0, 'clear', true]) {
+  answer = unknown;
+  player.tick({ right: 1 }, .05);
+  assert.equal(player.snapshot().x, initial.x, 'unknown occupancy must not permit movement');
+  assert.equal(player.teleport(3, 0), false, 'unknown occupancy must reject teleport');
+ }
+ answer = false;
+ player.tick({ right: 1 }, .05);
+ assert.ok(player.snapshot().x > initial.x, 'explicitly clear occupancy permits movement');
+ assert.equal(player.teleport(3, 0), true);
+});
