@@ -117,7 +117,7 @@ export function createCityServer({origins=[],now=()=>Date.now(),themeReader=null
    if(media){
     headers['Accept-Ranges']='bytes';
     if(req.headers.range){
-     const match=/^bytes=(\\d*)-(\\d*)$/.exec(req.headers.range);
+     const match=/^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
      let start=match?.[1]?Number(match[1]):0,end=match?.[2]?Number(match[2]):stat.size-1;
      if(match&&!match[1]&&match[2]){start=Math.max(0,stat.size-Number(match[2]));end=stat.size-1;}
      if(!match||(!match[1]&&!match[2])||!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>=stat.size||start>end||stat.size===0){
