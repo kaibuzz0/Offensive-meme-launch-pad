@@ -89,7 +89,6 @@
    parts.push({x:lodgeX+dx,z:lodgeZ+dz,y:lodgeY+dy,w,h,d,color,solid});
   }
   lodge(0,0,0,9,1,9,stone);
-  lodge(0,0,1,1,10,9,lodgeWall);
   lodge(8,0,1,1,10,9,lodgeWall);
   lodge(1,0,1,7,10,1,lodgeWall);
   lodge(1,8,1,7,10,1,lodgeWall);
