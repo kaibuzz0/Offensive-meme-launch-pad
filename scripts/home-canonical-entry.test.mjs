@@ -16,10 +16,8 @@ test('homepage has one prominent canonical first-person Play action', () => {
 });
 
 test('all first-person homepage game links preserve the same terrain entry', () => {
-  const firstPerson = anchors.filter((tag) =>
-    /(?:Meme City|FIRST PERSON|first person|Low graphics)/i.test(tag) &&
-    href(tag).startsWith('city.html?'));
-  assert.ok(firstPerson.length >= 3, 'navigation, primary Play and detail entry must remain visible');
+  const firstPerson = anchors.filter((tag) => href(tag).startsWith('city.html?terrain=1'));
+  assert.ok(firstPerson.length >= 4, 'navigation, primary Play, compatibility and detail entry must remain visible');
   for (const tag of firstPerson) {
     assert.match(href(tag), /^city\.html\?terrain=1(?:&amp;render=canvas)?$/,
       'homepage first-person links must share the canonical terrain world');
