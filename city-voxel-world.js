@@ -361,29 +361,49 @@
   // One immutable descriptor per world, not one terrain query/allocation per
   // chunk reload. Persistent changes remain in the shared save/actor state.
   const EMPTY_ACTORS=Object.freeze([]);
-  let roadsideActors=null;
+  let roadsideActors=null,lodgeKeeper=null;
+  function keeper(){
+   if(lodgeKeeper)return lodgeKeeper;
+   const floor=gateRoad.parts[gateRoad.parts.length-9];
+   const x=floor.x+4,z=floor.z+4,ground=surfaceAt(x,z);
+   lodgeKeeper=Object.freeze({id:'npc:'+seed+':roadside-lodge:keeper',type:'npc',kind:'npc',
+    species:'human',faction:'roadside-neutral',role:'supply-keeper',rig:'shared-humanoid',
+    behavior:'idle',x,z,y:Math.max(ground.height+1,floor.y+1),
+    homeX:x,homeZ:z,range:3,worldgenVersion:1});
+   return lodgeKeeper;
+  }
   function actorsInChunk(cx,cz){
-   // Reject non-owning chunks before terrain sampling or allocating an actor.
-   const x=gateRoad.x+3,z=gateRoad.z+22;
-   if(Math.floor(x/CHUNK_SIZE)!==cx||Math.floor(z/CHUNK_SIZE)!==cz)
-    return EMPTY_ACTORS;
-   if(!roadsideActors)roadsideActors=Object.freeze([roadsideWildlife()]);
-   return roadsideActors;
+   // Reject non-owning chunks before terrain sampling or allocating actors.
+   const fx=gateRoad.x+3,fz=gateRoad.z+22;
+   const floor=gateRoad.parts[gateRoad.parts.length-9];
+   const kx=floor.x+4,kz=floor.z+4;
+   const foxHere=Math.floor(fx/CHUNK_SIZE)===cx&&Math.floor(fz/CHUNK_SIZE)===cz;
+   const keeperHere=Math.floor(kx/CHUNK_SIZE)===cx&&Math.floor(kz/CHUNK_SIZE)===cz;
+   if(!foxHere&&!keeperHere)return EMPTY_ACTORS;
+   if(foxHere&&!roadsideActors)roadsideActors=Object.freeze([roadsideWildlife()]);
+   if(foxHere&&keeperHere)return Object.freeze([roadsideActors[0],keeper()]);
+   return foxHere?roadsideActors:Object.freeze([keeper()]);
   }
   // Lightweight actor queries share chunk descriptors without generating 256 tiles.
   // Keep mutable AI and save state in the shared actor runtime, never in worldgen.
   function actorById(id){
    if(typeof id!=='string')return null;
    const x=gateRoad.x+3,z=gateRoad.z+22;
-   return id==='wildlife:'+seed+':fortress-road:0'
-    ? actorsInChunk(Math.floor(x/CHUNK_SIZE),Math.floor(z/CHUNK_SIZE))[0]:null;
+   if(id==='wildlife:'+seed+':fortress-road:0')
+    return actorsInChunk(Math.floor(x/CHUNK_SIZE),Math.floor(z/CHUNK_SIZE)).find(a=>a.kind==='wildlife')||null;
+   if(id==='npc:'+seed+':roadside-lodge:keeper')return keeper();
+   return null;
   }
   function actorsNear(x,z,radius){
    if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0)
     return EMPTY_ACTORS;
    const ax=gateRoad.x+3,az=gateRoad.z+22;
-   if(Math.hypot(x-ax,z-az)>radius)return EMPTY_ACTORS;
-   return actorsInChunk(Math.floor(ax/CHUNK_SIZE),Math.floor(az/CHUNK_SIZE));
+   const floor=gateRoad.parts[gateRoad.parts.length-9],kx=floor.x+4,kz=floor.z+4;
+   const foxNear=Math.hypot(x-ax,z-az)<=radius;
+   const keeperNear=Math.hypot(x-kx,z-kz)<=radius;
+   if(!foxNear&&!keeperNear)return EMPTY_ACTORS;
+   return Object.freeze([...(foxNear?[actorById('wildlife:'+seed+':fortress-road:0')]:[]),
+    ...(keeperNear?[keeper()]:[])]);
   }
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
