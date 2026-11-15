@@ -15,6 +15,17 @@ export function createCommittedBuildOccupancy(expectedSeed) {
       if (![x, y, z].every(Number.isSafeInteger)) return false;
       return cells.has(key(x, y, z)) && cells.get(key(x, y, z)) !== null;
     },
+    // A null edit explicitly removes generated terrain; absence means the
+    // seeded generator still owns the cell. Collision callers must distinguish
+    // these states rather than treating both as empty space.
+    hasEdit(x, y, z) {
+      if (![x, y, z].every(Number.isSafeInteger)) return false;
+      return cells.has(key(x, y, z));
+    },
+    getEdit(x, y, z) {
+      if (![x, y, z].every(Number.isSafeInteger)) return undefined;
+      return cells.get(key(x, y, z));
+    },
     getBlock(x, y, z) {
       if (![x, y, z].every(Number.isSafeInteger)) return null;
       return cells.get(key(x, y, z)) ?? null;
