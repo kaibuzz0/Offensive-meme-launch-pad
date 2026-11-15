@@ -81,6 +81,24 @@
   parts.push({x:supplies.x-.15,z:supplies.z-.15,y:supplies.y+2,w:3.3,h:.5,d:3.3,color:trim,solid:false});
   parts.push({x:supplies.x+1.3,z:supplies.z+1.1,y:supplies.y+2.5,w:.35,h:8,d:.35,color:stone,solid:false});
   parts.push({x:supplies.x+1.6,z:supplies.z+1.1,y:supplies.y+7,w:4,h:2.8,d:.22,color:amber,solid:false});
+  // Road-grade starter lodge; west doorway remains open for player access.
+  // Existing gateParts, chunk collision and both renderers share these boxes.
+  const lodgeX=center(46)+16,lodgeZ=z+45,lodgeY=heights[49]+1;
+  const lodgeWall=[.48,.31,.19],lodgeRoof=[.23,.30,.35];
+  function lodge(dx,dz,dy,w,h,d,color,solid=true){
+   parts.push({x:lodgeX+dx,z:lodgeZ+dz,y:lodgeY+dy,w,h,d,color,solid});
+  }
+  lodge(0,0,0,9,1,9,stone);
+  lodge(0,0,1,1,10,9,lodgeWall);
+  lodge(8,0,1,1,10,9,lodgeWall);
+  lodge(1,0,1,7,10,1,lodgeWall);
+  lodge(1,8,1,7,10,1,lodgeWall);
+  // Three-voxel doorway with eight-voxel headroom on the west side.
+  lodge(0,0,1,1,10,3,lodgeWall);
+  lodge(0,6,1,1,10,3,lodgeWall);
+  lodge(0,3,9,1,2,3,lodgeWall);
+  lodge(-.4,-.4,11,9.8,2,9.8,lodgeRoof);
+  lodge(4,8.8,4,2,3,.25,amber,false);
   function foundation(px,pz){
    const t=pz-z;
    if(t< -4||t>54)return null;
@@ -89,7 +107,7 @@
    return {height:heights[t+4],road:distance<=4,edge:distance===4};
   }
   function obstructs(px,py,pz,height,radius){
-   if(Math.abs(px-x)>25||Math.abs(pz-gateZ)>12)return false;
+   if(Math.abs(px-x)>35||Math.abs(pz-gateZ)>22)return false;
    return parts.some(p=>p.solid&&px+radius>p.x&&px-radius<p.x+p.w&&
     pz+radius>p.z&&pz-radius<p.z+p.d&&py+height>p.y&&py<p.y+p.h);
   }
