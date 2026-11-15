@@ -266,6 +266,14 @@
   // Canonical seeded actors: draw only the owning near-detail chunk.
   // Shared actor IDs and runtime state remain owned by the world/actor manager.
   if(stride===1)for(const actor of chunk.npc||[]){
+   if(actor.kind==='npc'&&actor.role==='supply-keeper'){
+    const x=actor.x+.5,z=actor.z+.5,y=actor.y;
+    box(data,x-.36,y,z-.23,.72,2.8,.46,[.20,.34,.43]);
+    box(data,x-.29,y+2.8,z-.22,.58,.72,.44,[.72,.55,.39]);
+    box(data,x-.43,y+1.9,z-.28,.16,.75,.55,[.20,.34,.43]);
+    box(data,x+.27,y+1.9,z-.28,.16,.75,.55,[.20,.34,.43]);
+    continue;
+   }
    if(actor.kind!=='wildlife'||actor.species!=='fox')continue;
    const x=actor.x+.5,z=actor.z+.5,y=actor.y;
    const fur=[.58,.34,.17],dark=[.20,.18,.16],light=[.78,.72,.58];
@@ -677,17 +685,19 @@
    const nearby=typeof world.actorsNear==='function'
     ? world.actorsNear(player.x,player.z,far):[];
    for(const actor of nearby.slice(0,12)){
-    if(actor.kind!=='wildlife'||actor.species!=='fox')continue;
+    if(!(actor.kind==='wildlife'&&actor.species==='fox')&&
+       !(actor.kind==='npc'&&actor.role==='supply-keeper'))continue;
     const dx=actor.x+.5-player.x,dz=actor.z+.5-player.z;
     const depth=dx*forwardX+dz*forwardZ,side=dx*rightX+dz*rightZ;
     if(depth<=1||depth>far||Math.abs(side)>depth*1.2+2)continue;
     const center=w*.5+side*focal/depth;
-    const width=Math.max(2,Math.min(w*.22,1.35*focal/depth));
-    const top=horizon+(eye-actor.y-1.25)*focal/depth;
+    const isKeeper=actor.kind==='npc';
+    const width=Math.max(2,Math.min(w*.22,(isKeeper?.9:1.35)*focal/depth));
+    const top=horizon+(eye-actor.y-(isKeeper?3.55:1.25))*focal/depth;
     const bottom=horizon+(eye-actor.y)*focal/depth;
     if(bottom<=0||top>=h)continue;
     projected.push({depth,x:center-width/2,top,width,height:bottom-top,
-     color:[.58,.34,.17],fox:true});
+     color:isKeeper?[.20,.34,.43]:[.58,.34,.17],fox:!isKeeper});
    }
    projected.sort((a,b)=>b.depth-a.depth);
    for(const p of projected){
