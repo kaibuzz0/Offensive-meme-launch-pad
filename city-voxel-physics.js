@@ -146,7 +146,7 @@
    let structuralLanding=false;
    if(state.y!==previousY){
     const destinationY=state.y;
-    const intervals=Math.max(1,Math.ceil(Math.abs(destinationY-previousY)/.25));
+    const intervals=Math.max(1,Math.ceil(Math.abs(destinationY-previousY)/.05));
     let safeY=previousY,blocked=false;
     for(let i=1;i<=intervals;i++){
      const candidateY=previousY+(destinationY-previousY)*i/intervals;
@@ -188,7 +188,7 @@
    else if(floor!==null&&state.y>floor+.01&&!structuralLanding){
     // Keep an edited platform stable without alternating airborne/grounded.
     // If the edit disappears, the next tick resumes ordinary gravity.
-    state.grounded=state.grounded&&!structureClear(state.x,state.y-.05,state.z);
+    state.grounded=state.grounded&&!structureClear(state.x,state.y-.1,state.z);
    }
    return snapshot();
   }
