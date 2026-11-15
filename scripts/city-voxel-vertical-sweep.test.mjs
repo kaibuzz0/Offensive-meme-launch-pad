@@ -164,3 +164,20 @@ test('temporary horizontal occupancy failure blocks movement and recovers', () =
  for (let i = 0; i < 3; i++) player.tick({ right: 1 }, .05);
  assert.ok(player.snapshot().x > .25, 'controller must recover after chunk returns');
 });
+
+
+test('teleport rejects unavailable edited destination without mutating player state', () => {
+ const world = worldWithRoof();
+ let unavailable = true;
+ world.structuralObstructs = (x) => {
+  if (x >= 2 && unavailable) throw Error('destination chunk evicted');
+  return false;
+ };
+ const player = controller(world);
+ const before = player.snapshot();
+ assert.equal(player.teleport(3, 0), false);
+ assert.deepEqual(player.snapshot(), before, 'failed teleport must preserve full state');
+ unavailable = false;
+ assert.equal(player.teleport(3, 0), true);
+ assert.equal(player.snapshot().x, 3);
+});
