@@ -13,7 +13,7 @@ export function createCommittedBuildOccupancy(expectedSeed) {
     get revision() { return revision; },
     hasBlock(x, y, z) {
       if (![x, y, z].every(Number.isSafeInteger)) return false;
-      return cells.has(key(x, y, z));
+      return cells.has(key(x, y, z)) && cells.get(key(x, y, z)) !== null;
     },
     getBlock(x, y, z) {
       if (![x, y, z].every(Number.isSafeInteger)) return null;
