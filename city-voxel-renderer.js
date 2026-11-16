@@ -684,7 +684,9 @@
    // generator, no terrain cache expansion and no separate collision state.
    const nearby=typeof world.actorsNear==='function'
     ? world.actorsNear(player.x,player.z,far):[];
-   for(const actor of nearby.slice(0,12)){
+   // Bound actor projection without allocating a sliced array every frame.
+   for(let actorIndex=0;actorIndex<Math.min(nearby.length,12);actorIndex++){
+    const actor=nearby[actorIndex];
     if(!(actor.kind==='wildlife'&&actor.species==='fox')&&
        !(actor.kind==='npc'&&actor.role==='supply-keeper'))continue;
     const dx=actor.x+.5-player.x,dz=actor.z+.5-player.z;
