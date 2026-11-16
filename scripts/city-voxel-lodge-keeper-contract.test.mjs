@@ -23,6 +23,13 @@ test('roadside keeper is deterministic, unique, terrain-fitted and chunk-owned',
   const cx=Math.floor(actor.x/a.CHUNK_SIZE),cz=Math.floor(actor.z/a.CHUNK_SIZE);
   assert.equal(a.chunkAt(cx,cz).npc.filter(n=>n.id===id).length,1);
   assert.equal(b.chunkAt(cx,cz).npc.filter(n=>n.id===id).length,1);
+  // Repeated streaming of the same owning chunk reuses frozen actor arrays.
+  // Tile snapshots may regenerate; actor identity and population must not.
+  const firstActors=a.chunkAt(cx,cz).npc;
+  const nextActors=a.chunkAt(cx,cz).npc;
+  assert.strictEqual(firstActors,nextActors);
+  assert.ok(Object.isFrozen(firstActors));
+  assert.strictEqual(firstActors.find(n=>n.id===id),actor);
   assert.equal(a.actorsNear(actor.x,actor.z,1).filter(n=>n.id===id).length,1);
   assert.ok(actor.y>=a.surfaceAt(actor.x,actor.z).height+1);
   const floor=a.gateRoad.lodgeFloor;
