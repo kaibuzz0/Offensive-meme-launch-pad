@@ -16,8 +16,10 @@
    let top=-Infinity;
    for(const [ox,oz] of samples){
     const bx=Math.floor(x+ox),bz=Math.floor(z+oz);
-    const col=world.surfaceAt(bx,bz);
-    if(!col)return null;
+    // Unloaded/failed columns are not traversable; keep the last safe pose.
+    let col;
+    try { col=world.surfaceAt(bx,bz); } catch { return null; }
+    if(!col||!Number.isFinite(col.height))return null;
     let height=col.height+1;
     // Caves share world coordinates with the terrain. The roof stays solid
     // until the player reaches an open mouth or is already below the roof.
@@ -79,7 +81,9 @@
    const yaw=Number.isFinite(input?.yaw)?input.yaw:0;
    const rightX=Math.cos(yaw),rightZ=-Math.sin(yaw);
    const forwardX=Math.sin(yaw),forwardZ=Math.cos(yaw);
-   const feet=world.surfaceAt(Math.floor(state.x),Math.floor(state.z));
+   // A transient chunk-load failure must not crash the fixed-step loop.
+   let feet;
+   try { feet=world.surfaceAt(Math.floor(state.x),Math.floor(state.z)); } catch { feet=null; }
    // Optional water-volume query allows submerged cave pools without
    // treating dry terrain below sea level as water. Legacy worlds without
    // this query retain the previous sea-level behavior.
