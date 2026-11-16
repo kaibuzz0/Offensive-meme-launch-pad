@@ -312,3 +312,18 @@ test('WebGL wildlife silhouette is generated only in its canonical near-detail c
   assert.equal(far.vertices,farWithout.vertices,'distant LOD must not duplicate actor meshes');
  }
 });
+
+
+test('lodge keeper placement uses an explicit stable floor instead of structure array order',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow']){
+  const world=create(seed),floor=world.gateRoad.lodgeFloor;
+  assert.ok(floor&&Object.isFrozen(floor),'lodge floor must be a stable immutable landmark');
+  const actor=world.actorById('npc:'+world.seed+':roadside-lodge:keeper');
+  assert.ok(actor,'keeper remains discoverable by persistence identity');
+  assert.equal(actor.x,floor.x+4);
+  assert.equal(actor.z,floor.z+4);
+  assert.ok(actor.y>=floor.y+1,'keeper stands above the lodge floor');
+  assert.deepEqual(plain(floor),plain(create(seed).gateRoad.lodgeFloor));
+  assert.strictEqual(world.actorById(actor.id),actor);
+ }
+});
