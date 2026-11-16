@@ -37,6 +37,12 @@ The workflow uses only `GITHUB_TOKEN` with `contents: read`, `pull-requests: rea
 
 The machine-readable source of role names, issue IDs, GitHub research queries, dependency edges and owner paths is [`DEVELOPMENT_COUNCIL.json`](DEVELOPMENT_COUNCIL.json).
 
+## Active release gate (2026-11-16; overrides historical stages below)
+
+The operative contract is [CANONICAL_GAME_RELEASE_CONTRACT.md](CANONICAL_GAME_RELEASE_CONTRACT.md). **Rung A is not yet visually accepted; do not treat Stage B/C descriptions below as permission to release parallel gameplay.** Current first complete route: homepage Play → wallet-free Solo → fortress/arch → wooded road → lit lodge/interior → pickup/workbench/place → reload. Preserve existing saves and public entry URLs until repeat-safe migration and WebGL/Canvas parity are proven. #43 owns entry, dependency review, release and deployment; #46 renderer and visual rig; #53 flight only after #52 shared vehicle seat/controller/save. #49 owns traversal and collision; #45/#56 own stable world/actor IDs; #48 owns the atomic item/edit ledger; #47/#57 own exact-head mobile/desktop Chromium and measured device budgets. Draft, failed, stacked or parity-unverified PRs are **not** merge candidates. In particular #168 depends on #157; #180 and #183 require fresh exact-head review; #161 remains draft. These PR observations are a 2026-11-16 checkpoint, not permanent statuses. No public visual acceptance or physical Android performance is asserted here.
+
+The stages below are **historical workstream organization**, not the current release ladder. For the current A–F acceptance order, use the canonical contract and #43.
+
 ## Project delivery order
 
 **Stage A — protect and stabilize the engine (P0).** Owner 01 sequences and integrates; owners 02 and 05 assess dependencies and real Android performance; owners 07 and 15 harden 3D player/world physics and multiplayer state boundaries. Goal: stable first-person controller and consistent saved state under realistic movement and load.
