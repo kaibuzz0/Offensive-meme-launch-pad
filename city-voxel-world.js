@@ -399,7 +399,7 @@
    if(typeof id!=='string')return null;
    const x=gateRoad.x+3,z=gateRoad.z+22;
    if(id==='wildlife:'+seed+':fortress-road:0')
-    return actorsInChunk(Math.floor(x/CHUNK_SIZE),Math.floor(z/CHUNK_SIZE)).find(a=>a.kind==='wildlife')||null;
+    return actorsInChunk(Math.floor(x/CHUNK_SIZE),Math.floor(z/CHUNK_SIZE))[0]||null;
    if(id==='npc:'+seed+':roadside-lodge:keeper')return keeper();
    return null;
   }
