@@ -91,3 +91,18 @@ test('repeated near-actor queries reuse frozen arrays without changing actor own
  assert.equal(world.actorById(fox.id),fox);
  assert.equal(world.actorById(keeper.id),keeper);
 });
+
+test('direct fox lookup stays stable and avoids terrain allocation after first resolution',()=>{
+ for(const seed of ['fox-lookup-a','fox-lookup-b']){
+  const world=make(seed);
+  const id='wildlife:'+world.seed+':fortress-road:0';
+  const fox=world.actorById(id);
+  assert.ok(fox);
+  const before=world.cacheSize(),caves=world.caveCacheSize();
+  for(let i=0;i<32;i++)assert.strictEqual(world.actorById(id),fox);
+  assert.equal(world.cacheSize(),before);
+  assert.equal(world.caveCacheSize(),caves);
+  const cx=Math.floor(fox.x/world.CHUNK_SIZE),cz=Math.floor(fox.z/world.CHUNK_SIZE);
+  assert.strictEqual(world.chunkAt(cx,cz).npc.find(a=>a.id===id),fox);
+ }
+});
