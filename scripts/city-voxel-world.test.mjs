@@ -221,3 +221,42 @@ test('fortress roadside foliage follows the local biome and avoids unsafe slopes
   }
  }
 });
+
+test('starter road, supply cache and gate fragments survive bounded terrain cache eviction',()=>{
+ const w=create('landmark-cache-001');
+ const other=create('landmark-cache-001');
+ const supply=plain(w.gateRoad.supplies);
+ const roadPoints=[];
+ for(let dz=-4;dz<=54;dz++){
+  const z=w.gateRoad.z+dz;
+  for(let dx=-25;dx<=25;dx++){
+   const x=w.gateRoad.x+dx;
+   const c=w.surfaceAt(x,z);
+   if(c?.road&&dz%7===0)roadPoints.push({x,z,column:plain(c)});
+  }
+ }
+ assert.ok(roadPoints.length>0,'graded starter road must exist');
+ const gateChunks=new Set();
+ for(const part of w.gateRoad.parts){
+  for(let cx=Math.floor(part.x/16);cx<=Math.floor((part.x+part.w-0.001)/16);cx++)
+   for(let cz=Math.floor(part.z/16);cz<=Math.floor((part.z+part.d-0.001)/16);cz++)
+    gateChunks.add(cx+','+cz);
+ }
+ const before=[...gateChunks].sort().map(key=>{
+  const [cx,cz]=key.split(',').map(Number);
+  return {key,parts:plain(w.chunkAt(cx,cz).structures)};
+ });
+ for(let i=0;i<23000;i++)w.surfaceAt(400000+i%200,Math.floor(i/200)-600);
+ assert.ok(w.cacheSize()<=22528,'terrain cache must remain bounded');
+ assert.deepEqual(plain(w.gateRoad.supplies),supply,'supply cache anchor must not move');
+ for(const {x,z,column} of roadPoints){
+  assert.deepEqual(plain(w.surfaceAt(x,z)),column,'road grade must regenerate unchanged');
+  assert.deepEqual(plain(w.surfaceAt(x,z)),plain(other.surfaceAt(x,z)));
+ }
+ for(const {key,parts} of before){
+  const [cx,cz]=key.split(',').map(Number);
+  const after=plain(w.chunkAt(cx,cz).structures);
+  assert.deepEqual(after,parts,'gate fragments must preserve identities and geometry');
+  assert.deepEqual(after,plain(other.chunkAt(cx,cz).structures));
+ }
+});
