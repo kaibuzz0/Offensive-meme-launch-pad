@@ -212,17 +212,22 @@
  function recoverPerspective(factory){
   let replacement=null;
   try{replacement=factory();}catch(err){status.dataset.rendererError=String(err?.message||err).slice(0,120);}
+  if(!replacement){
+   // A renderer allocation failure must not change the gameplay mode or
+   // discard the current world/player state. Retain the retry opportunity.
+   contextInterrupted=true;
+   status.textContent='3D renderer unavailable · retry rendering';
+   renderHint.textContent='Renderer unavailable · retry with the graphics control';
+   renderHint.hidden=false;
+   return false;
+  }
   const previous=perspective;
   perspective=replacement;
-  firstPerson=!!replacement;
-  try{previous?.dispose();}catch{}
+  firstPerson=true;
+  contextInterrupted=false;
+  if(previous!==replacement)try{previous?.dispose();}catch{}
   syncView();
-  if(!replacement){
-   status.textContent='3D unavailable · switch to 2D map';
-   renderHint.textContent='3D unavailable · use the 2D map control';
-   renderHint.hidden=false;
-  }
-  return !!replacement;
+  return true;
  }
  voxelCanvas.addEventListener('webglcontextlost',event=>{
   event.preventDefault();
@@ -231,7 +236,6 @@
  });
  voxelCanvas.addEventListener('webglcontextrestored',()=>{
   if(!contextInterrupted)return;
-  contextInterrupted=false;
   recoverPerspective(openPerspective);
  });
  function syncView(){
