@@ -363,6 +363,9 @@
   // chunk reload. Persistent changes remain in the shared save/actor state.
   const EMPTY_ACTORS=Object.freeze([]);
   let roadsideActors=null,lodgeKeeper=null,keeperActors=null,combinedActors=null;
+  // Proximity queries run every simulation tick; reuse the same frozen sets
+  // instead of allocating a fresh array whenever the player remains nearby.
+  let foxNearActors=null,keeperNearActors=null;
   function keeper(){
    if(lodgeKeeper)return lodgeKeeper;
    const floor=gateRoad.lodgeFloor;
@@ -408,8 +411,16 @@
    const foxNear=Math.hypot(x-ax,z-az)<=radius;
    const keeperNear=Math.hypot(x-kx,z-kz)<=radius;
    if(!foxNear&&!keeperNear)return EMPTY_ACTORS;
-   return Object.freeze([...(foxNear?[actorById('wildlife:'+seed+':fortress-road:0')]:[]),
-    ...(keeperNear?[keeper()]:[])]);
+   if(foxNear&&keeperNear){
+    if(!combinedActors)combinedActors=Object.freeze([actorById('wildlife:'+seed+':fortress-road:0'),keeper()]);
+    return combinedActors;
+   }
+   if(foxNear){
+    if(!foxNearActors)foxNearActors=Object.freeze([actorById('wildlife:'+seed+':fortress-road:0')]);
+    return foxNearActors;
+   }
+   if(!keeperNearActors)keeperNearActors=Object.freeze([keeper()]);
+   return keeperNearActors;
   }
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
