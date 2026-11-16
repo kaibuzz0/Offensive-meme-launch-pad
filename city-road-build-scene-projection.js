@@ -33,6 +33,18 @@ export function diffCommittedConstruction(previous, next, expectedSeed) {
     throw new Error('stale construction revision');
   // Same revision must identify the same committed state. Otherwise two tabs or
   // stale renderer callbacks could silently display divergent inventory/geometry.
+  // Equal revision must mean the entire durable record is identical, not only
+  // the currently rendered block list and supplies. A divergent metadata or
+  // inventory field can otherwise be hidden by a successful scene refresh.
+  function canonical(value) {
+    if (Array.isArray(value)) return value.map(canonical);
+    if (value && typeof value === 'object')
+      return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])]));
+    return value;
+  }
+  if (prior && current.revision === prior.revision &&
+      JSON.stringify(canonical(previous)) !== JSON.stringify(canonical(next)))
+    throw new Error('conflicting construction snapshot at equal revision');
   const oldEdits = new Map((prior?.edits ?? []).map(edit => [edit.id, edit]));
   if (prior && current.revision === prior.revision &&
       (current.supplies !== prior.supplies ||
