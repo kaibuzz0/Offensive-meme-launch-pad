@@ -35,6 +35,17 @@ export function createSoloBuildCommands(store, key, resolveRoadCrate) {
     pending = result.catch(() => {});
     return result;
   }
+  // Both collection and placement must verify the complete durable winner.
+  // A CAS acknowledgement alone cannot authorize visible inventory changes.
+  async function verifyCommitted(next, label) {
+    const saved = await store.read(key);
+    if (!saved) throw new Error(label + ' commit readback missing');
+    validateBuildRecord(saved);
+    if (saved.revision !== next.revision ||
+        JSON.stringify(canonical(saved)) !== JSON.stringify(canonical(next)))
+      throw new Error(label + ' commit readback mismatch');
+    return structuredClone(saved);
+  }
   return Object.freeze({
     async read() {
       // A same-tab refresh must observe queued commits before reading storage.
@@ -67,7 +78,7 @@ export function createSoloBuildCommands(store, key, resolveRoadCrate) {
         validateBuildRecord(next);
         const committed = await store.compareAndSwap(key, current.revision, next);
         if (committed !== true) throw new Error('building changed in another session; retry');
-        return structuredClone(next);
+        return verifyCommitted(next, 'collection');
       });
     },
     placeWorkbench(input) {
@@ -88,13 +99,7 @@ export function createSoloBuildCommands(store, key, resolveRoadCrate) {
         if (committed !== true) throw new Error('building changed in another session; retry');
         // A successful CAS acknowledgement is not sufficient if the adapter
         // silently failed to persist or returned a different durable record.
-        const saved = await store.read(key);
-        if (!saved) throw new Error('construction commit readback missing');
-        validateBuildRecord(saved);
-        if (saved.revision !== next.revision ||
-            JSON.stringify(canonical(saved)) !== JSON.stringify(canonical(next)))
-          throw new Error('construction commit readback mismatch');
-        return structuredClone(saved);
+        return verifyCommitted(next, 'construction');
       });
     }
   });
