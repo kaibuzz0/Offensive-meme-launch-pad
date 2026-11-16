@@ -50,7 +50,7 @@ test('invalid and remote actor queries avoid chunk allocation and cache growth',
 test('lodge keeper retains seed identity, single-chunk ownership and bounded proximity queries',()=>{
  for(const seed of ['keeper-owner-a','keeper-owner-b']){
   const world=make(seed),replay=make(seed);
-  const id='npc:'+seed+':roadside-lodge:keeper';
+  const id='npc:'+world.seed+':roadside-lodge:keeper';
   const keeper=world.actorById(id);
   assert.ok(keeper,'keeper must be addressable without generating a chunk');
   assert.equal(keeper.role,'supply-keeper');
