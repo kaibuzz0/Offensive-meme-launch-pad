@@ -408,8 +408,11 @@
     return EMPTY_ACTORS;
    const ax=gateRoad.x+3,az=gateRoad.z+22;
    const floor=gateRoad.lodgeFloor,kx=floor.x+4,kz=floor.z+4;
-   const foxNear=Math.hypot(x-ax,z-az)<=radius;
-   const keeperNear=Math.hypot(x-kx,z-kz)<=radius;
+   // Squared distances avoid two square roots per frequent actor query.
+   const radiusSquared=radius*radius;
+   const foxDx=x-ax,foxDz=z-az,keeperDx=x-kx,keeperDz=z-kz;
+   const foxNear=foxDx*foxDx+foxDz*foxDz<=radiusSquared;
+   const keeperNear=keeperDx*keeperDx+keeperDz*keeperDz<=radiusSquared;
    if(!foxNear&&!keeperNear)return EMPTY_ACTORS;
    if(foxNear&&keeperNear){
     if(!combinedActors)combinedActors=Object.freeze([actorById('wildlife:'+seed+':fortress-road:0'),keeper()]);
