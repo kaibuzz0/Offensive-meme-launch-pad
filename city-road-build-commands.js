@@ -4,6 +4,14 @@ import { buildWorkbenchState } from './city-road-build-transaction.js';
 import { salvageRoadSupplies } from './city-road-salvage-transaction.js';
 import { validateBuildRecord } from './city-road-build-save-validation.js';
 
+// Storage adapters can reorder object keys without changing the saved value.
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object')
+    return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])]));
+  return value;
+}
+
 export function createSoloBuildCommands(store, key, resolveRoadCrate) {
   if (!store || typeof store.read !== 'function' ||
       typeof store.compareAndSwap !== 'function' ||
@@ -78,8 +86,15 @@ export function createSoloBuildCommands(store, key, resolveRoadCrate) {
         validateBuildRecord(next);
         const committed = await store.compareAndSwap(key, current.revision, next);
         if (committed !== true) throw new Error('building changed in another session; retry');
-        // Return an isolated snapshot: adapters may retain the object passed to CAS.
-        return structuredClone(next);
+        // A successful CAS acknowledgement is not sufficient if the adapter
+        // silently failed to persist or returned a different durable record.
+        const saved = await store.read(key);
+        if (!saved) throw new Error('construction commit readback missing');
+        validateBuildRecord(saved);
+        if (saved.revision !== next.revision ||
+            JSON.stringify(canonical(saved)) !== JSON.stringify(canonical(next)))
+          throw new Error('construction commit readback mismatch');
+        return structuredClone(saved);
       });
     }
   });
