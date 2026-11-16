@@ -139,7 +139,23 @@ try{
    await evalPage('document.getElementById("city-road-supplies").click();true');
    assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
    try{
-    await waitFor(()=>evalPage('!document.getElementById("city-gate-seal").hidden'),'walk under the fortress arch',90000);
+    // Sample the actual approach rather than relying on a single timeout snapshot.
+    // Retain the original 90s acceptance gate; telemetry cannot make a failed gate pass.
+    const approach=[];let lastApproachSample=0;const approachStart=Date.now();
+    await waitFor(async()=>{
+     const state=await evalPage(`(()=>{
+      const d=document.getElementById("city-voxel-status")?.dataset||{};
+      return {gateVisible:!document.getElementById("city-gate-seal")?.hidden,
+       x:Number(d.worldX),z:Number(d.worldZ),yaw:Number(d.lookYaw),
+       fps:Number(d.fps),grounded:d.grounded,meshPending:Number(d.meshPending)};
+     })()`);
+     const now=Date.now();
+     if(now-lastApproachSample>=2000){
+      approach.push({elapsedMs:now-(approachStart),...state});
+      lastApproachSample=now;
+     }
+     return state.gateVisible;
+    },'walk under the fortress arch',90000);
    }catch(error){
     // Capture live state before releasing W. A timeout alone cannot distinguish
     // structural collision, stalled input, camera orientation or interaction range.
@@ -155,7 +171,7 @@ try{
       viewport:{width:innerWidth,height:innerHeight},
       errors:window.__cityRuntimeErrors||null};
     })()`).catch(e=>({diagnosticError:e.message}));
-    throw Error(error.message+" / gate traversal diagnostics: "+JSON.stringify({traversalStart,diagnostics}));
+    throw Error(error.message+" / gate traversal diagnostics: "+JSON.stringify({traversalStart,approach,diagnostics}));
    }
   }finally{
    await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
