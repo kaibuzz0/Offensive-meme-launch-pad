@@ -23,8 +23,10 @@
     let height=col.height+1;
     // Caves share world coordinates with the terrain. The roof stays solid
     // until the player reaches an open mouth or is already below the roof.
-    const gallery=world.caveRoomAt?.(bx,bz);
+    let gallery;
+    try { gallery=world.caveRoomAt?.(bx,bz); } catch { return null; }
     if(gallery&&(gallery.exposed||referenceY<gallery.ceiling)){
+     if(!Number.isFinite(gallery.floor))return null;
      height=gallery.floor;
     }
     top=Math.max(top,height);
