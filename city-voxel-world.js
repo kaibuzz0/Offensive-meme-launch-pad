@@ -88,6 +88,7 @@
   function lodge(dx,dz,dy,w,h,d,color,solid=true){
    parts.push({x:lodgeX+dx,z:lodgeZ+dz,y:lodgeY+dy,w,h,d,color,solid});
   }
+  const lodgeFloor=Object.freeze({x:lodgeX,z:lodgeZ,y:lodgeY,w:9,h:1,d:9});
   lodge(0,0,0,9,1,9,stone);
   lodge(8,0,1,1,10,9,lodgeWall);
   lodge(1,0,1,7,10,1,lodgeWall);
@@ -110,7 +111,7 @@
    return parts.some(p=>p.solid&&px+radius>p.x&&px-radius<p.x+p.w&&
     pz+radius>p.z&&pz-radius<p.z+p.d&&py+height>p.y&&py<p.y+p.h);
   }
-  return {x,z,gateX:x,gateZ,base,parts,foundation,obstructs,supplies};
+  return {x,z,gateX:x,gateZ,base,parts,foundation,obstructs,supplies,lodgeFloor};
  }
  function createVoxelWorld(atlas){
   if(!atlas?.seedHash||typeof atlas.biomeAt!=='function')throw Error('Seeded 132-biome atlas required');
@@ -364,7 +365,7 @@
   let roadsideActors=null,lodgeKeeper=null;
   function keeper(){
    if(lodgeKeeper)return lodgeKeeper;
-   const floor=gateRoad.parts[gateRoad.parts.length-9];
+   const floor=gateRoad.lodgeFloor;
    const x=floor.x+4,z=floor.z+4,ground=surfaceAt(x,z);
    lodgeKeeper=Object.freeze({id:'npc:'+seed+':roadside-lodge:keeper',type:'npc',kind:'npc',
     species:'human',faction:'roadside-neutral',role:'supply-keeper',rig:'shared-humanoid',
@@ -375,7 +376,7 @@
   function actorsInChunk(cx,cz){
    // Reject non-owning chunks before terrain sampling or allocating actors.
    const fx=gateRoad.x+3,fz=gateRoad.z+22;
-   const floor=gateRoad.parts[gateRoad.parts.length-9];
+   const floor=gateRoad.lodgeFloor;
    const kx=floor.x+4,kz=floor.z+4;
    const foxHere=Math.floor(fx/CHUNK_SIZE)===cx&&Math.floor(fz/CHUNK_SIZE)===cz;
    const keeperHere=Math.floor(kx/CHUNK_SIZE)===cx&&Math.floor(kz/CHUNK_SIZE)===cz;
@@ -398,7 +399,7 @@
    if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0)
     return EMPTY_ACTORS;
    const ax=gateRoad.x+3,az=gateRoad.z+22;
-   const floor=gateRoad.parts[gateRoad.parts.length-9],kx=floor.x+4,kz=floor.z+4;
+   const floor=gateRoad.lodgeFloor,kx=floor.x+4,kz=floor.z+4;
    const foxNear=Math.hypot(x-ax,z-az)<=radius;
    const keeperNear=Math.hypot(x-kx,z-kz)<=radius;
    if(!foxNear&&!keeperNear)return EMPTY_ACTORS;
