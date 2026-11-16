@@ -138,10 +138,10 @@ try{
    await waitFor(()=>evalPage('!document.getElementById("city-road-supplies").hidden'),'walk to the roadside supply cache',90000);
    await evalPage('document.getElementById("city-road-supplies").click();true');
    assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
+   const approach=[];let lastApproachSample=0;const approachStart=Date.now();
    try{
     // Sample the actual approach rather than relying on a single timeout snapshot.
     // Retain the original 90s acceptance gate; telemetry cannot make a failed gate pass.
-    const approach=[];let lastApproachSample=0;const approachStart=Date.now();
     await waitFor(async()=>{
      const state=await evalPage(`(()=>{
       const d=document.getElementById("city-voxel-status")?.dataset||{};
