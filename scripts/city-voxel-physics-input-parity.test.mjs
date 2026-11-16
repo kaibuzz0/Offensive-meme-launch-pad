@@ -77,3 +77,26 @@ test('invalid terrain heights cannot authorize traversal', () => {
   for (let i = 0; i < 20; i++) player.tick({ right: 1 }, 1 / 60);
   assert.ok(player.snapshot().x < 1);
 });
+
+test('unavailable teleport target preserves pose and later permits recovery', () => {
+  let loaded = false;
+  const terrain = world();
+  terrain.surfaceAt = (x) => {
+    if (x >= 2 && !loaded) throw new Error('chunk not loaded');
+    return { height: 0 };
+  };
+  const player = create(terrain, { x: 0, z: 0 });
+  const before = player.snapshot();
+  assert.equal(player.teleport(3, 0), false);
+  assert.deepEqual(player.snapshot(), before, 'failed teleport changed the saved player pose');
+  loaded = true;
+  assert.equal(player.teleport(3, 0), true);
+  assert.equal(player.snapshot().x, 3);
+  assert.ok(Number.isFinite(player.snapshot().y));
+});
+
+test('invalid spawn column fails explicitly rather than producing NaN state', () => {
+  const terrain = world();
+  terrain.surfaceAt = () => ({ height: Infinity });
+  assert.throws(() => create(terrain, { x: 0, z: 0 }), /Spawn outside supported world/);
+});
