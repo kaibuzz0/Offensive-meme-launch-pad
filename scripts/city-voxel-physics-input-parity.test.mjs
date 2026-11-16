@@ -120,3 +120,33 @@ test('unavailable or invalid cave floors fail closed without corrupting the play
     assert.deepEqual(player.snapshot(), pose);
   }
 });
+
+test('cave lookup failure during lateral clearance blocks entry without throwing', () => {
+  const terrain = world();
+  terrain.caveRoomAt = (x) => {
+    if (x >= 1) throw new Error('unloaded adjacent cave roof');
+    return null;
+  };
+  const player = create(terrain, { x: 0, z: 0 });
+  for (let i = 0; i < 20; i++) {
+    assert.doesNotThrow(() => player.tick({ right: 1 }, 1 / 60));
+  }
+  assert.ok(player.snapshot().x < 1);
+  assert.ok(Number.isFinite(player.snapshot().y));
+});
+
+test('cave roof query failure during ascent stops jump without corrupting pose', () => {
+  let calls = 0;
+  const terrain = world();
+  terrain.caveRoomAt = () => {
+    calls++;
+    if (calls > 5) throw new Error('roof query unavailable');
+    return { exposed: false, floor: 0, ceiling: 3 };
+  };
+  const player = create(terrain, { x: 0, z: 0, y: -1 });
+  const before = player.snapshot();
+  assert.doesNotThrow(() => player.tick({ jump: true }, 1 / 60));
+  const after = player.snapshot();
+  assert.equal(after.y, before.y);
+  assert.ok(Number.isFinite(after.vy));
+});
