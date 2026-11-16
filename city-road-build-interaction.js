@@ -130,6 +130,9 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
   }
   const api = {
     get busy() { return busy; },
+    // True only when the latest durable snapshot was accepted by the scene.
+    // Presentation status never changes whether the resource transaction committed.
+    get sceneReady() { return last !== null && lastRenderedRevision === last.revision; },
     get snapshot() { return last === null ? null : structuredClone(last); },
     // Renderer recovery must not repeat a pickup or spending command. The
     // persisted snapshot is replayed to the scene without touching the ledger.
