@@ -362,7 +362,7 @@
   // One immutable descriptor per world, not one terrain query/allocation per
   // chunk reload. Persistent changes remain in the shared save/actor state.
   const EMPTY_ACTORS=Object.freeze([]);
-  let roadsideActors=null,lodgeKeeper=null;
+  let roadsideActors=null,lodgeKeeper=null,keeperActors=null,combinedActors=null;
   function keeper(){
    if(lodgeKeeper)return lodgeKeeper;
    const floor=gateRoad.lodgeFloor;
@@ -382,8 +382,13 @@
    const keeperHere=Math.floor(kx/CHUNK_SIZE)===cx&&Math.floor(kz/CHUNK_SIZE)===cz;
    if(!foxHere&&!keeperHere)return EMPTY_ACTORS;
    if(foxHere&&!roadsideActors)roadsideActors=Object.freeze([roadsideWildlife()]);
-   if(foxHere&&keeperHere)return Object.freeze([roadsideActors[0],keeper()]);
-   return foxHere?roadsideActors:Object.freeze([keeper()]);
+   if(foxHere&&keeperHere){
+    if(!combinedActors)combinedActors=Object.freeze([roadsideActors[0],keeper()]);
+    return combinedActors;
+   }
+   if(foxHere)return roadsideActors;
+   if(!keeperActors)keeperActors=Object.freeze([keeper()]);
+   return keeperActors;
   }
   // Lightweight actor queries share chunk descriptors without generating 256 tiles.
   // Keep mutable AI and save state in the shared actor runtime, never in worldgen.
