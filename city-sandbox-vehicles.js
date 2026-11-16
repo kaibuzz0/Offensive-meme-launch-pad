@@ -141,3 +141,21 @@ export function createTerrainVehicleClearance(world,structuralObstructs,{maxGrou
     return true;
   };
 }
+
+/** Use one seeded-world source for vehicle wheel support and full chassis clearance.
+ * The structural predicate must be the canonical player/edit collision query.
+ * Missing terrain fails closed in stepVehicle; visual LOD is never consulted.
+ */
+export function createTerrainVehicleEnvironment(world,structuralObstructs,options={}){
+  const canOccupy=createTerrainVehicleClearance(world,structuralObstructs,options);
+  return {
+    canOccupy,
+    groundHeightAt(position){
+      if(!position||![position.x,position.z].every(Number.isFinite))return NaN;
+      try {
+        const column=world.surfaceAt(Math.floor(position.x),Math.floor(position.z));
+        return Number.isFinite(column?.height)?column.height+1:NaN;
+      } catch { return NaN; }
+    }
+  };
+}
