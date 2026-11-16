@@ -64,3 +64,23 @@ test('equal-revision renderer snapshots cannot silently diverge', async () => {
   assert.throws(() => diffCommittedConstruction(original, make(4, 'stone'), 'starter'), /conflicting construction snapshot/);
   assert.deepEqual(diffCommittedConstruction(original, structuredClone(original), 'starter').upsert, []);
 });
+
+test('equal-revision scene replay rejects divergence outside rendered fields', async () => {
+  const { diffCommittedConstruction } = await import('../city-road-build-scene-projection.js');
+  const journal = createVoxelEditJournal('starter');
+  const base = { version: 1, seed: 'starter', revision: 0,
+    inventory: { supplies: 8, crafted: 0 }, journal: journal.snapshot(),
+    provenance: { source: 'road-crate' } };
+  const altered = structuredClone(base);
+  altered.inventory.crafted = 1;
+  assert.throws(() => diffCommittedConstruction(base, altered, 'starter'),
+    /conflicting construction snapshot/);
+  const changedMetadata = structuredClone(base);
+  changedMetadata.provenance.source = 'other-crate';
+  assert.throws(() => diffCommittedConstruction(base, changedMetadata, 'starter'),
+    /conflicting construction snapshot/);
+  const reordered = { provenance: { source: 'road-crate' },
+    journal: structuredClone(base.journal), inventory: { crafted: 0, supplies: 8 },
+    revision: 0, seed: 'starter', version: 1 };
+  assert.deepEqual(diffCommittedConstruction(base, reordered, 'starter').upsert, []);
+});
