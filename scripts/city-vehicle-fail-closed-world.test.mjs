@@ -28,7 +28,9 @@ test('unknown structure queries stop vehicle without changing heading or positio
   car.heading = 0.3;
   const next = stepVehicle(car, {throttle: 1, steering: 1}, 1 / 60, {canOccupy: clearance});
   assert.deepEqual(next.position, car.position);
-  assert.equal(next.heading, car.heading);
+  // loadVehicle normalizes angles through atan2(sin, cos), so equivalent
+  // headings can differ by one floating-point ULP after a blocked step.
+  assert.ok(Math.abs(next.heading - car.heading) < 1e-12);
   assert.equal(next.speed, 0);
 });
 
