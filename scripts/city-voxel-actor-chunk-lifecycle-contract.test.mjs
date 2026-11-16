@@ -72,3 +72,22 @@ test('lodge keeper retains seed identity, single-chunk ownership and bounded pro
   assert.equal(world.caveCacheSize(),caves);
  }
 });
+
+test('repeated near-actor queries reuse frozen arrays without changing actor ownership',()=>{
+ const world=make('actor-proximity-reuse');
+ const fox=world.actorById('wildlife:'+world.seed+':fortress-road:0');
+ const keeper=world.actorById('npc:'+world.seed+':roadside-lodge:keeper');
+ for(const actor of [fox,keeper]){
+  const first=world.actorsNear(actor.x,actor.z,0);
+  assert.ok(Object.isFrozen(first));
+  assert.equal(world.actorsNear(actor.x,actor.z,0),first,'same nearby actors reuse immutable array');
+  assert.ok(first.includes(actor));
+ }
+ const midpointX=(fox.x+keeper.x)/2,midpointZ=(fox.z+keeper.z)/2;
+ const radius=Math.max(Math.hypot(midpointX-fox.x,midpointZ-fox.z),Math.hypot(midpointX-keeper.x,midpointZ-keeper.z))+1;
+ const both=world.actorsNear(midpointX,midpointZ,radius);
+ assert.equal(both.length,2);
+ assert.equal(world.actorsNear(midpointX,midpointZ,radius),both);
+ assert.equal(world.actorById(fox.id),fox);
+ assert.equal(world.actorById(keeper.id),keeper);
+});
