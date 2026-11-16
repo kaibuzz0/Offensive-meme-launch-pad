@@ -57,9 +57,19 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   const turnArc=Math.abs(angle(heading-v.heading))*cfg.wheelbase/2;
   const samples=Math.max(1,Math.ceil((distance+turnArc)/0.25));
   let clear=true;
+  let lastGroundHeight=v.position.y;
   for(let i=1;i<=samples;i++){
     const t=i/samples;
     const probe={x:v.position.x+(candidate.x-v.position.x)*t,y:v.position.y,z:v.position.z+(candidate.z-v.position.z)*t};
+    // Optional authoritative support-height resolver permits gradual road grades.
+    // A failed/unknown support query must never authorize motion.
+    if(typeof environment.groundHeightAt==='function'){
+      let support;
+      try { support=environment.groundHeightAt(probe, v); } catch { clear=false;break; }
+      if(!Number.isFinite(support) || Math.abs(support-v.position.y)>0.45){clear=false;break;}
+      probe.y=support;
+      lastGroundHeight=support;
+    }
     // Collision adapters may inspect the full oriented chassis, not just its center.
     // Test the heading at each swept position so turning cannot clip a wall.
     const probeVehicle={...v,position:probe,heading:angle(v.heading+angle(heading-v.heading)*t),speed};
@@ -68,7 +78,7 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
     catch { clear=false;break; }
   }
   if(!clear) speed=0;
-  else {v.position=candidate;v.heading=heading;}
+  else {v.position={...candidate,y:typeof environment.groundHeightAt==='function'?lastGroundHeight:v.position.y};v.heading=heading;}
   v.speed=speed;
   if(active) v.fuel=Math.max(0,v.fuel-Math.abs(throttle)*dt*.002);
   return v;
