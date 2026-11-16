@@ -151,7 +151,7 @@ try{
     await waitFor(async()=>{
      const state=await evalPage(`(()=>{
       const d=document.getElementById("city-voxel-status")?.dataset||{};
-      return {gateVisible:!document.getElementById("city-gate-seal")?.hidden,
+      return {gateVisible:document.getElementById("city-gate-seal")?.hidden===false,
        x:Number(d.worldX),z:Number(d.worldZ),yaw:Number(d.lookYaw),
        fps:Number(d.fps),grounded:d.grounded,meshPending:Number(d.meshPending)};
      })()`);
@@ -184,8 +184,8 @@ try{
      displacementMeters:Math.hypot(last.x-first.x,last.z-first.z),
      pathMeters:valid.slice(1).reduce((sum,p,i)=>sum+Math.hypot(p.x-valid[i].x,p.z-valid[i].z),0),
      yawChangeRadians:last.yaw-first.yaw,
-     minFps:Math.min(...valid.map(p=>p.fps).filter(Number.isFinite)),
-     maxMeshPending:Math.max(...valid.map(p=>p.meshPending).filter(Number.isFinite))
+     minFps:valid.some(p=>Number.isFinite(p.fps))?Math.min(...valid.map(p=>p.fps).filter(Number.isFinite)):null,
+     maxMeshPending:valid.some(p=>Number.isFinite(p.meshPending))?Math.max(...valid.map(p=>p.meshPending).filter(Number.isFinite)):null
     }:null;
     throw Error(error.message+" / gate traversal diagnostics: "+JSON.stringify({traversalStart,movement,approach,diagnostics,uncaughtExceptions:exceptions.slice(-12)}));
    }
