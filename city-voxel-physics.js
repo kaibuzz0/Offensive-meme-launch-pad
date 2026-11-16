@@ -54,7 +54,12 @@
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
-    if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
+    if(floor===null)break;
+    // A temporarily unavailable structural query must never grant passage.
+    let obstructed=false;
+    try { obstructed=!!world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS); }
+    catch { obstructed=true; }
+    if(obstructed)break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
@@ -91,9 +96,12 @@
    // Optional water-volume query allows submerged cave pools without
    // treating dry terrain below sea level as water. Legacy worlds without
    // this query retain the previous sea-level behavior.
-   const water=typeof world.isWaterAt==='function'
-    ? !!world.isWaterAt(state.x,state.y+world.PLAYER_HEIGHT*.5,state.z)
-    : !!feet&&state.y<world.SEA_LEVEL;
+   let water=false;
+   if(typeof world.isWaterAt==='function'){
+    // Unknown water occupancy cannot change the controller's movement model.
+    try { water=!!world.isWaterAt(state.x,state.y+world.PLAYER_HEIGHT*.5,state.z); }
+    catch { water=false; }
+   }else water=!!feet&&state.y<world.SEA_LEVEL;
    const speed=SPEED*(water?.62:1);
    const dx=(vx*rightX+vz*forwardX)*speed*step;
    const dz=(vx*rightZ+vz*forwardZ)*speed*step;
