@@ -171,7 +171,17 @@ try{
       viewport:{width:innerWidth,height:innerHeight},
       errors:window.__cityRuntimeErrors||null};
     })()`).catch(e=>({diagnosticError:e.message}));
-    throw Error(error.message+" / gate traversal diagnostics: "+JSON.stringify({traversalStart,approach,diagnostics}));
+    const valid=approach.filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.z)&&Number.isFinite(p.yaw));
+    const first=valid[0],last=valid.at(-1);
+    const movement=first&&last?{
+     sampledMs:last.elapsedMs-first.elapsedMs,
+     displacementMeters:Math.hypot(last.x-first.x,last.z-first.z),
+     pathMeters:valid.slice(1).reduce((sum,p,i)=>sum+Math.hypot(p.x-valid[i].x,p.z-valid[i].z),0),
+     yawChangeRadians:last.yaw-first.yaw,
+     minFps:Math.min(...valid.map(p=>p.fps).filter(Number.isFinite)),
+     maxMeshPending:Math.max(...valid.map(p=>p.meshPending).filter(Number.isFinite))
+    }:null;
+    throw Error(error.message+" / gate traversal diagnostics: "+JSON.stringify({traversalStart,movement,approach,diagnostics}));
    }
   }finally{
    await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
