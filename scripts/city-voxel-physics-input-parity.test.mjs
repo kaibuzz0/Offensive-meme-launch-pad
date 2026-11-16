@@ -100,3 +100,23 @@ test('invalid spawn column fails explicitly rather than producing NaN state', ()
   terrain.surfaceAt = () => ({ height: Infinity });
   assert.throws(() => create(terrain, { x: 0, z: 0 }), /Spawn outside supported world/);
 });
+
+test('unavailable or invalid cave floors fail closed without corrupting the player pose', () => {
+  for (const failure of ['throw', 'nan', 'missing']) {
+    const terrain = world();
+    terrain.caveRoomAt = (x) => {
+      if (x < 1) return null;
+      if (failure === 'throw') throw new Error('cave chunk loading');
+      return { exposed: true, ceiling: 5, floor: failure === 'nan' ? NaN : undefined };
+    };
+    const player = create(terrain, { x: 0, z: 0 });
+    for (let i = 0; i < 20; i++) {
+      assert.doesNotThrow(() => player.tick({ right: 1 }, 1 / 60));
+    }
+    const pose = player.snapshot();
+    assert.ok(pose.x < 1, `entered invalid cave for ${failure}`);
+    assert.ok(Number.isFinite(pose.y));
+    assert.equal(player.teleport(3, 0), false);
+    assert.deepEqual(player.snapshot(), pose);
+  }
+});
