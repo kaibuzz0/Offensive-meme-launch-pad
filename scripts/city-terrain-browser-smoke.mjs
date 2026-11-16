@@ -52,7 +52,13 @@ try{
  ws.addEventListener('message',event=>{
   const msg=JSON.parse(event.data);
   if(msg.id&&pending.has(msg.id)){const p=pending.get(msg.id);pending.delete(msg.id);msg.error?p.reject(Error(msg.error.message)):p.resolve(msg.result);}
-  if(msg.method==='Runtime.exceptionThrown')exceptions.push(msg.params.exceptionDetails.text||'Runtime error');
+  if(msg.method==='Runtime.exceptionThrown'){
+   const d=msg.params?.exceptionDetails||{};
+   const frames=d.stackTrace?.callFrames?.slice(0,8).map(f=>({functionName:f.functionName,url:f.url,line:f.lineNumber+1,column:f.columnNumber+1}))||[];
+   exceptions.push({text:d.text||'Runtime error',description:d.exception?.description||null,
+    url:d.url||null,line:d.lineNumber==null?null:d.lineNumber+1,
+    column:d.columnNumber==null?null:d.columnNumber+1,frames});
+  }
  });
  await request('Page.enable');await request('Runtime.enable');
  await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
@@ -181,7 +187,7 @@ try{
      minFps:Math.min(...valid.map(p=>p.fps).filter(Number.isFinite)),
      maxMeshPending:Math.max(...valid.map(p=>p.meshPending).filter(Number.isFinite))
     }:null;
-    throw Error(error.message+" / gate traversal diagnostics: "+JSON.stringify({traversalStart,movement,approach,diagnostics}));
+    throw Error(error.message+" / gate traversal diagnostics: "+JSON.stringify({traversalStart,movement,approach,diagnostics,uncaughtExceptions:exceptions.slice(-12)}));
    }
   }finally{
    await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
