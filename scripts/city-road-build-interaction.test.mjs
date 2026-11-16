@@ -27,7 +27,7 @@ test('only committed records are displayed, and reload restores a detached snaps
     collectRoadSupplies: async () => saved,
     placeWorkbench: async () => { throw new Error('occupied voxel'); }
   };
-  const ui = createRoadBuildInteraction(commands, { onCommitted: r => shown.push(r) });
+  const ui = createRoadBuildInteraction(commands, { onCommitted: r => { shown.push(r); return true; } });
   const collected = await ui.collect({ x: 1, y: 2, z: 3 });
   assert.equal(collected.inventory.supplies, 8);
   collected.inventory.supplies = 99;
@@ -85,7 +85,7 @@ test('cross-tab revision conflict refreshes committed scene without replaying sp
     collectRoadSupplies: async () => { attempts++; throw new Error('building changed in another session; retry'); },
     placeWorkbench: async () => current
   }, {
-    onCommitted: record => events.push(['scene', record.revision]),
+    onCommitted: record => { events.push(['scene', record.revision]); return true; },
     onFeedback: event => events.push([event.kind, event.message])
   });
   assert.equal(await ui.collect({ x: 1, y: 2, z: 3 }), null);
@@ -121,7 +121,7 @@ test('empty command result cannot produce a false saved notification or overwrit
     collectRoadSupplies: async () => null,
     placeWorkbench: async () => undefined
   }, {
-    onCommitted: record => events.push(['scene', record.revision]),
+    onCommitted: record => { events.push(['scene', record.revision]); return true; },
     onFeedback: event => events.push([event.kind, event.message])
   });
   await ui.restore();
@@ -141,7 +141,7 @@ test('stale command response cannot replace a newer restored revision', async ()
     collectRoadSupplies: () => new Promise(resolve => { resolveCollect = resolve; }),
     placeWorkbench: async () => null
   }, {
-    onCommitted: record => events.push(['scene', record.revision]),
+    onCommitted: record => { events.push(['scene', record.revision]); return true; },
     onFeedback: event => events.push([event.kind, event.message])
   });
   await ui.restore();
@@ -161,7 +161,7 @@ test('stale restore read cannot roll back a newer committed scene', async () => 
     read: async () => saved,
     collectRoadSupplies: async () => ({ revision: 6, inventory: { supplies: 8 } }),
     placeWorkbench: async () => null
-  }, { onCommitted: record => scenes.push(record.revision) });
+  }, { onCommitted: record => { scenes.push(record.revision); return true; } });
   await ui.restore();
   await ui.collect({ x: 1, y: 2, z: 3 });
   assert.equal(ui.snapshot.revision, 6);
@@ -178,7 +178,7 @@ test('conflict recovery cannot repaint a stale read over newer committed state',
     read: async () => saved,
     collectRoadSupplies: async () => { throw new Error('building changed in another session; retry'); },
     placeWorkbench: async () => null
-  }, { onCommitted: record => scenes.push(record.revision) });
+  }, { onCommitted: record => { scenes.push(record.revision); return true; } });
   await ui.restore();
   saved = { revision: 5, inventory: { supplies: 8 } };
   assert.equal(await ui.collect({ x: 0, y: 0, z: 0 }), null);
@@ -196,7 +196,7 @@ test('malformed committed records never replace inventory or render a scene', as
     collectRoadSupplies: async () => ({ inventory: { supplies: 999 } }),
     placeWorkbench: async () => ({ revision: 3, inventory: null })
   }, {
-    onCommitted: record => scenes.push(record.revision),
+    onCommitted: record => { scenes.push(record.revision); return true; },
     onFeedback: event => events.push(event.kind)
   });
   await ui.restore();
@@ -219,7 +219,7 @@ test('equal-revision divergent save cannot silently replace a committed scene', 
     collectRoadSupplies: async () => saved,
     placeWorkbench: async () => saved
   }, {
-    onCommitted: record => scenes.push(record.inventory.supplies),
+    onCommitted: record => { scenes.push(record.inventory.supplies); return true; },
     onFeedback: event => feedback.push(event.kind)
   });
   await ui.restore();
@@ -243,6 +243,7 @@ test('restoring the same revision retries rendering after a transient scene fail
     onCommitted: snapshot => {
       if (fail) throw new Error('renderer not ready');
       rendered.push(snapshot.revision);
+      return true;
     }
   });
   assert.equal((await ui.restore()).revision, 9);
@@ -267,6 +268,7 @@ test('refreshScene recovers renderer without repeating a committed pickup', asyn
     onCommitted: () => {
       renderAttempts++;
       if (!ready) throw new Error('renderer not initialized');
+      return true;
     }
   });
   assert.equal((await ui.collect({ x: 0, y: 0, z: 0 })).revision, 11);
@@ -289,7 +291,7 @@ test('idempotent command response retries failed scene without repeating resourc
     collectRoadSupplies: async () => { pickups++; return record; },
     placeWorkbench: async () => record
   }, {
-    onCommitted: () => { attempts++; if (!ready) throw Error('scene initializing'); },
+    onCommitted: () => { attempts++; if (!ready) throw Error('scene initializing'); return true; },
     onFeedback: event => feedback.push(event.kind)
   });
   await ui.restore();
@@ -311,7 +313,7 @@ test('renderer recovery uses latest cross-tab ledger revision without repeating 
     read: async () => structuredClone(saved),
     collectRoadSupplies: async () => { spending++; return saved; },
     placeWorkbench: async () => { spending++; return saved; }
-  }, { onCommitted: record => { scenes.push(record.revision); } });
+  }, { onCommitted: record => { scenes.push(record.revision); return true; } });
   await ui.restore();
   saved = { revision: 2, inventory: { supplies: 0 }, journal: { edits: [{ block: 'workbench' }] } };
   assert.equal(await ui.refreshScene({ force: true }), true);
@@ -328,7 +330,7 @@ test('renderer recovery rejects divergent equal-revision ledger records', async 
     collectRoadSupplies: async () => saved,
     placeWorkbench: async () => saved
   }, {
-    onCommitted: record => scenes.push(record.inventory.supplies),
+    onCommitted: record => { scenes.push(record.inventory.supplies); return true; },
     onFeedback: event => events.push(event.kind)
   });
   await ui.restore();
