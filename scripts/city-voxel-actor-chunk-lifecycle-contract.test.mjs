@@ -106,3 +106,20 @@ test('direct fox lookup stays stable and avoids terrain allocation after first r
   assert.strictEqual(world.chunkAt(cx,cz).npc.find(a=>a.id===id),fox);
  }
 });
+
+test('keeper lookup is seed-scoped and repeatable without terrain cache growth',()=>{
+ const a=make('keeper-direct-a'),b=make('keeper-direct-b');
+ const id='npc:'+a.seed+':roadside-lodge:keeper';
+ const keeper=a.actorById(id);
+ assert.ok(keeper);
+ assert.equal(b.actorById(id),null,'a keeper from another seed must not resolve');
+ const terrainBefore=a.cacheSize(),cavesBefore=a.caveCacheSize();
+ for(let i=0;i<32;i++){
+  assert.strictEqual(a.actorById(id),keeper);
+  assert.strictEqual(a.actorsNear(keeper.x,keeper.z,0).find(actor=>actor.id===id),keeper);
+ }
+ assert.equal(a.cacheSize(),terrainBefore);
+ assert.equal(a.caveCacheSize(),cavesBefore);
+ const cx=Math.floor(keeper.x/a.CHUNK_SIZE),cz=Math.floor(keeper.z/a.CHUNK_SIZE);
+ assert.strictEqual(a.chunkAt(cx,cz).npc.find(actor=>actor.id===id),keeper);
+});
