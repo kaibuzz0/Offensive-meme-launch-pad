@@ -55,7 +55,13 @@ export function attachRoadBuildControls({
         return false;
       }
       // Durable commit is not proof that the renderer displayed the change.
-      // A durable commit can succeed while scene projection is unavailable.\n      // Do not claim the action is visible until the interaction confirms it.\n      const sceneReady = interaction.sceneReady === true;\n      status(sceneReady ? 'saved' : 'render-pending',\n        sceneReady\n          ? (kind === 'collect' ? 'Supplies saved and scene updated' : 'Build saved and scene updated')\n          : (kind === 'collect' ? 'Supplies saved; scene refresh required' : 'Build saved; scene refresh required'));
+      // A durable commit can succeed while scene projection is unavailable.
+      // Do not claim the action is visible until the interaction confirms it.
+      const sceneReady = interaction.sceneReady === true;
+      status(sceneReady ? 'saved' : 'render-pending',
+        sceneReady
+          ? (kind === 'collect' ? 'Supplies saved and scene updated' : 'Build saved and scene updated')
+          : (kind === 'collect' ? 'Supplies saved; scene refresh required' : 'Build saved; scene refresh required'));
       return true;
     } catch (error) {
       status('error', error instanceof Error ? error.message : 'Construction unavailable');
