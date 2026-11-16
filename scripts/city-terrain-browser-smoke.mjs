@@ -129,6 +129,10 @@ try{
   // Exercise an actual first-person resource pickup on mobile-size Chromium.
   // Never collect by writing the storage key directly: this is the public UI.
   assert.equal(await evalPage('document.getElementById("city-road-supplies")?.hidden'),true);
+  // Capture the post-joystick heading before walking. Releasing a touch look
+  // stick recenters its knob, not the first-person camera yaw.
+  const traversalStart=await evalPage('(()=>{const d=document.getElementById("city-voxel-status").dataset;return {yaw:Number(d.lookYaw),x:Number(d.worldX),z:Number(d.worldZ),fps:Number(d.fps),grounded:d.grounded,viewRadius:Number(d.viewRadius)};})()');
+  console.log('Terrain traversal start '+JSON.stringify({firstYaw,traversalStart}));
   await request('Input.dispatchKeyEvent',{type:'keyDown',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
   try{
    await waitFor(()=>evalPage('!document.getElementById("city-road-supplies").hidden'),'walk to the roadside supply cache',90000);
@@ -151,7 +155,7 @@ try{
       viewport:{width:innerWidth,height:innerHeight},
       errors:window.__cityRuntimeErrors||null};
     })()`).catch(e=>({diagnosticError:e.message}));
-    throw Error(error.message+" / gate traversal diagnostics: "+JSON.stringify(diagnostics));
+    throw Error(error.message+" / gate traversal diagnostics: "+JSON.stringify({traversalStart,diagnostics}));
    }
   }finally{
    await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
