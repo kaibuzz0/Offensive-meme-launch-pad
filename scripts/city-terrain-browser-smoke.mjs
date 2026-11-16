@@ -33,6 +33,8 @@ async function evalPage(expression){
  return response.result?.value;
 }
 try{
+ // Declare before merge-injected traversal diagnostics can read the yaw.
+ let firstYaw=Number.NaN;
  await new Promise((resolve,reject)=>{
   server.once('error',reject);server.listen(0,'127.0.0.1',()=>{server.off('error',reject);resolve();});
  });
@@ -146,7 +148,7 @@ try{
  assert.equal(mobile.left&&mobile.right&&mobile.jump&&mobile.use&&mobile.land,true,'landscape must expose both sticks and action buttons');
  assert.equal(mobile.lookVisible&&mobile.leftVisible,true,'landscape sticks must be visibly rendered');
  assert.ok(Math.abs(mobile.height-mobile.screen)<5,'landscape game should fill available viewport height');
- const firstYaw=await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw || "0")');
+ firstYaw=await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw || "0")');
  assert.ok(Number.isFinite(firstYaw),'look control must have a numeric initial yaw');
  await evalPage(`(()=>{
   const left=document.getElementById("joystick"),right=document.getElementById("city-look-pad");
