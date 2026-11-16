@@ -224,7 +224,8 @@
   const previous=perspective;
   perspective=replacement;
   firstPerson=true;
-  contextInterrupted=false;
+  // Keep listening for WebGL restoration while software fallback is active.
+  contextInterrupted=!!replacement.software&&contextInterrupted;
   if(previous!==replacement)try{previous?.dispose();}catch{}
   syncView();
   return true;
