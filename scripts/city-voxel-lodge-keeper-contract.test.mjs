@@ -61,3 +61,13 @@ test('keeper and wildlife queries reject invalid ranges without allocating terra
  assert.equal(world.cacheSize(),before,
   'invalid actor queries must not sample or cache terrain');
 });
+
+test('actor proximity preserves inclusive boundary and extreme-coordinate behavior',()=>{
+ const world=create('keeper-distance-boundaries');
+ const keeper=world.actorById('npc:'+world.seed+':roadside-lodge:keeper');
+ assert.ok(keeper);
+ assert.ok(world.actorsNear(keeper.x+3,keeper.z,3).some(actor=>actor.id===keeper.id));
+ assert.ok(!world.actorsNear(keeper.x+3.01,keeper.z,3).some(actor=>actor.id===keeper.id));
+ assert.ok(!world.actorsNear(1e308,1e308,1e308).some(actor=>actor.id===keeper.id),
+  'overflowing squared distances must not make a distant actor appear nearby');
+});
