@@ -16,13 +16,16 @@
    let top=-Infinity;
    for(const [ox,oz] of samples){
     const bx=Math.floor(x+ox),bz=Math.floor(z+oz);
-    const col=world.surfaceAt(bx,bz);
-    if(!col)return null;
+    let col;
+    try{col=world.surfaceAt(bx,bz);}catch{return null;}
+    if(!col||!Number.isFinite(col.height))return null;
     let height=col.height+1;
     // Caves share world coordinates with the terrain. The roof stays solid
     // until the player reaches an open mouth or is already below the roof.
-    const gallery=world.caveRoomAt?.(bx,bz);
+    let gallery;
+    try{gallery=world.caveRoomAt?.(bx,bz);}catch{return null;}
     if(gallery&&(gallery.exposed||referenceY<gallery.ceiling)){
+     if(!Number.isFinite(gallery.floor))return null;
      height=gallery.floor;
     }
     top=Math.max(top,height);
