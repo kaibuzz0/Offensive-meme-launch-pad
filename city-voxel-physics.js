@@ -62,7 +62,9 @@
     const samples=[[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]];
     let blocked=false;
     for(const [ox,oz] of samples){
-     const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
+     let gallery;
+     try { gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz)); }
+     catch { blocked=true; break; }
      if(gallery&&!gallery.exposed&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
      }
@@ -121,7 +123,9 @@
    if(state.vy>0&&typeof world.caveRoomAt==='function'){
     let ceiling=Infinity;
     for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
-     const gallery=world.caveRoomAt(Math.floor(state.x+ox),Math.floor(state.z+oz));
+     let gallery;
+     try { gallery=world.caveRoomAt(Math.floor(state.x+ox),Math.floor(state.z+oz)); }
+     catch { ceiling=Math.min(ceiling,previousY+world.PLAYER_HEIGHT); break; }
      if(gallery&&!gallery.exposed&&Number.isFinite(gallery.ceiling)){
       const roof=gallery.ceiling;
       const crossedFromBelow=previousY<roof
