@@ -11,7 +11,7 @@
   if(!world?.surfaceAt||!Number.isFinite(start?.x)||!Number.isFinite(start?.z))
    throw Error('Voxel world and finite player coordinates required');
   // Per-tick physics query counts, independent of visual detail.
-  let lastWork=Object.freeze({surfaceQueries:0,caveQueries:0,sweepSegments:0});
+  let lastWork=Object.freeze({surfaceQueries:0,caveQueries:0,sweepSegments:0,failed:false});
   let work=null;
   function floorAt(x,z,referenceY=Infinity){
    if(!Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>999900||Math.abs(z)>999900)return null;
@@ -80,6 +80,8 @@
   function tick(input,dt){
    if(!Number.isFinite(dt)||dt<0)throw Error('Invalid time step');
    work={surfaceQueries:0,caveQueries:0,sweepSegments:0};
+   let failed=true;
+   try {
    const step=clamp(dt,0,.05);
    let vx=clamp(Number(input?.right)||0,-1,1),vz=clamp(Number(input?.forward)||0,-1,1);
    const len=Math.hypot(vx,vz);
@@ -141,9 +143,13 @@
    const floor=floorAt(state.x,state.z,state.y);
    if(floor!==null&&state.y<=floor){state.y=floor;state.vy=0;state.grounded=true;}
    else if(floor!==null&&state.y>floor+.01)state.grounded=false;
-   lastWork=Object.freeze({...work});
-   work=null;
-   return snapshot();
+   const result=snapshot();
+   failed=false;
+   return result;
+   } finally {
+    lastWork=Object.freeze({...work,failed});
+    work=null;
+   }
   }
   return Object.freeze({tick,snapshot,teleport,floorAt,profileLastTick:()=>lastWork,
    GRAVITY,JUMP_SPEED,MAX_STEP,PLAYER_HEIGHT:world.PLAYER_HEIGHT});
