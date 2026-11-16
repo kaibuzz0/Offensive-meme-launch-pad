@@ -22,10 +22,14 @@ test('roadside keeper is deterministic, unique, terrain-fitted and chunk-owned',
   assert.deepEqual(plain(actor),plain(b.actorById(id)));
   const cx=Math.floor(actor.x/a.CHUNK_SIZE),cz=Math.floor(actor.z/a.CHUNK_SIZE);
   assert.equal(a.chunkAt(cx,cz).npc.filter(n=>n.id===id).length,1);
-  assert.equal(a.chunkAt(cx,cz).npc.filter(n=>n.id===id).length,1);
+  assert.equal(b.chunkAt(cx,cz).npc.filter(n=>n.id===id).length,1);
   assert.equal(a.actorsNear(actor.x,actor.z,1).filter(n=>n.id===id).length,1);
   assert.ok(actor.y>=a.surfaceAt(actor.x,actor.z).height+1);
-  assert.ok(a.gateRoad.parts.slice(-9).some(p=>actor.x>=p.x&&actor.x<p.x+p.w&&actor.z>=p.z&&actor.z<p.z+p.d));
+  const floor=a.gateRoad.lodgeFloor;
+  assert.ok(floor,'lodge floor must be explicit metadata, not a positional parts-array dependency');
+  assert.deepEqual(plain(floor),plain(b.gateRoad.lodgeFloor));
+  assert.ok(actor.x>=floor.x&&actor.x<floor.x+floor.w&&actor.z>=floor.z&&actor.z<floor.z+floor.d,
+   'keeper must remain on the canonical lodge floor even if decorative parts are reordered');
   const before=a.cacheSize();
   assert.equal(a.actorsNear(actor.x+1000,actor.z+1000,1).length,0);
   assert.equal(a.cacheSize(),before);
