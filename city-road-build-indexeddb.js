@@ -22,6 +22,12 @@ export async function openSoloBuildStore(indexedDBFactory = globalThis.indexedDB
   };
   const db = await requestResult(opening);
   let closed = false;
+  // Another tab may need to upgrade the shared schema. Release this old
+  // connection rather than blocking the upgrade or writing through a stale DB.
+  db.onversionchange = () => {
+    closed = true;
+    db.close();
+  };
   function transaction(mode, operation) {
     if (closed) return Promise.reject(new Error('building store closed'));
     return new Promise((resolve, reject) => {
