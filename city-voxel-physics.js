@@ -10,17 +10,22 @@
  function createController(world,start){
   if(!world?.surfaceAt||!Number.isFinite(start?.x)||!Number.isFinite(start?.z))
    throw Error('Voxel world and finite player coordinates required');
+  // Per-tick physics query counts, independent of visual detail.
+  let lastWork=Object.freeze({surfaceQueries:0,caveQueries:0,sweepSegments:0});
+  let work=null;
   function floorAt(x,z,referenceY=Infinity){
    if(!Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>999900||Math.abs(z)>999900)return null;
    const samples=[[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]];
    let top=-Infinity;
    for(const [ox,oz] of samples){
     const bx=Math.floor(x+ox),bz=Math.floor(z+oz);
+    if(work)work.surfaceQueries++;
     const col=world.surfaceAt(bx,bz);
     if(!col)return null;
     let height=col.height+1;
     // Caves share world coordinates with the terrain. The roof stays solid
     // until the player reaches an open mouth or is already below the roof.
+    if(work&&typeof world.caveRoomAt==='function')work.caveQueries++;
     const gallery=world.caveRoomAt?.(bx,bz);
     if(gallery&&(gallery.exposed||referenceY<gallery.ceiling)){
      height=gallery.floor;
@@ -47,6 +52,7 @@
    const part=delta/segments;
    let moved=false;
    for(let i=0;i<segments;i++){
+    if(work)work.sweepSegments++;
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
@@ -72,6 +78,7 @@
   }
   function tick(input,dt){
    if(!Number.isFinite(dt)||dt<0)throw Error('Invalid time step');
+   work={surfaceQueries:0,caveQueries:0,sweepSegments:0};
    const step=clamp(dt,0,.05);
    let vx=clamp(Number(input?.right)||0,-1,1),vz=clamp(Number(input?.forward)||0,-1,1);
    const len=Math.hypot(vx,vz);
@@ -132,9 +139,11 @@
    const floor=floorAt(state.x,state.z,state.y);
    if(floor!==null&&state.y<=floor){state.y=floor;state.vy=0;state.grounded=true;}
    else if(floor!==null&&state.y>floor+.01)state.grounded=false;
+   lastWork=Object.freeze({...work});
+   work=null;
    return snapshot();
   }
-  return Object.freeze({tick,snapshot,teleport,floorAt,
+  return Object.freeze({tick,snapshot,teleport,floorAt,profileLastTick:()=>lastWork,
    GRAVITY,JUMP_SPEED,MAX_STEP,PLAYER_HEIGHT:world.PLAYER_HEIGHT});
  }
  root.CityVoxelPhysics=Object.freeze({createController,GRAVITY,JUMP_SPEED,MAX_STEP});
