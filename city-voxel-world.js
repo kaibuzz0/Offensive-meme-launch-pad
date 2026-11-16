@@ -409,10 +409,13 @@
    const ax=gateRoad.x+3,az=gateRoad.z+22;
    const floor=gateRoad.lodgeFloor,kx=floor.x+4,kz=floor.z+4;
    // Squared distances avoid two square roots per frequent actor query.
-   const radiusSquared=radius*radius;
    const foxDx=x-ax,foxDz=z-az,keeperDx=x-kx,keeperDz=z-kz;
-   const foxNear=foxDx*foxDx+foxDz*foxDz<=radiusSquared;
-   const keeperNear=keeperDx*keeperDx+keeperDz*keeperDz<=radiusSquared;
+   // Very large finite coordinates can overflow squared distances. Retain
+   // hypot semantics there; ordinary streamed-world queries stay sqrt-free.
+   const safeSquare=radius<1e150&&Math.abs(x)<1e150&&Math.abs(z)<1e150;
+   const radiusSquared=safeSquare?radius*radius:0;
+   const foxNear=safeSquare?foxDx*foxDx+foxDz*foxDz<=radiusSquared:Math.hypot(foxDx,foxDz)<=radius;
+   const keeperNear=safeSquare?keeperDx*keeperDx+keeperDz*keeperDz<=radiusSquared:Math.hypot(keeperDx,keeperDz)<=radius;
    if(!foxNear&&!keeperNear)return EMPTY_ACTORS;
    if(foxNear&&keeperNear){
     if(!combinedActors)combinedActors=Object.freeze([actorById('wildlife:'+seed+':fortress-road:0'),keeper()]);
