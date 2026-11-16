@@ -50,3 +50,30 @@ test('obstruction callback remains active regardless of visual detail settings',
     near(a.x, b.x); near(a.z, b.z);
   }
 });
+
+test('missing and throwing terrain columns block movement without crashing simulation', () => {
+  for (const missing of [false, true]) {
+    const unstable = world();
+    unstable.surfaceAt = (x) => {
+      if (x >= 1) {
+        if (missing) return null;
+        throw new Error('chunk unavailable');
+      }
+      return { height: 0 };
+    };
+    const player = create(unstable, { x: 0, z: 0 });
+    let state;
+    assert.doesNotThrow(() => {
+      for (let i = 0; i < 20; i++) state = player.tick({ right: 1 }, 1 / 60);
+    });
+    assert.ok(state.x < 1, 'moved into an unavailable terrain column');
+    assert.ok(Number.isFinite(state.y));
+  }
+});
+
+test('invalid terrain heights cannot authorize traversal', () => {
+  const unstable = world(x => x >= 1 ? NaN : 0);
+  const player = create(unstable, { x: 0, z: 0 });
+  for (let i = 0; i < 20; i++) player.tick({ right: 1 }, 1 / 60);
+  assert.ok(player.snapshot().x < 1);
+});
