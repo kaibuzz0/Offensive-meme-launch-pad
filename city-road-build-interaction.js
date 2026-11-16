@@ -42,13 +42,15 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
     last = structuredClone(record);
     // A missing scene consumer is not a successful visual presentation.
     // Preserve the durable commit and permit refreshScene() after renderer setup.
-    let rendered = typeof onCommitted === 'function';
-    if (rendered) {
+    let rendered = false;
+    if (typeof onCommitted === 'function') {
       try {
-        // Explicit false means the renderer declined the snapshot (for example,
-        // while its scene/chunks are not initialized). Retry on refreshScene().
-        if (await onCommitted(structuredClone(last)) === false) {
-          rendered = false;
+        // Only an explicit true acknowledges visible scene projection.
+        // Undefined, null and other values cannot prove a renderer accepted
+        // the committed geometry. Retry the snapshot without re-spending.
+        if (await onCommitted(structuredClone(last)) === true) {
+          rendered = true;
+        } else {
           feedback('render-error', 'Saved action succeeded; scene not ready');
         }
       } catch {
