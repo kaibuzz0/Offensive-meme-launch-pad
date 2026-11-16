@@ -42,3 +42,22 @@ test('roadside keeper is deterministic, unique, terrain-fitted and chunk-owned',
   assert.equal(a.cacheSize(),before);
  }
 });
+
+test('keeper and wildlife queries reject invalid ranges without allocating terrain',()=>{
+ const world=create('keeper-invalid-range');
+ const before=world.cacheSize();
+ const bad=[
+  [NaN,0,1],[0,Infinity,1],[0,0,NaN],[0,0,-1],
+  [Infinity,0,1],[0,0,-Infinity]
+ ];
+ const empty=world.actorsNear(0,0,-1);
+ for(const args of bad){
+  assert.strictEqual(world.actorsNear(...args),empty,
+   'invalid proximity queries must reuse the immutable empty population');
+ }
+ assert.ok(Object.isFrozen(empty));
+ assert.equal(world.actorById(null),null);
+ assert.equal(world.actorById('npc:other-seed:roadside-lodge:keeper'),null);
+ assert.equal(world.cacheSize(),before,
+  'invalid actor queries must not sample or cache terrain');
+});
