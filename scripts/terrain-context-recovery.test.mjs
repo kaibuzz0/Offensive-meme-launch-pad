@@ -70,6 +70,35 @@ test('failed WebGL restoration does not crash and allows another loss cycle',()=
  assert.equal(h.context.firstPerson,true);
 });
 
+// The recovery handler must not mutate the authoritative player/save model.
+// This VM fixture exercises the actual handler with explicit state sentinels;
+// browser-level visual and save/reload parity are separate release gates.
+test('repeated context loss and restoration retain world and inventory identity',()=>{
+ const h=harness({fallbackFails:true,restoredFails:true});
+ const world={seed:132,edits:[{id:'fortress-gate',open:true}]};
+ const inventory={wood:3,claimed:['starter-pickup']};
+ const player={position:{x:12,y:8,z:4},world,inventory};
+ h.context.player=player;
+ for(let i=0;i<3;i++){
+  h.listeners.webglcontextlost({preventDefault(){}});
+  h.listeners.webglcontextrestored();
+  assert.equal(h.context.player,player);
+  assert.equal(h.context.player.world,world);
+  assert.equal(h.context.player.inventory,inventory);
+  assert.equal(h.context.firstPerson,true);
+  assert.equal(h.original.disposed,0);
+ }
+ h.context.openPerspective=()=>({software:false,dispose(){}});
+ h.listeners.webglcontextrestored();
+ assert.equal(h.context.contextInterrupted,false);
+ assert.equal(h.context.player.position.x,12);
+ assert.deepEqual(h.context.player.inventory.claimed,['starter-pickup']);
+ assert.equal(h.original.disposed,1);
+ // A repeated restore event must not allocate/dispose again after success.
+ h.listeners.webglcontextrestored();
+ assert.equal(h.original.disposed,1);
+});
+
 // Input-release persistence is essential on mobile/background-throttled browsers:
 // the player must not lose the last movement segment while waiting for RAF.
 test('movement key release saves position immediately, independently of the frame timer',()=>{
