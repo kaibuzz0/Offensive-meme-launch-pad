@@ -478,7 +478,11 @@
   const mag=Math.hypot(x,y);return mag>1?{x:x/mag,y:y/mag}:{x,y};
  }
  function frame(t){
-  const dt=Math.min(.05,(t-last)/1000||0);last=t;
+  // RAF timestamps can predate a start/resume event that reset `last`.
+  // Keep the shared physics step finite and nonnegative on either renderer.
+  const elapsed=(t-last)/1000;
+  const dt=Number.isFinite(elapsed)?Math.max(0,Math.min(.05,elapsed)):0;
+  last=t;
   if(running&&!paused){
    const move=movement();
    if(firstPerson&&perspective&&!atlas){
