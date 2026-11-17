@@ -14,6 +14,7 @@ if(!executable)throw Error('Chrome/Chromium is required for terrain entry QA');
 const profile=await mkdtemp(path.join(tmpdir(),'meme-city-terrain-'));
 const app=createCityServer(),server=app.server;
 let browser,ws,seq=0;
+let chromeExit=null,chromeStderr='';
 const pending=new Map(),exceptions=[];
 const request=(method,params={})=>new Promise((resolve,reject)=>{
  const id=++seq;pending.set(id,{resolve,reject});
@@ -25,7 +26,7 @@ async function waitFor(fn,label,timeout=20000){
   try{const answer=await fn();if(answer)return answer;}catch(e){problem=e;}
   await delay(140);
  }
- throw Error('Timeout: '+label+(problem?' / '+problem.message:''));
+ throw Error('Timeout: '+label+(problem?' / '+problem.message:'')+(label==='CDP port'?' / Chrome exit: '+JSON.stringify(chromeExit)+' / stderr: '+chromeStderr.slice(-3000):''));
 }
 async function evalPage(expression){
  const response=await request('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});
@@ -38,7 +39,10 @@ try{
  });
  browser=spawn(executable,['--headless=new','--no-sandbox','--disable-dev-shm-usage',
   '--enable-unsafe-swiftshader','--use-angle=swiftshader','--remote-debugging-port=0','--user-data-dir='+profile,
-  '--no-first-run','about:blank'],{stdio:'ignore'});
+  '--no-first-run','about:blank'],{stdio:['ignore','ignore','pipe']});
+ browser.on('exit',(code,signal)=>{chromeExit={code,signal};});
+ browser.on('error',error=>{chromeExit={spawnError:error.message};});
+ browser.stderr.on('data',chunk=>{chromeStderr=(chromeStderr+chunk.toString()).slice(-6000);});
  const port=await waitFor(async()=>{
   try{return Number((await readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0])||null;}
   catch{return null;}
