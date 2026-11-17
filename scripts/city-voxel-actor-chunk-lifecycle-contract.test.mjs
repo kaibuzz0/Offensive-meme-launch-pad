@@ -123,3 +123,28 @@ test('keeper lookup is seed-scoped and repeatable without terrain cache growth',
  const cx=Math.floor(keeper.x/a.CHUNK_SIZE),cz=Math.floor(keeper.z/a.CHUNK_SIZE);
  assert.strictEqual(a.chunkAt(cx,cz).npc.find(actor=>actor.id===id),keeper);
 });
+
+
+test('travel across unloaded chunks keeps actor populations bounded and identities stable',()=>{
+ const world=make('actor-travel-streaming'),{x,z}=world.gateRoad;
+ const fox=world.actorById('wildlife:'+world.seed+':fortress-road:0');
+ const keeper=world.actorById('npc:'+world.seed+':roadside-lodge:keeper');
+ const homeChunks=new Set([fox,keeper].map(a=>Math.floor(a.x/world.CHUNK_SIZE)+','+Math.floor(a.z/world.CHUNK_SIZE)));
+ let total=0;
+ for(let step=-12;step<=12;step++){
+  const cx=Math.floor(x/world.CHUNK_SIZE)+step;
+  const cz=Math.floor(z/world.CHUNK_SIZE)+Math.floor(step/3);
+  const snapshot=world.chunkAt(cx,cz);
+  assert.ok(snapshot);
+  assert.ok(Object.isFrozen(snapshot.npc));
+  assert.ok(snapshot.npc.length<=2,'one streamed chunk cannot multiply actors');
+  assert.equal(new Set(snapshot.npc.map(a=>a.id)).size,snapshot.npc.length);
+  if(!homeChunks.has(cx+','+cz))assert.equal(snapshot.npc.length,0);
+  total+=snapshot.npc.length;
+ }
+ assert.ok(total<=2,'travel cannot accumulate duplicate actors');
+ assert.strictEqual(world.actorById(fox.id),fox);
+ assert.strictEqual(world.actorById(keeper.id),keeper);
+ assert.ok(world.cacheSize()<=4096,'terrain samples must remain bounded after travel');
+ assert.ok(world.caveCacheSize()<=256,'cave metadata must remain bounded after travel');
+});
