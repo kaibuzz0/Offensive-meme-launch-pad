@@ -172,7 +172,7 @@ try{
     await request('Emulation.setTouchEmulationEnabled',{enabled:false});
    }
   }
-  assert.ok(Math.abs((await yawNow())-firstYaw)<.04,
+  assert.ok(Math.abs(Math.atan2(Math.sin((await yawNow())-firstYaw),Math.cos((await yawNow())-firstYaw)))<.04,
    'fortress traversal begins at the original verified heading');
   // Capture the post-joystick heading before walking. Releasing a touch look
   // stick recenters its knob, not the first-person camera yaw.
