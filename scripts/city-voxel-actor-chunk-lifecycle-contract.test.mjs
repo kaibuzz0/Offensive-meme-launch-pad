@@ -148,3 +148,20 @@ test('travel across unloaded chunks keeps actor populations bounded and identiti
  assert.ok(world.cacheSize()<=22528,'terrain samples must remain bounded after travel');
  assert.ok(world.caveCacheSize()<=256,'cave metadata must remain bounded after travel');
 });
+
+
+test('invalid streamed chunk coordinates do not allocate terrain or actor populations',()=>{
+ const world=make('actor-invalid-chunk-guard');
+ const fox=world.actorById('wildlife:'+world.seed+':fortress-road:0');
+ const keeper=world.actorById('npc:'+world.seed+':roadside-lodge:keeper');
+ const before=world.cacheSize(),caves=world.caveCacheSize();
+ for(const [cx,cz] of [[NaN,0],[0,Infinity],[1.5,0],[0,-1.5],
+  [62501,0],[-62501,0],[0,62501],[0,-62501],
+  [Number.MAX_SAFE_INTEGER,0],[0,Number.MIN_SAFE_INTEGER]]){
+  assert.equal(world.chunkAt(cx,cz),null,'invalid chunk coordinates must be rejected');
+ }
+ assert.equal(world.cacheSize(),before,'rejected chunks must not sample terrain');
+ assert.equal(world.caveCacheSize(),caves,'rejected chunks must not populate caves');
+ assert.strictEqual(world.actorById(fox.id),fox);
+ assert.strictEqual(world.actorById(keeper.id),keeper);
+});
