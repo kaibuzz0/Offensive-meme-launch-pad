@@ -143,20 +143,31 @@ try{
    await request('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
    await request('Emulation.setDeviceMetricsOverride',{width:915,height:412,deviceScaleFactor:2,mobile:true});
    await waitFor(()=>evalPage('matchMedia("(orientation:landscape)").matches'),'restore landscape look controls',8000);
-   await evalPage(`(()=>{
-    const pad=document.getElementById("city-look-pad"),r=pad.getBoundingClientRect();
-    pad.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:403,
-     clientX:r.left+r.width*.18,clientY:r.top+r.height/2}));
-    return true;
-   })()`);
+   // Sample between bounded real pointer pulses: a held stick can overshoot
+   // the target before the polling loop observes the matching heading.
+   const headingError=(yaw)=>Math.atan2(Math.sin(yaw-firstYaw),Math.cos(yaw-firstYaw));
+   let remaining=headingError(await yawNow());
    try{
-    await waitFor(async()=>Math.abs((await yawNow())-firstYaw)<.025,
-     'restore first-person heading with opposite touch-look input',10000);
+    for(let pulse=0;pulse<120&&Math.abs(remaining)>.025;pulse++){
+     const pointerId=500+pulse;
+     const direction=remaining>0?-.18:.18;
+     await evalPage(`(()=>{
+      const pad=document.getElementById("city-look-pad"),r=pad.getBoundingClientRect();
+      pad.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:${pointerId},
+       clientX:r.left+r.width*(.5+${direction}),clientY:r.top+r.height/2}));
+      return true;
+     })()`);
+     await delay(65);
+     await evalPage(`(()=>{
+      document.getElementById("city-look-pad").dispatchEvent(
+       new PointerEvent("pointerup",{bubbles:true,pointerId:${pointerId}}));return true;
+     })()`);
+     await delay(35);
+     remaining=headingError(await yawNow());
+    }
+    assert.ok(Math.abs(remaining)<.04,
+     'touch-look pulses restore heading; remaining yaw error='+remaining);
    }finally{
-    await evalPage(`(()=>{
-     document.getElementById("city-look-pad").dispatchEvent(
-      new PointerEvent("pointerup",{bubbles:true,pointerId:403}));return true;
-    })()`);
     await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
     await request('Emulation.setTouchEmulationEnabled',{enabled:false});
    }
