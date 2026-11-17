@@ -57,6 +57,9 @@ test('rejects stale revisions and malicious or inconsistent snapshots', () => {
   assert.throws(() => journal.apply({ x: 1, y: 0, z: 0, block: 'x'.repeat(33) }), TypeError);
   const snapshot = journal.snapshot();
   assert.throws(() => createVoxelEditJournal('another-seed', snapshot), /incompatible/);
+  assert.throws(() => createVoxelEditJournal('seed', { ...snapshot, voxelMetres: 1 }), /incompatible/);
+  assert.throws(() => createVoxelEditJournal('seed', { ...snapshot, voxelMetres: undefined }), /incompatible/);
+  assert.equal(createVoxelEditJournal('seed', snapshot).get(0, 0, 0), 'stone');
   assert.throws(() => createVoxelEditJournal('seed', { ...snapshot, revision: 0 }), /inconsistent/);
   assert.throws(() => createVoxelEditJournal('seed', { ...snapshot, revision: 2, edits: [...snapshot.edits, snapshot.edits[0]] }), /duplicate/);
   assert.throws(() => createVoxelEditJournal('seed', { ...snapshot, edits: new Array(MAX_EDITS + 1) }), /incompatible/);
