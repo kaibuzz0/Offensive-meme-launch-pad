@@ -50,3 +50,14 @@ test('obstruction callback remains active regardless of visual detail settings',
     near(a.x, b.x); near(a.z, b.z);
   }
 });
+
+test('teleport rejects a blocked gate footprint without changing state', () => {
+  const player = create(world(() => 0, (x, y, z, height, radius) =>
+    x + radius >= 2 && x - radius <= 3 && Math.abs(z) <= 1), { x: 0, z: 0 });
+  player.tick({ right: 0.5, jump: true }, 1 / 60);
+  const before = player.snapshot();
+  assert.equal(player.teleport(2.5, 0), false, 'blocked gate destination must be rejected');
+  assert.deepEqual({ ...player.snapshot() }, { ...before }, 'failed teleport must preserve velocity and position');
+  assert.equal(player.teleport(5, 0), true, 'unobstructed destination should remain reachable');
+  near(player.snapshot().x, 5);
+});

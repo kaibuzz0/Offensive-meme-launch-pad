@@ -33,10 +33,40 @@
   const initial=floorAt(start.x,start.z,requestedY);
   if(initial===null)throw Error('Spawn outside supported world');
   const state={x:start.x,z:start.z,y:initial,vy:0,grounded:true};
+  // Generated structures and player edits use the same authoritative query
+  // for walking and teleporting. Absence retains compatibility with worlds
+  // whose structural adapter has not yet been connected; unknown answers
+  // from a configured adapter are blocked, never assumed empty.
+  function structureClear(x,y,z){
+   const query=world.structuralObstructs;
+   if(query===undefined)return true; // Legacy worlds without structural data.
+   if(typeof query!=='function')return false;
+   // Chunk eviction, unloaded edits or a failing adapter must not crash the
+   // fixed-step loop or permit passage through unknown solid geometry.
+   try{return query(x,y,z,world.PLAYER_HEIGHT,RADIUS)===false;}
+   catch(_error){return false;}
+  }
+  // Gate collision shares fail-closed semantics with generated structures.
+  // A temporarily unloaded gate index must not abort a teleport or frame.
+  function gateClear(x,y,z){
+   if(!world.gateRoad)return true;
+   if(typeof world.gateRoad.obstructs!=='function')return false;
+   try{return world.gateRoad.obstructs(x,y,z,world.PLAYER_HEIGHT,RADIUS)===false;}
+   catch(_error){return false;}
+  }
   function snapshot(){return Object.freeze({...state});}
   function teleport(x,z,referenceY=Infinity){
    const floor=floorAt(x,z,referenceY);
-   if(floor===null)return false;
+   // Teleports must honor the same structural obstruction query as walking.
+   // A rejected destination leaves the complete controller state unchanged.
+   if(floor===null||!structureClear(x,floor,z)||!gateClear(x,floor,z))return false;
+   // Reject underground destinations whose roofs intersect the capsule,
+   // including adjacent cells touched by the player's footprint.
+   for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
+    const gallery=world.caveRoomAt?.(Math.floor(x+ox),Math.floor(z+oz));
+    if(gallery&&!gallery.exposed&&floor<gallery.ceiling
+       &&floor+world.PLAYER_HEIGHT>gallery.ceiling)return false;
+   }
    state.x=x;state.z=z;state.y=floor;state.vy=0;state.grounded=true;
    return true;
   }
@@ -50,7 +80,8 @@
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
-    if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
+    const candidateY=state.grounded?Math.max(state.y,floor):state.y;
+    if(floor===null||!structureClear(nx,candidateY,nz)||!gateClear(nx,candidateY,nz))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
@@ -59,7 +90,7 @@
     let blocked=false;
     for(const [ox,oz] of samples){
      const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
-     if(gallery&&!gallery.exposed&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+     if(gallery&&!gallery.exposed&&candidateY<gallery.ceiling&&candidateY+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
      }
     }
@@ -73,7 +104,9 @@
   function tick(input,dt){
    if(!Number.isFinite(dt)||dt<0)throw Error('Invalid time step');
    const step=clamp(dt,0,.05);
-   let vx=clamp(Number(input?.right)||0,-1,1),vz=clamp(Number(input?.forward)||0,-1,1);
+   // Reject non-finite axis values rather than interpreting Infinity as full-speed input.
+   const axis=n=>Number.isFinite(n)?clamp(n,-1,1):0;
+   let vx=axis(input?.right),vz=axis(input?.forward);
    const len=Math.hypot(vx,vz);
    if(len>1){vx/=len;vz/=len;}
    const yaw=Number.isFinite(input?.yaw)?input.yaw:0;
@@ -106,6 +139,13 @@
    }else if(!state.grounded){
     state.vy=Math.max(-40,state.vy-GRAVITY*step);
     state.y+=state.vy*step;
+   }
+   // Structural ceilings use the same occupancy predicate as horizontal
+   // movement. A jump cannot bypass a generated or player-built roof.
+   // Restore the last valid feet position if the next vertical pose is unknown.
+   if(state.y>previousY&&!structureClear(state.x,state.y,state.z)){
+    state.y=previousY;
+    state.vy=0;
    }
    // A solid underground roof cannot be jumped through. Leave roofless
    // mouth tiles open so the transition is continuous with the outside.
