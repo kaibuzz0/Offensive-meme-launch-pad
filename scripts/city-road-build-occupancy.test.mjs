@@ -69,3 +69,21 @@ test('effective collision combines seeded terrain and committed edits without tr
   index.clearPresentation();
   assert.equal(index.isSolid(2, 1, 0, generated), true);
 });
+
+test('equal revision with different inventory or metadata fails closed', () => {
+  const index = createCommittedBuildOccupancy('fortress');
+  const saved = record('fortress', [{ x: 1, y: 1, z: 1, block: 'workbench' }]);
+  index.restore(saved);
+  const changedInventory = structuredClone(saved);
+  changedInventory.inventory.supplies = 7;
+  assert.throws(() => index.restore(changedInventory), /conflicting/);
+  assert.equal(index.hasBlock(1, 1, 1), true);
+  assert.equal(index.revision, saved.revision);
+  const reordered = {
+    journal: saved.journal, inventory: { supplies: 8 },
+    revision: saved.revision, seed: saved.seed, version: saved.version
+  };
+  assert.equal(index.restore(reordered), saved.revision);
+  index.clearPresentation();
+  assert.equal(index.restore(changedInventory), saved.revision);
+});
