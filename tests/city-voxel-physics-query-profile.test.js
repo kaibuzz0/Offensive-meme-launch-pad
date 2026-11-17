@@ -27,6 +27,6 @@ test('physics workload counts structural and water callbacks without changing mo
   player.tick({}, 1 / 60);
   const second = player.profileLastTick();
   assert.equal(second.waterQueries, 1);
-  assert.equal(second.structuralQueries, 2);
+  assert.equal(second.structuralQueries, 0, 'idle ticks do not perform structural sweep queries');
   assert.equal(first.waterQueries, 1);
 });
