@@ -478,7 +478,11 @@
   const mag=Math.hypot(x,y);return mag>1?{x:x/mag,y:y/mag}:{x,y};
  }
  function frame(t){
-  // A start/resume event can set last after RAF captured its timestamp.\n   // Never pass a negative frame delta to the shared fixed-step physics.\n   const elapsed=(t-last)/1000;\n   const dt=Number.isFinite(elapsed)?Math.max(0,Math.min(.05,elapsed)):0;last=t;
+  // A start/resume event can set last after RAF captured its timestamp.
+  // Never pass a negative frame delta to the shared fixed-step physics.
+  const elapsed=(t-last)/1000;
+  const dt=Number.isFinite(elapsed)?Math.max(0,Math.min(.05,elapsed)):0;
+  last=t;
   if(running&&!paused){
    const move=movement();
    if(firstPerson&&perspective&&!atlas){
