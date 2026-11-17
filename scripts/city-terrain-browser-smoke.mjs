@@ -133,6 +133,33 @@ try{
   // Exercise an actual first-person resource pickup on mobile-size Chromium.
   // Never collect by writing the storage key directly: this is the public UI.
   assert.equal(await evalPage('document.getElementById("city-road-supplies")?.hidden'),true);
+  // The prior dual-stick exercise deliberately turns the camera. Restore its
+  // original heading using the *actual* look control before testing W-only
+  // fortress traversal; otherwise this test confounds steering with collision.
+  // This is input-driven: never write controller position/yaw or bypass geometry.
+  const yawNow=()=>evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)');
+  const rotatedYaw=await yawNow();
+  if(Math.abs(rotatedYaw-firstYaw)>.015){
+   await request('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+   await evalPage(`(()=>{
+    const pad=document.getElementById("city-look-pad"),r=pad.getBoundingClientRect();
+    pad.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:403,
+     clientX:r.left+r.width*.18,clientY:r.top+r.height/2}));
+    return true;
+   })()`);
+   try{
+    await waitFor(async()=>Math.abs((await yawNow())-firstYaw)<.025,
+     'restore first-person heading with opposite touch-look input',10000);
+   }finally{
+    await evalPage(`(()=>{
+     document.getElementById("city-look-pad").dispatchEvent(
+      new PointerEvent("pointerup",{bubbles:true,pointerId:403}));return true;
+    })()`);
+    await request('Emulation.setTouchEmulationEnabled',{enabled:false});
+   }
+  }
+  assert.ok(Math.abs((await yawNow())-firstYaw)<.04,
+   'fortress traversal begins at the original verified heading');
   // Capture the post-joystick heading before walking. Releasing a touch look
   // stick recenters its knob, not the first-person camera yaw.
   const traversalStart=await evalPage('(()=>{const d=document.getElementById("city-voxel-status").dataset;return {yaw:Number(d.lookYaw),x:Number(d.worldX),z:Number(d.worldZ),fps:Number(d.fps),grounded:d.grounded,viewRadius:Number(d.viewRadius)};})()');
