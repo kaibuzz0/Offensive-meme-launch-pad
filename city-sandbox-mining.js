@@ -81,6 +81,35 @@ export function createVoxelEditJournal(worldSeed, snapshot) {
       revision = nextRevision;
       return { changed: true, revision, previous };
     },
+    // Validate the entire bounded construction edit before touching the journal.
+    // One revision represents one committed batch; inventory transactions remain
+    // the responsibility of the caller's durable, authoritative save boundary.
+    applyBatch(edits, expectedRevision = revision) {
+      assertRevision(expectedRevision);
+      if (expectedRevision !== revision) throw new Error('stale voxel edit revision');
+      if (!Array.isArray(edits) || edits.length < 1 || edits.length > 256) {
+        throw new RangeError('voxel batch must contain 1..256 edits');
+      }
+      const pending = new Map();
+      for (const raw of edits) {
+        const edit = normalizedEdit(raw);
+        const key = voxelKey(edit.x, edit.y, edit.z);
+        if (pending.has(key)) throw new Error('duplicate voxel in batch');
+        pending.set(key, edit);
+      }
+      let additions = 0;
+      let changed = 0;
+      for (const [key, edit] of pending) {
+        if (!changes.has(key)) additions++;
+        if (!changes.has(key) || changes.get(key).block !== edit.block) changed++;
+      }
+      if (changes.size + additions > MAX_EDITS) throw new RangeError('voxel journal capacity reached');
+      if (!changed) return { changed: false, count: 0, revision };
+      const nextRevision = assertRevision(revision + 1);
+      for (const [key, edit] of pending) changes.set(key, edit);
+      revision = nextRevision;
+      return { changed: true, count: changed, revision };
+    },
     // Revert to procedural terrain without interpreting air as an unedited voxel.
     reset(x, y, z, expectedRevision = revision) {
       assertRevision(expectedRevision);
