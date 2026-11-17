@@ -1,0 +1,34 @@
+# Graphics/release gate — 2026-11-17 (integration #43, rendering #46, flight #53)
+
+This is a scoped release handoff, not proof of deployed gameplay. The canonical game contract remains [CANONICAL_GAME_RELEASE_CONTRACT.md](CANONICAL_GAME_RELEASE_CONTRACT.md); this file records a testable next increment without changing runtime or superseding existing owner paths.
+
+## Next incomplete rung: A, then B
+
+**Blocking route:** homepage Play → wallet-free offline first-person Solo → recognizable fortress and mountain skyline → touch-look and touch-move through fortress gate → wooded road → lit interior → acquire/place an item → reload and confirm the same seed, inventory and edit. Run with WebGL1 and compatibility renderer against the *same* seeded world and player snapshot. Capture a screenshot and coordinates at each landmark. A green unit suite or browser bootstrap alone does not satisfy this route.
+
+**Smallest cross-owner batch**
+- **Physics #49:** repair or instrument touch-look heading restoration and gate collision/trigger traversal. Compare yaw with `atan2(sin(a-b), cos(a-b))` at *every* assertion, including the final assertion; log touch positions, yaw, player coordinates, collision and gate activation on timeout. Avoid masking a genuine traversal failure with larger timeouts.
+- **Graphics #46 / integration #43:** own only scene visibility, renderer parity and release wiring. Confirm the gate, skyline, wooded road and lodge are recognizable from player-eye level, not just loaded in memory. Keep fallback gameplay geometry/interaction IDs identical. Do not add a new low-quality edition or independent controller.
+- **Living World #45/#56:** expose stable gate/lodge/actor IDs and deterministic terrain-fit placement; reconcile the roadside content PR with current main before claiming it is available.
+- **Sandbox #48:** test pickup, inventory ledger, placed edit and reload, including older saves without voxel-scale metadata; preserve original save bytes if a migration cannot map data.
+- **QA #47/#57:** run exact-head `npm test`, `npm run check`, original Solo and mobile-viewport first-person Chromium, both renderers, and save/reload. Report physical Android data separately from Chromium emulation. Capture startup, p50/p95 frame time, long stalls, mesh/draw count and memory where measurable.
+
+## Shared interfaces / ownership
+
+- World identity: `{seed, worldgenVersion, chunkId, voxelScale, stableObjectId}`; terrain queries and collision must agree with both render backends. Generated content is deterministic; edits are a separate validated overlay.
+- Player identity: one movement/pose/loadout/inventory/interaction state for offline Solo and multiplayer. Input devices emit actions, not alternate game rules.
+- Rendering: consume immutable or versioned world snapshots plus player pose; automatic LOD, distance, resolution and effect scheduling may change only presentation, never world/collision/object identity.
+- Persistence: copy → validate → activate with backup, repeat-safe migration, explicit quarantine for unknown fields and interruption recovery. Do not redirect historic URLs or remove original Solo until browser parity and save migration pass.
+- Flight #53: **deferred behind** #52 seat/vehicle/controller/save contract and successful starter-route release; no separate flight world, camera-state store or controls.
+
+## Merge order and acceptance
+
+1. Review fresh exact-head status for Physics gate/touch-look fixes; resolve angular wrap and capture traversal evidence.
+2. Review Sandbox historical-save compatibility and Living World branch conflicts; rebase/reconcile rather than blindly merge.
+3. Run cross-owner integrated Chromium route, including compatibility renderer and repeated save migration.
+4. Merge only reviewed, compatible, exact-head-green PRs in dependency order; follow GitHub Pages deployment and verify the *public* homepage-to-interior path.
+5. Only after verified parity/migration retire duplicate public mode selectors and redirect old URLs.
+
+**Research focus:** prioritize existing meshing/LOD/instancing utilities and previously vetted #44 candidates. Do not import a renderer or assets solely to address an input/test failure; evaluate license, revision, size and actual Android runtime cost before adopting any external code.
+
+**Evidence labels required in release reports:** source implemented / PR-only / merged to main / Pages deployed / public browser visually verified / physical Android measured. Never conflate them.
