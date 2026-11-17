@@ -32,3 +32,9 @@ This is a scoped release handoff, not proof of deployed gameplay. The canonical 
 **Research focus:** prioritize existing meshing/LOD/instancing utilities and previously vetted #44 candidates. Do not import a renderer or assets solely to address an input/test failure; evaluate license, revision, size and actual Android runtime cost before adopting any external code.
 
 **Evidence labels required in release reports:** source implemented / PR-only / merged to main / Pages deployed / public browser visually verified / physical Android measured. Never conflate them.
+
+## Exact-head Chromium failure triage — 2026-11-17 19:04 UTC
+
+PR #198 head `b48a863a` failed [workflow 44154086847](https://github.com/kaibuzz0/Offensive-meme-launch-pad/actions/runs/44154086847), job 134289982636, at `scripts/city-terrain-browser-smoke.mjs:162`: **Timeout: walk under the fortress arch**. This is not the earlier heading-restoration timeout. Start: yaw 0.099229, position (16.021, 6.212). Timeout: position (38.707, 44.523), yaw 0.099229, inputForward -1, grounded true, WebGL, gateHidden true, suppliesHidden true, 89/89 chunks, 254k vertices, approximately 16 fps, reported GPU bytes 9,153,648, no uncaught errors. Movement and rendering occurred; the cause of the missing gate trigger is **not established**. Geometry, approach alignment, collision, trigger bounds and frame timing are hypotheses.
+
+**Next bounded action:** Physics #49 and QA #47 reproduce with fixed seed, gate trigger bounds, capsule position/contact normals, input pulses, yaw and frame-step count. Compare passing #195 against #198 at the same viewport and seed; do not merely extend the timeout. Graphics #46 captures a player-eye screenshot at the failure position and checks gate geometry/interaction identity in WebGL and compatibility rendering. Sandbox #48 resumes persistence acceptance only after traversal passes. This failed workflow does not authorize merge or deploy.
