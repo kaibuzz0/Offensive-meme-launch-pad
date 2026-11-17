@@ -8,6 +8,11 @@ export function createCommittedBuildOccupancy(expectedSeed) {
     throw new TypeError('construction seed required');
   let revision = -1;
   let cells = new Map();
+  let committedIdentity = null;
+  // Equal revisions must also match inventory and metadata, not only voxel cells.
+  const canonical = value => Array.isArray(value) ? value.map(canonical) :
+    value && typeof value === 'object' ?
+      Object.fromEntries(Object.keys(value).sort().map(k => [k, canonical(value[k])])) : value;
   const key = (x, y, z) => `${x},${y},${z}`;
   return Object.freeze({
     get revision() { return revision; },
@@ -51,6 +56,7 @@ export function createCommittedBuildOccupancy(expectedSeed) {
       const projected = projectCommittedConstruction(record, expectedSeed);
       if (projected.revision < revision)
         throw new Error('stale construction occupancy revision');
+      const identity = JSON.stringify(canonical(record));
       const next = new Map();
       for (const edit of projected.edits) {
         const id = key(edit.x, edit.y, edit.z);
@@ -58,16 +64,18 @@ export function createCommittedBuildOccupancy(expectedSeed) {
         next.set(id, edit.block);
       }
       if (projected.revision === revision &&
-          (next.size !== cells.size ||
+          (identity !== committedIdentity || next.size !== cells.size ||
            [...next].some(([id, block]) => cells.get(id) !== block)))
         throw new Error('conflicting construction occupancy revision');
       cells = next;
+      committedIdentity = identity;
       revision = projected.revision;
       return revision;
     },
     clearPresentation() {
       // Renderer/context resets must restore from durable storage afterward.
       cells = new Map();
+      committedIdentity = null;
       revision = -1;
     }
   });
