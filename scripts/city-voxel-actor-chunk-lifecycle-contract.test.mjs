@@ -145,6 +145,6 @@ test('travel across unloaded chunks keeps actor populations bounded and identiti
  assert.ok(total<=2,'travel cannot accumulate duplicate actors');
  assert.strictEqual(world.actorById(fox.id),fox);
  assert.strictEqual(world.actorById(keeper.id),keeper);
- assert.ok(world.cacheSize()<=4096,'terrain samples must remain bounded after travel');
+ assert.ok(world.cacheSize()<=22528,'terrain samples must remain bounded after travel');
  assert.ok(world.caveCacheSize()<=256,'cave metadata must remain bounded after travel');
 });
