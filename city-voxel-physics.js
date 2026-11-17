@@ -11,7 +11,7 @@
   if(!world?.surfaceAt||!Number.isFinite(start?.x)||!Number.isFinite(start?.z))
    throw Error('Voxel world and finite player coordinates required');
   // Per-tick physics query counts, independent of visual detail.
-  let lastWork=Object.freeze({surfaceQueries:0,caveQueries:0,sweepSegments:0,failed:false});
+  let lastWork=Object.freeze({surfaceQueries:0,caveQueries:0,structuralQueries:0,waterQueries:0,sweepSegments:0,failed:false});
   let work=null;
   function floorAt(x,z,referenceY=Infinity){
    if(!Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>999900||Math.abs(z)>999900)return null;
@@ -56,7 +56,11 @@
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
-    if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
+    if(floor===null)break;
+    if(typeof world.gateRoad?.obstructs==='function'){
+     if(work)work.structuralQueries++;
+     if(world.gateRoad.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
+    }
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
@@ -79,7 +83,7 @@
   }
   function tick(input,dt){
    if(!Number.isFinite(dt)||dt<0)throw Error('Invalid time step');
-   work={surfaceQueries:0,caveQueries:0,sweepSegments:0};
+   work={surfaceQueries:0,caveQueries:0,structuralQueries:0,waterQueries:0,sweepSegments:0};
    let failed=true;
    try {
    const step=clamp(dt,0,.05);
@@ -95,6 +99,7 @@
    // Optional water-volume query allows submerged cave pools without
    // treating dry terrain below sea level as water. Legacy worlds without
    // this query retain the previous sea-level behavior.
+   if(work&&typeof world.isWaterAt==='function')work.waterQueries++;
    const water=typeof world.isWaterAt==='function'
     ? !!world.isWaterAt(state.x,state.y+world.PLAYER_HEIGHT*.5,state.z)
     : !!feet&&state.y<world.SEA_LEVEL;
