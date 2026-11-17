@@ -34,7 +34,13 @@ test('renderer delta reconciles edits without duplicate spending or stale replay
   };
   const block = { x: 4, y: 2, z: -8, block: 'workbench' };
   const first = make(1, [block], 4);
-  const next = make(2, [{ ...block, block: 'stone' }], 3);
+  // Two committed edits are required for revision 2; a one-edit journal
+  // with revision 2 is invalid and would fail schema validation before diffing.
+  const nextJournal = createVoxelEditJournal('starter');
+  nextJournal.apply(block);
+  nextJournal.apply({ ...block, block: 'stone' });
+  const next = { version: 1, seed: 'starter', revision: 2,
+    inventory: { supplies: 3 }, journal: nextJournal.snapshot() };
   const initial = diffCommittedConstruction(null, first, 'starter');
   assert.equal(initial.upsert.length, 1);
   assert.equal(initial.remove.length, 0);
