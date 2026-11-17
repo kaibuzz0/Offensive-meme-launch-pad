@@ -141,6 +141,8 @@ try{
   const rotatedYaw=await yawNow();
   if(Math.abs(rotatedYaw-firstYaw)>.015){
    await request('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+   await request('Emulation.setDeviceMetricsOverride',{width:915,height:412,deviceScaleFactor:2,mobile:true});
+   await waitFor(()=>evalPage('matchMedia("(orientation:landscape)").matches'),'restore landscape look controls',8000);
    await evalPage(`(()=>{
     const pad=document.getElementById("city-look-pad"),r=pad.getBoundingClientRect();
     pad.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:403,
@@ -155,6 +157,7 @@ try{
      document.getElementById("city-look-pad").dispatchEvent(
       new PointerEvent("pointerup",{bubbles:true,pointerId:403}));return true;
     })()`);
+    await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
     await request('Emulation.setTouchEmulationEnabled',{enabled:false});
    }
   }
