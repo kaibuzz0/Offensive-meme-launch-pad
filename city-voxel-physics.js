@@ -85,6 +85,8 @@
    if(!Number.isFinite(dt)||dt<0)throw Error('Invalid time step');
    work={surfaceQueries:0,caveQueries:0,structuralQueries:0,waterQueries:0,sweepSegments:0};
    let failed=true;
+   // A late collision-query exception must not retain movement from an earlier axis.
+   const before={...state};
    try {
    const step=clamp(dt,0,.05);
    let vx=clamp(Number(input?.right)||0,-1,1),vz=clamp(Number(input?.forward)||0,-1,1);
@@ -153,6 +155,9 @@
    const result=snapshot();
    failed=false;
    return result;
+   } catch(error) {
+    Object.assign(state,before);
+    throw error;
    } finally {
     lastWork=Object.freeze({...work,failed});
     work=null;
