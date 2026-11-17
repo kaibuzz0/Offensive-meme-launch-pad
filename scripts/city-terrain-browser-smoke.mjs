@@ -140,7 +140,24 @@ try{
  if(view.gl){
   assert.equal(view.hidden,false,'first person is default when WebGL works');
   assert.equal(await evalPage('document.getElementById("city-jump").hidden'),false,'mobile jump must be visible in first person');
-  await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.textContent.startsWith("3D ·")'),'3D chunk rendering',30000);
+  try{
+   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.textContent.startsWith("3D ·")'),'3D chunk rendering',30000);
+  }catch(error){
+   // Preserve the original timeout while surfacing the actual renderer state.
+   // Diagnostics are read-only and must not generate extra world chunks.
+   const diagnostic=await evalPage(`(()=>{
+    const el=document.getElementById("city-voxel-status");
+    const canvas=document.getElementById("city-voxel-canvas");
+    return {statusText:el?.textContent?.slice(0,500),
+     statusData:el?Object.fromEntries(Object.entries(el.dataset)):null,
+     canvas:{exists:!!canvas,hidden:canvas?.hidden,width:canvas?.width,height:canvas?.height},
+     introHidden:document.getElementById("city-intro")?.hidden,
+     visibility:document.visibilityState,
+     errors:window.__cityRuntimeErrors||null};
+   })()`).catch(e=>({diagnosticError:e.message}));
+   throw Error(error.message+" / renderer diagnostics: "+JSON.stringify(diagnostic)+
+    " / uncaught exceptions: "+JSON.stringify(exceptions.slice(-8)));
+  }
   await waitFor(()=>evalPage('document.getElementById("city-voxel-status")?.dataset.meshWorker==="ready"'),'Web Worker terrain mesher initializes',30000);
   await waitFor(()=>evalPage('Number(document.getElementById("city-voxel-status")?.dataset.gpuBytes)>0'),'transferred worker geometry draws in WebGL',30000);
   const workerMetrics=await evalPage('(()=>{const el=document.getElementById("city-voxel-status");return {status:el.dataset.meshWorker,pending:Number(el.dataset.meshPending),gpuBytes:Number(el.dataset.gpuBytes)};})()');
