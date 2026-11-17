@@ -218,11 +218,28 @@ try{
  // Page-exit save is exercised; seed, supply and gate persistence are
  // asserted below. The separate position-replay test needs repair before
  // it can reliably distinguish rendering stalls from physics movement.
- if(view.gl)await evalPage('window.dispatchEvent(new Event("pagehide"));true');
+ // Pagehide must persist the latest completed simulation frame, not merely
+ // leave a parseable (possibly stale) spawn record. This is a same-frame
+ // consistency check, NOT the separate post-reset movement/replay gate (#86).
+ const exitFrame=view.gl?await evalPage(`(()=>{
+  const d=document.getElementById("city-voxel-status").dataset;
+  window.dispatchEvent(new Event("pagehide"));
+  const saved=JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1")));
+  return {x:Number(d.worldX),z:Number(d.worldZ),saved};
+ })()`):null;
+ if(exitFrame){
+  assert.ok(Number.isFinite(exitFrame.x)&&Number.isFinite(exitFrame.z),'last frame must expose finite coordinates');
+  assert.ok(exitFrame.saved&&Number.isFinite(exitFrame.saved.x)&&Number.isFinite(exitFrame.saved.y),'pagehide must persist finite coordinates');
+  assert.ok(Math.hypot(exitFrame.saved.x-exitFrame.x,exitFrame.saved.y-exitFrame.z)<.001,'pagehide position must match the last completed simulation frame');
+ }
  await request('Page.reload',{ignoreCache:true});
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'reload terrain mode');
  const stored=await evalPage('(()=>({seed:localStorage.getItem("meme-city-terrain-seed-v1"),saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))),original:localStorage.getItem("offensive-meme-city-v1-center")}))()');
  assert.equal(stored.seed,initial.seed);
+ if(exitFrame){
+  assert.equal(stored.saved.seed,stored.seed,'saved position must belong to the active seed');
+  assert.ok(Math.hypot(stored.saved.x-exitFrame.saved.x,stored.saved.y-exitFrame.saved.y)<.001,'reload must not overwrite the pagehide checkpoint before play resumes');
+ }
 
  if(view.gl)assert.equal(await evalPage('localStorage.getItem("meme-city-gate-seal-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
  assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1','roadside supplies persist across reload');
