@@ -56,7 +56,12 @@ try{
  ws.addEventListener('message',event=>{
   const msg=JSON.parse(event.data);
   if(msg.id&&pending.has(msg.id)){const p=pending.get(msg.id);pending.delete(msg.id);msg.error?p.reject(Error(msg.error.message)):p.resolve(msg.result);}
-  if(msg.method==='Runtime.exceptionThrown')exceptions.push(msg.params.exceptionDetails.text||'Runtime error');
+  if(msg.method==='Runtime.exceptionThrown'){
+   const detail=msg.params.exceptionDetails||{};
+   exceptions.push({text:detail.text||'Runtime error',description:detail.exception?.description||null,
+    url:detail.url||null,line:detail.lineNumber,column:detail.columnNumber,
+    stack:detail.stackTrace?.callFrames?.slice(0,8).map(frame=>({function:frame.functionName,url:frame.url,line:frame.lineNumber,column:frame.columnNumber}))||[]});
+  }
  });
  await request('Page.enable');await request('Runtime.enable');
  await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
@@ -120,6 +125,21 @@ try{
  assert.equal(await evalPage('document.getElementById("city-look-knob").style.transform'),'','right thumbstick must recenter after release');
  await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
  await request('Emulation.setTouchEmulationEnabled',{enabled:false});
+ // The dual-stick check intentionally rotates the camera. Re-enter the same
+ // seeded world before the straight-ahead fortress traversal, otherwise W
+ // follows the rotated heading into the gate wall rather than the road.
+ // This also exercises the public entry again without mutating a save key.
+ await request('Page.reload',{ignoreCache:true});
+ await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode") && !!document.getElementById("start-button")'),'terrain reload after touch controls');
+ await evalPage('document.getElementById("start-button").click();true');
+ await waitFor(()=>evalPage('document.getElementById("city-intro").hidden===true'),'re-enter terrain after touch controls');
+ // The camera may retain a small post-touch heading through reload. The
+ // traversal must test real movement, not exact equality to the initial yaw.
+ // Reject a materially rotated camera so a wall collision is not misdiagnosed.
+ await waitFor(()=>evalPage('Number.isFinite(Number(document.getElementById("city-voxel-status")?.dataset.lookYaw))'),'reloaded camera heading available',30000);
+ const routeYaw=Number(await evalPage('document.getElementById("city-voxel-status").dataset.lookYaw'));
+ const routeDeviation=Math.abs(Math.atan2(Math.sin(routeYaw-firstYaw),Math.cos(routeYaw-firstYaw)));
+ assert.ok(routeDeviation<0.10,'camera must face within 0.10 radians of the original fortress route; initial='+firstYaw+' reloaded='+routeYaw);
 
  if(view.gl){
   assert.equal(view.hidden,false,'first person is default when WebGL works');

@@ -81,6 +81,24 @@
   parts.push({x:supplies.x-.15,z:supplies.z-.15,y:supplies.y+2,w:3.3,h:.5,d:3.3,color:trim,solid:false});
   parts.push({x:supplies.x+1.3,z:supplies.z+1.1,y:supplies.y+2.5,w:.35,h:8,d:.35,color:stone,solid:false});
   parts.push({x:supplies.x+1.6,z:supplies.z+1.1,y:supplies.y+7,w:4,h:2.8,d:.22,color:amber,solid:false});
+  // Road-grade starter lodge; west doorway remains open for player access.
+  // Existing gateParts, chunk collision and both renderers share these boxes.
+  const lodgeX=center(46)+16,lodgeZ=z+45,lodgeY=heights[49]+1;
+  const lodgeWall=[.48,.31,.19],lodgeRoof=[.23,.30,.35];
+  function lodge(dx,dz,dy,w,h,d,color,solid=true){
+   parts.push({x:lodgeX+dx,z:lodgeZ+dz,y:lodgeY+dy,w,h,d,color,solid});
+  }
+  const lodgeFloor=Object.freeze({x:lodgeX,z:lodgeZ,y:lodgeY,w:9,h:1,d:9});
+  lodge(0,0,0,9,1,9,stone);
+  lodge(8,0,1,1,10,9,lodgeWall);
+  lodge(1,0,1,7,10,1,lodgeWall);
+  lodge(1,8,1,7,10,1,lodgeWall);
+  // Three-voxel doorway with eight-voxel headroom on the west side.
+  lodge(0,0,1,1,10,3,lodgeWall);
+  lodge(0,6,1,1,10,3,lodgeWall);
+  lodge(0,3,9,1,2,3,lodgeWall);
+  lodge(-.4,-.4,11,9.8,2,9.8,lodgeRoof);
+  lodge(4,8.8,4,2,3,.25,amber,false);
   function foundation(px,pz){
    const t=pz-z;
    if(t< -4||t>54)return null;
@@ -89,11 +107,11 @@
    return {height:heights[t+4],road:distance<=4,edge:distance===4};
   }
   function obstructs(px,py,pz,height,radius){
-   if(Math.abs(px-x)>25||Math.abs(pz-gateZ)>12)return false;
+   if(Math.abs(px-x)>35||Math.abs(pz-gateZ)>22)return false;
    return parts.some(p=>p.solid&&px+radius>p.x&&px-radius<p.x+p.w&&
     pz+radius>p.z&&pz-radius<p.z+p.d&&py+height>p.y&&py<p.y+p.h);
   }
-  return {x,z,gateX:x,gateZ,base,parts,foundation,obstructs,supplies};
+  return {x,z,gateX:x,gateZ,base,parts,foundation,obstructs,supplies,lodgeFloor};
  }
  function createVoxelWorld(atlas){
   if(!atlas?.seedHash||typeof atlas.biomeAt!=='function')throw Error('Seeded 132-biome atlas required');
@@ -279,11 +297,11 @@
    else if(depth>20&&mineral>.974)material='iron-ore';
    return Object.freeze({material,solid:true,mineable:true});
   }
-  function featureAt(x,z){
+  function featureAt(x,z,sampledSurface){
    if(gateRoad){
     const t=z-gateRoad.z;
     if(t>=4&&t<=28&&(t-4)%8===0&&Math.abs(x-gateRoad.x)===8){
-     const ground=surfaceAt(x,z);
+     const ground=sampledSurface||surfaceAt(x,z);
      if(!ground.water&&!ground.mouth&&ground.slope<=18){
       const type=ground.group==='desert'||ground.group==='salt'?'cactus':
        ground.group==='fungal'?'mushroom':ground.group==='tropical'?'palm':
@@ -293,7 +311,7 @@
     }
     if(gateRoad.foundation(x,z))return null;
    }
-   const c=surfaceAt(x,z);if(!c||c.water||c.mouth||c.slope>18||c.river&&c.height<SEA_LEVEL+2)return null;
+   const c=sampledSurface||surfaceAt(x,z);if(!c||c.water||c.mouth||c.slope>18||c.river&&c.height<SEA_LEVEL+2)return null;
    const r=random(plantSeed,x,z),r2=random(plantSeed^0x91a3,x,z);
    const g=c.group;
    const forest=g==='evergreen'||g==='tropical'||g==='fungal';
@@ -332,18 +350,96 @@
    const mid=surfaceAt(base.x,base.y);
    return Object.freeze({x:base.x,z:base.y,y:mid.height+1});
   }
+  // Compact, deterministic actor descriptors. Runtime AI state belongs to the
+  // shared actor manager, not the regenerable chunk snapshot.
+  function roadsideWildlife(){
+   const x=gateRoad.x+3,z=gateRoad.z+22;
+   const ground=surfaceAt(x,z);
+   return Object.freeze({id:'wildlife:'+seed+':fortress-road:0',type:'wildlife',kind:'wildlife',species:'fox',
+    faction:'neutral',role:'forager',rig:'shared-creature',behavior:'idle',x,z,y:ground.height+1,
+    homeX:x,homeZ:z,range:5,worldgenVersion:1});
+  }
+  // One immutable descriptor per world, not one terrain query/allocation per
+  // chunk reload. Persistent changes remain in the shared save/actor state.
+  const EMPTY_ACTORS=Object.freeze([]);
+  let roadsideActors=null,lodgeKeeper=null,keeperActors=null,combinedActors=null;
+  // Proximity queries run every simulation tick; reuse the same frozen sets
+  // instead of allocating a fresh array whenever the player remains nearby.
+  let foxNearActors=null,keeperNearActors=null;
+  function keeper(){
+   if(lodgeKeeper)return lodgeKeeper;
+   const floor=gateRoad.lodgeFloor;
+   const x=floor.x+4,z=floor.z+4,ground=surfaceAt(x,z);
+   lodgeKeeper=Object.freeze({id:'npc:'+seed+':roadside-lodge:keeper',type:'npc',kind:'npc',
+    species:'human',faction:'roadside-neutral',role:'supply-keeper',rig:'shared-humanoid',
+    behavior:'idle',x,z,y:Math.max(ground.height+1,floor.y+1),
+    homeX:x,homeZ:z,range:3,worldgenVersion:1});
+   return lodgeKeeper;
+  }
+  function actorsInChunk(cx,cz){
+   // Reject non-owning chunks before terrain sampling or allocating actors.
+   const fx=gateRoad.x+3,fz=gateRoad.z+22;
+   const floor=gateRoad.lodgeFloor;
+   const kx=floor.x+4,kz=floor.z+4;
+   const foxHere=Math.floor(fx/CHUNK_SIZE)===cx&&Math.floor(fz/CHUNK_SIZE)===cz;
+   const keeperHere=Math.floor(kx/CHUNK_SIZE)===cx&&Math.floor(kz/CHUNK_SIZE)===cz;
+   if(!foxHere&&!keeperHere)return EMPTY_ACTORS;
+   if(foxHere&&!roadsideActors)roadsideActors=Object.freeze([roadsideWildlife()]);
+   if(foxHere&&keeperHere){
+    if(!combinedActors)combinedActors=Object.freeze([roadsideActors[0],keeper()]);
+    return combinedActors;
+   }
+   if(foxHere)return roadsideActors;
+   if(!keeperActors)keeperActors=Object.freeze([keeper()]);
+   return keeperActors;
+  }
+  // Lightweight actor queries share chunk descriptors without generating 256 tiles.
+  // Keep mutable AI and save state in the shared actor runtime, never in worldgen.
+  function actorById(id){
+   if(typeof id!=='string')return null;
+   const x=gateRoad.x+3,z=gateRoad.z+22;
+   if(id==='wildlife:'+seed+':fortress-road:0')
+    return actorsInChunk(Math.floor(x/CHUNK_SIZE),Math.floor(z/CHUNK_SIZE))[0]||null;
+   if(id==='npc:'+seed+':roadside-lodge:keeper')return keeper();
+   return null;
+  }
+  function actorsNear(x,z,radius){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0)
+    return EMPTY_ACTORS;
+   const ax=gateRoad.x+3,az=gateRoad.z+22;
+   const floor=gateRoad.lodgeFloor,kx=floor.x+4,kz=floor.z+4;
+   // Squared distances avoid two square roots per frequent actor query.
+   const foxDx=x-ax,foxDz=z-az,keeperDx=x-kx,keeperDz=z-kz;
+   // Very large finite coordinates can overflow squared distances. Retain
+   // hypot semantics there; ordinary streamed-world queries stay sqrt-free.
+   const safeSquare=radius<1e150&&Math.abs(x)<1e150&&Math.abs(z)<1e150;
+   const radiusSquared=safeSquare?radius*radius:0;
+   const foxNear=safeSquare?foxDx*foxDx+foxDz*foxDz<=radiusSquared:Math.hypot(foxDx,foxDz)<=radius;
+   const keeperNear=safeSquare?keeperDx*keeperDx+keeperDz*keeperDz<=radiusSquared:Math.hypot(keeperDx,keeperDz)<=radius;
+   if(!foxNear&&!keeperNear)return EMPTY_ACTORS;
+   if(foxNear&&keeperNear){
+    if(!combinedActors)combinedActors=Object.freeze([actorById('wildlife:'+seed+':fortress-road:0'),keeper()]);
+    return combinedActors;
+   }
+   if(foxNear){
+    if(!foxNearActors)foxNearActors=Object.freeze([actorById('wildlife:'+seed+':fortress-road:0')]);
+    return foxNearActors;
+   }
+   if(!keeperNearActors)keeperNearActors=Object.freeze([keeper()]);
+   return keeperNearActors;
+  }
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
    const tiles=[],plants=[],roads=[];
    for(let z=cz*CHUNK_SIZE;z<(cz+1)*CHUNK_SIZE;z++)
     for(let x=cx*CHUNK_SIZE;x<(cx+1)*CHUNK_SIZE;x++){
-     const tile=surfaceAt(x,z),plant=featureAt(x,z);
+     const tile=surfaceAt(x,z),plant=featureAt(x,z,tile);
      tiles.push(tile);
      if(tile.road)roads.push(tile);
      if(plant)plants.push(Object.freeze({id:'plant:'+seed+':'+x+':'+z,x,z,y:tile.height+1,...plant}));
     }
    return Object.freeze({cx,cz,seed,tiles:Object.freeze(tiles),plants:Object.freeze(plants),
-    structures:Object.freeze(gateParts(cx,cz)),npc:Object.freeze([]),roads:Object.freeze(roads)});
+    structures:Object.freeze(gateParts(cx,cz)),npc:actorsInChunk(cx,cz),roads:Object.freeze(roads)});
   }
   const naturalSpawn=spawnAt();
   gateRoad=buildGateRoad(naturalSpawn,rawColumn,seed);
@@ -365,7 +461,7 @@
    return fragments;
   }
   return Object.freeze({seed,atlas,gateRoad,gateParts,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,MIN_HEIGHT,MAX_HEIGHT,
-   SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,isWaterAt,featureAt,chunkAt,
+   SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,isWaterAt,featureAt,chunkAt,actorsNear,actorById,
    cacheSize:()=>cache.size,caveCacheSize:()=>caveCells.size,spawnAt:()=>({...naturalSpawn,y:surfaceAt(naturalSpawn.x,naturalSpawn.z).height+1})});
  }
  root.CityVoxelWorld=Object.freeze({createVoxelWorld,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,
