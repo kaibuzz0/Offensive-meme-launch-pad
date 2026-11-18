@@ -184,3 +184,24 @@ test('recently visited wildlife chunk survives bounded eviction',()=>{
  assert.ok(samples>after);
  assert.deepEqual(manager.enter(0,0),a);
 });
+
+test('terrain wildlife rejects unsafe chunk arithmetic without sampling or changing active chunks',()=>{
+ let samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ const original=manager.enter(0,0);
+ const before=samples;
+ const tooLarge=Math.floor((Number.MAX_SAFE_INTEGER-15)/16)+1;
+ for(const [x,z] of [[tooLarge,0],[-tooLarge,0],[0,tooLarge],[0,-tooLarge]]){
+  assert.throws(()=>spawnChunkOnTerrain(world,x,z),RangeError);
+  assert.throws(()=>manager.enter(x,z),RangeError);
+  assert.throws(()=>manager.sync([[x,z]]),RangeError);
+ }
+ assert.throws(()=>spawnChunkOnTerrain(world,0.5,0),TypeError);
+ assert.equal(samples,before);
+ assert.equal(manager.activeChunks(),1);
+ assert.deepEqual(manager.enter(0,0),original);
+});
