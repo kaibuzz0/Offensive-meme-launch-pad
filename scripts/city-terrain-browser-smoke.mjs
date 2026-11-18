@@ -56,7 +56,13 @@ try{
  ws.addEventListener('message',event=>{
   const msg=JSON.parse(event.data);
   if(msg.id&&pending.has(msg.id)){const p=pending.get(msg.id);pending.delete(msg.id);msg.error?p.reject(Error(msg.error.message)):p.resolve(msg.result);}
-  if(msg.method==='Runtime.exceptionThrown')exceptions.push(msg.params.exceptionDetails.text||'Runtime error');
+  if(msg.method==='Runtime.exceptionThrown'){
+   const d=msg.params?.exceptionDetails||{};
+   const frames=d.stackTrace?.callFrames?.slice(0,8).map(f=>({functionName:f.functionName,url:f.url,line:f.lineNumber+1,column:f.columnNumber+1}))||[];
+   exceptions.push({text:d.text||'Runtime error',description:d.exception?.description||null,
+    url:d.url||null,line:d.lineNumber==null?null:d.lineNumber+1,
+    column:d.columnNumber==null?null:d.columnNumber+1,frames});
+  }
  });
  await request('Page.enable');await request('Runtime.enable');
  await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
@@ -142,8 +148,24 @@ try{
    await waitFor(()=>evalPage('!document.getElementById("city-road-supplies").hidden'),'walk to the roadside supply cache',90000);
    await evalPage('document.getElementById("city-road-supplies").click();true');
    assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
+   const approach=[];let lastApproachSample=0;const approachStart=Date.now();
    try{
-    await waitFor(()=>evalPage('!document.getElementById("city-gate-seal").hidden'),'walk under the fortress arch',90000);
+    // Sample the actual approach rather than relying on a single timeout snapshot.
+    // Retain the original 90s acceptance gate; telemetry cannot make a failed gate pass.
+    await waitFor(async()=>{
+     const state=await evalPage(`(()=>{
+      const d=document.getElementById("city-voxel-status")?.dataset||{};
+      return {gateVisible:document.getElementById("city-gate-seal")?.hidden===false,
+       x:Number(d.worldX),z:Number(d.worldZ),yaw:Number(d.lookYaw),
+       fps:Number(d.fps),grounded:d.grounded,meshPending:Number(d.meshPending)};
+     })()`);
+     const now=Date.now();
+     if(now-lastApproachSample>=2000){
+      approach.push({elapsedMs:now-(approachStart),...state});
+      lastApproachSample=now;
+     }
+     return state.gateVisible;
+    },'walk under the fortress arch',90000);
    }catch(error){
     // Capture live state before releasing W. A timeout alone cannot distinguish
     // structural collision, stalled input, camera orientation or interaction range.
@@ -159,7 +181,17 @@ try{
       viewport:{width:innerWidth,height:innerHeight},
       errors:window.__cityRuntimeErrors||null};
     })()`).catch(e=>({diagnosticError:e.message}));
-    throw Error(error.message+" / gate traversal diagnostics: "+JSON.stringify({traversalStart,diagnostics}));
+    const valid=approach.filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.z)&&Number.isFinite(p.yaw));
+    const first=valid[0],last=valid.at(-1);
+    const movement=first&&last?{
+     sampledMs:last.elapsedMs-first.elapsedMs,
+     displacementMeters:Math.hypot(last.x-first.x,last.z-first.z),
+     pathMeters:valid.slice(1).reduce((sum,p,i)=>sum+Math.hypot(p.x-valid[i].x,p.z-valid[i].z),0),
+     yawChangeRadians:last.yaw-first.yaw,
+     minFps:valid.some(p=>Number.isFinite(p.fps))?Math.min(...valid.map(p=>p.fps).filter(Number.isFinite)):null,
+     maxMeshPending:valid.some(p=>Number.isFinite(p.meshPending))?Math.max(...valid.map(p=>p.meshPending).filter(Number.isFinite)):null
+    }:null;
+    throw Error(error.message+" / gate traversal diagnostics: "+JSON.stringify({traversalStart,movement,approach,diagnostics,uncaughtExceptions:exceptions.slice(-12)}));
    }
   }finally{
    await request('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
@@ -190,11 +222,28 @@ try{
  // Page-exit save is exercised; seed, supply and gate persistence are
  // asserted below. The separate position-replay test needs repair before
  // it can reliably distinguish rendering stalls from physics movement.
- if(view.gl)await evalPage('window.dispatchEvent(new Event("pagehide"));true');
+ // Pagehide must persist the latest completed simulation frame, not merely
+ // leave a parseable (possibly stale) spawn record. This is a same-frame
+ // consistency check, NOT the separate post-reset movement/replay gate (#86).
+ const exitFrame=view.gl?await evalPage(`(()=>{
+  const d=document.getElementById("city-voxel-status").dataset;
+  window.dispatchEvent(new Event("pagehide"));
+  const saved=JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1")));
+  return {x:Number(d.worldX),z:Number(d.worldZ),saved};
+ })()`):null;
+ if(exitFrame){
+  assert.ok(Number.isFinite(exitFrame.x)&&Number.isFinite(exitFrame.z),'last frame must expose finite coordinates');
+  assert.ok(exitFrame.saved&&Number.isFinite(exitFrame.saved.x)&&Number.isFinite(exitFrame.saved.y),'pagehide must persist finite coordinates');
+  assert.ok(Math.hypot(exitFrame.saved.x-exitFrame.x,exitFrame.saved.y-exitFrame.z)<.001,'pagehide position must match the last completed simulation frame');
+ }
  await request('Page.reload',{ignoreCache:true});
  await waitFor(()=>evalPage('document.body.classList.contains("terrain-only-mode")'),'reload terrain mode');
  const stored=await evalPage('(()=>({seed:localStorage.getItem("meme-city-terrain-seed-v1"),saved:JSON.parse(localStorage.getItem("meme-city-terrain-position-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))),original:localStorage.getItem("offensive-meme-city-v1-center")}))()');
  assert.equal(stored.seed,initial.seed);
+ if(exitFrame){
+  assert.equal(stored.saved.seed,stored.seed,'saved position must belong to the active seed');
+  assert.ok(Math.hypot(stored.saved.x-exitFrame.saved.x,stored.saved.y-exitFrame.saved.y)<.001,'reload must not overwrite the pagehide checkpoint before play resumes');
+ }
 
  if(view.gl)assert.equal(await evalPage('localStorage.getItem("meme-city-gate-seal-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1');
  assert.equal(await evalPage('localStorage.getItem("meme-city-road-supplies-v1:"+localStorage.getItem("meme-city-terrain-seed-v1"))'),'1','roadside supplies persist across reload');
