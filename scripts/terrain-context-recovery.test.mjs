@@ -43,10 +43,17 @@ test('context loss switches to Canvas2D without losing the player state',()=>{
 test('Canvas2D allocation failure keeps a safe 2D map path',()=>{
  const h=harness({fallbackFails:true});
  assert.doesNotThrow(()=>h.listeners.webglcontextlost({preventDefault(){}}));
- assert.equal(h.context.perspective,null);
- assert.equal(h.context.firstPerson,false);
- assert.match(h.status.textContent,/2D map/);
+ assert.equal(h.context.perspective,h.original);
+ assert.equal(h.context.firstPerson,true);
+ assert.equal(h.context.contextInterrupted,true);
+ assert.match(h.status.textContent,/retry rendering/);
  assert.match(h.status.dataset.rendererError,/Canvas unavailable/);
+ assert.equal(h.original.disposed,0);
+ // A later restoration must be allowed to recover without changing the world.
+ h.context.rendererApi.createCanvasRenderer=()=>({software:true,dispose(){}});
+ h.listeners.webglcontextrestored();
+ assert.equal(h.context.contextInterrupted,false);
+ assert.equal(h.context.firstPerson,true);
  assert.equal(h.original.disposed,1);
 });
 
@@ -54,9 +61,42 @@ test('failed WebGL restoration does not crash and allows another loss cycle',()=
  const h=harness({restoredFails:true});
  h.listeners.webglcontextlost({preventDefault(){}});
  assert.doesNotThrow(()=>h.listeners.webglcontextrestored());
- assert.equal(h.context.contextInterrupted,false);
- assert.equal(h.context.firstPerson,false);
+ assert.equal(h.context.contextInterrupted,true);
+ assert.equal(h.context.firstPerson,true);
  assert.match(h.status.dataset.rendererError,/WebGL unavailable/);
+ h.context.openPerspective=()=>({software:false,dispose(){}});
+ h.listeners.webglcontextrestored();
+ assert.equal(h.context.contextInterrupted,false);
+ assert.equal(h.context.firstPerson,true);
+});
+
+// The recovery handler must not mutate the authoritative player/save model.
+// This VM fixture exercises the actual handler with explicit state sentinels;
+// browser-level visual and save/reload parity are separate release gates.
+test('repeated context loss and restoration retain world and inventory identity',()=>{
+ const h=harness({fallbackFails:true,restoredFails:true});
+ const world={seed:132,edits:[{id:'fortress-gate',open:true}]};
+ const inventory={wood:3,claimed:['starter-pickup']};
+ const player={position:{x:12,y:8,z:4},world,inventory};
+ h.context.player=player;
+ for(let i=0;i<3;i++){
+  h.listeners.webglcontextlost({preventDefault(){}});
+  h.listeners.webglcontextrestored();
+  assert.equal(h.context.player,player);
+  assert.equal(h.context.player.world,world);
+  assert.equal(h.context.player.inventory,inventory);
+  assert.equal(h.context.firstPerson,true);
+  assert.equal(h.original.disposed,0);
+ }
+ h.context.openPerspective=()=>({software:false,dispose(){}});
+ h.listeners.webglcontextrestored();
+ assert.equal(h.context.contextInterrupted,false);
+ assert.equal(h.context.player.position.x,12);
+ assert.deepEqual(h.context.player.inventory.claimed,['starter-pickup']);
+ assert.equal(h.original.disposed,1);
+ // A repeated restore event must not allocate/dispose again after success.
+ h.listeners.webglcontextrestored();
+ assert.equal(h.original.disposed,1);
 });
 
 // Input-release persistence is essential on mobile/background-throttled browsers:
