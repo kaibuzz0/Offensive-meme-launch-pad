@@ -441,9 +441,20 @@
    if(!keeperNearActors)keeperNearActors=Object.freeze([keeper()]);
    return keeperNearActors;
   }
+  // Reuse immutable chunk snapshots while the player traverses adjacent cells.
+  // Edits live in the separate voxel journal and are projected after worldgen.
+  // This cache stores only generated base content; it never owns player edits.
+  const chunkCache=new Map(),CHUNK_CACHE_LIMIT=12;
   function chunkAt(cx,cz){
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||
    cx < -62500||cz < -62500||cx > 62499||cz > 62499)return null;
+   const key=cx+','+cz;
+   if(chunkCache.has(key)){
+    const snapshot=chunkCache.get(key);
+    chunkCache.delete(key);
+    chunkCache.set(key,snapshot);
+    return snapshot;
+   }
    const tiles=[],plants=[],roads=[];
    for(let z=cz*CHUNK_SIZE;z<(cz+1)*CHUNK_SIZE;z++)
     for(let x=cx*CHUNK_SIZE;x<(cx+1)*CHUNK_SIZE;x++){
@@ -452,8 +463,11 @@
      if(tile.road)roads.push(tile);
      if(plant)plants.push(Object.freeze({id:'plant:'+seed+':'+x+':'+z,x,z,y:tile.height+1,...plant}));
     }
-   return Object.freeze({cx,cz,seed,tiles:Object.freeze(tiles),plants:Object.freeze(plants),
-    structures:Object.freeze(gateParts(cx,cz)),npc:actorsInChunk(cx,cz),roads:Object.freeze(roads)});
+   const snapshot=Object.freeze({cx,cz,seed,tiles:Object.freeze(tiles),plants:Object.freeze(plants),
+    structures:gateParts(cx,cz),npc:actorsInChunk(cx,cz),roads:Object.freeze(roads)});
+   chunkCache.set(key,snapshot);
+   if(chunkCache.size>CHUNK_CACHE_LIMIT)chunkCache.delete(chunkCache.keys().next().value);
+   return snapshot;
   }
   const naturalSpawn=spawnAt();
   gateRoad=buildGateRoad(naturalSpawn,rawColumn,seed);
@@ -486,7 +500,7 @@
   }
   return Object.freeze({seed,atlas,gateRoad,gateParts,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,MIN_HEIGHT,MAX_HEIGHT,
    SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,isWaterAt,featureAt,chunkAt,actorsNear,actorById,
-   cacheSize:()=>cache.size,caveCacheSize:()=>caveCells.size,spawnAt:()=>({...naturalSpawn,y:surfaceAt(naturalSpawn.x,naturalSpawn.z).height+1})});
+   cacheSize:()=>cache.size,caveCacheSize:()=>caveCells.size,chunkCacheSize:()=>chunkCache.size,spawnAt:()=>({...naturalSpawn,y:surfaceAt(naturalSpawn.x,naturalSpawn.z).height+1})});
  }
  root.CityVoxelWorld=Object.freeze({createVoxelWorld,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,
   MIN_HEIGHT,MAX_HEIGHT,SEA_LEVEL,CHUNK_SIZE,noise2,noise3});
