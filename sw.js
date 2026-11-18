@@ -39,7 +39,16 @@ self.addEventListener('fetch',event=>{
   // Game scripts, styles and worker source are bounded and same-origin; no API,
   // wallet, token, reward, credential or player-save responses enter this cache.
   if(localGameAsset(url)){
-    event.respondWith(caches.match(request).then(cached=>cached||fetch(request).then(response=>{if(response.ok)event.waitUntil(putGame(request,response));return response;})));
+    // Network-first keeps scripts and workers aligned with the deployed HTML.
+    // A failed network request may reuse the previously loaded offline copy.
+    event.respondWith(fetch(request).then(response=>{
+      if(!response.ok)throw new Error('Game asset HTTP '+response.status);
+      event.waitUntil(putGame(request,response));
+      return response;
+    }).catch(async()=>{
+      const cached=await caches.match(request);
+      return cached||Response.error();
+    }));
     return;
   }
   if(urls.includes(url.href))event.respondWith(caches.match(request).then(cached=>cached||fetch(request)));
