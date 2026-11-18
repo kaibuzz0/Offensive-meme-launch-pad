@@ -35,3 +35,28 @@ test('replayed batch has no changed cells and cannot modify live state through i
   replay.snapshot.edits[0].block = 'dirt';
   assert.deepEqual(live.snapshot(), before);
 });
+
+test('256-cell construction preview is bounded, deterministic and does not mutate live state', () => {
+  const live = createVoxelEditJournal('fortress');
+  const edits = Array.from({ length: 256 }, (_, x) => block(x));
+  const before = live.snapshot();
+  const staged = live.previewBatch(edits.slice().reverse(), live.revision);
+  assert.equal(staged.changed, true);
+  assert.equal(staged.count, 256);
+  assert.equal(staged.snapshot.revision, 1);
+  assert.equal(staged.snapshot.edits.length, 256);
+  assert.deepEqual(staged.snapshot.edits, edits);
+  assert.deepEqual(live.snapshot(), before);
+  assert.throws(() => live.previewBatch([...edits, block(256)], live.revision), /1\.\.256/);
+  assert.deepEqual(live.snapshot(), before);
+  const restored = createVoxelEditJournal('fortress', staged.snapshot);
+  assert.equal(restored.get(255, 0, 0), 'stone');
+});
+
+test('duplicate construction coordinates fail before staging and preserve journal', () => {
+  const live = createVoxelEditJournal('fortress');
+  live.apply(block(0));
+  const before = live.snapshot();
+  assert.throws(() => live.previewBatch([block(1), block(1, 'dirt')], live.revision), /duplicate/);
+  assert.deepEqual(live.snapshot(), before);
+});
