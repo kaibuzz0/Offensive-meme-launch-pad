@@ -150,14 +150,17 @@ try{
    try{
     for(let pulse=0;pulse<120&&Math.abs(remaining)>.025;pulse++){
      const pointerId=500+pulse;
-     const direction=remaining>0?-.18:.18;
+     // Scale the steering impulse down near the target instead of
+     // repeatedly crossing it with a fixed-size pulse.
+     const magnitude=Math.min(.18,Math.max(.025,Math.abs(remaining)*.55));
+     const direction=remaining>0?-magnitude:magnitude;
      await evalPage(`(()=>{
       const pad=document.getElementById("city-look-pad"),r=pad.getBoundingClientRect();
       pad.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:${pointerId},
        clientX:r.left+r.width*(.5+${direction}),clientY:r.top+r.height/2}));
       return true;
      })()`);
-     await delay(65);
+     await delay(35);
      await evalPage(`(()=>{
       document.getElementById("city-look-pad").dispatchEvent(
        new PointerEvent("pointerup",{bubbles:true,pointerId:${pointerId}}));return true;
