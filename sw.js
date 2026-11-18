@@ -31,8 +31,11 @@ async function initializeGameAccounting(cache){
   gameTotal=total;
 }
 function scheduleGameCache(request,response){
+  // Clone synchronously before returning the network response to the browser.
+  // Otherwise its body may be consumed before a queued cache operation runs.
+  const cacheResponse=response.clone();
   // Serialize cache mutations and the initial reconciliation.
-  const operation=cacheWriteQueue.catch(()=>{}).then(()=>putGame(request,response));
+  const operation=cacheWriteQueue.catch(()=>{}).then(()=>putGame(request,cacheResponse));
   cacheWriteQueue=operation.catch(()=>{});
   return operation.catch(()=>{}); // Cache failures must not break network gameplay.
 }
