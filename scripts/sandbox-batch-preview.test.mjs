@@ -52,3 +52,16 @@ test('no-op preview returns detached snapshot and preserves live state', () => {
   assert.equal(live.get(2, 3, 4), 'wood');
   assert.equal(live.revision, 1);
 });
+
+test('detached previewBatch remains usable for no-op and changed edits', () => {
+  const journal = createVoxelEditJournal('fortress');
+  journal.apply({ x: 2, y: 3, z: 4, block: 'wood' });
+  const preview = journal.previewBatch;
+  const unchanged = preview([{ x: 2, y: 3, z: 4, block: 'wood' }], 1);
+  assert.equal(unchanged.changed, false);
+  assert.equal(unchanged.snapshot.edits[0].block, 'wood');
+  const changed = preview([{ x: 2, y: 3, z: 4, block: 'stone' }], 1);
+  assert.equal(changed.changed, true);
+  assert.equal(createVoxelEditJournal('fortress', changed.snapshot).get(2, 3, 4), 'stone');
+  assert.equal(journal.get(2, 3, 4), 'wood');
+});
