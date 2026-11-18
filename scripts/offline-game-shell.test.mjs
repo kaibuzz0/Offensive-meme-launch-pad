@@ -19,21 +19,23 @@ test('offline game shell only accepts bounded local game resources',()=>{
   assert.equal(vm.runInNewContext('GAME_MAX_ENTRIES',context),80);
 });
 
-test('game scripts refresh online and fall back to cached copies offline',async()=>{
+test('game worker refreshes online and is available after an offline revisit',async()=>{
   const handlers={};
   const scope='https://example.test/Offensive-meme-launch-pad/';
   const asset=scope+'city-voxel-mesh-worker.js';
   let online=true;
   let networkCalls=0;
-  let saved={ok:true,status:200,body:'old',clone(){return this;}};
+  const entries=new Map([[asset,new Response('old')]]);
+  const keyOf=request=>typeof request==='string'?request:request.url;
   const cache={
-    async put(_request,response){saved=response;},
-    async keys(){return [asset];},
-    async delete(){return true;}
+    async put(request,response){entries.set(keyOf(request),response.clone());},
+    async match(request){const found=entries.get(keyOf(request));return found?.clone();},
+    async keys(){return [...entries.keys()];},
+    async delete(request){return entries.delete(keyOf(request));}
   };
   const caches={
     async open(){return cache;},
-    async match(request){return (typeof request==='string'?request:request.url)===asset?saved:undefined;}
+    async match(request){return cache.match(request);}
   };
   const self={
     registration:{scope},location:{origin:'https://example.test'},
@@ -41,8 +43,8 @@ test('game scripts refresh online and fall back to cached copies offline',async(
     clients:{claim:async()=>{}}
   };
   const context={
-    self,URL,caches,Response:{error:()=>({ok:false,status:0})},
-    fetch:async()=>{networkCalls++;if(!online)throw Error('offline');return {ok:true,status:200,body:'new',clone(){return this;}};}
+    self,URL,caches,Response,
+    fetch:async()=>{networkCalls++;if(!online)throw Error('offline');return new Response('new');}
   };
   vm.runInNewContext(source,context);
   async function requestAsset(){
@@ -55,11 +57,11 @@ test('game scripts refresh online and fall back to cached copies offline',async(
     });
     const response=await result;
     await Promise.all(writes);
-    return response;
+    return response.text();
   }
-  assert.equal((await requestAsset()).body,'new');
-  assert.equal(saved.body,'new');
+  assert.equal(await requestAsset(),'new');
+  assert.equal(await (await cache.match(asset)).text(),'new','online refresh must reach cache');
   online=false;
-  assert.equal((await requestAsset()).body,'new');
+  assert.equal(await requestAsset(),'new','offline worker must use the refreshed copy');
   assert.equal(networkCalls,2);
 });
