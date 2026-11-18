@@ -16,13 +16,17 @@
    let top=-Infinity;
    for(const [ox,oz] of samples){
     const bx=Math.floor(x+ox),bz=Math.floor(z+oz);
-    const col=world.surfaceAt(bx,bz);
-    if(!col)return null;
+    // Unloaded/failed columns are not traversable; keep the last safe pose.
+    let col;
+    try { col=world.surfaceAt(bx,bz); } catch { return null; }
+    if(!col||!Number.isFinite(col.height))return null;
     let height=col.height+1;
     // Caves share world coordinates with the terrain. The roof stays solid
     // until the player reaches an open mouth or is already below the roof.
-    const gallery=world.caveRoomAt?.(bx,bz);
+    let gallery;
+    try { gallery=world.caveRoomAt?.(bx,bz); } catch { return null; }
     if(gallery&&(gallery.exposed||referenceY<gallery.ceiling)){
+     if(!Number.isFinite(gallery.floor))return null;
      height=gallery.floor;
     }
     top=Math.max(top,height);
@@ -50,7 +54,12 @@
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
-    if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
+    if(floor===null)break;
+    // A temporarily unavailable structural query must never grant passage.
+    let obstructed=false;
+    try { obstructed=!!world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS); }
+    catch { obstructed=true; }
+    if(obstructed)break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
@@ -58,7 +67,9 @@
     const samples=[[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]];
     let blocked=false;
     for(const [ox,oz] of samples){
-     const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
+     let gallery;
+     try { gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz)); }
+     catch { blocked=true; break; }
      if(gallery&&!gallery.exposed&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
      }
@@ -79,13 +90,18 @@
    const yaw=Number.isFinite(input?.yaw)?input.yaw:0;
    const rightX=Math.cos(yaw),rightZ=-Math.sin(yaw);
    const forwardX=Math.sin(yaw),forwardZ=Math.cos(yaw);
-   const feet=world.surfaceAt(Math.floor(state.x),Math.floor(state.z));
+   // A transient chunk-load failure must not crash the fixed-step loop.
+   let feet;
+   try { feet=world.surfaceAt(Math.floor(state.x),Math.floor(state.z)); } catch { feet=null; }
    // Optional water-volume query allows submerged cave pools without
    // treating dry terrain below sea level as water. Legacy worlds without
    // this query retain the previous sea-level behavior.
-   const water=typeof world.isWaterAt==='function'
-    ? !!world.isWaterAt(state.x,state.y+world.PLAYER_HEIGHT*.5,state.z)
-    : !!feet&&state.y<world.SEA_LEVEL;
+   let water=false;
+   if(typeof world.isWaterAt==='function'){
+    // Unknown water occupancy cannot change the controller's movement model.
+    try { water=!!world.isWaterAt(state.x,state.y+world.PLAYER_HEIGHT*.5,state.z); }
+    catch { water=false; }
+   }else water=!!feet&&state.y<world.SEA_LEVEL;
    const speed=SPEED*(water?.62:1);
    const dx=(vx*rightX+vz*forwardX)*speed*step;
    const dz=(vx*rightZ+vz*forwardZ)*speed*step;
@@ -115,7 +131,9 @@
    if(state.vy>0&&typeof world.caveRoomAt==='function'){
     let ceiling=Infinity;
     for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
-     const gallery=world.caveRoomAt(Math.floor(state.x+ox),Math.floor(state.z+oz));
+     let gallery;
+     try { gallery=world.caveRoomAt(Math.floor(state.x+ox),Math.floor(state.z+oz)); }
+     catch { ceiling=Math.min(ceiling,previousY+world.PLAYER_HEIGHT); break; }
      if(gallery&&!gallery.exposed&&Number.isFinite(gallery.ceiling)){
       const roof=gallery.ceiling;
       const crossedFromBelow=previousY<roof
