@@ -435,7 +435,8 @@
    return keeperNearActors;
   }
   function chunkAt(cx,cz){
-   if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||Math.abs(cx)>62500||Math.abs(cz)>62500)return null;
+   if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz)||
+   cx < -62500||cz < -62500||cx > 62499||cz > 62499)return null;
    const tiles=[],plants=[],roads=[];
    for(let z=cz*CHUNK_SIZE;z<(cz+1)*CHUNK_SIZE;z++)
     for(let x=cx*CHUNK_SIZE;x<(cx+1)*CHUNK_SIZE;x++){
