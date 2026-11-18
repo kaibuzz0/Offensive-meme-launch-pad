@@ -130,16 +130,18 @@ export function createVoxelEditJournal(worldSeed, snapshot) {
         pending.set(key, edit);
       }
       let additions = 0;
-      let changed = 0;
+      const delta = [];
       for (const [key, edit] of pending) {
         if (!changes.has(key)) additions++;
-        if (!changes.has(key) || changes.get(key).block !== edit.block) changed++;
+        const previous = changes.get(key)?.block;
+        if (!changes.has(key) || previous !== edit.block) delta.push({ ...edit, previous });
       }
+      const changed = delta.length;
       if (changes.size + additions > MAX_EDITS) throw new RangeError('voxel journal capacity reached');
       // A replay has no delta: avoid copying the entire map just to stage it.
       // Still return an independent, sorted snapshot for durable readback.
       if (!changed) return {
-        changed: false, count: 0, revision,
+        changed: false, count: 0, revision, delta: [],
         snapshot: {
           version: JOURNAL_VERSION, worldSeed, revision, voxelMetres: VOXEL_METRES,
           edits: Array.from(changes.values(), edit => ({ ...edit }))
@@ -153,6 +155,9 @@ export function createVoxelEditJournal(worldSeed, snapshot) {
       const nextRevision = changed ? assertRevision(revision + 1) : revision;
       return {
         changed: changed > 0, count: changed, revision: nextRevision,
+        // Apply only after the inventory+snapshot durable commit succeeds.
+        // previous === undefined means generated terrain was not overridden.
+        delta: delta.sort((a, b) => a.x - b.x || a.y - b.y || a.z - b.z),
         snapshot: {
           version: JOURNAL_VERSION, worldSeed, revision: nextRevision,
           voxelMetres: VOXEL_METRES,
