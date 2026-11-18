@@ -450,23 +450,31 @@
   const naturalSpawn=spawnAt();
   gateRoad=buildGateRoad(naturalSpawn,rawColumn,seed);
   cache.clear();
-  // Emit each structure fragment in every intersected chunk. Keep the source
-  // gateRoad.parts unchanged: collision uses those original world-space boxes.
-  function gateParts(cx,cz){
-   const minX=cx*CHUNK_SIZE,maxX=minX+CHUNK_SIZE;
-   const minZ=cz*CHUNK_SIZE,maxZ=minZ+CHUNK_SIZE;
-   const fragments=[];
-   for(let i=0;i<gateRoad.parts.length;i++){
-    const p=gateRoad.parts[i];
-    const x=Math.max(p.x,minX),z=Math.max(p.z,minZ);
-    const w=Math.min(p.x+p.w,maxX)-x,d=Math.min(p.z+p.d,maxZ)-z;
+  // Index the finite starter structures once by owning chunk. Streaming a
+  // remote chunk must not scan every fortress/lodge part on each visit.
+  // Preserve original source boxes for collision and stable fragment IDs.
+  const structureChunks=new Map(),EMPTY_STRUCTURES=Object.freeze([]);
+  for(let i=0;i<gateRoad.parts.length;i++){
+   const p=gateRoad.parts[i];
+   const minCX=Math.floor(p.x/CHUNK_SIZE),maxCX=Math.ceil((p.x+p.w)/CHUNK_SIZE)-1;
+   const minCZ=Math.floor(p.z/CHUNK_SIZE),maxCZ=Math.ceil((p.z+p.d)/CHUNK_SIZE)-1;
+   for(let cz=minCZ;cz<=maxCZ;cz++)for(let cx=minCX;cx<=maxCX;cx++){
+    const x=Math.max(p.x,cx*CHUNK_SIZE),z=Math.max(p.z,cz*CHUNK_SIZE);
+    const w=Math.min(p.x+p.w,(cx+1)*CHUNK_SIZE)-x;
+    const d=Math.min(p.z+p.d,(cz+1)*CHUNK_SIZE)-z;
     if(w<=0||d<=0)continue;
-    fragments.push(Object.freeze({...p,x,z,w,d,
+    const key=cx+','+cz;
+    if(!structureChunks.has(key))structureChunks.set(key,[]);
+    structureChunks.get(key).push(Object.freeze({...p,x,z,w,d,
      id:'starter-gate:'+seed+':'+i,
      fragmentId:'starter-gate:'+seed+':'+i+':'+cx+':'+cz,
      structureId:'starter-fortress:'+seed}));
    }
-   return fragments;
+  }
+  for(const [key,parts] of structureChunks)structureChunks.set(key,Object.freeze(parts));
+  function gateParts(cx,cz){
+   if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz))return EMPTY_STRUCTURES;
+   return structureChunks.get(cx+','+cz)||EMPTY_STRUCTURES;
   }
   return Object.freeze({seed,atlas,gateRoad,gateParts,VOXEL_METERS,PLAYER_HEIGHT,EYE_HEIGHT,MIN_HEIGHT,MAX_HEIGHT,
    SEA_LEVEL,CHUNK_SIZE,biomeAt:atlas.biomeAt,surfaceAt,caveMouthAt,caveRoomAt,caveAt,blockAt,isWaterAt,featureAt,chunkAt,actorsNear,actorById,
