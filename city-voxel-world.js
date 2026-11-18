@@ -221,6 +221,13 @@
    if(random(sinkSeed^0x4caf,cx,cz,9)>=.79){
     const mx=cx*MOUTH_CELL+24+Math.floor(random(sinkSeed,cx,cz,5)*(MOUTH_CELL-48));
     const mz=cz*MOUTH_CELL+24+Math.floor(random(sinkSeed,cx,cz,6)*(MOUTH_CELL-48));
+    // Edge cells may straddle the supported surface domain. Never sample
+    // an invalid mouth coordinate or construct an incomplete cave descriptor.
+    if(Math.abs(mx)>1000000||Math.abs(mz)>1000000){
+     caveCells.set(key,null);
+     if(caveCells.size>CAVE_CELL_LIMIT)caveCells.delete(caveCells.keys().next().value);
+     return null;
+    }
     const angle=random(sinkSeed^0x1dad,cx,cz,11)*Math.PI*2;
     const dx=Math.cos(angle),dz=Math.sin(angle);
     const ax=clamp(mx+dx*29,cx*MOUTH_CELL+15,(cx+1)*MOUTH_CELL-16);
