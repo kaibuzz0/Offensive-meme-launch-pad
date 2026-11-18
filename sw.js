@@ -48,8 +48,15 @@ async function putGame(request,response){
   if(body.byteLength>GAME_MAX_RESPONSE_BYTES)return;
   const cache=await caches.open(GAME_CACHE);
   await initializeGameAccounting(cache);
-  const key=new URL(request.url).href;
-  await cache.put(request,response.clone());
+  // The HTML document is seed-independent. Store one canonical URL so
+  // changing ?seed= or ?terrain= does not consume another cache slot.
+  // Scripts and workers retain exact request URLs for version safety.
+  const requestUrl=new URL(request.url);
+  const cacheRequest=requestUrl.pathname===new URL('city.html',scopeUrl).pathname
+    ?new Request(new URL('city.html',scopeUrl).href)
+    :request;
+  const key=cacheRequest.url;
+  await cache.put(cacheRequest,response.clone());
   gameTotal+=body.byteLength-(gameSizes.get(key)||0);
   gameSizes.delete(key);
   gameSizes.set(key,body.byteLength);
