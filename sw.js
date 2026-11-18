@@ -5,6 +5,8 @@ const SHELL=['offline.html','assets/icons/app-192.png','assets/icons/app-512.png
 const urls=SHELL.map(path=>new URL(path,self.registration.scope).href);
 const GAME_CACHE='offensive-game-v1';
 const GAME_MAX_ENTRIES=80;
+const GAME_MAX_BYTES=12*1024*1024;
+const GAME_MAX_RESPONSE_BYTES=4*1024*1024;
 const scopeUrl=new URL(self.registration.scope);
 const gamePath=/^(?:city\.html|city(?:-[a-z0-9-]+)?\.(?:js|css)|assets\/icon\.svg)$/;
 function localGameAsset(url){
@@ -13,10 +15,25 @@ function localGameAsset(url){
 }
 async function putGame(request,response){
   if(!response||!response.ok||response.type==='opaque')return;
+  const sizeHeader=Number(response.headers.get('content-length'));
+  if(Number.isFinite(sizeHeader)&&sizeHeader>GAME_MAX_RESPONSE_BYTES)return;
+  const body=await response.clone().arrayBuffer();
+  if(body.byteLength>GAME_MAX_RESPONSE_BYTES)return;
   const cache=await caches.open(GAME_CACHE);
-  await cache.put(request,response.clone());
+  await cache.put(request,new Response(body,{status:response.status,statusText:response.statusText,headers:response.headers}));
   const keys=await cache.keys();
-  for(let i=0;i<keys.length-GAME_MAX_ENTRIES;i++)await cache.delete(keys[i]);
+  let total=0;
+  const sizes=[];
+  for(const key of keys){
+    const cached=await cache.match(key);
+    const bytes=cached?(await cached.arrayBuffer()).byteLength:0;
+    sizes.push(bytes);
+    total+=bytes;
+  }
+  for(let i=0;i<keys.length&&(keys.length-i>GAME_MAX_ENTRIES||total>GAME_MAX_BYTES);i++){
+    await cache.delete(keys[i]);
+    total-=sizes[i];
+  }
 }
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(urls)));});
 // Updates wait for existing app windows to close; do not reload an active wallet flow.
