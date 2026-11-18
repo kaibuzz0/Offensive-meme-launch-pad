@@ -334,7 +334,7 @@ test('roadside actor IDs survive cache churn and never duplicate across adjacent
   const expected=['npc:'+world.seed+':roadside-lodge:keeper'];
   const keeper=world.actorById(expected[0]);
   assert.ok(keeper,'keeper must remain addressable without a loaded terrain chunk');
-  const fox=world.actorsNear(world.gateRoad.x+3,world.gateRoad.z+22,2).find(a=>a.type==='fox');
+  const fox=world.actorsNear(world.gateRoad.x+3,world.gateRoad.z+22,2).find(a=>a.species==='fox');
   assert.ok(fox,'roadside wildlife must be discoverable');
   const actors=[keeper,fox];
   for(const actor of actors){
