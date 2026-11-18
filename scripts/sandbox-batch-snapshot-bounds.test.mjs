@@ -20,3 +20,18 @@ test('batch snapshots reject impossible cell/revision counts', () => {
   assert.equal(restored.revision, 2);
   assert.deepEqual(restored.snapshot(), valid.snapshot());
 });
+
+test('snapshot restores the canonical quarter-metre scale and rejects incompatible scales', () => {
+  const live = createVoxelEditJournal('scale');
+  live.applyBatch([{ x: 4, y: 0, z: 0, block: 'wood' }]);
+  const saved = live.snapshot();
+  assert.equal(saved.voxelMetres, VOXEL_METRES);
+  assert.deepEqual(createVoxelEditJournal('scale', saved).snapshot(), saved);
+  assert.throws(
+    () => createVoxelEditJournal('scale', { ...saved, voxelMetres: 1 }),
+    /incompatible voxel edit snapshot/
+  );
+  // Historical snapshots without scale metadata remain recoverable.
+  const { voxelMetres, ...legacy } = saved;
+  assert.deepEqual(createVoxelEditJournal('scale', legacy).snapshot(), saved);
+});
