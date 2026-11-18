@@ -46,7 +46,7 @@ async function putGame(request,response){
   const cache=await caches.open(GAME_CACHE);
   await initializeGameAccounting(cache);
   const key=new URL(request.url).href;
-  await cache.put(request,new Response(body,{status:response.status,statusText:response.statusText,headers:response.headers}));
+  await cache.put(request,response.clone());
   gameTotal+=body.byteLength-(gameSizes.get(key)||0);
   gameSizes.delete(key);
   gameSizes.set(key,body.byteLength);
