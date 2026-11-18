@@ -210,7 +210,13 @@
   const caveCells=new Map(),CAVE_CELL_LIMIT=256;
   function caveCell(cx,cz){
    const key=cx+':'+cz;
-   if(caveCells.has(key))return caveCells.get(key);
+   if(caveCells.has(key)){
+    // Refresh the bounded cave-cell LRU on nearby revisits, including empty cells.
+    const cached=caveCells.get(key);
+    caveCells.delete(key);
+    caveCells.set(key,cached);
+    return cached;
+   }
    let result=null;
    if(random(sinkSeed^0x4caf,cx,cz,9)>=.79){
     const mx=cx*MOUTH_CELL+24+Math.floor(random(sinkSeed,cx,cz,5)*(MOUTH_CELL-48));
