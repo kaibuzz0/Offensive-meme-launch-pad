@@ -71,7 +71,7 @@ self.addEventListener('fetch',event=>{
   if(request.method!=='GET'||url.origin!==self.location.origin)return;
   if(request.mode==='navigate'){
     if(localGameAsset(url)){
-      event.respondWith(fetch(request).then(response=>{if(response.ok)event.waitUntil(scheduleGameCache(request,response));return response;}).catch(async()=>await caches.match(request)||await caches.match(new URL('offline.html',self.registration.scope).href)));
+      event.respondWith(fetch(request).then(response=>{if(response.ok)event.waitUntil(scheduleGameCache(request,response));return response;}).catch(async()=>await caches.match(request,{ignoreSearch:true})||await caches.match(new URL('offline.html',self.registration.scope).href)));
     }else{
       event.respondWith(fetch(request).catch(()=>caches.match(new URL('offline.html',self.registration.scope).href)));
     }
