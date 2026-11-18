@@ -53,8 +53,8 @@ export function createVoxelEditJournal(worldSeed, snapshot) {
     }
     revision = assertRevision(snapshot.revision);
     // A single committed batch may contain up to 256 cells but advances one revision.
-    // Reject populated revision-zero snapshots without assuming one revision per cell.
-    if (snapshot.edits.length && revision === 0) throw new Error('snapshot revision is inconsistent');
+    // Reject snapshots containing more distinct cells than their revisions could commit.
+    if (Math.ceil(snapshot.edits.length / 256) > revision) throw new Error('snapshot revision is inconsistent');
     for (const raw of snapshot.edits) {
       const edit = normalizedEdit(raw);
       const key = voxelKey(edit.x, edit.y, edit.z);
