@@ -56,8 +56,10 @@ test('game worker refreshes online and is available after an offline revisit',as
       waitUntil(promise){writes.push(promise);}
     });
     const response=await result;
+    // Browser may consume the network response before waitUntil cache work runs.
+    const delivered=await response.text();
     await Promise.all(writes);
-    return response.text();
+    return delivered;
   }
   assert.equal(await requestAsset(),'new');
   assert.equal(await (await cache.match(asset)).text(),'new','online refresh must reach cache');
