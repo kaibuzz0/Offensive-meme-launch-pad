@@ -13,6 +13,13 @@ function localGameAsset(url){
   if(url.origin!==scopeUrl.origin||!url.pathname.startsWith(scopeUrl.pathname))return false;
   return gamePath.test(url.pathname.slice(scopeUrl.pathname.length));
 }
+let cacheWriteQueue=Promise.resolve();
+function scheduleGameCache(request,response){
+  // Serialize cache mutations: simultaneous chunk/script downloads must not race eviction.
+  const operation=cacheWriteQueue.catch(()=>{}).then(()=>putGame(request,response));
+  cacheWriteQueue=operation.catch(()=>{});
+  return operation.catch(()=>{}); // Storage pressure must never break a successful network load.
+}
 async function putGame(request,response){
   if(!response||!response.ok||response.type==='opaque')return;
   const sizeHeader=Number(response.headers.get('content-length'));
@@ -47,7 +54,7 @@ self.addEventListener('fetch',event=>{
   if(request.method!=='GET'||url.origin!==self.location.origin)return;
   if(request.mode==='navigate'){
     if(localGameAsset(url)){
-      event.respondWith(fetch(request).then(response=>{if(response.ok)event.waitUntil(putGame(request,response));return response;}).catch(async()=>await caches.match(request)||await caches.match(new URL('offline.html',self.registration.scope).href)));
+      event.respondWith(fetch(request).then(response=>{if(response.ok)event.waitUntil(scheduleGameCache(request,response));return response;}).catch(async()=>await caches.match(request)||await caches.match(new URL('offline.html',self.registration.scope).href)));
     }else{
       event.respondWith(fetch(request).catch(()=>caches.match(new URL('offline.html',self.registration.scope).href)));
     }
@@ -60,7 +67,7 @@ self.addEventListener('fetch',event=>{
     // A failed network request may reuse the previously loaded offline copy.
     event.respondWith(fetch(request).then(response=>{
       if(!response.ok)throw new Error('Game asset HTTP '+response.status);
-      event.waitUntil(putGame(request,response));
+      event.waitUntil(scheduleGameCache(request,response));
       return response;
     }).catch(async()=>{
       const cached=await caches.match(request);
