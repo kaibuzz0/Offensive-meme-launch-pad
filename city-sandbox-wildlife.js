@@ -105,7 +105,13 @@
   function enter(cx,cz){
    validate(cx,cz);
    const k=key(cx,cz);
-   if(active.has(k))return active.get(k);
+   if(active.has(k)){
+    // A revisited visible chunk is recent; evict the least recently used one.
+    const creatures=active.get(k);
+    active.delete(k);
+    active.set(k,creatures);
+    return creatures;
+   }
    const creatures=spawnChunkOnTerrain(world,cx,cz,options);
    if(active.size>=maxChunks)active.delete(active.keys().next().value);
    active.set(k,creatures);
