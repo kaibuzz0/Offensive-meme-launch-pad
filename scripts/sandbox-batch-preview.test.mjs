@@ -41,3 +41,14 @@ test('previewBatch replay does not advance revision or alter candidate', () => {
   assert.deepEqual(staged.snapshot, before);
   assert.deepEqual(live.snapshot(), before);
 });
+
+test('no-op preview returns detached snapshot and preserves live state', () => {
+  const live = createVoxelEditJournal('fortress');
+  live.apply({ x: 2, y: 3, z: 4, block: 'wood' });
+  const staged = live.previewBatch([{ x: 2, y: 3, z: 4, block: 'wood' }], 1);
+  assert.equal(staged.changed, false);
+  assert.equal(staged.count, 0);
+  staged.snapshot.edits[0].block = 'stone';
+  assert.equal(live.get(2, 3, 4), 'wood');
+  assert.equal(live.revision, 1);
+});
