@@ -112,6 +112,16 @@ export function createVoxelEditJournal(worldSeed, snapshot) {
       revision = nextRevision;
       return { changed: true, count: changed, revision };
     },
+    // Produce a validated candidate for a durable inventory+world transaction.
+    // This does not mutate the live journal: persist the candidate together with
+    // inventory in one authoritative transaction, then restore after commit.
+    previewBatch(edits, expectedRevision = revision) {
+      assertRevision(expectedRevision);
+      if (expectedRevision !== revision) throw new Error('stale voxel edit revision');
+      const candidate = createVoxelEditJournal(worldSeed, this.snapshot());
+      const outcome = candidate.applyBatch(edits, expectedRevision);
+      return { ...outcome, snapshot: candidate.snapshot() };
+    },
     // Revert to procedural terrain without interpreting air as an unedited voxel.
     reset(x, y, z, expectedRevision = revision) {
       assertRevision(expectedRevision);
