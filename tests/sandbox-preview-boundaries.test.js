@@ -60,3 +60,24 @@ test('duplicate construction coordinates fail before staging and preserve journa
   assert.throws(() => live.previewBatch([block(1), block(1, 'dirt')], live.revision), /duplicate/);
   assert.deepEqual(live.snapshot(), before);
 });
+
+test('staged delta is deterministic, detached and suitable for post-commit projection', () => {
+  const live = createVoxelEditJournal('fortress');
+  live.apply({ x: 0, y: 0, z: 0, block: 'stone' });
+  const before = live.snapshot();
+  const staged = live.previewBatch([
+    { x: 3, y: 0, z: 0, block: 'wood' },
+    { x: 0, y: 0, z: 0, block: null },
+    { x: 2, y: 0, z: 0, block: 'dirt' }
+  ]);
+  assert.deepEqual(staged.delta, [
+    { x: 0, y: 0, z: 0, block: null, previous: 'stone' },
+    { x: 2, y: 0, z: 0, block: 'dirt', previous: undefined },
+    { x: 3, y: 0, z: 0, block: 'wood', previous: undefined }
+  ]);
+  assert.deepEqual(live.snapshot(), before);
+  staged.delta[0].block = 'sand';
+  assert.equal(staged.snapshot.edits.find(edit => edit.x === 0).block, null);
+  assert.deepEqual(live.snapshot(), before);
+  assert.deepEqual(live.previewBatch([{ x: 0, y: 0, z: 0, block: 'stone' }]).delta, []);
+});
