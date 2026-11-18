@@ -136,6 +136,9 @@ export function createVoxelEditJournal(worldSeed, snapshot) {
         if (!changes.has(key) || changes.get(key).block !== edit.block) changed++;
       }
       if (changes.size + additions > MAX_EDITS) throw new RangeError('voxel journal capacity reached');
+      // A replay has no delta: avoid copying the entire map just to stage it.
+      // Still return an independent, sorted snapshot for durable readback.
+      if (!changed) return { changed: false, count: 0, revision, snapshot: this.snapshot() };
       // Stage only the bounded delta, not a second journal instance. Sort once
       // for the durable snapshot; the live map/revision remain untouched.
       const staged = new Map(changes);
