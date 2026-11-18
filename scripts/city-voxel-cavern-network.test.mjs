@@ -100,3 +100,16 @@ test('cave metadata cache stays bounded while sampling across the world',()=>{
  assert.equal(w.chunkAt(0,0).npc.length,0);
  assert.deepEqual(JSON.parse(JSON.stringify(w.chunkAt(0,0).structures)),JSON.parse(JSON.stringify(make('cache-caverns').chunkAt(0,0).structures)),'seeded roadside structures remain stable across independent loads');
 });
+
+test('out-of-domain cave queries fail closed without allocating distant cave cells',()=>{
+ const w=make('round5-cavern-network-01');
+ const before=w.caveCacheSize();
+ for(const [x,z] of [[1000001,0],[-1000001,0],[0,1000001],[0,-1000001],
+  [Number.MAX_SAFE_INTEGER,0],[-Number.MAX_SAFE_INTEGER,0]]){
+  assert.equal(w.surfaceAt(x,z),null);
+  assert.equal(w.caveMouthAt(x,z),null);
+  assert.equal(w.caveRoomAt(x,z),null);
+  assert.equal(w.caveAt(x,0,z),false);
+ }
+ assert.equal(w.caveCacheSize(),before,'invalid coordinates must not populate the cave LRU');
+});
