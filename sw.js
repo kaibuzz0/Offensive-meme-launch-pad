@@ -37,7 +37,8 @@ function scheduleGameCache(request,response){
   return operation.catch(()=>{}); // Cache failures must not break network gameplay.
 }
 async function putGame(request,response){
-  if(!response||!response.ok||response.type==='opaque')return;
+  // Partial responses cannot safely satisfy a later full offline script request.
+  if(!response||response.status!==200||response.type==='opaque')return;
   const sizeHeader=Number(response.headers.get('content-length'));
   if(Number.isFinite(sizeHeader)&&sizeHeader>GAME_MAX_RESPONSE_BYTES)return;
   const body=await response.clone().arrayBuffer();
@@ -71,7 +72,7 @@ self.addEventListener('fetch',event=>{
   if(request.method!=='GET'||url.origin!==self.location.origin)return;
   if(request.mode==='navigate'){
     if(localGameAsset(url)){
-      event.respondWith(fetch(request).then(response=>{if(response.ok)event.waitUntil(scheduleGameCache(request,response));return response;}).catch(async()=>await caches.match(request,{ignoreSearch:true})||await caches.match(new URL('offline.html',self.registration.scope).href)));
+      event.respondWith(fetch(request).then(response=>{if(response.status===200)event.waitUntil(scheduleGameCache(request,response));return response;}).catch(async()=>await caches.match(request,{ignoreSearch:true})||await caches.match(new URL('offline.html',self.registration.scope).href)));
     }else{
       event.respondWith(fetch(request).catch(()=>caches.match(new URL('offline.html',self.registration.scope).href)));
     }
