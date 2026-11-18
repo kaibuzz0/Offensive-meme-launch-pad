@@ -161,3 +161,26 @@ test('failed terrain sampling does not partially evict visible wildlife',()=>{
  assert.ok(next.every(a=>!a.id.startsWith('88:0:0:')));
  assert.deepEqual(manager.sync([[1,0],[2,0]]),next);
 });
+
+test('recently visited wildlife chunk survives bounded eviction',()=>{
+ let samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ const a=manager.enter(0,0);
+ manager.enter(1,0);
+ const before=samples;
+ assert.strictEqual(manager.enter(0,0),a);
+ assert.equal(samples,before,'cache hit does not resample terrain');
+ manager.enter(2,0); // Evict (1,0), not recently visited (0,0).
+ assert.strictEqual(manager.enter(0,0),a);
+ assert.equal(manager.activeChunks(),2);
+ assert.equal(samples>before,true);
+ const after=samples;
+ manager.enter(1,0); // Evicted chunk must regenerate deterministically.
+ assert.equal(manager.activeChunks(),2);
+ assert.ok(samples>after);
+ assert.deepEqual(manager.enter(0,0),a);
+});
