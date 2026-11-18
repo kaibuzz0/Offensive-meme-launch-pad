@@ -6,12 +6,12 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const pages = ['index.html', 'city.html'];
-const scriptTag = /<script\\b[^>]*\\bsrc=["']([^"']+)["'][^>]*>/gi;
+const scriptTag = /<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi;
 
 function localScripts(html) {
   return [...html.matchAll(scriptTag)]
     .map(match => match[1])
-    .filter(src => !/^(?:https?:)?\\/\\//i.test(src))
+    .filter(src => !/^(?:https?:)?\/\//i.test(src))
     .map(src => decodeURIComponent(src.split(/[?#]/, 1)[0]));
 }
 
