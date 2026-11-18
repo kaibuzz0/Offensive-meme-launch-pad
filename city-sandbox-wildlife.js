@@ -62,6 +62,12 @@
   if(!world||typeof world.surfaceAt!=='function'||!Number.isSafeInteger(world.seed))
    throw TypeError('Seeded voxel world with surfaceAt required');
   if(world.CHUNK_SIZE!==CHUNK_SIZE)throw RangeError('Wildlife and terrain chunk sizes differ');
+  // Keep chunk-to-voxel arithmetic exact before any terrain query or spawn hash.
+  if(!Number.isSafeInteger(chunkX)||!Number.isSafeInteger(chunkZ))
+   throw TypeError('Safe integer chunk coordinates required');
+  const maxChunk=Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE);
+  if(Math.abs(chunkX)>maxChunk||Math.abs(chunkZ)>maxChunk)
+   throw RangeError('Chunk coordinates exceed safe voxel range');
   const centerX=chunkX*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
   const centerZ=chunkZ*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
   const center=world.surfaceAt(centerX,centerZ);
