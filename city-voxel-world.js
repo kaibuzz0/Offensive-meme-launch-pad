@@ -125,7 +125,7 @@
   // Mouth centers always sit >=16 voxels inside their 112-voxel cell,
   // so a single O(1) cell lookup replaces searching nine neighbors/tile.
   function caveMouthAt(x,z){
-   if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z))return null;
+   if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z)||Math.abs(x)>1000000||Math.abs(z)>1000000)return null;
    const cx=Math.floor(x/MOUTH_CELL),cz=Math.floor(z/MOUTH_CELL);
    if(random(sinkSeed^0x4caf,cx,cz,9)<.79)return null;
    const mx=cx*MOUTH_CELL+24+Math.floor(random(sinkSeed,cx,cz,5)*(MOUTH_CELL-48));
@@ -245,7 +245,7 @@
    return {distance:Math.hypot(x-bx,z-bz),t};
   }
   function caveRoomAt(x,z){
-   if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z))return null;
+   if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z)||Math.abs(x)>1000000||Math.abs(z)>1000000)return null;
    const cx=Math.floor(x/MOUTH_CELL),cz=Math.floor(z/MOUTH_CELL);
    const m=caveCell(cx,cz);if(!m)return null;
    const ox=x+.5-m.mx,oz=z+.5-m.mz;
