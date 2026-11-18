@@ -4,6 +4,7 @@ import {holdingsService} from './city-holdings.mjs';
 import {createThemeLookup} from './city-wallet-theme.mjs';
 import {createRooms} from './city-rooms.mjs';
 import fs from 'node:fs/promises';
+import {createReadStream} from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import {fileURLToPath} from 'node:url';
@@ -109,18 +110,33 @@ export function createCityServer({origins=[],now=()=>Date.now(),themeReader=null
    if(relative==='city-network.js'){res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'no-store'});return res.end("window.MEME_CITY_NETWORK=Object.freeze({enabled:true,apiBase:'/api/city'});");}
    if(!files.has(relative)&&!/^assets\/[a-zA-Z0-9_/-]+\.(webp|png|svg|jpg|mp4)$/.test(relative)&&!/^tokens\/[a-z-]+\/(index.html)?$/.test(relative)){res.writeHead(404);return res.end('Not found');}
    const file=path.resolve(root,relative.endsWith('/')?relative+'index.html':relative);if(!file.startsWith(root)){res.writeHead(403);return res.end();}
-   const data=await fs.readFile(file),headers={'Content-Type':contentTypes[path.extname(file)]||'application/octet-stream','Cache-Control':'no-cache','Content-Length':data.length};
-   if(path.extname(file)==='.mp4'){
+   const media=path.extname(file)==='.mp4';
+   const stat=await fs.stat(file);
+   if(!stat.isFile()){res.writeHead(404);return res.end('Not found');}
+   const headers={'Content-Type':contentTypes[path.extname(file)]||'application/octet-stream','Cache-Control':'no-cache','Content-Length':stat.size};
+   if(media){
     headers['Accept-Ranges']='bytes';
-    if(req.headers.range&&req.method==='GET'){
+    if(req.headers.range){
      const match=/^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
-     let start=match?.[1]?Number(match[1]):0,end=match?.[2]?Number(match[2]):data.length-1;
-     if(match&&!match[1]&&match[2]){start=Math.max(0,data.length-Number(match[2]));end=data.length-1;}
-     if(!match||(!match[1]&&!match[2])||!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>=data.length||start>end){res.writeHead(416,{'Content-Range':`bytes */${data.length}`});return res.end();}
-     end=Math.min(end,data.length-1);res.writeHead(206,{...headers,'Content-Range':`bytes ${start}-${end}/${data.length}`,'Content-Length':end-start+1});return res.end(data.subarray(start,end+1));
+     let start=match?.[1]?Number(match[1]):0,end=match?.[2]?Number(match[2]):stat.size-1;
+     if(match&&!match[1]&&match[2]){start=Math.max(0,stat.size-Number(match[2]));end=stat.size-1;}
+     if(!match||(!match[1]&&!match[2])||!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>=stat.size||start>end||stat.size===0){
+      res.writeHead(416,{'Content-Range':`bytes */${stat.size}`,'Accept-Ranges':'bytes'});return res.end();
+     }
+     end=Math.min(end,stat.size-1);
+     res.writeHead(206,{...headers,'Content-Range':`bytes ${start}-${end}/${stat.size}`,'Content-Length':end-start+1});
+     if(req.method==='HEAD')return res.end();
+     const stream=createReadStream(file,{start,end});
+     stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
     }
+    res.writeHead(200,headers);
+    if(req.method==='HEAD')return res.end();
+    const stream=createReadStream(file);
+    stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
    }
-   res.writeHead(200,headers);res.end(req.method==='HEAD'?undefined:data);
+   if(req.method==='HEAD'){res.writeHead(200,headers);return res.end();}
+   const data=await fs.readFile(file);
+   res.writeHead(200,{...headers,'Content-Length':data.length});res.end(data);
   }catch{res.writeHead(404);res.end('Not found');}
  });
  const tick=setInterval(()=>service.advance(),50);

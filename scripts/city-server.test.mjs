@@ -53,3 +53,31 @@ test('HTTP boundaries reject malformed, oversized and unauthenticated room messa
  const state=await fetch(base+'/state',{headers:auth});assert.equal(state.headers.get('cache-control'),'no-store');assert.equal(state.status,200);assert.equal((await state.json()).self.name,'Alice');
  const resumed=await fetch(base+'/state',{headers:auth});assert.equal((await resumed.json()).self.id,a.state.self.id);
 });
+
+test('MP4 range streaming preserves byte responses, HEAD and unsatisfiable range behavior',async t=>{
+ const {writeFile,unlink,mkdir}=await import('node:fs/promises');
+ const {fileURLToPath}=await import('node:url');
+ const {join}=await import('node:path');
+ const root=fileURLToPath(new URL('../',import.meta.url));
+ const assets=join(root,'assets');await mkdir(assets,{recursive:true});
+ const filename='qa_range_fixture_'+process.pid+'.mp4',fixture=join(assets,filename);
+ const bytes=Buffer.from('0123456789abcdefghijklmnopqrstuvwxyz');
+ await writeFile(fixture,bytes);
+ t.after(async()=>{await unlink(fixture).catch(()=>{});});
+ const {server}=createCityServer({origins:['https://allowed.example']});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ t.after(()=>{server.closeAllConnections();server.close();});
+ const url=`http://127.0.0.1:${server.address().port}/assets/${filename}`;
+ const range=await fetch(url,{headers:{Range:'bytes=4-8'}});
+ assert.equal(range.status,206);
+ assert.equal(range.headers.get('content-range'),`bytes 4-8/${bytes.length}`);
+ assert.equal(range.headers.get('content-length'),'5');
+ assert.equal(await range.text(),'45678');
+ const suffix=await fetch(url,{headers:{Range:'bytes=-3'}});
+ assert.equal(suffix.status,206);assert.equal(await suffix.text(),'xyz');
+ const head=await fetch(url,{method:'HEAD',headers:{Range:'bytes=2-4'}});
+ assert.equal(head.status,206);assert.equal(head.headers.get('content-length'),'3');assert.equal(await head.text(),'');
+ const invalid=await fetch(url,{headers:{Range:'bytes=99-100'}});
+ assert.equal(invalid.status,416);assert.equal(invalid.headers.get('content-range'),`bytes */${bytes.length}`);
+ const full=await fetch(url);assert.equal(full.status,200);assert.deepEqual(Buffer.from(await full.arrayBuffer()),bytes);
+});
