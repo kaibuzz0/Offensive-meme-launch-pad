@@ -32,3 +32,15 @@ test('duplicate cells, stale revisions and oversized batches fail closed', () =>
   assert.equal(journal.get(1, 2, 3), 'wood');
   assert.equal(journal.revision, 1);
 });
+
+test('multi-cell batch snapshot restores when revision is lower than edit count', () => {
+  const journal = createVoxelEditJournal('fortress');
+  const edits = Array.from({ length: 64 }, (_, x) => ({ x, y: 1, z: 2, block: 'wood' }));
+  assert.deepEqual(journal.applyBatch(edits), { changed: true, count: 64, revision: 1 });
+  const snapshot = journal.snapshot();
+  assert.equal(snapshot.revision, 1);
+  assert.equal(snapshot.edits.length, 64);
+  const restored = createVoxelEditJournal('fortress', snapshot);
+  assert.deepEqual(restored.snapshot(), snapshot);
+  assert.throws(() => createVoxelEditJournal('fortress', { ...snapshot, revision: 0 }), /revision is inconsistent/);
+});
