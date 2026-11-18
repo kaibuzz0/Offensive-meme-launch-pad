@@ -50,3 +50,103 @@ test('obstruction callback remains active regardless of visual detail settings',
     near(a.x, b.x); near(a.z, b.z);
   }
 });
+
+test('missing and throwing terrain columns block movement without crashing simulation', () => {
+  for (const missing of [false, true]) {
+    const unstable = world();
+    unstable.surfaceAt = (x) => {
+      if (x >= 1) {
+        if (missing) return null;
+        throw new Error('chunk unavailable');
+      }
+      return { height: 0 };
+    };
+    const player = create(unstable, { x: 0, z: 0 });
+    let state;
+    assert.doesNotThrow(() => {
+      for (let i = 0; i < 20; i++) state = player.tick({ right: 1 }, 1 / 60);
+    });
+    assert.ok(state.x < 1, 'moved into an unavailable terrain column');
+    assert.ok(Number.isFinite(state.y));
+  }
+});
+
+test('invalid terrain heights cannot authorize traversal', () => {
+  const unstable = world(x => x >= 1 ? NaN : 0);
+  const player = create(unstable, { x: 0, z: 0 });
+  for (let i = 0; i < 20; i++) player.tick({ right: 1 }, 1 / 60);
+  assert.ok(player.snapshot().x < 1);
+});
+
+test('unavailable teleport target preserves pose and later permits recovery', () => {
+  let loaded = false;
+  const terrain = world();
+  terrain.surfaceAt = (x) => {
+    if (x >= 2 && !loaded) throw new Error('chunk not loaded');
+    return { height: 0 };
+  };
+  const player = create(terrain, { x: 0, z: 0 });
+  const before = player.snapshot();
+  assert.equal(player.teleport(3, 0), false);
+  assert.deepEqual(player.snapshot(), before, 'failed teleport changed the saved player pose');
+  loaded = true;
+  assert.equal(player.teleport(3, 0), true);
+  assert.equal(player.snapshot().x, 3);
+  assert.ok(Number.isFinite(player.snapshot().y));
+});
+
+test('invalid spawn column fails explicitly rather than producing NaN state', () => {
+  const terrain = world();
+  terrain.surfaceAt = () => ({ height: Infinity });
+  assert.throws(() => create(terrain, { x: 0, z: 0 }), /Spawn outside supported world/);
+});
+
+test('unavailable or invalid cave floors fail closed without corrupting the player pose', () => {
+  for (const failure of ['throw', 'nan', 'missing']) {
+    const terrain = world();
+    terrain.caveRoomAt = (x) => {
+      if (x < 1) return null;
+      if (failure === 'throw') throw new Error('cave chunk loading');
+      return { exposed: true, ceiling: 5, floor: failure === 'nan' ? NaN : undefined };
+    };
+    const player = create(terrain, { x: 0, z: 0 });
+    for (let i = 0; i < 20; i++) {
+      assert.doesNotThrow(() => player.tick({ right: 1 }, 1 / 60));
+    }
+    const pose = player.snapshot();
+    assert.ok(pose.x < 1, `entered invalid cave for ${failure}`);
+    assert.ok(Number.isFinite(pose.y));
+    assert.equal(player.teleport(3, 0), false);
+    assert.deepEqual(player.snapshot(), pose);
+  }
+});
+
+test('cave lookup failure during lateral clearance blocks entry without throwing', () => {
+  const terrain = world();
+  terrain.caveRoomAt = (x) => {
+    if (x >= 1) throw new Error('unloaded adjacent cave roof');
+    return null;
+  };
+  const player = create(terrain, { x: 0, z: 0 });
+  for (let i = 0; i < 20; i++) {
+    assert.doesNotThrow(() => player.tick({ right: 1 }, 1 / 60));
+  }
+  assert.ok(player.snapshot().x < 1);
+  assert.ok(Number.isFinite(player.snapshot().y));
+});
+
+test('cave roof query failure during ascent stops jump without corrupting pose', () => {
+  let calls = 0;
+  const terrain = world();
+  terrain.caveRoomAt = () => {
+    calls++;
+    if (calls > 5) throw new Error('roof query unavailable');
+    return { exposed: false, floor: 0, ceiling: 3 };
+  };
+  const player = create(terrain, { x: 0, z: 0, y: -1 });
+  const before = player.snapshot();
+  assert.doesNotThrow(() => player.tick({ jump: true }, 1 / 60));
+  const after = player.snapshot();
+  assert.equal(after.y, before.y);
+  assert.ok(Number.isFinite(after.vy));
+});
