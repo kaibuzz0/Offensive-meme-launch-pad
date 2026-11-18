@@ -14,11 +14,27 @@ function localGameAsset(url){
   return gamePath.test(url.pathname.slice(scopeUrl.pathname.length));
 }
 let cacheWriteQueue=Promise.resolve();
+let gameSizes=null;
+let gameTotal=0;
+async function initializeGameAccounting(cache){
+  if(gameSizes)return;
+  const sizes=new Map();
+  let total=0;
+  // A worker restart performs one bounded reconciliation, not one full scan per download.
+  for(const key of await cache.keys()){
+    const response=await cache.match(key);
+    const bytes=response?(await response.arrayBuffer()).byteLength:0;
+    sizes.set(key.url,bytes);
+    total+=bytes;
+  }
+  gameSizes=sizes;
+  gameTotal=total;
+}
 function scheduleGameCache(request,response){
-  // Serialize cache mutations: simultaneous chunk/script downloads must not race eviction.
+  // Serialize cache mutations and the initial reconciliation.
   const operation=cacheWriteQueue.catch(()=>{}).then(()=>putGame(request,response));
   cacheWriteQueue=operation.catch(()=>{});
-  return operation.catch(()=>{}); // Storage pressure must never break a successful network load.
+  return operation.catch(()=>{}); // Cache failures must not break network gameplay.
 }
 async function putGame(request,response){
   if(!response||!response.ok||response.type==='opaque')return;
@@ -27,19 +43,20 @@ async function putGame(request,response){
   const body=await response.clone().arrayBuffer();
   if(body.byteLength>GAME_MAX_RESPONSE_BYTES)return;
   const cache=await caches.open(GAME_CACHE);
+  await initializeGameAccounting(cache);
+  const key=new URL(request.url).href;
   await cache.put(request,new Response(body,{status:response.status,statusText:response.statusText,headers:response.headers}));
-  const keys=await cache.keys();
-  let total=0;
-  const sizes=[];
-  for(const key of keys){
-    const cached=await cache.match(key);
-    const bytes=cached?(await cached.arrayBuffer()).byteLength:0;
-    sizes.push(bytes);
-    total+=bytes;
-  }
-  for(let i=0;i<keys.length&&(keys.length-i>GAME_MAX_ENTRIES||total>GAME_MAX_BYTES);i++){
-    await cache.delete(keys[i]);
-    total-=sizes[i];
+  gameTotal+=body.byteLength-(gameSizes.get(key)||0);
+  gameSizes.delete(key);
+  gameSizes.set(key,body.byteLength);
+  // Use CacheStorage's actual key order for eviction; replacements retain their
+  // existing insertion position in CacheStorage even though the size map updates.
+  for(const oldest of await cache.keys()){
+    if(gameSizes.size<=GAME_MAX_ENTRIES&&gameTotal<=GAME_MAX_BYTES)break;
+    if(await cache.delete(oldest)){
+      gameTotal-=gameSizes.get(oldest.url)||0;
+      gameSizes.delete(oldest.url);
+    }
   }
 }
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(urls)));});
