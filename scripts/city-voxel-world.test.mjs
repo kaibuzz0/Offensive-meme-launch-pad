@@ -327,3 +327,29 @@ test('lodge keeper placement uses an explicit stable floor instead of structure 
   assert.strictEqual(world.actorById(actor.id),actor);
  }
 });
+
+test('roadside actor IDs survive cache churn and never duplicate across adjacent chunk snapshots',()=>{
+ for(const seed of ['fortress-road','fortress-highlands','fortress-snow']){
+  const world=create(seed);
+  const expected=['npc:'+world.seed+':roadside-lodge:keeper'];
+  const keeper=world.actorById(expected[0]);
+  assert.ok(keeper,'keeper must remain addressable without a loaded terrain chunk');
+  const fox=world.actorsNear(world.gateRoad.x+3,world.gateRoad.z+22,2).find(a=>a.type==='fox');
+  assert.ok(fox,'roadside wildlife must be discoverable');
+  const actors=[keeper,fox];
+  for(const actor of actors){
+   const cx=Math.floor(actor.x/world.CHUNK_SIZE),cz=Math.floor(actor.z/world.CHUNK_SIZE);
+   const owners=[];
+   for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
+    const chunk=world.chunkAt(cx+dx,cz+dz);
+    if(chunk.npc.some(candidate=>candidate.id===actor.id))owners.push([cx+dx,cz+dz]);
+   }
+   assert.deepEqual(owners,[[cx,cz]],'actor must belong to exactly one streamed chunk');
+  }
+  for(let i=0;i<64;i++)world.surfaceAt(1000+i*7,-1000-i*11);
+  for(const actor of actors){
+   assert.strictEqual(world.actorById(actor.id),actor,'cache churn must preserve actor identity');
+   assert.deepEqual(plain(world.actorById(actor.id)),plain(create(seed).actorById(actor.id)));
+  }
+ }
+});
