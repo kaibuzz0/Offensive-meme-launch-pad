@@ -119,9 +119,37 @@ export function createVoxelEditJournal(worldSeed, snapshot) {
     previewBatch(edits, expectedRevision = revision) {
       assertRevision(expectedRevision);
       if (expectedRevision !== revision) throw new Error('stale voxel edit revision');
-      const candidate = createVoxelEditJournal(worldSeed, this.snapshot());
-      const outcome = candidate.applyBatch(edits, expectedRevision);
-      return { ...outcome, snapshot: candidate.snapshot() };
+      if (!Array.isArray(edits) || edits.length < 1 || edits.length > 256) {
+        throw new RangeError('voxel batch must contain 1..256 edits');
+      }
+      const pending = new Map();
+      for (const raw of edits) {
+        const edit = normalizedEdit(raw);
+        const key = voxelKey(edit.x, edit.y, edit.z);
+        if (pending.has(key)) throw new Error('duplicate voxel in batch');
+        pending.set(key, edit);
+      }
+      let additions = 0;
+      let changed = 0;
+      for (const [key, edit] of pending) {
+        if (!changes.has(key)) additions++;
+        if (!changes.has(key) || changes.get(key).block !== edit.block) changed++;
+      }
+      if (changes.size + additions > MAX_EDITS) throw new RangeError('voxel journal capacity reached');
+      // Stage only the bounded delta, not a second journal instance. Sort once
+      // for the durable snapshot; the live map/revision remain untouched.
+      const staged = new Map(changes);
+      for (const [key, edit] of pending) staged.set(key, edit);
+      const nextRevision = changed ? assertRevision(revision + 1) : revision;
+      return {
+        changed: changed > 0, count: changed, revision: nextRevision,
+        snapshot: {
+          version: JOURNAL_VERSION, worldSeed, revision: nextRevision,
+          voxelMetres: VOXEL_METRES,
+          edits: Array.from(staged.values(), edit => ({ ...edit }))
+            .sort((a, b) => a.x - b.x || a.y - b.y || a.z - b.z)
+        }
+      };
     },
     // Revert to procedural terrain without interpreting air as an unedited voxel.
     reset(x, y, z, expectedRevision = revision) {
