@@ -56,7 +56,17 @@ try{
  ws.addEventListener('message',event=>{
   const msg=JSON.parse(event.data);
   if(msg.id&&pending.has(msg.id)){const p=pending.get(msg.id);pending.delete(msg.id);msg.error?p.reject(Error(msg.error.message)):p.resolve(msg.result);}
-  if(msg.method==='Runtime.exceptionThrown')exceptions.push(msg.params.exceptionDetails.text||'Runtime error');
+  if(msg.method==='Runtime.exceptionThrown'){
+   const detail=msg.params?.exceptionDetails||{};
+   const frames=detail.stackTrace?.callFrames?.slice(0,8).map(frame=>({
+    functionName:frame.functionName||'<anonymous>',url:frame.url,
+    line:frame.lineNumber+1,column:frame.columnNumber+1
+   }))||[];
+   exceptions.push({text:detail.text||'Runtime error',
+    description:detail.exception?.description||null,
+    url:detail.url||null,line:detail.lineNumber==null?null:detail.lineNumber+1,
+    column:detail.columnNumber==null?null:detail.columnNumber+1,frames});
+  }
  });
  await request('Page.enable');await request('Runtime.enable');
  await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
