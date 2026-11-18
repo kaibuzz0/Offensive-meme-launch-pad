@@ -18,7 +18,7 @@ test('fortress structures preserve geometry identity across chunk seams and rege
  for(const seed of ['structure-seam-a','structure-seam-b']){
   const world=create(seed),other=create(seed),size=world.CHUNK_SIZE;
   const parts=world.gateRoad.parts;
-  const all=new Map();
+  const all=new Map(),fragmentIds=new Set();
   for(let i=0;i<parts.length;i++){
    const p=parts[i];
    const minCX=Math.floor(p.x/size),maxCX=Math.ceil((p.x+p.w)/size)-1;
@@ -28,6 +28,9 @@ test('fortress structures preserve geometry identity across chunk seams and rege
     const fragments=world.gateParts(cx,cz).filter(f=>f.id==='starter-gate:'+world.seed+':'+i);
     assert.equal(fragments.length,1,'each intersected chunk owns one fragment');
     const f=fragments[0];
+    assert.equal(f.fragmentId,'starter-gate:'+world.seed+':'+i+':'+cx+':'+cz);
+    assert.ok(!fragmentIds.has(f.fragmentId),'each clipped fragment needs a globally unique ID');
+    fragmentIds.add(f.fragmentId);
     assert.equal(f.structureId,'starter-fortress:'+world.seed);
     assert.ok(f.w>0&&f.d>0);
     assert.ok(f.x>=cx*size&&f.x+f.w<=(cx+1)*size);
