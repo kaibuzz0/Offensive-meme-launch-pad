@@ -40,8 +40,17 @@
   const state={x:start.x,z:start.z,y:initial,vy:0,grounded:true};
   function snapshot(){return Object.freeze({...state});}
   function teleport(x,z,referenceY=Infinity){
+   // A save restore or fast-travel destination must obey the same static
+   // collision footprint as walking. Reject invalid destinations atomically.
    const floor=floorAt(x,z,referenceY);
-   if(floor===null)return false;
+   if(floor===null||!Number.isFinite(floor))return false;
+   if(typeof world.gateRoad?.obstructs==='function'
+    &&world.gateRoad.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS))return false;
+   for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
+    const gallery=world.caveRoomAt?.(Math.floor(x+ox),Math.floor(z+oz));
+    if(gallery&&!gallery.exposed&&floor<gallery.ceiling
+     &&floor+world.PLAYER_HEIGHT>gallery.ceiling)return false;
+   }
    state.x=x;state.z=z;state.y=floor;state.vy=0;state.grounded=true;
    return true;
   }
