@@ -14,6 +14,7 @@ export function summarize(records) {
   const frames = [];
   const stalls = [];
   let invalid = 0;
+  let maxStall = null;
   const devices = new Set();
   for (const sample of records) {
     if (!sample || typeof sample !== 'object' || !Number.isFinite(sample.frameMs) ||
@@ -24,17 +25,19 @@ export function summarize(records) {
     }
     frames.push(sample.frameMs);
     devices.add(sample.deviceClass);
-    if (Number.isFinite(sample.interactionStallMs) && sample.interactionStallMs >= 0)
+    if (Number.isFinite(sample.interactionStallMs) && sample.interactionStallMs >= 0) {
       stalls.push(sample.interactionStallMs);
+      maxStall = maxStall === null ? sample.interactionStallMs : Math.max(maxStall, sample.interactionStallMs);
+    }
   }
   return {
     samples: frames.length, invalid, interactionSamples: stalls.length, deviceClasses: [...devices].sort(),
     frameMs: { p50: percentile(frames, .5), p95: percentile(frames, .95), p99: percentile(frames, .99) },
-    maxInteractionStallMs: stalls.length ? Math.max(...stalls) : null,
+    maxInteractionStallMs: maxStall,
     provisionalBudgets: { frameP95Ms: 33.3, interactionStallMs: 200 },
     budgetResult: !frames.length ? 'no-evidence' :
       (invalid || stalls.length !== frames.length || devices.size !== 1 ? 'incomplete-evidence' :
-      (percentile(frames, .95) <= 33.3 && Math.max(...stalls) <= 200 ? 'within-provisional-budget' : 'exceeds-provisional-budget')),
+      (percentile(frames, .95) <= 33.3 && maxStall <= 200 ? 'within-provisional-budget' : 'exceeds-provisional-budget')),
     note: 'Only measures supplied samples; deviceClass is self-reported, not hardware-attested. Missing interaction stalls, invalid samples or mixed device classes cannot yield a pass. No Android hardware, GPU memory, download size, or real gameplay is inferred.'
   };
 }
