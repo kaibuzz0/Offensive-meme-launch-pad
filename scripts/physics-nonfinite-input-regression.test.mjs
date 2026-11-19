@@ -15,7 +15,7 @@ function controller() {
 }
 
 test('non-finite touch or desktop axes cannot become full-speed movement', () => {
-  for (const invalid of [Infinity, -Infinity, NaN, 'Infinity', 'NaN']) {
+  for (const invalid of [Infinity, -Infinity, NaN, 'Infinity', 'NaN', '1', '-1', true, false, null, {}, []]) {
     const player = controller();
     const initial = { ...player.snapshot() };
     player.tick({ forward: invalid, right: invalid, yaw: 0 }, 0.05);
