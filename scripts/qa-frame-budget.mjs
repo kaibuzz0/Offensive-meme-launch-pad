@@ -31,7 +31,9 @@ export function summarize(records) {
     }
   }
   // Sort once: three percentile calls previously copied and sorted the full recording independently.
-  const sortedFrames = [...frames].sort((a, b) => a - b);
+  // Frame values are owned by this summary; sort in place to avoid a second large recording buffer.
+  frames.sort((a, b) => a - b);
+  const sortedFrames = frames;
   const quantile = p => {
     if (!sortedFrames.length) return null;
     const position = (sortedFrames.length - 1) * p;
