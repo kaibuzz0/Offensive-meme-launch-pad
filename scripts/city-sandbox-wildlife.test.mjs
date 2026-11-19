@@ -18,6 +18,16 @@ test('seed and chunk coordinates yield stable wildlife independent of call order
  assert.ok(a.length<=MAX_PER_CHUNK);
  assert.ok(a.every(e=>e.x>=192&&e.x<208&&e.z>=-64&&e.z<-48));
 });
+test('direct seeded wildlife snapshots cannot be mutated by consumers',()=>{
+ const animals=spawnChunk(741,12,-4,'forest');
+ assert.ok(Object.isFrozen(animals));
+ assert.ok(animals.every(Object.isFrozen));
+ assert.throws(()=>animals.push({id:'injected'}),TypeError);
+ if(animals.length)assert.throws(()=>{animals[0]={id:'changed'};},TypeError);
+ assert.deepEqual(spawnChunk(741,12,-4,'forest'),animals);
+ assert.ok(Object.isFrozen(spawnChunk(4,0,0,'forest',{maxPerChunk:0})));
+});
+
 test('different habitats choose compatible species and are capped',()=>{
  for(const habitat of ['forest','plains','desert','tundra','mountain','wetland','ocean','river','cave']){
   const creatures=spawnChunk(100,4,5,habitat);
