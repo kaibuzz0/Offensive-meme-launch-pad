@@ -483,12 +483,12 @@ test('failed terrain sampling during chunk sync preserves active wildlife and sn
 test('malformed terrain grade cannot spawn actors on unverified columns',()=>{
  const base={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112};
  const valid={height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
- const normal=spawnChunkOnTerrain({...base,surfaceAt:()=>valid},0,0);
+ const normal=spawnChunkOnTerrain({...base,surfaceAt:()=>valid},1,0);
  assert.ok(normal.length>0,'fixture must exercise a populated forest chunk');
  for(const slope of [undefined,NaN,Infinity,-1]){
-  const invalid=spawnChunkOnTerrain({...base,surfaceAt:()=>({...valid,slope})},0,0);
+  const invalid=spawnChunkOnTerrain({...base,surfaceAt:()=>({...valid,slope})},1,0);
   assert.deepEqual(invalid,[],'invalid slope must not generate unsafe wildlife placement');
  }
- assert.deepEqual(spawnChunkOnTerrain({...base,surfaceAt:()=>valid},0,0),normal,
+ assert.deepEqual(spawnChunkOnTerrain({...base,surfaceAt:()=>valid},1,0),normal,
   'valid terrain remains deterministic after invalid samples');
 });
