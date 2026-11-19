@@ -37,8 +37,8 @@
  }
  function spawnChunk(seed,chunkX,chunkZ,biome,options={}){
   if(!Number.isSafeInteger(chunkX)||!Number.isSafeInteger(chunkZ)||!Number.isSafeInteger(seed))throw TypeError('Safe integer seed and chunk coordinates required');
-  // IDs and voxel positions must remain exact; reject overflow before hashing.
-  const maxChunk=Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE);
+  // Hashing coerces chunk coordinates to signed 32-bit integers; bound the\n  // domain to prevent distant chunks aliasing IDs and populations.\n  // IDs and voxel positions must remain exact; reject overflow before hashing.
+  const maxChunk=Math.min(0x7fffffff,Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE));
   if(Math.abs(chunkX)>maxChunk||Math.abs(chunkZ)>maxChunk)throw RangeError('Chunk coordinates exceed safe voxel range');
   const cap=options.maxPerChunk===undefined?MAX_PER_CHUNK:options.maxPerChunk;
   if(!Number.isInteger(cap)||cap<0||cap>MAX_PER_CHUNK)throw RangeError('maxPerChunk must be 0..6');
@@ -71,7 +71,7 @@
   // Keep chunk-to-voxel arithmetic exact before any terrain query or spawn hash.
   if(!Number.isSafeInteger(chunkX)||!Number.isSafeInteger(chunkZ))
    throw TypeError('Safe integer chunk coordinates required');
-  const maxChunk=Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE);
+  const maxChunk=Math.min(0x7fffffff,Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE));
   if(Math.abs(chunkX)>maxChunk||Math.abs(chunkZ)>maxChunk)
    throw RangeError('Chunk coordinates exceed safe voxel range');
   const centerX=chunkX*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
@@ -140,7 +140,7 @@
   const validate=(cx,cz)=>{
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz))throw TypeError('Safe integer chunk coordinates required');
    // Validate before cache lookup and before staging a multi-chunk sync.
-   const maxChunk=Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE);
+   const maxChunk=Math.min(0x7fffffff,Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE));
    if(Math.abs(cx)>maxChunk||Math.abs(cz)>maxChunk)throw RangeError('Chunk coordinates exceed safe voxel range');
   };
   function enter(cx,cz){
