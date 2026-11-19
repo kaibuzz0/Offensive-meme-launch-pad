@@ -30,7 +30,7 @@ function boot() {
 
 async function dispatch(handler, event) {
   const jobs = [];
-  handler({ ...event, waitUntil: p => jobs.push(p), respondWith: p => jobs.push(p) });
+  handler({ ...event, waitUntil: p => jobs.push(p), respondWith: p => { event.onRespond?.(); jobs.push(p); } });
   await Promise.all(jobs);
 }
 
@@ -56,7 +56,7 @@ test('wallet and API traffic never enters service-worker cache handlers', async 
     let intercepted = false;
     await dispatch(env.listeners.get('fetch'), {
       request: { method: 'GET', url: env.scope + path, mode: 'cors' },
-      respondWith: () => { intercepted = true; }
+      onRespond: () => { intercepted = true; }
     });
     assert.equal(intercepted, false, path);
   }
