@@ -367,3 +367,32 @@ test('voxel edit invalidation respects negative chunk boundaries and leaves neig
  assert.throws(()=>manager.invalidateAtVoxel(0.5,0),TypeError);
  assert.throws(()=>manager.invalidateAtVoxel(Number.MAX_SAFE_INTEGER+1,0),TypeError);
 });
+
+test('wildlife snapshot reuses immutable arrays until a committed population change',()=>{
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0
+ })};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ const empty=manager.snapshot();
+ assert.strictEqual(manager.snapshot(),empty);
+ manager.enter(0,0);
+ const first=manager.snapshot();
+ assert.ok(Object.isFrozen(first));
+ assert.strictEqual(manager.snapshot(),first,'render-frame reads must not allocate another array');
+ manager.enter(0,0);
+ assert.strictEqual(manager.snapshot(),first,'cache hits do not change membership');
+ assert.equal(manager.leave(9,9),false);
+ assert.strictEqual(manager.snapshot(),first,'failed leave does not invalidate snapshot');
+ manager.enter(1,0);
+ const second=manager.snapshot();
+ assert.notStrictEqual(second,first,'new chunk changes snapshot identity');
+ assert.strictEqual(manager.snapshot(),second);
+ assert.equal(manager.invalidateAtVoxel(0,0),true);
+ const third=manager.snapshot();
+ assert.notStrictEqual(third,second,'terrain edit invalidates the visible snapshot');
+ assert.strictEqual(manager.snapshot(),third);
+ manager.clear();
+ assert.equal(manager.activeChunks(),0);
+ assert.equal(manager.snapshot().length,0);
+ assert.strictEqual(manager.snapshot(),manager.snapshot(),'empty cleared snapshot remains reusable');
+});
