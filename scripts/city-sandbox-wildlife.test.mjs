@@ -218,3 +218,27 @@ test('out-of-domain terrain wildlife is an immutable empty population',()=>{
  assert.equal(manager.activeChunks(),1);
  assert.ok(Object.isFrozen(manager.sync([[62500,0]])));
 });
+
+test('fish never intersect the bed in shallow water',()=>{
+ const world={seed:7,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:111.75,water:true,waterLevel:112,river:false,
+  group:'ocean',biomeName:'Ocean',slope:0
+ })};
+ let birds=0;
+ for(let x=-4;x<=4;x++)for(let z=-4;z<=4;z++){
+  const animals=spawnChunkOnTerrain(world,x,z);
+  assert.ok(animals.every(a=>a.species!=='fish'),'water shallower than 0.5 voxel cannot contain fish');
+  birds+=animals.filter(a=>a.species==='seabird').length;
+ }
+ assert.ok(birds>0,'shallow water still supports airborne wildlife');
+ const deep={...world,surfaceAt:()=>({...world.surfaceAt(),height:110})};
+ let fish=0;
+ for(let x=-4;x<=4;x++)for(let z=-4;z<=4;z++){
+  const animals=spawnChunkOnTerrain(deep,x,z);
+  for(const a of animals)if(a.species==='fish'){
+   fish++;
+   assert.ok(a.y>110&&a.y<112,'fish stay between bed and water surface');
+  }
+ }
+ assert.ok(fish>0,'sufficient depth restores seeded fish');
+});
