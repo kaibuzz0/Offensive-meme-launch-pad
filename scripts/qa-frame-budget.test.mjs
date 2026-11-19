@@ -58,3 +58,19 @@ test('long sessions do not overflow the argument stack when summarizing stalls',
   assert.equal(report.maxInteractionStallMs, 12);
   assert.equal(report.budgetResult, 'within-provisional-budget');
 });
+
+test('interaction stall alone fails even when frames meet budget', () => {
+  const report = summarize([
+    { frameMs: 16.7, deviceClass: 'physical-android', interactionStallMs: 0 },
+    { frameMs: 16.7, deviceClass: 'physical-android', interactionStallMs: 201 }
+  ]);
+  assert.equal(report.frameMs.p95, 16.7);
+  assert.equal(report.maxInteractionStallMs, 201);
+  assert.equal(report.budgetResult, 'exceeds-provisional-budget');
+});
+test('negative or nonfinite interaction timings cannot yield a pass', () => {
+  for (const interactionStallMs of [-1, Number.POSITIVE_INFINITY, Number.NaN]) {
+    const report = summarize([{ frameMs: 16.7, deviceClass: 'desktop', interactionStallMs }]);
+    assert.equal(report.budgetResult, 'incomplete-evidence');
+  }
+});
