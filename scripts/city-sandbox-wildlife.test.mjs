@@ -205,3 +205,16 @@ test('terrain wildlife rejects unsafe chunk arithmetic without sampling or chang
  assert.equal(manager.activeChunks(),1);
  assert.deepEqual(manager.enter(0,0),original);
 });
+
+test('out-of-domain terrain wildlife is an immutable empty population',()=>{
+ let calls=0;
+ const world={seed:22,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{calls++;return null;}};
+ const first=spawnChunkOnTerrain(world,62500,0);
+ assert.deepEqual(first,[]);
+ assert.ok(Object.isFrozen(first),'empty populations obey the same immutable contract as generated populations');
+ assert.equal(calls,1,'invalid terrain should not trigger candidate sampling');
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ assert.ok(Object.isFrozen(manager.enter(62500,0)));
+ assert.equal(manager.activeChunks(),1);
+ assert.ok(Object.isFrozen(manager.sync([[62500,0]])));
+});
