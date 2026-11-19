@@ -512,3 +512,28 @@ test('failed chunk entry does not evict the last visible population',()=>{
  assert.equal(manager.activeChunks(),1,'successful retry respects chunk cap');
  assert.notStrictEqual(manager.snapshot(),snapshot,'successful retry publishes replacement');
 });
+
+test('wildlife hash domain rejects distant 32-bit aliases without touching active chunks',()=>{
+ const base={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112};
+ let samples=0;
+ const world={...base,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ const original=manager.enter(0,0);
+ const snapshot=manager.snapshot();
+ const before=samples;
+ // x|0 would otherwise hash these coordinates exactly like chunk zero.
+ for(const alias of [4294967296,-4294967296,2147483648,-2147483649]){
+  assert.throws(()=>spawnChunk(741,alias,0,'forest'),RangeError);
+  assert.throws(()=>spawnChunkOnTerrain(world,alias,0),RangeError);
+  assert.throws(()=>manager.enter(alias,0),RangeError);
+  assert.throws(()=>manager.sync([[0,0],[alias,0]]),RangeError);
+ }
+ assert.equal(samples,before,'rejected aliases must not sample terrain');
+ assert.equal(manager.activeChunks(),1);
+ assert.strictEqual(manager.snapshot(),snapshot,'failed staging preserves renderer snapshot');
+ assert.strictEqual(manager.enter(0,0),original);
+ assert.deepEqual(spawnChunk(741,1,0,'forest'),spawnChunk(741,1,0,'forest'));
+});
