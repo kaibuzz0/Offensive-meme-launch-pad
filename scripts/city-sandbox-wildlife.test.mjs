@@ -321,3 +321,26 @@ test('wetland frogs inhabit dry banks and shallow water but avoid deep water',()
  }
  assert.ok(shallowFrogs>0&&dryFrogs>0,'seeded wetland supports amphibians on both banks and shallows');
 });
+
+test('terrain edits invalidate only the affected cached wildlife chunk',()=>{
+ let height=80,samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:(x,z)=>{
+  samples++;
+  return {height:x<16?height:60,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ const before=manager.enter(0,0),neighbor=manager.enter(1,0);
+ const count=samples;
+ height=84;
+ assert.strictEqual(manager.enter(0,0),before,'cache hit stays stable until explicitly invalidated');
+ assert.equal(samples,count);
+ assert.equal(manager.invalidate(0,0),true);
+ assert.equal(manager.activeChunks(),1);
+ assert.equal(manager.invalidate(0,0),false,'repeated invalidation is idempotent');
+ const updated=manager.enter(0,0);
+ assert.deepEqual(updated.map(a=>a.id),before.map(a=>a.id),'terrain edits do not change stable creature IDs');
+ assert.ok(updated.every((a,i)=>a.y===before[i].y+4),'regenerated ground and aerial wildlife follow edited height');
+ assert.strictEqual(manager.enter(1,0),neighbor,'unaffected chunk is not regenerated');
+ assert.throws(()=>manager.invalidate(Number.MAX_SAFE_INTEGER,0),RangeError);
+ assert.equal(manager.activeChunks(),2);
+});
