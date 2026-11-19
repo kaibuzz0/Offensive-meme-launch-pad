@@ -314,8 +314,11 @@
  }
  function claimSupplies(){
   if(!running||paused||!firstPerson||atlas||!atSupplies()||suppliesClaimed)return;
-  suppliesClaimed=put(supplyKey(),'1');
-  supplyButton.textContent=suppliesClaimed?'8 supplies recovered':'Save unavailable · retry';
+  // Do not acknowledge an inventory pickup unless the legacy save can be read back.
+  // Preserve this record for the canonical journal migration; never delete it here.
+  const saved=put(supplyKey(),'1')&&get(supplyKey())==='1';
+  suppliesClaimed=saved;
+  supplyButton.textContent=saved?'8 supplies recovered':'Save unavailable · retry';
   updateHud();
  }
  supplyButton.addEventListener('click',claimSupplies);
