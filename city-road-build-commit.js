@@ -24,5 +24,17 @@ export async function commitWorkbenchBuild(store, key, action) {
   // entire record; no separate inventory and journal writes are permitted.
   const committed = await store.compareAndSwap(key, before.revision, after);
   if (committed !== true) throw new Error('building transaction conflict');
-  return after;
+  // Do not report a build as saved on a CAS acknowledgement alone. Read back
+  // the durable winner before the caller projects geometry or inventory.
+  const saved = await store.read(key);
+  if (!saved) throw new Error('building commit readback missing');
+  validateBuildRecord(saved);
+  // Some storage adapters reorder object keys. Compare canonical content,
+  // including supplies and voxel edits, rather than only the revision.
+  const canonical = value => Array.isArray(value) ? value.map(canonical) :
+    value && typeof value === 'object' ? Object.fromEntries(
+      Object.keys(value).sort().map(name => [name, canonical(value[name])])) : value;
+  if (JSON.stringify(canonical(saved)) !== JSON.stringify(canonical(after)))
+    throw new Error('building commit readback mismatch');
+  return structuredClone(saved);
 }
