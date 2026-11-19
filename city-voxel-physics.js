@@ -100,7 +100,8 @@
    const before={...state};
    try {
    const step=clamp(dt,0,.05);
-   let vx=clamp(Number(input?.right)||0,-1,1),vz=clamp(Number(input?.forward)||0,-1,1);
+   const finiteAxis=value=>{const n=Number(value);return Number.isFinite(n)?clamp(n,-1,1):0;};
+   let vx=finiteAxis(input?.right),vz=finiteAxis(input?.forward);
    const len=Math.hypot(vx,vz);
    if(len>1){vx/=len;vz/=len;}
    const yaw=Number.isFinite(input?.yaw)?input.yaw:0;
