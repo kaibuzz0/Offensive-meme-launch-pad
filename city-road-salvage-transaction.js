@@ -22,11 +22,17 @@ export function salvageRoadSupplies(state, { player, crate, expectedRevision }) 
     throw new Error('road supplies already collected or voxel edited');
   if (state.inventory.supplies > Number.MAX_SAFE_INTEGER - 8)
     throw new RangeError('inventory capacity exceeded');
-  journal.apply({x:crate.x,y:crate.y,z:crate.z,block:'salvaged-crate'},journal.revision);
+  // Stage the pickup marker without mutating even this temporary journal.
+  // The same bounded preview contract is used for construction spending.
+  const staged = journal.previewBatch([
+    {x:crate.x,y:crate.y,z:crate.z,block:'salvaged-crate'}
+  ], journal.revision);
+  if (!staged.changed || staged.count !== 1 || staged.revision !== state.revision + 1)
+    throw new Error('invalid staged salvage');
   const next = {
-    ...state, revision:state.revision+1,
+    ...state, revision:staged.revision,
     inventory:{...state.inventory,supplies:state.inventory.supplies+8},
-    journal:journal.snapshot()
+    journal:staged.snapshot
   };
   validateBuildRecord(next);
   return next;
