@@ -120,7 +120,7 @@ export function createRoadBuildInteraction(commands, { onCommitted, onFeedback }
       // committed state instead of leaving the visible inventory/edits stale.
       // Never retry the action automatically: pickup and spending are not
       // safe to replay without fresh player intent and world validation.
-      if (error instanceof Error && /changed in another session/.test(error.message)) {
+      if (error instanceof Error && /changed in another session|transaction conflict|stale (?:building|salvage) action/.test(error.message)) {
         try {
           const current = await commands.read();
           if (validRecord(current)) await publishIfCurrent(current);
