@@ -283,3 +283,21 @@ test('direct seeded spawning rejects unsafe coordinates before hashing or produc
  assert.deepEqual(spawnChunk(741,12,-4,'forest'),a,'valid seeded populations remain unchanged');
  assert.ok(a.every(animal=>Number.isSafeInteger(Math.floor(animal.x))&&Number.isSafeInteger(Math.floor(animal.z))));
 });
+
+
+test('wildlife manager rejects out-of-domain cached and staged chunks atomically',()=>{
+ let samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ const original=manager.enter(0,0);
+ const before=samples;
+ const outside=Math.floor((Number.MAX_SAFE_INTEGER-15)/16)+1;
+ assert.throws(()=>manager.sync([[1,0],[outside,0]]),RangeError);
+ assert.throws(()=>manager.leave(outside,0),RangeError);
+ assert.equal(samples,before,'invalid sync must not sample any new chunk');
+ assert.equal(manager.activeChunks(),1);
+ assert.strictEqual(manager.enter(0,0),original,'failed sync retains existing descriptors');
+});
