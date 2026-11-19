@@ -438,3 +438,20 @@ test('LRU cache hit updates snapshot order without regenerating creatures',()=>{
  assert.equal(samples,sampleCount,'LRU changes never regenerate terrain or wildlife');
  assert.strictEqual(manager.snapshot(),reordered,'reordered snapshot is cached');
 });
+
+test('unchanged visible chunks reuse the exact snapshot including empty populations',()=>{
+ let samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:3,maxPerChunk:0});
+ const first=manager.sync([[0,0],[1,0]]);
+ assert.deepEqual(first,[]);
+ const before=samples;
+ for(let i=0;i<100;i++)assert.strictEqual(manager.sync([[0,0],[1,0]]),first);
+ assert.equal(samples,before,'stable empty populations do not trigger terrain sampling');
+ const changed=manager.sync([[1,0],[0,0]]);
+ assert.notStrictEqual(changed,first,'reordering still rebuilds the snapshot');
+ assert.strictEqual(manager.sync([[1,0],[0,0]]),changed);
+});
