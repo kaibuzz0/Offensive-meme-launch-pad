@@ -9,8 +9,8 @@ const {default:wildlife}=await import('data:text/javascript;base64,'+
 test('ground wildlife stays in local habitat across a chunk biome seam',()=>{
  const seed=741,cx=2,cz=-3;
  const world={seed,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:(x,z)=>({
-  height:80,group:x<cx*16+8?'forest':'desert',
-  biomeName:x<cx*16+8?'Forest':'Desert',
+  height:80,group:x<cx*16+12?'forest':'desert',
+  biomeName:x<cx*16+12?'Forest':'Desert',
   water:false,river:false,slope:0
  })};
  const candidates=wildlife.spawnChunk(seed,cx,cz,'forest');
@@ -20,7 +20,7 @@ test('ground wildlife stays in local habitat across a chunk biome seam',()=>{
  });
  const placed=wildlife.spawnChunkOnTerrain(world,cx,cz);
  assert.deepEqual(placed.map(a=>a.id),expected.map(a=>a.id));
- assert.ok(placed.every(a=>a.species==='songbird'||Math.floor(a.x)<cx*16+8));
+ assert.ok(placed.every(a=>a.species==='songbird'||Math.floor(a.x)<cx*16+12));
  assert.deepEqual(wildlife.spawnChunkOnTerrain(world,cx,cz),placed);
  assert.ok(Object.isFrozen(placed));
 });
