@@ -38,3 +38,11 @@ Next shared acceptance batch: homepage Play → wallet-free Solo → recognizabl
 Check #44's existing shortlist first. Prefer a focused meshing/instancing/rig or asset-conversion component only after recording exact upstream revision, license/attribution, transitive size, WebGL1/Android/offline fit and measured baseline impact. No engine migration solely on source size. The immediate construction/render parity gate can use the existing journal and renderer; a new dependency is not justified without a measured blocker.
 
 **Evidence status at authoring:** This file is an integration plan, not implementation, a physical-device benchmark, a successful browser test or a public deployment. PR #199's journal batch is not yet a durable inventory transaction; draft QA PRs #201/#203/#204 require exact-head verification.
+## Current integration checkpoint — November 18 evening CST
+
+- Main remains `a92608437a4323ba0a0a060fabbeb4c19b1621cd`. Construction #82 head `c88b6eb75497cd1fc2c3dc8a5bbbd811663aab76` is draft, reports mergeable=false, and changes 66 files. Reconcile its journal, inventory, legacy migration, collision and renderer adapters by dependency; do not merge wholesale.
+- #82's current explicit renderer acknowledgement rule requires `onCommitted === true`. Durable edit readback survives failed renderer acknowledgement; retry/recovery must not charge inventory twice. #46 consumes committed scene revision and edit IDs on both rendering paths; #49 consumes the identical effective occupancy.
+- QA mobile #206 head `01d8d1980c4ab17532585e9f11ec5ba7916109ce` failed Node regression tests in workflow 44444249330. Obtain failing test output and rerun before release. Offline #201 remains unmerged; full CSS/resource cache and offline reload still need browser acceptance.
+- Next bounded graphics implementation after Sandbox and Physics adapters: visibly project one persistent roadside workbench on both backends, verify its collision and identity after reload, and measure draw/mesh cost. Flight and wardrobe remain downstream.
+
+This checkpoint records source/CI evidence, not public visual or physical Android verification.
