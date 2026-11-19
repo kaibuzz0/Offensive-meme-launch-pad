@@ -28,13 +28,14 @@ export function summarize(records) {
       stalls.push(sample.interactionStallMs);
   }
   return {
-    samples: frames.length, invalid, deviceClasses: [...devices].sort(),
+    samples: frames.length, invalid, interactionSamples: stalls.length, deviceClasses: [...devices].sort(),
     frameMs: { p50: percentile(frames, .5), p95: percentile(frames, .95), p99: percentile(frames, .99) },
     maxInteractionStallMs: stalls.length ? Math.max(...stalls) : null,
     provisionalBudgets: { frameP95Ms: 33.3, interactionStallMs: 200 },
     budgetResult: !frames.length ? 'no-evidence' :
-      (percentile(frames, .95) <= 33.3 && (stalls.length === 0 || Math.max(...stalls) <= 200) ? 'within-provisional-budget' : 'exceeds-provisional-budget'),
-    note: 'Only measures supplied samples. No Android hardware, GPU memory, download size, or real gameplay is inferred.'
+      (invalid || stalls.length !== frames.length || devices.size !== 1 ? 'incomplete-evidence' :
+      (percentile(frames, .95) <= 33.3 && Math.max(...stalls) <= 200 ? 'within-provisional-budget' : 'exceeds-provisional-budget')),
+    note: 'Only measures supplied samples; deviceClass is self-reported, not hardware-attested. Missing interaction stalls, invalid samples or mixed device classes cannot yield a pass. No Android hardware, GPU memory, download size, or real gameplay is inferred.'
   };
 }
 async function main() {
@@ -48,7 +49,7 @@ async function main() {
   const result = summarize(samples);
   console.log(JSON.stringify(result, null, 2));
   if (!result.samples) process.exitCode = 2;
-  else if (result.budgetResult === 'exceeds-provisional-budget') process.exitCode = 1;
+  else if (result.budgetResult !== 'within-provisional-budget') process.exitCode = 1;
 }
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   main().catch(error => { console.error(error.message); process.exitCode = 2; });
