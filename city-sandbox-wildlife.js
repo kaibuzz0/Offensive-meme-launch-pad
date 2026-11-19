@@ -98,7 +98,6 @@
    if(!col||!Number.isSafeInteger(col.height)||col.mouth||col.sinkhole)continue;
    // Missing or malformed slope metadata must not place ground actors on
    // unverified terrain; aerial and aquatic actors do not require walkable grade.
-   if(!Number.isFinite(col.slope)||col.slope<0)continue;
    const aquatic=AQUATIC.has(animal.species);
    // Rivers can host fish even where the atlas's biome is not a river biome.
    // Do not place land animals underwater, fish on dry land, or ground
@@ -106,6 +105,9 @@
    const wet=!!col.water||!!col.river;
    const aerial=AERIAL.has(animal.species);
    const amphibious=AMPHIBIOUS.has(animal.species);
+   // Water and flying actors need a valid bed elevation, but not a walkable
+   // ground grade. Only terrestrial placement depends on slope metadata.
+   if(!aquatic&&!aerial&&(!Number.isFinite(col.slope)||col.slope<0))continue;
    // Land fauna must belong to the habitat under their actual feet, not
    // merely the center of a chunk that may straddle a biome boundary.
    // Aerial fauna can cross boundaries; aquatic fauna follows water below.
