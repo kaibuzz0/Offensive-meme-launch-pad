@@ -10,7 +10,7 @@ test('percentiles interpolate deterministically without mutating input', () => {
   assert.equal(percentile([], 0.95), null);
 });
 test('budget is labelled provisional and device evidence cannot be inferred', () => {
-  const report = summarize([{ frameMs: 16, deviceClass: 'emulated-mobile', interactionStallMs: 30 }]);
+  const report = summarize(Array.from({ length: 120 }, () => ({ frameMs: 16, deviceClass: 'emulated-mobile', interactionStallMs: 30 })));
   assert.equal(report.budgetResult, 'within-provisional-budget');
   assert.deepEqual(report.deviceClasses, ['emulated-mobile']);
   assert.equal(report.maxInteractionStallMs, 30);
@@ -73,4 +73,13 @@ test('negative or nonfinite interaction timings cannot yield a pass', () => {
     const report = summarize([{ frameMs: 16.7, deviceClass: 'desktop', interactionStallMs }]);
     assert.equal(report.budgetResult, 'incomplete-evidence');
   }
+});
+
+test('short recordings cannot claim a representative percentile pass', () => {
+  const sample = { frameMs: 16.7, deviceClass: 'physical-android', interactionStallMs: 0 };
+  const short = summarize(Array.from({ length: 119 }, () => sample));
+  assert.equal(short.budgetResult, 'incomplete-evidence');
+  assert.equal(short.provisionalBudgets.minimumFrameSamples, 120);
+  const sufficient = summarize(Array.from({ length: 120 }, () => sample));
+  assert.equal(sufficient.budgetResult, 'within-provisional-budget');
 });
