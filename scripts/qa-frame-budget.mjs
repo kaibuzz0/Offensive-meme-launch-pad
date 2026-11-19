@@ -30,14 +30,24 @@ export function summarize(records) {
       maxStall = maxStall === null ? sample.interactionStallMs : Math.max(maxStall, sample.interactionStallMs);
     }
   }
+  // Sort once: three percentile calls previously copied and sorted the full recording independently.
+  const sortedFrames = [...frames].sort((a, b) => a - b);
+  const quantile = p => {
+    if (!sortedFrames.length) return null;
+    const position = (sortedFrames.length - 1) * p;
+    const lower = Math.floor(position);
+    const fraction = position - lower;
+    return sortedFrames[lower] + (sortedFrames[Math.ceil(position)] - sortedFrames[lower]) * fraction;
+  };
+  const p95 = quantile(.95);
   return {
     samples: frames.length, invalid, interactionSamples, deviceClasses: [...devices].sort(),
-    frameMs: { p50: percentile(frames, .5), p95: percentile(frames, .95), p99: percentile(frames, .99) },
+    frameMs: { p50: quantile(.5), p95, p99: quantile(.99) },
     maxInteractionStallMs: maxStall,
     provisionalBudgets: { frameP95Ms: 33.3, interactionStallMs: 200 },
     budgetResult: !frames.length ? 'no-evidence' :
       (invalid || interactionSamples !== frames.length || devices.size !== 1 ? 'incomplete-evidence' :
-      (percentile(frames, .95) <= 33.3 && maxStall <= 200 ? 'within-provisional-budget' : 'exceeds-provisional-budget')),
+      (p95 <= 33.3 && maxStall <= 200 ? 'within-provisional-budget' : 'exceeds-provisional-budget')),
     note: 'Only measures supplied samples; deviceClass is self-reported, not hardware-attested. Missing interaction stalls, invalid samples or mixed device classes cannot yield a pass. No Android hardware, GPU memory, download size, or real gameplay is inferred.'
   };
 }
