@@ -492,3 +492,23 @@ test('malformed terrain grade cannot spawn actors on unverified columns',()=>{
  assert.deepEqual(spawnChunkOnTerrain({...base,surfaceAt:()=>valid},1,0),normal,
   'valid terrain remains deterministic after invalid samples');
 });
+
+
+test('failed chunk entry does not evict the last visible population',()=>{
+ let fail=false;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:(x,z)=>{
+  if(fail&&x>=16)throw new Error('terrain unavailable');
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:1});
+ const original=manager.enter(0,0),snapshot=manager.snapshot();
+ fail=true;
+ assert.throws(()=>manager.enter(1,0),/terrain unavailable/);
+ assert.equal(manager.activeChunks(),1,'failed entry must not evict active chunk');
+ assert.strictEqual(manager.snapshot(),snapshot,'renderer retains prior immutable snapshot');
+ assert.strictEqual(manager.enter(0,0),original,'existing descriptors survive failed entry');
+ fail=false;
+ manager.enter(1,0);
+ assert.equal(manager.activeChunks(),1,'successful retry respects chunk cap');
+ assert.notStrictEqual(manager.snapshot(),snapshot,'successful retry publishes replacement');
+});
