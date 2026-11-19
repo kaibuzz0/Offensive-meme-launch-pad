@@ -40,15 +40,17 @@ export function summarize(records) {
     return sortedFrames[lower] + (sortedFrames[Math.ceil(position)] - sortedFrames[lower]) * fraction;
   };
   const p95 = quantile(.95);
+  // A handful of frames cannot establish a representative percentile.
+  const minimumFrameSamples = 120;
   return {
     samples: frames.length, invalid, interactionSamples, deviceClasses: [...devices].sort(),
     frameMs: { p50: quantile(.5), p95, p99: quantile(.99) },
     maxInteractionStallMs: maxStall,
-    provisionalBudgets: { frameP95Ms: 33.3, interactionStallMs: 200 },
+    provisionalBudgets: { frameP95Ms: 33.3, interactionStallMs: 200, minimumFrameSamples },
     budgetResult: !frames.length ? 'no-evidence' :
-      (invalid || interactionSamples !== frames.length || devices.size !== 1 ? 'incomplete-evidence' :
+      (invalid || frames.length < minimumFrameSamples || interactionSamples !== frames.length || devices.size !== 1 ? 'incomplete-evidence' :
       (p95 <= 33.3 && maxStall <= 200 ? 'within-provisional-budget' : 'exceeds-provisional-budget')),
-    note: 'Only measures supplied samples; deviceClass is self-reported, not hardware-attested. Missing interaction stalls, invalid samples or mixed device classes cannot yield a pass. No Android hardware, GPU memory, download size, or real gameplay is inferred.'
+    note: 'Only measures supplied samples; deviceClass is self-reported, not hardware-attested. Fewer than 120 frames, missing interaction stalls, invalid samples or mixed device classes cannot yield a pass. No Android hardware, GPU memory, download size, or real gameplay is inferred.'
   };
 }
 async function main() {
