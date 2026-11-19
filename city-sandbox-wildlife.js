@@ -88,7 +88,8 @@
    // cannot. Fish require actual water and a finite water surface above bed.
    if(aquatic?!wet:!aerial&&(wet||col.slope>18))continue;
    const waterTop=Number.isFinite(col.waterLevel)?col.waterLevel:world.SEA_LEVEL;
-   if(aquatic&&(!Number.isFinite(waterTop)||waterTop<=col.height))continue;
+   // Fish need enough water to remain above the bed and below the surface.
+   if(aquatic&&(!Number.isFinite(waterTop)||waterTop-col.height<=0.5))continue;
    const y=aquatic?Math.min(col.height+1,waterTop-0.5):
     aerial?Math.max(col.height,wet?waterTop:col.height)+4+(hash(world.seed,x,z,511)%5):col.height+1;
    if(!Number.isFinite(y))continue;
