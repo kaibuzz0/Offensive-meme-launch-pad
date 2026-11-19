@@ -37,7 +37,9 @@
  }
  function spawnChunk(seed,chunkX,chunkZ,biome,options={}){
   if(!Number.isSafeInteger(chunkX)||!Number.isSafeInteger(chunkZ)||!Number.isSafeInteger(seed))throw TypeError('Safe integer seed and chunk coordinates required');
-  // Hashing coerces chunk coordinates to signed 32-bit integers; bound the\n  // domain to prevent distant chunks aliasing IDs and populations.\n  // IDs and voxel positions must remain exact; reject overflow before hashing.
+  // Hashing coerces chunk coordinates to signed 32-bit integers; bound the
+  // domain to prevent distant chunks aliasing IDs and populations.
+  // IDs and voxel positions must remain exact; reject overflow before hashing.
   const maxChunk=Math.min(0x7fffffff,Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE));
   if(Math.abs(chunkX)>maxChunk||Math.abs(chunkZ)>maxChunk)throw RangeError('Chunk coordinates exceed safe voxel range');
   const cap=options.maxPerChunk===undefined?MAX_PER_CHUNK:options.maxPerChunk;
