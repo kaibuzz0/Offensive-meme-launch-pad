@@ -44,7 +44,7 @@ test('mixed device classes cannot mask a slow device', () => {
   assert.equal(report.budgetResult, 'incomplete-evidence');
 });
 test('complete slow frames fail their provisional budget', () => {
-  const report = summarize([{ frameMs: 40, deviceClass: 'desktop', interactionStallMs: 250 }]);
+  const report = summarize(Array.from({ length: 120 }, () => ({ frameMs: 40, deviceClass: 'desktop', interactionStallMs: 250 })));
   assert.equal(report.budgetResult, 'exceeds-provisional-budget');
 });
 
@@ -60,10 +60,9 @@ test('long sessions do not overflow the argument stack when summarizing stalls',
 });
 
 test('interaction stall alone fails even when frames meet budget', () => {
-  const report = summarize([
-    { frameMs: 16.7, deviceClass: 'physical-android', interactionStallMs: 0 },
-    { frameMs: 16.7, deviceClass: 'physical-android', interactionStallMs: 201 }
-  ]);
+  const report = summarize(Array.from({ length: 120 }, (_, i) => ({
+    frameMs: 16.7, deviceClass: 'physical-android', interactionStallMs: i === 119 ? 201 : 0
+  })));
   assert.equal(report.frameMs.p95, 16.7);
   assert.equal(report.maxInteractionStallMs, 201);
   assert.equal(report.budgetResult, 'exceeds-provisional-budget');
