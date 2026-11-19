@@ -344,3 +344,26 @@ test('terrain edits invalidate only the affected cached wildlife chunk',()=>{
  assert.throws(()=>manager.invalidate(Number.MAX_SAFE_INTEGER,0),RangeError);
  assert.equal(manager.activeChunks(),2);
 });
+
+
+test('voxel edit invalidation respects negative chunk boundaries and leaves neighbors cached',()=>{
+ let samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:3});
+ const negative=manager.enter(-1,0),zero=manager.enter(0,0),far=manager.enter(-2,0);
+ const before=samples;
+ assert.equal(manager.invalidateAtVoxel(-1,0),true);
+ assert.equal(manager.invalidateAtVoxel(-1,0),false,'repeat edit invalidation is safe');
+ assert.strictEqual(manager.enter(0,0),zero,'voxel -1 does not invalidate chunk zero');
+ assert.strictEqual(manager.enter(-2,0),far,'voxel -1 does not invalidate chunk -2');
+ assert.equal(samples,before,'unaffected cache hits do not resample terrain');
+ assert.deepEqual(manager.enter(-1,0),negative,'invalidated population regenerates deterministically');
+ assert.ok(samples>before);
+ assert.equal(manager.invalidateAtVoxel(-16,0),true,'negative boundary belongs to chunk -1');
+ assert.equal(manager.invalidateAtVoxel(-17,0),true,'next negative boundary belongs to chunk -2');
+ assert.throws(()=>manager.invalidateAtVoxel(0.5,0),TypeError);
+ assert.throws(()=>manager.invalidateAtVoxel(Number.MAX_SAFE_INTEGER+1,0),TypeError);
+});
