@@ -74,8 +74,11 @@
   try{
    if(storage.getItem(active)!==raw)return {status:'conflict',reason:'Save changed in another tab before migration staging.'};
    if(existing===null)storage.setItem(backup,raw);
+   // Some storage shims silently discard writes. Never report success without a recoverable copy.
+   if(storage.getItem(backup)!==raw)return {status:'blocked',reason:'Recovery backup could not be verified.'};
    if(storage.getItem(active)!==raw)return {status:'conflict',reason:'Save changed while preserving the recovery copy.'};
    storage.setItem(preview,staged);
+   if(storage.getItem(preview)!==staged)return {status:'blocked',reason:'Migration preview could not be verified.'};
    if(storage.getItem(active)!==raw)return {status:'conflict',reason:'Save changed during staging. Preview must not be activated.'};
    return {status:'staged',notices:planned.notices,previewKey:preview};
   }catch{return {status:'blocked',reason:'Could not safely write backup/preview. The original was not modified.'};}
