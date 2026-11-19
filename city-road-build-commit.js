@@ -23,13 +23,17 @@ async function commitRoadTransaction(store, key, expectedRevision, transition, l
   const before = await store.read(key);
   if (!before || before.revision !== expectedRevision) throw new Error('stale ' + label + ' action');
   validateBuildRecord(before);
-  const after = transition(before);
+  // Reducers must only receive a detached candidate. Some storage adapters
+  // return a live object from read(); a rejected transition must never mutate it.
+  const after = transition(structuredClone(before));
   validateBuildRecord(after);
   if (after.revision !== before.revision + 1)
     throw new Error('invalid staged ' + label + ' revision');
 
   // A single durable record contains both inventory and voxel edits.
-  if (await store.compareAndSwap(key, before.revision, after) !== true)
+  // The adapter must not retain a mutable reference to the candidate.
+  const candidate = structuredClone(after);
+  if (await store.compareAndSwap(key, before.revision, candidate) !== true)
     throw new Error(label + ' transaction conflict');
   const saved = await store.read(key);
   if (!saved) throw new Error(label + ' commit readback missing');
