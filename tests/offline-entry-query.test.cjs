@@ -40,7 +40,7 @@ test('offline game HTML navigation reuses static cached entry across query varia
   };
   let online = true;
   const context = {
-    URL, Response, Promise, Map, Number, Error, caches,
+    URL, Request, Response, Promise, Map, Number, Error, caches,
     fetch: async () => {
       if (!online) throw Error('offline');
       return new Response('canonical game HTML');
