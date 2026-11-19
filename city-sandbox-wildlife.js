@@ -146,8 +146,11 @@
    if(active.has(k)){
     // A revisited visible chunk is recent; evict the least recently used one.
     const creatures=active.get(k);
+    const wasNewest=Array.from(active.keys()).at(-1)===k;
     active.delete(k);
     active.set(k,creatures);
+    // Snapshot order follows LRU order; moving a non-tail chunk changes it.
+    if(!wasNewest)dirty();
     return creatures;
    }
    const creatures=spawnChunkOnTerrain(world,cx,cz,options);
