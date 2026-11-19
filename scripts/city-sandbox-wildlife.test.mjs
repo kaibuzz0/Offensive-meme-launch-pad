@@ -455,3 +455,26 @@ test('unchanged visible chunks reuse the exact snapshot including empty populati
  assert.notStrictEqual(changed,first,'reordering still rebuilds the snapshot');
  assert.strictEqual(manager.sync([[1,0],[0,0]]),changed);
 });
+
+
+test('failed terrain sampling during chunk sync preserves active wildlife and snapshot',()=>{
+ let fail=false,samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:(x,z)=>{
+  samples++;
+  if(fail&&x>=16)throw new Error('terrain sample unavailable');
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ const initial=manager.sync([[0,0]]);
+ const original=manager.enter(0,0);
+ fail=true;
+ assert.throws(()=>manager.sync([[0,0],[1,0]]),/terrain sample unavailable/);
+ assert.equal(manager.activeChunks(),1,'failed staging cannot evict the previously active chunk');
+ assert.strictEqual(manager.snapshot(),initial,'failed staging cannot replace renderer snapshot');
+ assert.strictEqual(manager.enter(0,0),original,'previous creature descriptors remain active');
+ fail=false;
+ const recovered=manager.sync([[0,0],[1,0]]);
+ assert.equal(manager.activeChunks(),2);
+ assert.notStrictEqual(recovered,initial,'successful retry publishes new population');
+ assert.ok(samples>0);
+});
