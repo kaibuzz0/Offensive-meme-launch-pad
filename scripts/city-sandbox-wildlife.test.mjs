@@ -537,3 +537,29 @@ test('wildlife hash domain rejects distant 32-bit aliases without touching activ
  assert.strictEqual(manager.enter(0,0),original);
  assert.deepEqual(spawnChunk(741,1,0,'forest'),spawnChunk(741,1,0,'forest'));
 });
+
+
+test('aquatic and aerial wildlife do not require terrestrial slope metadata',()=>{
+ const base={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112};
+ for(const habitat of [
+  {group:'ocean',biomeName:'Ocean',water:true,river:false,waterLevel:90},
+  {group:'forest',biomeName:'Forest',water:false,river:false,waterLevel:112}
+ ]){
+  const column={height:80,slope:0,...habitat};
+  const valid={...base,surfaceAt:()=>column};
+  const missing={...base,surfaceAt:()=>({...column,slope:undefined})};
+  const isFree=species=>habitat.water?species==='fish':
+   ['songbird','hawk','owl','eagle','duck','seabird','bat'].includes(species);
+  let found=0;
+  for(let cx=0;cx<20;cx++)for(let cz=0;cz<20;cz++){
+   const expected=spawnChunkOnTerrain(valid,cx,cz).filter(a=>isFree(a.species));
+   if(!expected.length)continue;
+   found+=expected.length;
+   const actual=spawnChunkOnTerrain(missing,cx,cz).filter(a=>isFree(a.species));
+   assert.deepEqual(actual,expected,'non-ground actors must not depend on walkable slope');
+   if(!habitat.water)assert.ok(spawnChunkOnTerrain(missing,cx,cz).every(a=>isFree(a.species)),
+    'missing slope still rejects terrestrial actors');
+  }
+  assert.ok(found>0,'fixture must exercise at least one eligible species');
+ }
+});
