@@ -396,3 +396,25 @@ test('wildlife snapshot reuses immutable arrays until a committed population cha
  assert.equal(manager.snapshot().length,0);
  assert.strictEqual(manager.snapshot(),manager.snapshot(),'empty cleared snapshot remains reusable');
 });
+
+test('repeated visible-chunk sync preserves snapshot until order or membership changes',()=>{
+ let samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:3});
+ const first=manager.sync([[0,0],[1,0]]);
+ const initialSamples=samples;
+ assert.strictEqual(manager.sync([[0,0],[1,0]]),first,'identical frame sync reuses frozen snapshot');
+ assert.equal(samples,initialSamples,'identical frame sync does not resample terrain');
+ const reordered=manager.sync([[1,0],[0,0]]);
+ assert.notStrictEqual(reordered,first,'chunk ordering changes descriptor order');
+ assert.strictEqual(manager.sync([[1,0],[0,0]]),reordered);
+ assert.equal(samples,initialSamples,'reordering does not regenerate cached creatures');
+ manager.invalidateAtVoxel(0,0);
+ const edited=manager.sync([[1,0],[0,0]]);
+ assert.notStrictEqual(edited,reordered,'invalidated terrain refreshes population snapshot');
+ assert.ok(samples>initialSamples);
+ assert.strictEqual(manager.sync([[1,0],[0,0]]),edited);
+});
