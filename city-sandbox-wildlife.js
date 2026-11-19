@@ -187,8 +187,9 @@
    }
    // A renderer may sync the same visible set every frame. Preserve the
    // immutable snapshot unless membership, ordering, or descriptors changed.
-   const unchanged=active.size===staged.size&&Array.from(staged).every(([k,creatures],i)=>{
-    const previous=Array.from(active)[i];
+   const previousEntries=active.entries();
+   const unchanged=active.size===staged.size&&Array.from(staged).every(([k,creatures])=>{
+    const previous=previousEntries.next().value;
     return previous&&previous[0]===k&&previous[1]===creatures;
    });
    if(unchanged)return snapshot();
