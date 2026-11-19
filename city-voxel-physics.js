@@ -21,13 +21,14 @@
     const bx=Math.floor(x+ox),bz=Math.floor(z+oz);
     if(work)work.surfaceQueries++;
     const col=world.surfaceAt(bx,bz);
-    if(!col)return null;
+    if(!col||!Number.isFinite(col.height))return null;
     let height=col.height+1;
     // Caves share world coordinates with the terrain. The roof stays solid
     // until the player reaches an open mouth or is already below the roof.
     if(work&&typeof world.caveRoomAt==='function')work.caveQueries++;
     const gallery=world.caveRoomAt?.(bx,bz);
     if(gallery&&(gallery.exposed||referenceY<gallery.ceiling)){
+     if(!Number.isFinite(gallery.floor))return null;
      height=gallery.floor;
     }
     top=Math.max(top,height);
