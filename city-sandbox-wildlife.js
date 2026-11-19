@@ -94,6 +94,9 @@
   for(const animal of candidates){
    const x=Math.floor(animal.x),z=Math.floor(animal.z),col=surface(x,z);
    if(!col||!Number.isSafeInteger(col.height)||col.mouth||col.sinkhole)continue;
+   // Missing or malformed slope metadata must not place ground actors on
+   // unverified terrain; aerial and aquatic actors do not require walkable grade.
+   if(!Number.isFinite(col.slope)||col.slope<0)continue;
    const aquatic=AQUATIC.has(animal.species);
    // Rivers can host fish even where the atlas's biome is not a river biome.
    // Do not place land animals underwater, fish on dry land, or ground
