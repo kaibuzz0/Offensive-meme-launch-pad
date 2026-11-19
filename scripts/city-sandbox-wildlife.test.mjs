@@ -258,3 +258,18 @@ test('terrain wildlife samples each column at most once per activation',()=>{
  assert.deepEqual(spawnChunkOnTerrain(world,2,-3),first,'memoization preserves deterministic placement');
  assert.ok([...counts.values()].every(n=>n===1));
 });
+
+
+test('direct seeded spawning rejects unsafe coordinates before hashing or producing duplicate IDs',()=>{
+ const maxChunk=Math.floor((Number.MAX_SAFE_INTEGER-15)/16);
+ for(const invalid of [Number.MAX_SAFE_INTEGER,Number.MAX_SAFE_INTEGER+1,Infinity,NaN,1.5]){
+  assert.throws(()=>spawnChunk(741,invalid,0,'forest'));
+  assert.throws(()=>spawnChunk(741,0,invalid,'forest'));
+ }
+ assert.throws(()=>spawnChunk(Number.MAX_SAFE_INTEGER+1,0,0,'forest'),TypeError);
+ assert.throws(()=>spawnChunk(741,maxChunk+1,0,'forest'),RangeError);
+ assert.throws(()=>spawnChunk(741,0,-maxChunk-1,'forest'),RangeError);
+ const a=spawnChunk(741,12,-4,'forest');
+ assert.deepEqual(spawnChunk(741,12,-4,'forest'),a,'valid seeded populations remain unchanged');
+ assert.ok(a.every(animal=>Number.isSafeInteger(Math.floor(animal.x))&&Number.isSafeInteger(Math.floor(animal.z))));
+});
