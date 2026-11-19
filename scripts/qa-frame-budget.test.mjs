@@ -47,3 +47,14 @@ test('complete slow frames fail their provisional budget', () => {
   const report = summarize([{ frameMs: 40, deviceClass: 'desktop', interactionStallMs: 250 }]);
   assert.equal(report.budgetResult, 'exceeds-provisional-budget');
 });
+
+
+test('long sessions do not overflow the argument stack when summarizing stalls', () => {
+  const records = Array.from({ length: 150000 }, () => ({
+    frameMs: 16.7, deviceClass: 'physical-android', interactionStallMs: 12
+  }));
+  const report = summarize(records);
+  assert.equal(report.samples, 150000);
+  assert.equal(report.maxInteractionStallMs, 12);
+  assert.equal(report.budgetResult, 'within-provisional-budget');
+});
