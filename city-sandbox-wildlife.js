@@ -181,6 +181,16 @@
     if(wanted.has(k))throw RangeError('Duplicate visible chunk');
     wanted.add(k);
    }
+   // Fast path for the common per-frame sync: the requested order and all
+   // active descriptors are already current. Avoid a new Map and snapshot.
+   if(active.size===chunks.length){
+    const previous=active.keys();
+    let identical=true;
+    for(const [cx,cz] of chunks){
+     if(previous.next().value!==key(cx,cz)){identical=false;break;}
+    }
+    if(identical)return snapshot();
+   }
    // Stage new chunks before changing the active set. If surfaceAt throws,
    // the previous visible wildlife stays intact instead of partially unloading.
    const staged=new Map();
