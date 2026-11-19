@@ -60,3 +60,35 @@ test('unknown session activities are blocked rather than migrated', () => {
   assert.equal(migration.stage(store, keys, C, T).status, 'blocked');
   assert.deepEqual(store.snapshot(), {save: raw});
 });
+
+test('duplicate storage keys are rejected before any write', () => {
+  const store = storage({save: source});
+  assert.equal(migration.stage(store, {active: 'save', backup: 'save', preview: 'preview'}, C, T).status, 'invalid');
+  assert.deepEqual(store.snapshot(), {save: source});
+});
+
+test('corrupt preview and tampered backup cannot be approved', () => {
+  const store = storage({save: source});
+  assert.equal(migration.stage(store, keys, C, T).status, 'staged');
+  store.setItem('save-preview', '{bad');
+  assert.equal(migration.inspectStage(store, keys).status, 'invalid');
+  assert.equal(store.getItem('save'), source);
+  assert.equal(migration.stage(store, keys, C, T).status, 'staged');
+  store.setItem('save-backup', 'tampered');
+  assert.equal(migration.inspectStage(store, keys).status, 'conflict');
+  assert.equal(migration.stage(store, keys, C, T).status, 'conflict');
+  assert.equal(store.getItem('save'), source);
+});
+
+test('concurrent save mutation during backup write aborts staging', () => {
+  const store = storage({save: source});
+  const originalSet = store.setItem.bind(store);
+  store.setItem = (key, value) => {
+    originalSet(key, value);
+    if (key === keys.backup) originalSet(keys.active, JSON.stringify({...JSON.parse(source), x: 42}));
+  };
+  assert.equal(migration.stage(store, keys, C, T).status, 'conflict');
+  assert.equal(store.getItem(keys.backup), source);
+  assert.equal(store.getItem(keys.preview), null);
+  assert.equal(JSON.parse(store.getItem(keys.active)).x, 42);
+});
