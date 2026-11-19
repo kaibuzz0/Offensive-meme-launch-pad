@@ -322,6 +322,15 @@
   updateHud();
  }
  supplyButton.addEventListener('click',claimSupplies);
+ // A second tab may claim the same seed's cache while this tab is running.
+ // Refresh the visible action state rather than presenting a stale pickup.
+ window.addEventListener('storage',event=>{
+  if(event.storageArea!==window.localStorage||event.key!==supplyKey())return;
+  suppliesClaimed=get(supplyKey())==='1';
+  supplyButton.textContent=suppliesClaimed?'8 supplies recovered':'Collect 8 builder supplies';
+  supplyButton.hidden=suppliesClaimed||!atSupplies();
+  updateHud();
+ });
  function interactRoad(){if(atGate()&&!sealClaimed)claimSeal();else claimSupplies();}
  // Right-hand look control uses its own pointer capture independently of
  // the left movement thumbstick, including simultaneous multi-touch input.
