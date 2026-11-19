@@ -49,12 +49,20 @@ export function buildWorkbenchState(state, action) {
   if ((journal.has(target.x,target.y,target.z) && journal.get(target.x,target.y,target.z) !== null) ||
       action.isOccupied(target.x,target.y,target.z) !== false)
     throw new Error('occupied voxel');
-  const result = journal.apply({...target,block:'workbench'},journal.revision);
-  if (!result.changed) throw new Error('unchanged placement');
-  return {
+  // Stage the world edit without mutating the journal. Inventory and world
+  // snapshot are returned as one candidate record for the durable save layer.
+  // The caller must commit/read back this record before notifying the renderer.
+  const staged = journal.previewBatch([{...target,block:'workbench'}],journal.revision);
+  if (!staged.changed || staged.count !== 1) throw new Error('unchanged placement');
+  const candidate = {
     ...state,
-    revision: state.revision + 1,
+    revision: staged.revision,
     inventory: {...state.inventory,supplies:state.inventory.supplies-8},
-    journal: journal.snapshot()
+    journal: staged.snapshot
   };
+  // Fail closed on malformed staged data before a storage transaction starts.
+  if (candidate.journal.revision !== candidate.revision ||
+      candidate.journal.worldSeed !== candidate.seed ||
+      candidate.journal.voxelMetres !== VOXEL_METRES) throw new Error('invalid staged construction');
+  return candidate;
 }
