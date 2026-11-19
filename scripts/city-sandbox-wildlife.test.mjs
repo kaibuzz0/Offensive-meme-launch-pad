@@ -221,7 +221,7 @@ test('out-of-domain terrain wildlife is an immutable empty population',()=>{
 
 test('fish never intersect the bed in shallow water',()=>{
  const world={seed:7,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
-  height:111.75,water:true,waterLevel:112,river:false,
+  height:112,water:true,waterLevel:112.25,river:false,
   group:'ocean',biomeName:'Ocean',slope:0
  })};
  let birds=0;
