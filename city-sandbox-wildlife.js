@@ -129,6 +129,10 @@
   const maxChunks=options.maxChunks??16;
   if(!Number.isInteger(maxChunks)||maxChunks<1||maxChunks>64)throw RangeError('maxChunks must be 1..64');
   const active=new Map();
+  // Immutable snapshots are read by the renderer every frame. Rebuild only
+  // when chunk membership or a population descriptor actually changes.
+  let cachedSnapshot=null;
+  const dirty=()=>{cachedSnapshot=null;};
   const key=(cx,cz)=>cx+':'+cz;
   const validate=(cx,cz)=>{
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz))throw TypeError('Safe integer chunk coordinates required');
@@ -149,12 +153,13 @@
    const creatures=spawnChunkOnTerrain(world,cx,cz,options);
    if(active.size>=maxChunks)active.delete(active.keys().next().value);
    active.set(k,creatures);
+   dirty();
    return creatures;
   }
-  function leave(cx,cz){validate(cx,cz);return active.delete(key(cx,cz));}
+  function leave(cx,cz){validate(cx,cz);const removed=active.delete(key(cx,cz));if(removed)dirty();return removed;}
   // Terrain edits invalidate only affected cached populations. The next enter
   // resamples edited columns; unrelated chunks retain their descriptors.
-  function invalidate(cx,cz){validate(cx,cz);return active.delete(key(cx,cz));}
+  function invalidate(cx,cz){validate(cx,cz);const removed=active.delete(key(cx,cz));if(removed)dirty();return removed;}
   // Edit pipelines report voxel coordinates, not chunk coordinates. Resolve
   // negative voxel positions with floor (not truncation) so boundary edits
   // invalidate the correct cached population without clearing neighbors.
@@ -182,13 +187,15 @@
    }
    active.clear();
    for(const [k,creatures] of staged)active.set(k,creatures);
+   dirty();
    return snapshot();
   }
   function snapshot(){
-   return Object.freeze(Array.from(active.values()).flat());
+   if(!cachedSnapshot)cachedSnapshot=Object.freeze(Array.from(active.values()).flat());
+   return cachedSnapshot;
   }
   return Object.freeze({enter,leave,invalidate,invalidateAtVoxel,sync,snapshot,activeChunks:()=>active.size,
-   clear:()=>active.clear()});
+   clear:()=>{if(active.size){active.clear();dirty();}}});
  }
  function cappedFlockStep(agents,dt,options={}){
   if(!Array.isArray(agents)||agents.length>64)throw RangeError('Flock must contain 0..64 agents');
