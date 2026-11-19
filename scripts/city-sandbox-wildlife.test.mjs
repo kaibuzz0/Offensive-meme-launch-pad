@@ -301,3 +301,23 @@ test('wildlife manager rejects out-of-domain cached and staged chunks atomically
  assert.equal(manager.activeChunks(),1);
  assert.strictEqual(manager.enter(0,0),original,'failed sync retains existing descriptors');
 });
+
+test('wetland frogs inhabit dry banks and shallow water but avoid deep water',()=>{
+ const base={seed:7,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:110,water:true,river:false,waterLevel:111,group:'wetland',biomeName:'Marsh',slope:0
+ })};
+ let shallowFrogs=0,dryFrogs=0;
+ for(let x=-5;x<=5;x++)for(let z=-5;z<=5;z++){
+  const shallow=spawnChunkOnTerrain(base,x,z);
+  assert.deepEqual(shallow,spawnChunkOnTerrain(base,x,z));
+  for(const a of shallow)if(a.species==='frog'){
+   shallowFrogs++;
+   assert.equal(a.y,112,'frog stands above shallow water');
+  }
+  const dry=spawnChunkOnTerrain({...base,surfaceAt:()=>({...base.surfaceAt(),water:false})},x,z);
+  dryFrogs+=dry.filter(a=>a.species==='frog').length;
+  const deep=spawnChunkOnTerrain({...base,surfaceAt:()=>({...base.surfaceAt(),height:100})},x,z);
+  assert.ok(deep.every(a=>a.species!=='frog'),'frog must not spawn in deep water');
+ }
+ assert.ok(shallowFrogs>0&&dryFrogs>0,'seeded wetland supports amphibians on both banks and shallows');
+});
