@@ -418,3 +418,23 @@ test('repeated visible-chunk sync preserves snapshot until order or membership c
  assert.ok(samples>initialSamples);
  assert.strictEqual(manager.sync([[1,0],[0,0]]),edited);
 });
+
+
+test('LRU cache hit updates snapshot order without regenerating creatures',()=>{
+ let samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:3});
+ const a=manager.enter(0,0),b=manager.enter(1,0);
+ const before=manager.snapshot(),sampleCount=samples;
+ manager.enter(1,0);
+ assert.strictEqual(manager.snapshot(),before,'most-recent hit does not alter ordering');
+ assert.strictEqual(manager.enter(0,0),a);
+ const reordered=manager.snapshot();
+ assert.notStrictEqual(reordered,before,'non-tail hit changes descriptor ordering');
+ assert.deepEqual(reordered,[...b,...a]);
+ assert.equal(samples,sampleCount,'LRU changes never regenerate terrain or wildlife');
+ assert.strictEqual(manager.snapshot(),reordered,'reordered snapshot is cached');
+});
