@@ -55,7 +55,9 @@
     heading:rand(seed,chunkX,chunkZ,400+i)*Math.PI*2
    }));
   }
-  return animals;
+  // Public generated populations are immutable just like terrain snapshots.
+  // Callers must keep per-instance movement and interaction state separately.
+  return Object.freeze(animals);
  }
  // Terrain adapter: reads existing voxel surface columns without changing seeds,
  // cave layouts, chunk caches, saves, or rendering. Coordinates stay in voxels.
