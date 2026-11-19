@@ -104,7 +104,7 @@
    let vx=finiteAxis(input?.right),vz=finiteAxis(input?.forward);
    const len=Math.hypot(vx,vz);
    if(len>1){vx/=len;vz/=len;}
-   const yaw=Number.isFinite(input?.yaw)?input.yaw:0;
+   const yaw=typeof input?.yaw==='number'&&Number.isFinite(input.yaw)?input.yaw:0;
    const rightX=Math.cos(yaw),rightZ=-Math.sin(yaw);
    const forwardX=Math.sin(yaw),forwardZ=Math.cos(yaw);
    // Count the direct water/feet surface probe as well as floorAt samples.
@@ -122,7 +122,7 @@
    const dz=(vx*rightZ+vz*forwardZ)*speed*step;
    // Two-axis sweep permits sliding along terrain walls.
    moveAxis('x',dx);moveAxis('z',dz);
-   if(input?.jump&&state.grounded){state.grounded=false;state.vy=JUMP_SPEED;}
+   if(input?.jump===true&&state.grounded){state.grounded=false;state.vy=JUMP_SPEED;}
    // Swimming is deliberately opt-in: an explicit water-volume query enables
    // controlled ascent, reduced gravity and terminal sinking velocity.
    // This avoids changing legacy below-sea-level terrain behavior.
@@ -132,7 +132,7 @@
    const previousY=state.y;
    if(swimming){
     state.grounded=false;
-    state.vy=clamp(state.vy+(input?.jump?14:-4)*step,-3,5);
+    state.vy=clamp(state.vy+(input?.jump===true?14:-4)*step,-3,5);
     state.y+=state.vy*step;
    }else if(!state.grounded){
     state.vy=Math.max(-40,state.vy-GRAVITY*step);
