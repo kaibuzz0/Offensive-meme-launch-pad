@@ -62,6 +62,7 @@
  // Terrain adapter: reads existing voxel surface columns without changing seeds,
  // cave layouts, chunk caches, saves, or rendering. Coordinates stay in voxels.
  const AQUATIC=new Set(['fish']);
+ const AMPHIBIOUS=new Set(['frog']);
  const AERIAL=new Set(['songbird','hawk','owl','eagle','duck','seabird','bat']);
  function spawnChunkOnTerrain(world,chunkX,chunkZ,options={}){
   if(!world||typeof world.surfaceAt!=='function'||!Number.isSafeInteger(world.seed))
@@ -99,18 +100,22 @@
    // creatures on near-vertical slopes.
    const wet=!!col.water||!!col.river;
    const aerial=AERIAL.has(animal.species);
+   const amphibious=AMPHIBIOUS.has(animal.species);
    // Land fauna must belong to the habitat under their actual feet, not
    // merely the center of a chunk that may straddle a biome boundary.
    // Aerial fauna can cross boundaries; aquatic fauna follows water below.
    if(!aerial&&!aquatic&&habitatFor({group:col.group,name:col.biomeName})!==animal.habitat)continue;
    // Flying species can traverse water and steep terrain; ground species
    // cannot. Fish require actual water and a finite water surface above bed.
-   if(aquatic?!wet:!aerial&&(wet||col.slope>18))continue;
+   if(aquatic?!wet:!aerial&&(!amphibious&&wet||col.slope>18))continue;
    const waterTop=Number.isFinite(col.waterLevel)?col.waterLevel:world.SEA_LEVEL;
    // Fish need enough water to remain above the bed and below the surface.
    if(aquatic&&(!Number.isFinite(waterTop)||waterTop-col.height<=0.5))continue;
+   // Frogs use wetland banks and shallow water, never deep open water.
+   if(amphibious&&wet&&(!Number.isFinite(waterTop)||waterTop-col.height>2))continue;
    const y=aquatic?Math.min(col.height+1,waterTop-0.5):
-    aerial?Math.max(col.height,wet?waterTop:col.height)+4+(hash(world.seed,x,z,511)%5):col.height+1;
+    aerial?Math.max(col.height,wet?waterTop:col.height)+4+(hash(world.seed,x,z,511)%5):
+    amphibious&&wet?Math.max(col.height,waterTop)+1:col.height+1;
    if(!Number.isFinite(y))continue;
    placed.push(Object.freeze({...animal,y}));
   }
