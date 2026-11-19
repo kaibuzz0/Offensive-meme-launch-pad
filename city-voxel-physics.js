@@ -11,7 +11,7 @@
   if(!world?.surfaceAt||!Number.isFinite(start?.x)||!Number.isFinite(start?.z))
    throw Error('Voxel world and finite player coordinates required');
   // Per-tick physics query counts, independent of visual detail.
-  let lastWork=Object.freeze({surfaceQueries:0,caveQueries:0,structuralQueries:0,waterQueries:0,sweepSegments:0,failed:false});
+  let lastWork=Object.freeze({surfaceQueries:0,caveQueries:0,structuralQueries:0,waterQueries:0,sweepSegments:0,requestedSeconds:0,simulatedSeconds:0,discardedSeconds:0,failed:false});
   let work=null;
   function floorAt(x,z,referenceY=Infinity){
    if(!Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>999900||Math.abs(z)>999900)return null;
@@ -100,6 +100,11 @@
    const before={...state};
    try {
    const step=clamp(dt,0,.05);
+   // Expose simulation time discarded by the bounded catch-up clamp.
+   // These are diagnostics, not a substitute for a shared fixed-step loop.
+   work.requestedSeconds=dt;
+   work.simulatedSeconds=step;
+   work.discardedSeconds=dt-step;
    const finiteAxis=value=>typeof value==='number'&&Number.isFinite(value)?clamp(value,-1,1):0;
    let vx=finiteAxis(input?.right),vz=finiteAxis(input?.forward);
    const len=Math.hypot(vx,vz);
