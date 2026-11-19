@@ -242,3 +242,19 @@ test('fish never intersect the bed in shallow water',()=>{
  }
  assert.ok(fish>0,'sufficient depth restores seeded fish');
 });
+
+
+test('terrain wildlife samples each column at most once per activation',()=>{
+ const counts=new Map();
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:(x,z)=>{
+  const key=x+':'+z;
+  counts.set(key,(counts.get(key)||0)+1);
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const first=spawnChunkOnTerrain(world,2,-3);
+ assert.ok(counts.size<=MAX_PER_CHUNK+1);
+ assert.ok([...counts.values()].every(n=>n===1),'repeated candidate columns reuse the sampled terrain');
+ counts.clear();
+ assert.deepEqual(spawnChunkOnTerrain(world,2,-3),first,'memoization preserves deterministic placement');
+ assert.ok([...counts.values()].every(n=>n===1));
+});
