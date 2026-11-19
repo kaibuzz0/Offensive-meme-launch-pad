@@ -99,6 +99,10 @@
    // creatures on near-vertical slopes.
    const wet=!!col.water||!!col.river;
    const aerial=AERIAL.has(animal.species);
+   // Land fauna must belong to the habitat under their actual feet, not
+   // merely the center of a chunk that may straddle a biome boundary.
+   // Aerial fauna can cross boundaries; aquatic fauna follows water below.
+   if(!aerial&&!aquatic&&habitatFor({group:col.group,name:col.biomeName})!==animal.habitat)continue;
    // Flying species can traverse water and steep terrain; ground species
    // cannot. Fish require actual water and a finite water surface above bed.
    if(aquatic?!wet:!aerial&&(wet||col.slope>18))continue;
