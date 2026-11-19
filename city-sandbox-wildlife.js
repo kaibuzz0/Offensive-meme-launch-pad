@@ -123,6 +123,9 @@
   const key=(cx,cz)=>cx+':'+cz;
   const validate=(cx,cz)=>{
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz))throw TypeError('Safe integer chunk coordinates required');
+   // Validate before cache lookup and before staging a multi-chunk sync.
+   const maxChunk=Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE);
+   if(Math.abs(cx)>maxChunk||Math.abs(cz)>maxChunk)throw RangeError('Chunk coordinates exceed safe voxel range');
   };
   function enter(cx,cz){
    validate(cx,cz);
