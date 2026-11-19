@@ -70,13 +70,23 @@
    throw RangeError('Chunk coordinates exceed safe voxel range');
   const centerX=chunkX*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
   const centerZ=chunkZ*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
-  const center=world.surfaceAt(centerX,centerZ);
+  // Reuse each sampled terrain column within this bounded spawn pass.
+  // No persistent cache: world edits remain visible on the next activation.
+  const columns=new Map();
+  const surface=(x,z)=>{
+   const key=x+':'+z;
+   if(columns.has(key))return columns.get(key);
+   const value=world.surfaceAt(x,z);
+   columns.set(key,value);
+   return value;
+  };
+  const center=surface(centerX,centerZ);
   if(!center)return Object.freeze([]);
   const biome={group:center.group,name:center.biomeName};
   const candidates=spawnChunk(world.seed,chunkX,chunkZ,biome,options);
   const placed=[];
   for(const animal of candidates){
-   const x=Math.floor(animal.x),z=Math.floor(animal.z),col=world.surfaceAt(x,z);
+   const x=Math.floor(animal.x),z=Math.floor(animal.z),col=surface(x,z);
    if(!col||!Number.isSafeInteger(col.height)||col.mouth||col.sinkhole)continue;
    const aquatic=AQUATIC.has(animal.species);
    // Rivers can host fish even where the atlas's biome is not a river biome.
