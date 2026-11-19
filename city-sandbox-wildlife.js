@@ -152,6 +152,9 @@
    return creatures;
   }
   function leave(cx,cz){validate(cx,cz);return active.delete(key(cx,cz));}
+  // Terrain edits invalidate only affected cached populations. The next enter
+  // resamples edited columns; unrelated chunks retain their descriptors.
+  function invalidate(cx,cz){validate(cx,cz);return active.delete(key(cx,cz));}
   function sync(chunks){
    if(!Array.isArray(chunks)||chunks.length>maxChunks)throw RangeError('Visible chunks exceed wildlife budget');
    const wanted=new Set();
@@ -176,7 +179,7 @@
   function snapshot(){
    return Object.freeze(Array.from(active.values()).flat());
   }
-  return Object.freeze({enter,leave,sync,snapshot,activeChunks:()=>active.size,
+  return Object.freeze({enter,leave,invalidate,sync,snapshot,activeChunks:()=>active.size,
    clear:()=>active.clear()});
  }
  function cappedFlockStep(agents,dt,options={}){
