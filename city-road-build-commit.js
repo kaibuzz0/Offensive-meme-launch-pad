@@ -44,8 +44,19 @@ async function commitRoadTransaction(store, key, expectedRevision, transition, l
 }
 
 export function commitWorkbenchBuild(store, key, action) {
-  return commitRoadTransaction(store, key, action?.expectedRevision,
-    before => buildWorkbenchState(before, action), 'building');
+  // Snapshot untrusted pointer/pose values before the first asynchronous read.
+  // Otherwise a caller can mutate the action while storage is pending and
+  // change the target or reach check after the user initiated the placement.
+  const captured = action && {
+    kind: action.kind,
+    expectedRevision: action.expectedRevision,
+    player: action.player && {x: action.player.x, y: action.player.y, z: action.player.z},
+    position: action.position && {x: action.position.x, z: action.position.z},
+    groundHeight: action.groundHeight,
+    isOccupied: action.isOccupied
+  };
+  return commitRoadTransaction(store, key, captured?.expectedRevision,
+    before => buildWorkbenchState(before, captured), 'building');
 }
 
 // The crate must come from the canonical seeded world and player pose must be
