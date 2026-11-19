@@ -8,8 +8,10 @@
  const GRAVITY=42,JUMP_SPEED=18,MAX_STEP=2.2,RADIUS=.27,SPEED=15;
  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
  function createController(world,start){
-  if(!world?.surfaceAt||!Number.isFinite(start?.x)||!Number.isFinite(start?.z))
+  if(typeof world?.surfaceAt!=='function'||!Number.isFinite(start?.x)||!Number.isFinite(start?.z))
    throw Error('Voxel world and finite player coordinates required');
+  if(!Number.isFinite(world.PLAYER_HEIGHT)||world.PLAYER_HEIGHT<=0)
+   throw Error('Finite positive player collision height required');
   // Per-tick physics query counts, independent of visual detail.
   let lastWork=Object.freeze({surfaceQueries:0,caveQueries:0,structuralQueries:0,waterQueries:0,sweepSegments:0,requestedSeconds:0,simulatedSeconds:0,discardedSeconds:0,failed:false});
   let work=null;
