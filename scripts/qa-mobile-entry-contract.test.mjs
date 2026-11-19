@@ -36,3 +36,18 @@ test('phone controls retain distinct movement, aiming and action surfaces', () =
   assert.match(html, /id="start-button"[^>]*type="button"/);
   assert.match(html, /No wallet needed\./);
 });
+
+test('critical mobile controls have unique IDs and terrain bootstrap loads once', () => {
+  // Duplicate IDs can attach listeners to a hidden legacy control instead of
+  // the visible touch surface. Count actual id attributes, not text mentions.
+  const ids = ['city-canvas', 'joystick', 'interact', 'fire', 'fullscreen-toggle', 'start-button'];
+  for (const id of ids) {
+    const matches = [...html.matchAll(/\\bid\\s*=\\s*["']([^"']+)["']/g)]
+      .filter((match) => match[1] === id);
+    assert.equal(matches.length, 1, `Expected exactly one #${id} control`);
+  }
+
+  const terrainLoads = [...html.matchAll(/<script\\b[^>]*\\bsrc=["']([^"']+)["'][^>]*>/g)]
+    .filter((match) => match[1].split('?')[0] === 'city-terrain-mode.js');
+  assert.equal(terrainLoads.length, 1, 'Terrain controller must not initialize twice');
+});
