@@ -185,6 +185,13 @@
     const k=key(cx,cz);
     staged.set(k,active.has(k)?active.get(k):spawnChunkOnTerrain(world,cx,cz,options));
    }
+   // A renderer may sync the same visible set every frame. Preserve the
+   // immutable snapshot unless membership, ordering, or descriptors changed.
+   const unchanged=active.size===staged.size&&Array.from(staged).every(([k,creatures],i)=>{
+    const previous=Array.from(active)[i];
+    return previous&&previous[0]===k&&previous[1]===creatures;
+   });
+   if(unchanged)return snapshot();
    active.clear();
    for(const [k,creatures] of staged)active.set(k,creatures);
    dirty();
