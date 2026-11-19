@@ -24,9 +24,26 @@ test('bad samples cannot silently improve percentiles', () => {
   ]);
   assert.equal(report.invalid, 2);
   assert.equal(report.samples, 2);
-  assert.equal(report.budgetResult, 'exceeds-provisional-budget');
+  assert.equal(report.budgetResult, 'incomplete-evidence');
   assert.deepEqual(report.deviceClasses, ['desktop']);
 });
 test('empty input explicitly reports no evidence', () => {
   assert.equal(summarize([]).budgetResult, 'no-evidence');
+});
+
+test('missing interaction timing cannot silently pass', () => {
+  const report = summarize([{ frameMs: 16, deviceClass: 'desktop' }]);
+  assert.equal(report.interactionSamples, 0);
+  assert.equal(report.budgetResult, 'incomplete-evidence');
+});
+test('mixed device classes cannot mask a slow device', () => {
+  const report = summarize([
+    { frameMs: 16, deviceClass: 'desktop', interactionStallMs: 10 },
+    { frameMs: 16, deviceClass: 'physical-android', interactionStallMs: 10 }
+  ]);
+  assert.equal(report.budgetResult, 'incomplete-evidence');
+});
+test('complete slow frames fail their provisional budget', () => {
+  const report = summarize([{ frameMs: 40, deviceClass: 'desktop', interactionStallMs: 250 }]);
+  assert.equal(report.budgetResult, 'exceeds-provisional-budget');
 });
