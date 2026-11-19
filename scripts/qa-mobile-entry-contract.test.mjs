@@ -25,3 +25,14 @@ test('mobile layout rules are present without depending on a wallet', () => {
   assert.match(html, /SOLO\s*\/\s*LOCAL SAVE/);
   assert.match(html, /id="interact"/);
 });
+
+test('phone controls retain distinct movement, aiming and action surfaces', () => {
+  // This is a DOM contract, not a substitute for a real touch gesture test.
+  assert.match(html, /id="joystick"[^>]*aria-label="Drag to move"/);
+  assert.match(html, /id="city-canvas"[^>]*tabindex="0"/);
+  assert.match(html, /id="interact"[^>]*type="button"/);
+  assert.match(html, /id="fire"[^>]*type="button"/);
+  assert.match(html, /id="fullscreen-toggle"[^>]*type="button"/);
+  assert.match(html, /id="start-button"[^>]*type="button"/);
+  assert.match(html, /No wallet needed\./);
+});
