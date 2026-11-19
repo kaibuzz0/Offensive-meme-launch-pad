@@ -36,7 +36,10 @@
   return 'plains';
  }
  function spawnChunk(seed,chunkX,chunkZ,biome,options={}){
-  if(!Number.isInteger(chunkX)||!Number.isInteger(chunkZ)||!Number.isInteger(seed))throw TypeError('Integer seed and chunk coordinates required');
+  if(!Number.isSafeInteger(chunkX)||!Number.isSafeInteger(chunkZ)||!Number.isSafeInteger(seed))throw TypeError('Safe integer seed and chunk coordinates required');
+  // IDs and voxel positions must remain exact; reject overflow before hashing.
+  const maxChunk=Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE);
+  if(Math.abs(chunkX)>maxChunk||Math.abs(chunkZ)>maxChunk)throw RangeError('Chunk coordinates exceed safe voxel range');
   const cap=options.maxPerChunk===undefined?MAX_PER_CHUNK:options.maxPerChunk;
   if(!Number.isInteger(cap)||cap<0||cap>MAX_PER_CHUNK)throw RangeError('maxPerChunk must be 0..6');
   const habitat=habitatFor(biome),species=HABITATS[habitat];
