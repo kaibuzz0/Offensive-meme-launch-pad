@@ -8,8 +8,8 @@ test('offline game cache enforces both entry and byte limits',()=>{
   assert.match(source,/GAME_MAX_BYTES=12\*1024\*1024/);
   assert.match(source,/GAME_MAX_RESPONSE_BYTES=4\*1024\*1024/);
   assert.match(source,/body\.byteLength>GAME_MAX_RESPONSE_BYTES/);
-  assert.match(source,/total>GAME_MAX_BYTES/);
-  assert.match(source,/await cache\.delete\(keys\[i\]\)/);
+  assert.match(source,/gameTotal<=GAME_MAX_BYTES/);
+  assert.match(source,/await cache\.delete\(oldest\)/);
 });
 test('offline cache never includes wallet or remote API routes',()=>{
   assert.match(source,/url\.origin!==scopeUrl\.origin/);
