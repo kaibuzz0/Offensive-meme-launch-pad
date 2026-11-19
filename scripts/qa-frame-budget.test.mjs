@@ -82,3 +82,15 @@ test('short recordings cannot claim a representative percentile pass', () => {
   const sufficient = summarize(Array.from({ length: 120 }, () => sample));
   assert.equal(sufficient.budgetResult, 'within-provisional-budget');
 });
+
+test('summarize sorts owned frame values without mutating source records', () => {
+  const records = [40, 10, 30, 20];
+  const samples = Array.from({ length: 30 }, () => records).flat().map(frameMs => ({
+    frameMs, deviceClass: 'desktop', interactionStallMs: 0
+  }));
+  const before = structuredClone(samples);
+  const report = summarize(samples);
+  assert.equal(report.samples, 120);
+  assert.equal(report.frameMs.p50, 25);
+  assert.deepEqual(samples, before);
+});
