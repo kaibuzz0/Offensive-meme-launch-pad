@@ -61,7 +61,12 @@ try{
   while(chromeDiagnostics.join('').length>diagnosticLimit)chromeDiagnostics.shift();
  };
  chrome=spawn(chromeBin,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',
-  '--remote-debugging-port=0','--user-data-dir='+profile,'--no-first-run','--no-default-browser-check','about:blank'],{stdio:['ignore','pipe','pipe']});
+  '--remote-debugging-port=0','--user-data-dir='+profile,'--no-first-run','--no-default-browser-check','about:blank'],{
+  stdio:['ignore','pipe','pipe'],
+  // CI runners may expose an invalid session bus address. Chrome's headless
+  // CDP endpoint does not require a desktop session bus.
+  env:{...process.env,DBUS_SESSION_BUS_ADDRESS:''}
+ });
  chrome.stdout.on('data',captureChromeOutput);
  chrome.stderr.on('data',captureChromeOutput);
  let chromeExit=null;
