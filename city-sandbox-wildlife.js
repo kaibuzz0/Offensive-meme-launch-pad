@@ -71,7 +71,7 @@
   const centerX=chunkX*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
   const centerZ=chunkZ*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
   const center=world.surfaceAt(centerX,centerZ);
-  if(!center)return [];
+  if(!center)return Object.freeze([]);
   const biome={group:center.group,name:center.biomeName};
   const candidates=spawnChunk(world.seed,chunkX,chunkZ,biome,options);
   const placed=[];
