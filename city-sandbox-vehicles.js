@@ -55,6 +55,14 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
     // The collision adapter must see the proposed orientation, not the old one.
     // A blocked initial sweep must not rotate the vehicle into an obstacle.
     const previousHeading=v.heading;
+    // Never allow an embedded starting footprint to escape through a turn.
+    // Check the original pose before any proposed steering or translation.
+    const startingPermitted=environment.canOccupy(origin,v);
+    if(typeof startingPermitted!=='boolean') throw new TypeError('canOccupy must return a boolean');
+    if(!startingPermitted){
+      v.speed=0;
+      return v;
+    }
     v.heading=heading;
     // Test the proposed footprint at the current location before translating.
     // Otherwise a steering change can rotate a vehicle into an adjacent wall.
