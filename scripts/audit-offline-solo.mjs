@@ -34,8 +34,8 @@ if (!shellMatch) {
   // This deliberately does not claim to resolve runtime imports, worker URLs or CSS url().
   // Navigation fallback must return the requested game/homepage document, not an
   // unrelated offline notice. A precache allowlist alone cannot prove this.
-  const navigationUsesOfflineNotice = /request\\.mode\\s*===?\\s*['\"]navigate['\"]/.test(sw)
-    && /fetch\\(request\\)\\.catch\\([\\s\\S]*?offline\\.html/.test(sw);
+  const navigationUsesOfflineNotice = /request\.mode\s*===?\s*['"]navigate['"]/.test(sw)
+    && /fetch\(request\)\.catch\([\s\S]*?offline\.html/.test(sw);
   const navigationFallbackUnverified = !navigationUsesOfflineNotice;
   const requiredAssets = [...required].sort();
   const missingFiles = requiredAssets.filter(asset => !fs.existsSync(path.join(root, asset)));
