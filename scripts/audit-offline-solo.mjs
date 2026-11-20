@@ -15,6 +15,10 @@ if (!shellMatch) {
 } else {
   const cached = [...shellMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(match => match[1]);
   const entry = homepage.match(/href=["'](city\.html\?[^"']+)["']/)?.[1] ?? null;
+  // Track all public game links, including temporary legacy/compatibility routes.
+  // They are migration inventory, not evidence that those modes are separate releases.
+  const homepageGameRoutes = [...new Set([...homepage.matchAll(/href=[\"'](city\\.html(?:\\?[^\\"']*)?)[\"']/gi)]
+    .map(match => match[1].replace(/&amp;/g, '&')))];
   const localPath = value => {
     const url = value.trim();
     if (/^(?:[a-z][a-z\d+.-]*:|\/\/|#)/i.test(url)) return null;
@@ -79,6 +83,8 @@ if (!shellMatch) {
   const report = {
     kind: 'source-only-offline-audit',
     homepagePlayCandidate: entry,
+    homepageGameRoutes,
+    multiplePublicGameRoutes: homepageGameRoutes.length > 1,
     precacheCount: cached.length,
     requiredAssetCount: requiredAssets.length,
     scannedSourceCount: scanned.size,
