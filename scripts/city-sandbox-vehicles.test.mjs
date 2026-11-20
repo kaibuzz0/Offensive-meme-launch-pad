@@ -28,3 +28,25 @@ test('invalid timestep and controls rejected',()=>{
  assert.throws(()=>stepVehicle(createVehicle(),{},.2),/dt/);
  assert.throws(()=>stepVehicle(createVehicle(),{throttle:NaN}),/finite/);
 });
+
+test('fast vehicle cannot tunnel through a quarter-meter wall between endpoints',()=>{
+ let v=createVehicle('car');
+ v.speed=32;
+ const checked=[];
+ const wall=0.3;
+ v=stepVehicle(v,{throttle:0},0.1,{canOccupy:p=>{checked.push(p.z);return p.z<wall;}});
+ assert.ok(checked.length>1,'collision must sample intermediate positions');
+ assert.ok(v.position.z<wall,'vehicle must stop before the wall');
+ assert.equal(v.speed,0);
+});
+test('vehicle collision remains identical across visual-detail settings',()=>{
+ const run=visualDetail=>{
+  let v=createVehicle('car');
+  v.speed=20;
+  for(let i=0;i<5;i++)v=stepVehicle(v,{throttle:1},1/60,{
+   visualDetail,canOccupy:p=>p.z<0.75
+  });
+  return v;
+ };
+ assert.deepEqual(run('low'),run('high'));
+});
