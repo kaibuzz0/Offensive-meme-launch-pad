@@ -126,3 +126,20 @@ test('explicit undefined voxel scale is not a legacy missing field', () => {
   assert.equal(createVoxelEditJournal('seed-explicit-undefined', legacy).get(-2, 1, 3), 'stone');
   assert.deepEqual(createVoxelEditJournal('seed-explicit-undefined', saved).snapshot(), saved);
 });
+
+
+test('rejects inherited edit fields in commands and restored snapshots without mutation', () => {
+  const journal = createVoxelEditJournal('seed-own-fields');
+  const inherited = Object.create({ x: 1, y: 2, z: 3, block: 'stone' });
+  assert.throws(() => journal.apply(inherited), /own properties/);
+  assert.equal(journal.revision, 0);
+  assert.equal(journal.size, 0);
+  const partial = Object.assign(Object.create({ block: 'stone' }), { x: 1, y: 2, z: 3 });
+  assert.throws(() => journal.apply(partial), /own properties/);
+  const snapshot = { version: JOURNAL_VERSION, worldSeed: 'seed-own-fields',
+    voxelMetres: VOXEL_METRES, revision: 1, edits: [inherited] };
+  assert.throws(() => createVoxelEditJournal('seed-own-fields', snapshot), /own properties/);
+  assert.equal(journal.revision, 0);
+  assert.deepEqual(journal.snapshot().edits, []);
+  assert.equal(journal.apply({ x: 1, y: 2, z: 3, block: 'stone' }).changed, true);
+});
