@@ -291,7 +291,8 @@
  }
  function claimSeal(){
   if(!running||paused||!firstPerson||atlas||!atGate()||sealClaimed)return;
-  sealClaimed=put(sealKey(),'1');
+  const saved=put(sealKey(),'1');
+  sealClaimed=saved&&get(sealKey())==='1';
   gateButton.textContent=sealClaimed?'Gate seal collected':'Save unavailable · retry';
  }
  gateButton.textContent='Claim gate seal';
@@ -325,7 +326,14 @@
  // A second tab may claim the same seed's cache while this tab is running.
  // Refresh the visible action state rather than presenting a stale pickup.
  window.addEventListener('storage',event=>{
-  if(event.storageArea!==window.localStorage||event.key!==supplyKey())return;
+  if(event.storageArea!==window.localStorage)return;
+  if(event.key===sealKey()){
+   sealClaimed=get(sealKey())==='1';
+   gateButton.textContent=sealClaimed?'Gate seal collected':'Claim gate seal';
+   gateButton.disabled=sealClaimed;
+   return;
+  }
+  if(event.key!==supplyKey())return;
   suppliesClaimed=get(supplyKey())==='1';
   supplyButton.textContent=suppliesClaimed?'8 supplies recovered':'Collect 8 builder supplies';
   supplyButton.hidden=suppliesClaimed||!atSupplies();
