@@ -44,19 +44,27 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   // Endpoint-only checks could tunnel a fast vehicle through a thin wall.
   // Keep the last safe position and stop at the first blocked sample.
   if(environment.canOccupy){
+    if(typeof environment.canOccupy!=='function') throw new TypeError('canOccupy must be a function');
     const distance=Math.hypot(candidate.x-v.position.x,candidate.z-v.position.z);
     const segments=Math.max(1,Math.ceil(distance/0.25));
     const origin=v.position;
     let blocked=false;
+    // The collision adapter must see the proposed orientation, not the old one.
+    // A blocked initial sweep must not rotate the vehicle into an obstacle.
+    const previousHeading=v.heading;
+    v.heading=heading;
     for(let i=1;i<=segments;i++){
       const t=i/segments;
       const sample={x:origin.x+(candidate.x-origin.x)*t,y:origin.y,z:origin.z+(candidate.z-origin.z)*t};
       if(!environment.canOccupy(sample,v)){blocked=true;break;}
       v.position=sample;
     }
-    if(blocked) speed=0;
-  }else v.position=candidate;
-  v.heading=heading;v.speed=speed;
+    if(blocked){
+      speed=0;
+      if(v.position===origin) v.heading=previousHeading;
+    }
+  }else {v.position=candidate;v.heading=heading;}
+  v.speed=speed;
   if(active) v.fuel=Math.max(0,v.fuel-Math.abs(throttle)*dt*.002);
   return v;
 }
