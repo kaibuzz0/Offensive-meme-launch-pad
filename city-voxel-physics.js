@@ -202,9 +202,11 @@
     accumulator=Math.max(0,accumulator-FIXED_DT);
     steps++;
    }
-   // Discard excess whole steps, retaining only interpolation remainder.
-   const droppedBacklog=Math.max(0,accumulator-FIXED_DT+1e-10);
-   if(droppedBacklog>0)accumulator-=droppedBacklog;
+   // Discard ALL unprocessed whole steps after the bounded catch-up.
+   // Retaining a full step here would advance the world on a zero-delta frame.
+   const wholeBacklogSteps=Math.floor((accumulator+1e-10)/FIXED_DT);
+   const droppedBacklog=wholeBacklogSteps*FIXED_DT;
+   if(wholeBacklogSteps>0)accumulator=Math.max(0,accumulator-droppedBacklog);
    return Object.freeze({state:snapshot(),steps,alpha:Math.min(1,accumulator/FIXED_DT),
     simulatedSeconds:steps*FIXED_DT,discardedSeconds:discardedInput+droppedBacklog,
     activeBodies:1,...totals});
