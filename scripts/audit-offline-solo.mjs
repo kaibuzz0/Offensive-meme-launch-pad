@@ -38,7 +38,12 @@ if (!shellMatch) {
   const resolveLocal = (from, value) => {
     const asset = localPath(value);
     if (!asset) return null;
-    const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(from), asset));
+    // Root-relative references resolve from the PWA scope root, not the importing
+    // module's directory. Otherwise /assets/foo.js inside js/main.js is
+    // incorrectly reported as js/assets/foo.js.
+    const resolved = value.trim().startsWith('/')
+      ? path.posix.normalize(asset)
+      : path.posix.normalize(path.posix.join(path.posix.dirname(from), asset));
     return resolved.startsWith('../') || resolved === '..' ? null : resolved;
   };
   while (queue.length) {
