@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createVehicle,stepVehicle,saveVehicle,loadVehicle,VEHICLE_PRESETS} from '../city-sandbox-vehicles.js';
+import {createVehicle,stepVehicle,saveVehicle,loadVehicle,VEHICLE_PRESETS,advanceVehicleFrame} from '../city-sandbox-vehicles.js';
 test('car and truck presets initialize independently',()=>{
  for(const type of Object.keys(VEHICLE_PRESETS)){const v=createVehicle(type);assert.equal(v.type,type);assert.equal(v.fuel,VEHICLE_PRESETS[type].fuelCapacity);assert.deepEqual(v.position,{x:0,y:0,z:0});}
 });
@@ -144,4 +144,37 @@ test('embedded initial vehicle footprint cannot steer or translate out through s
  assert.equal(result.heading,vehicle.heading);
  assert.equal(result.speed,0);
  assert.equal(vehicle.speed,15,'caller state is not mutated');
+});
+
+
+test('bounded vehicle frame catch-up matches explicit fixed steps',()=>{
+ const start=createVehicle('car');
+ const env={requireCollision:true,canOccupy:()=>true};
+ const result=advanceVehicleFrame(start,{throttle:1},0.5,env,{remainder:0},{step:1/60,maxSteps:4});
+ let manual=start;
+ for(let i=0;i<4;i++) manual=stepVehicle(manual,{throttle:1},1/60,env);
+ assert.deepEqual(result.vehicle,manual);
+ assert.equal(result.steps,4);
+ assert.ok(result.droppedSeconds>0.43);
+ assert.ok(result.clock.remainder>=0&&result.clock.remainder<1/60);
+ assert.deepEqual(start.position,{x:0,y:0,z:0});
+});
+
+test('frame remainder accumulates small frames without changing visual-detail physics',()=>{
+ const run=visualDetail=>{
+  let state={vehicle:createVehicle(),clock:{remainder:0}};
+  for(let i=0;i<12;i++) state=advanceVehicleFrame(state.vehicle,{throttle:1},1/120,
+   {requireCollision:true,visualDetail,canOccupy:()=>true},state.clock);
+  return state;
+ };
+ assert.deepEqual(run('low'),run('high'));
+ assert.equal(run('low').steps,1);
+});
+
+test('invalid frame scheduler settings fail before simulation',()=>{
+ const vehicle=createVehicle();
+ for(const seconds of [-1,NaN,Infinity]) assert.throws(()=>advanceVehicleFrame(vehicle,{},seconds),/frameSeconds/);
+ assert.throws(()=>advanceVehicleFrame(vehicle,{},0,{}, {remainder:-1}),/remainder/);
+ assert.throws(()=>advanceVehicleFrame(vehicle,{},0,{}, {},{maxSteps:0}),/maxSteps/);
+ assert.throws(()=>advanceVehicleFrame(vehicle,{},0,{}, {},{step:0}),/step/);
 });
