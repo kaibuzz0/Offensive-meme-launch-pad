@@ -28,6 +28,10 @@ function material(value) {
 
 function normalizedEdit(edit) {
   if (!edit || typeof edit !== 'object' || Array.isArray(edit)) throw new TypeError('invalid edit');
+  // Reject prototype-inherited fields: commands and restored records must carry their own values.
+  if (!['x', 'y', 'z', 'block'].every(field => Object.hasOwn(edit, field))) {
+    throw new TypeError('voxel edit fields must be own properties');
+  }
   const x = coordinate(edit.x);
   const y = coordinate(edit.y);
   const z = coordinate(edit.z);
