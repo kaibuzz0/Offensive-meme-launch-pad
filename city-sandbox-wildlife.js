@@ -118,6 +118,21 @@
    const cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE);
    return active.delete(key(cx,cz));
   }
+  // Accept a committed edit delta as a batch: validate every coordinate before
+  // touching the cache, then invalidate each owning chunk once. Callers must
+  // supply only durable, changed voxel positions after transaction success.
+  function invalidateCommittedVoxels(voxels){
+   if(!Array.isArray(voxels)||voxels.length>4096)throw RangeError('Committed voxel batch must contain 0..4096 edits');
+   const affected=new Set();
+   for(const voxel of voxels){
+    if(!voxel||!Number.isSafeInteger(voxel.x)||!Number.isSafeInteger(voxel.z))
+     throw TypeError('Committed edits require safe integer x and z');
+    affected.add(key(Math.floor(voxel.x/CHUNK_SIZE),Math.floor(voxel.z/CHUNK_SIZE)));
+   }
+   let removed=0;
+   for(const k of affected)if(active.delete(k))removed++;
+   return removed;
+  }
   function leave(cx,cz){validate(cx,cz);return active.delete(key(cx,cz));}
   function sync(chunks){
    if(!Array.isArray(chunks)||chunks.length>maxChunks)throw RangeError('Visible chunks exceed wildlife budget');
@@ -143,7 +158,7 @@
   function snapshot(){
    return Object.freeze(Array.from(active.values()).flat());
   }
-  return Object.freeze({enter,leave,sync,invalidateAtVoxel,snapshot,activeChunks:()=>active.size,
+  return Object.freeze({enter,leave,sync,invalidateAtVoxel,invalidateCommittedVoxels,snapshot,activeChunks:()=>active.size,
    clear:()=>active.clear()});
  }
  function cappedFlockStep(agents,dt,options={}){
