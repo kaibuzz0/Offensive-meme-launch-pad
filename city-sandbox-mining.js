@@ -51,7 +51,9 @@ export function createVoxelEditJournal(worldSeed, snapshot) {
   let revision = 0;
   const changes = new Map();
   if (snapshot !== undefined) {
-    if (!snapshot || snapshot.version !== JOURNAL_VERSION || snapshot.worldSeed !== worldSeed ||
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot) ||
+        !['version', 'worldSeed', 'revision', 'edits'].every(field => Object.hasOwn(snapshot, field)) ||
+        snapshot.version !== JOURNAL_VERSION || snapshot.worldSeed !== worldSeed ||
         (Object.hasOwn(snapshot, 'voxelMetres') && snapshot.voxelMetres !== VOXEL_METRES) ||
         !Array.isArray(snapshot.edits) || snapshot.edits.length > MAX_EDITS) {
       throw new Error('incompatible voxel edit snapshot');
