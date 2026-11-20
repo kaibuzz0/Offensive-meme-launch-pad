@@ -95,3 +95,12 @@ test('out-of-domain committed edit batches reject atomically before cache mutati
  assert.deepEqual(manager.snapshot(),before);
  assert.equal(manager.activeChunks(),2);
 });
+
+test('single-voxel invalidation rejects out-of-domain chunks without mutating cache',()=>{
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ manager.enter(0,0);
+ const before=manager.snapshot();
+ assert.throws(()=>manager.invalidateAtVoxel(0x80000000*16,0),RangeError);
+ assert.deepEqual(manager.snapshot(),before);
+ assert.equal(manager.activeChunks(),1);
+});
