@@ -32,6 +32,9 @@ function normalizedEdit(edit) {
   if (!['x', 'y', 'z', 'block'].every(field => Object.hasOwn(edit, field))) {
     throw new TypeError('voxel edit fields must be own properties');
   }
+  if (!['x', 'y', 'z', 'block'].every(field => Object.hasOwn(Object.getOwnPropertyDescriptor(edit, field), 'value'))) {
+    throw new TypeError('voxel edit fields must be data properties');
+  }
   const x = coordinate(edit.x);
   const y = coordinate(edit.y);
   const z = coordinate(edit.z);
