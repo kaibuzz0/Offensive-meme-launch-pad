@@ -141,7 +141,9 @@
    for(const voxel of voxels){
     if(!voxel||!Number.isSafeInteger(voxel.x)||!Number.isSafeInteger(voxel.z))
      throw TypeError('Committed edits require safe integer x and z');
-    affected.add(key(Math.floor(voxel.x/CHUNK_SIZE),Math.floor(voxel.z/CHUNK_SIZE)));
+    const cx=Math.floor(voxel.x/CHUNK_SIZE),cz=Math.floor(voxel.z/CHUNK_SIZE);
+    validate(cx,cz);
+    affected.add(key(cx,cz));
    }
    let removed=0;
    for(const k of affected)if(active.delete(k))removed++;
