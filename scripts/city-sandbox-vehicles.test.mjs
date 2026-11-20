@@ -106,3 +106,24 @@ test('falsy non-function vehicle occupancy adapters cannot disable collision',()
   assert.deepEqual(vehicle.position,{x:0,y:0,z:0});
  }
 });
+
+test('steering checks intermediate orientations before translating',()=>{
+ const vehicle=createVehicle('car');
+ vehicle.speed=32;
+ const headings=[];
+ const result=stepVehicle(vehicle,{steering:1},0.1,{
+  canOccupy:(position,body)=>{
+   if(position.x===0&&position.z===0){
+    headings.push(body.heading);
+    // Both endpoints are permitted; a narrow obstruction lies mid-rotation.
+    return !(body.heading>0.15&&body.heading<0.35);
+   }
+   return true;
+  }
+ });
+ assert.ok(headings.length>2,'intermediate steering footprints must be queried');
+ assert.deepEqual(result.position,vehicle.position);
+ assert.equal(result.heading,vehicle.heading);
+ assert.equal(result.speed,0);
+ assert.equal(vehicle.speed,32,'caller state remains unchanged');
+});
