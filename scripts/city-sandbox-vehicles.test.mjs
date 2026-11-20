@@ -58,8 +58,7 @@ test('swept vehicle collision uses proposed heading and rejects blocked rotation
  const result=stepVehicle(v,{steering:1},1/60,{
   canOccupy:(position,body)=>{
    assert.ok(Number.isFinite(body.heading));
-   assert.notEqual(body.heading,0,'oriented collision must see proposed heading');
-   return false;
+   return body.heading===0; // Initial pose is clear; proposed heading is blocked.
   }
  });
  assert.deepEqual(result.position,before);
@@ -92,7 +91,7 @@ test('vehicle rejects a steering footprint overlapping a wall at its origin',()=
    return !(position.x===0&&position.z===0&&body.heading!==0);
   }
  });
- assert.equal(samples,1,'blocked rotation must not proceed into translation sweep');
+ assert.equal(samples,2,'initial and proposed poses are checked; translation must not run');
  assert.deepEqual(result.position,vehicle.position);
  assert.equal(result.heading,vehicle.heading);
  assert.equal(result.speed,0);
@@ -126,4 +125,23 @@ test('steering checks intermediate orientations before translating',()=>{
  assert.equal(result.heading,vehicle.heading);
  assert.equal(result.speed,0);
  assert.equal(vehicle.speed,32,'caller state remains unchanged');
+});
+
+
+test('embedded initial vehicle footprint cannot steer or translate out through solid geometry',()=>{
+ const vehicle=createVehicle('truck',{x:4,y:0,z:6});
+ vehicle.speed=15;
+ const queried=[];
+ const result=stepVehicle(vehicle,{throttle:1,steering:1},1/60,{
+  requireCollision:true,
+  canOccupy:(position,body)=>{
+   queried.push({position:{...position},heading:body.heading});
+   return body.heading!==vehicle.heading; // Only the original embedded pose is blocked.
+  }
+ });
+ assert.equal(queried.length,1,'must reject before attempting a different heading');
+ assert.deepEqual(result.position,vehicle.position);
+ assert.equal(result.heading,vehicle.heading);
+ assert.equal(result.speed,0);
+ assert.equal(vehicle.speed,15,'caller state is not mutated');
 });
