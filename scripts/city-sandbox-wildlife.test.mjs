@@ -563,3 +563,26 @@ test('aquatic and aerial wildlife do not require terrestrial slope metadata',()=
   assert.ok(found>0,'fixture must exercise at least one eligible species');
  }
 });
+
+test('committed edit batches invalidate unique chunks atomically including negative voxels',()=>{
+ let samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:3});
+ const a=manager.enter(-1,0),b=manager.enter(0,0),c=manager.enter(1,0);
+ const snapshot=manager.snapshot(),before=samples;
+ assert.throws(()=>manager.invalidateCommittedVoxels([{x:-1,z:0},{x:1.5,z:0}]),TypeError);
+ assert.throws(()=>manager.invalidateCommittedVoxels([{x:-1,z:0},{x:2147483648*16,z:0}]),RangeError);
+ assert.strictEqual(manager.snapshot(),snapshot,'rejected batch leaves the snapshot untouched');
+ assert.equal(manager.activeChunks(),3);
+ assert.equal(samples,before,'rejected batch never samples terrain');
+ assert.equal(manager.invalidateCommittedVoxels([{x:-1,z:0},{x:-16,z:0},{x:0,z:0}]),2);
+ assert.equal(manager.activeChunks(),1);
+ assert.strictEqual(manager.enter(1,0),c,'unaffected chunk keeps its descriptor');
+ assert.deepEqual(manager.enter(-1,0),a);
+ assert.deepEqual(manager.enter(0,0),b);
+ assert.equal(manager.invalidateCommittedVoxels([]),0);
+ assert.throws(()=>manager.invalidateCommittedVoxels(Array(4097).fill({x:0,z:0})),RangeError);
+});
