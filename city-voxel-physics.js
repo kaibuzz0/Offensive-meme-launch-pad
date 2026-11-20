@@ -182,7 +182,36 @@
     work=null;
    }
   }
-  return Object.freeze({tick,snapshot,teleport,floorAt,profileLastTick:()=>lastWork,
+  // Frame scheduler for the canonical runtime. All gameplay bodies can be
+  // stepped from the same fixed cadence; rendering detail never changes it.
+  // A bounded backlog prevents an inactive browser tab from causing a spiral.
+  const FIXED_DT=1/60, MAX_FRAME_DT=.25, MAX_SUBSTEPS=4;
+  let accumulator=0;
+  function tickFrame(input,elapsedSeconds){
+   if(!Number.isFinite(elapsedSeconds)||elapsedSeconds<0)
+    throw Error('Invalid frame time');
+   const accepted=Math.min(elapsedSeconds,MAX_FRAME_DT);
+   const discardedInput=elapsedSeconds-accepted;
+   accumulator+=accepted;
+   let steps=0;
+   const totals={surfaceQueries:0,caveQueries:0,structuralQueries:0,waterQueries:0,sweepSegments:0};
+   while(accumulator+1e-10>=FIXED_DT&&steps<MAX_SUBSTEPS){
+    tick(input,FIXED_DT);
+    const work=profileLastTick();
+    for(const key of Object.keys(totals))totals[key]+=work[key];
+    accumulator=Math.max(0,accumulator-FIXED_DT);
+    steps++;
+   }
+   // Discard excess whole steps, retaining only interpolation remainder.
+   const droppedBacklog=Math.max(0,accumulator-FIXED_DT+1e-10);
+   if(droppedBacklog>0)accumulator-=droppedBacklog;
+   return Object.freeze({state:snapshot(),steps,alpha:Math.min(1,accumulator/FIXED_DT),
+    simulatedSeconds:steps*FIXED_DT,discardedSeconds:discardedInput+droppedBacklog,
+    activeBodies:1,...totals});
+  }
+  function profileLastTick(){return lastWork;}
+  return Object.freeze({tick,tickFrame,snapshot,teleport,floorAt,profileLastTick,
+   FIXED_DT,MAX_SUBSTEPS,
    GRAVITY,JUMP_SPEED,MAX_STEP,PLAYER_HEIGHT:world.PLAYER_HEIGHT});
  }
  root.CityVoxelPhysics=Object.freeze({createController,GRAVITY,JUMP_SPEED,MAX_STEP});
