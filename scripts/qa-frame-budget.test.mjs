@@ -94,3 +94,23 @@ test('summarize sorts owned frame values without mutating source records', () =>
   assert.equal(report.frameMs.p50, 25);
   assert.deepEqual(samples, before);
 });
+
+test('CLI streams JSONL including blank lines without changing percentile results', async () => {
+  const { mkdtemp, writeFile, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { execFileSync } = await import('node:child_process');
+  const dir = await mkdtemp(join(tmpdir(), 'meme-city-qa-'));
+  try {
+    const file = join(dir, 'frames.jsonl');
+    const row = JSON.stringify({ frameMs: 16, deviceClass: 'emulated-mobile', interactionStallMs: 0 });
+    await writeFile(file, '\n' + Array.from({ length: 120 }, () => row).join('\n') + '\n');
+    const output = execFileSync(process.execPath, [new URL('./qa-frame-budget.mjs', import.meta.url).pathname, file], { encoding: 'utf8' });
+    const result = JSON.parse(output);
+    assert.equal(result.samples, 120);
+    assert.equal(result.budgetResult, 'within-provisional-budget');
+    assert.deepEqual(result.deviceClasses, ['emulated-mobile']);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
