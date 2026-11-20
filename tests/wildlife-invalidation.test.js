@@ -53,3 +53,20 @@ test('malformed committed batch is rejected without partial invalidation',()=>{
  assert.throws(()=>manager.invalidateCommittedVoxels(Array(4097).fill({x:0,z:0})),RangeError);
  assert.equal(manager.activeChunks(),2);
 });
+
+test('terrain columns are sampled at most once per chunk and refresh after committed edits',()=>{
+ let height=10, calls=0;
+ const terrain={...world,surfaceAt(x,z){calls++;return {height,group:'forest',slope:0};}};
+ const manager=createChunkWildlifeManager(terrain);
+ const first=manager.enter(0,0);
+ assert.ok(calls<=7,'center plus six candidates is the maximum column sample count');
+ const before=calls;
+ assert.deepEqual(manager.enter(0,0),first);
+ assert.equal(calls,before,'cached chunk does not resample');
+ height=13;
+ manager.invalidateCommittedVoxels([{x:0,z:0}]);
+ const second=manager.enter(0,0);
+ assert.deepEqual(second.map(a=>a.id),first.map(a=>a.id));
+ assert.deepEqual(second.map(a=>a.y),first.map(a=>a.y+3));
+ assert.ok(calls>before,'committed edit forces fresh terrain samples');
+});
