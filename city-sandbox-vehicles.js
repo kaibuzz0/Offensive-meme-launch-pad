@@ -62,6 +62,21 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
       v.speed=0;
       return v;
     }
+    // Sweep intermediate orientations too: a long chassis can intersect a wall
+    // during steering even when both endpoint footprints are clear.
+    const rotation=angle(heading-previousHeading);
+    const angularSamples=Math.max(1,Math.ceil(Math.abs(rotation)/0.05));
+    for(let i=1;i<angularSamples;i++){
+      v.heading=angle(previousHeading+rotation*i/angularSamples);
+      const permitted=environment.canOccupy(origin,v);
+      if(typeof permitted!=='boolean') throw new TypeError('canOccupy must return a boolean');
+      if(!permitted){
+        v.heading=previousHeading;
+        v.speed=0;
+        return v;
+      }
+    }
+    v.heading=heading;
     for(let i=1;i<=segments;i++){
       const t=i/segments;
       const sample={x:origin.x+(candidate.x-origin.x)*t,y:origin.y,z:origin.z+(candidate.z-origin.z)*t};
