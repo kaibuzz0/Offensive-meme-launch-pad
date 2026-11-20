@@ -62,6 +62,13 @@ export function commitWorkbenchBuild(store, key, action) {
 // The crate must come from the canonical seeded world and player pose must be
 // resolved by the authoritative controller/server, never trusted from a client.
 export function commitRoadSalvage(store, key, action) {
-  return commitRoadTransaction(store, key, action?.expectedRevision,
-    before => salvageRoadSupplies(before, action), 'salvage');
+  // Capture the authoritative pose and seeded crate before any asynchronous
+  // store read; mutable caller objects must not retarget a pending pickup.
+  const captured = action && {
+    expectedRevision: action.expectedRevision,
+    player: action.player && { x: action.player.x, y: action.player.y, z: action.player.z },
+    crate: action.crate && { x: action.crate.x, y: action.crate.y, z: action.crate.z }
+  };
+  return commitRoadTransaction(store, key, captured?.expectedRevision,
+    before => salvageRoadSupplies(before, captured), 'salvage');
 }
