@@ -178,6 +178,24 @@
     throw TypeError('Safe integer voxel coordinates required');
    return invalidate(Math.floor(x/CHUNK_SIZE),Math.floor(z/CHUNK_SIZE));
   }
+  // Accept a complete, successfully committed edit batch. Validate all inputs
+  // before touching the cache so a malformed trailing edit cannot cause a
+  // partial invalidation. Callers own transaction durability and ordering.
+  function invalidateCommittedVoxels(edits){
+   if(!Array.isArray(edits)||edits.length>4096)throw RangeError('Committed voxel edits must be an array of at most 4096');
+   const affected=new Set();
+   for(const edit of edits){
+    if(!edit||!Number.isSafeInteger(edit.x)||!Number.isSafeInteger(edit.z))
+     throw TypeError('Committed edits require safe integer x,z voxel coordinates');
+    const cx=Math.floor(edit.x/CHUNK_SIZE),cz=Math.floor(edit.z/CHUNK_SIZE);
+    validate(cx,cz);
+    affected.add(key(cx,cz));
+   }
+   let removed=0;
+   for(const k of affected)if(active.delete(k))removed++;
+   if(removed)dirty();
+   return removed;
+  }
   function sync(chunks){
    if(!Array.isArray(chunks)||chunks.length>maxChunks)throw RangeError('Visible chunks exceed wildlife budget');
    const wanted=new Set();
@@ -222,7 +240,7 @@
    if(!cachedSnapshot)cachedSnapshot=Object.freeze(Array.from(active.values()).flat());
    return cachedSnapshot;
   }
-  return Object.freeze({enter,leave,invalidate,invalidateAtVoxel,sync,snapshot,activeChunks:()=>active.size,
+  return Object.freeze({enter,leave,invalidate,invalidateAtVoxel,invalidateCommittedVoxels,sync,snapshot,activeChunks:()=>active.size,
    clear:()=>{if(active.size){active.clear();dirty();}}});
  }
  function cappedFlockStep(agents,dt,options={}){
