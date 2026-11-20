@@ -24,8 +24,8 @@ test('capped frame discards all unprocessed whole physics steps', () => {
 
 test('fractional remainder is preserved without retaining a full step', () => {
   const controller = make();
-  const frame = controller.tickFrame({ forward: 1 }, 0.255);
+  const frame = controller.tickFrame({ forward: 1 }, 0.105);
   assert.equal(frame.steps, 4);
   assert.ok(Math.abs(frame.alpha - 0.3) < 1e-8);
-  assert.ok(Math.abs(frame.discardedSeconds - (0.255 - 0.005 - 4 / 60)) < 1e-8);
+  assert.ok(Math.abs(frame.discardedSeconds - (0.105 - 0.005 - 4 / 60)) < 1e-8);
 });
