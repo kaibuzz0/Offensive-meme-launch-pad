@@ -110,3 +110,19 @@ test('snapshot rejects a conflicting voxel scale without mutating the saved reco
   delete legacy.voxelMetres;
   assert.equal(createVoxelEditJournal('seed-scale', legacy).get(-4, 2, 8), 'stone');
 });
+
+
+test('explicit undefined voxel scale is not a legacy missing field', () => {
+  const journal = createVoxelEditJournal('seed-explicit-undefined');
+  journal.apply({ x: -2, y: 1, z: 3, block: 'stone' });
+  const saved = journal.snapshot();
+  const before = JSON.stringify(saved);
+  assert.throws(() => createVoxelEditJournal('seed-explicit-undefined', {
+    ...saved, voxelMetres: undefined
+  }), /incompatible/);
+  assert.equal(JSON.stringify(saved), before);
+  const legacy = { ...saved };
+  delete legacy.voxelMetres;
+  assert.equal(createVoxelEditJournal('seed-explicit-undefined', legacy).get(-2, 1, 3), 'stone');
+  assert.deepEqual(createVoxelEditJournal('seed-explicit-undefined', saved).snapshot(), saved);
+});
