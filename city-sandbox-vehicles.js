@@ -56,7 +56,7 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
     for(let i=1;i<=segments;i++){
       const t=i/segments;
       const sample={x:origin.x+(candidate.x-origin.x)*t,y:origin.y,z:origin.z+(candidate.z-origin.z)*t};
-      if(!environment.canOccupy(sample,v)){blocked=true;break;}
+      // A malformed world adapter must never silently permit travel.\n      const permitted=environment.canOccupy(sample,v);\n      if(typeof permitted!=='boolean') throw new TypeError('canOccupy must return a boolean');\n      if(!permitted){blocked=true;break;}
       v.position=sample;
     }
     if(blocked){
