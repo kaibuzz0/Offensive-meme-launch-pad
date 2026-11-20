@@ -50,3 +50,22 @@ test('vehicle collision remains identical across visual-detail settings',()=>{
  };
  assert.deepEqual(run('low'),run('high'));
 });
+
+test('swept vehicle collision uses proposed heading and rejects blocked rotation',()=>{
+ const v=createVehicle('car');
+ v.speed=12;
+ const before={...v.position};
+ const result=stepVehicle(v,{steering:1},1/60,{
+  canOccupy:(position,body)=>{
+   assert.ok(Number.isFinite(body.heading));
+   assert.notEqual(body.heading,0,'oriented collision must see proposed heading');
+   return false;
+  }
+ });
+ assert.deepEqual(result.position,before);
+ assert.equal(result.heading,v.heading,'blocked first sweep must preserve original orientation');
+ assert.equal(result.speed,0);
+});
+test('invalid vehicle collision callback fails closed',()=>{
+ assert.throws(()=>stepVehicle(createVehicle(),{throttle:1},1/60,{canOccupy:true}),/canOccupy must be a function/);
+});
