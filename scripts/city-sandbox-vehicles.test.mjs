@@ -79,3 +79,22 @@ test('vehicle occupancy adapter must return an explicit boolean',()=>{
  }
  assert.equal(stepVehicle(vehicle,{},1/60,{canOccupy:()=>false}).speed,0);
 });
+
+
+test('vehicle rejects a steering footprint overlapping a wall at its origin',()=>{
+ const vehicle=createVehicle('car');
+ vehicle.speed=10;
+ let samples=0;
+ const result=stepVehicle(vehicle,{steering:1},1/60,{
+  canOccupy:(position,body)=>{
+   samples++;
+   // The origin is clear at the original heading, but not at the proposed one.
+   return !(position.x===0&&position.z===0&&body.heading!==0);
+  }
+ });
+ assert.equal(samples,1,'blocked rotation must not proceed into translation sweep');
+ assert.deepEqual(result.position,vehicle.position);
+ assert.equal(result.heading,vehicle.heading);
+ assert.equal(result.speed,0);
+ assert.equal(vehicle.speed,10,'input state must remain unchanged');
+});
