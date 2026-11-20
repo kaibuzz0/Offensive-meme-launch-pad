@@ -80,7 +80,7 @@
    const aerial=AERIAL.has(animal.species);
    // Flying species can traverse water and steep terrain; ground species
    // cannot. Fish require actual water and a finite water surface above bed.
-   if(aquatic?!wet:!aerial&&(wet||col.slope>18))continue;
+   if(aquatic?!wet:!aerial&&(wet||!Number.isFinite(col.slope)||col.slope>18))continue;
    const waterTop=Number.isFinite(col.waterLevel)?col.waterLevel:world.SEA_LEVEL;
    if(aquatic&&(!Number.isFinite(waterTop)||waterTop<=col.height))continue;
    const y=aquatic?Math.min(col.height+1,waterTop-0.5):
