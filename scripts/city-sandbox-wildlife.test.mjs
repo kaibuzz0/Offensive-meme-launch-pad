@@ -110,6 +110,19 @@ test('ground fauna stay off flooded or steep ground while aerial fauna can pass'
   assert.ok(spawnChunkOnTerrain(flooded,x,z).every(a=>a.species==='songbird'&&a.y>=116));
 });
 
+test('negative slope metadata cannot place grounded wildlife',()=>{
+ const world={seed:100,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:80,water:false,river:false,group:'forest',biomeName:'Forest',slope:-1
+ })};
+ let airborne=0;
+ for(let cx=-3;cx<=3;cx++)for(let cz=-3;cz<=3;cz++){
+  const placed=spawnChunkOnTerrain(world,cx,cz);
+  assert.deepEqual(placed,spawnChunkOnTerrain(world,cx,cz));
+  for(const animal of placed){assert.equal(animal.species,'songbird');airborne++;}
+ }
+ assert.ok(airborne>0,'negative ground slope does not suppress flying wildlife');
+});
+
 test('fish require actual water depth rather than merely a water flag',()=>{
  const dryBed={seed:7,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
   height:112,water:true,waterLevel:112,river:false,group:'ocean',biomeName:'Ocean',slope:0
