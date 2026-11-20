@@ -54,3 +54,41 @@ test('out-of-reach interaction cannot claim supplies or write storage', () => {
   assert.equal(result.durable, null);
   assert.equal(result.hudUpdates, 0);
 });
+
+const sealStart = source.indexOf(' function claimSeal(){');
+const sealEnd = source.indexOf("\n gateButton.textContent='Claim gate seal';", sealStart);
+assert.ok(sealStart >= 0 && sealEnd > sealStart, 'gate seal handler must exist');
+const sealHandler = source.slice(sealStart, sealEnd);
+
+function attemptSeal({ write = true, read = true, reachable = true } = {}) {
+  let durable = null;
+  const button = { textContent: '' };
+  const context = {
+    running: true, paused: false, firstPerson: true, atlas: false,
+    sealClaimed: false, gateButton: button, atGate: () => reachable,
+    sealKey: () => 'test:gate',
+    put: (_key, value) => { if (write) durable = value; return write; },
+    get: () => read ? durable : null,
+  };
+  runInNewContext(sealHandler + '\nclaimSeal();', context);
+  return { claimed: context.sealClaimed, durable, label: button.textContent };
+}
+
+test('gate seal requires durable readback before acknowledging collection', () => {
+  const success = attemptSeal();
+  assert.equal(success.claimed, true);
+  assert.equal(success.durable, '1');
+  assert.match(success.label, /collected/);
+  const lostWrite = attemptSeal({ write: false });
+  assert.equal(lostWrite.claimed, false);
+  assert.match(lostWrite.label, /retry/);
+  const lostRead = attemptSeal({ read: false });
+  assert.equal(lostRead.claimed, false);
+  assert.match(lostRead.label, /retry/);
+});
+
+test('gate seal cannot be claimed outside its interaction range', () => {
+  const result = attemptSeal({ reachable: false });
+  assert.equal(result.claimed, false);
+  assert.equal(result.durable, null);
+});
