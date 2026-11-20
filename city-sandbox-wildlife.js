@@ -111,6 +111,13 @@
    active.set(k,creatures);
    return creatures;
   }
+  // Invalidate only cached wildlife for the edited voxel's owning chunk.
+  // Call after the edit transaction commits, never on a rejected edit.
+  function invalidateAtVoxel(x,z){
+   if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z))throw TypeError('Safe integer voxel coordinates required');
+   const cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE);
+   return active.delete(key(cx,cz));
+  }
   function leave(cx,cz){validate(cx,cz);return active.delete(key(cx,cz));}
   function sync(chunks){
    if(!Array.isArray(chunks)||chunks.length>maxChunks)throw RangeError('Visible chunks exceed wildlife budget');
@@ -136,7 +143,7 @@
   function snapshot(){
    return Object.freeze(Array.from(active.values()).flat());
   }
-  return Object.freeze({enter,leave,sync,snapshot,activeChunks:()=>active.size,
+  return Object.freeze({enter,leave,sync,invalidateAtVoxel,snapshot,activeChunks:()=>active.size,
    clear:()=>active.clear()});
  }
  function cappedFlockStep(agents,dt,options={}){
