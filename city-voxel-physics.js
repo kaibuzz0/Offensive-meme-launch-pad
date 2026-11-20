@@ -196,6 +196,7 @@
    // Preserve the accumulator and player pose until every substep succeeds.
    const beforeFrame={...state};
    const beforeAccumulator=accumulator;
+   const beforeProfile=lastWork;
    accumulator+=accepted;
    let steps=0;
    const totals={surfaceQueries:0,caveQueries:0,structuralQueries:0,waterQueries:0,sweepSegments:0};
@@ -210,6 +211,7 @@
    } catch(error) {
     Object.assign(state,beforeFrame);
     accumulator=beforeAccumulator;
+    lastWork=beforeProfile;
     throw error;
    }
    // Discard ALL unprocessed whole steps after the bounded catch-up.
