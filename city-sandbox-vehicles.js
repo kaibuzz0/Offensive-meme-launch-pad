@@ -53,6 +53,15 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
     // A blocked initial sweep must not rotate the vehicle into an obstacle.
     const previousHeading=v.heading;
     v.heading=heading;
+    // Test the proposed footprint at the current location before translating.
+    // Otherwise a steering change can rotate a vehicle into an adjacent wall.
+    const originPermitted=environment.canOccupy(origin,v);
+    if(typeof originPermitted!=='boolean') throw new TypeError('canOccupy must return a boolean');
+    if(!originPermitted){
+      v.heading=previousHeading;
+      v.speed=0;
+      return v;
+    }
     for(let i=1;i<=segments;i++){
       const t=i/segments;
       const sample={x:origin.x+(candidate.x-origin.x)*t,y:origin.y,z:origin.z+(candidate.z-origin.z)*t};
