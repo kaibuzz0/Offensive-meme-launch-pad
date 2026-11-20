@@ -143,3 +143,19 @@ test('rejects inherited edit fields in commands and restored snapshots without m
   assert.deepEqual(journal.snapshot().edits, []);
   assert.equal(journal.apply({ x: 1, y: 2, z: 3, block: 'stone' }).changed, true);
 });
+
+test('snapshot requires own metadata and rejects inherited records without changing the source', () => {
+  const journal = createVoxelEditJournal('seed-snapshot-ownership');
+  journal.apply({ x: -3, y: 2, z: 5, block: 'stone' });
+  const saved = journal.snapshot();
+  const before = JSON.stringify(saved);
+  for (const field of ['version', 'worldSeed', 'revision', 'edits']) {
+    const inherited = Object.create({ [field]: saved[field] });
+    Object.assign(inherited, saved);
+    delete inherited[field];
+    assert.throws(() => createVoxelEditJournal('seed-snapshot-ownership', inherited), /incompatible/);
+    assert.equal(JSON.stringify(saved), before);
+  }
+  assert.throws(() => createVoxelEditJournal('seed-snapshot-ownership', []), /incompatible/);
+  assert.deepEqual(createVoxelEditJournal('seed-snapshot-ownership', saved).snapshot(), saved);
+});
