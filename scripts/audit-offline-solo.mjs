@@ -17,7 +17,7 @@ if (!shellMatch) {
   const entry = homepage.match(/href=["'](city\.html\?[^"']+)["']/)?.[1] ?? null;
   // Track all public game links, including temporary legacy/compatibility routes.
   // They are migration inventory, not evidence that those modes are separate releases.
-  const homepageGameRoutes = [...new Set([...homepage.matchAll(/href=[\"'](city\\.html(?:\\?[^\\"']*)?)[\"']/gi)]
+  const homepageGameRoutes = [...new Set([...homepage.matchAll(/href=["'](city\.html(?:\?[^"']*)?)["']/gi)]
     .map(match => match[1].replace(/&amp;/g, '&')))];
   const localPath = value => {
     const url = value.trim();
