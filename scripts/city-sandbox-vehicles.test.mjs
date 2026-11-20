@@ -98,3 +98,11 @@ test('vehicle rejects a steering footprint overlapping a wall at its origin',()=
  assert.equal(result.speed,0);
  assert.equal(vehicle.speed,10,'input state must remain unchanged');
 });
+
+test('falsy non-function vehicle occupancy adapters cannot disable collision',()=>{
+ const vehicle=createVehicle('car');
+ for(const invalid of [null,false,0,'']){
+  assert.throws(()=>stepVehicle(vehicle,{throttle:1},1/60,{canOccupy:invalid}),/canOccupy must be a function/);
+  assert.deepEqual(vehicle.position,{x:0,y:0,z:0});
+ }
+});
