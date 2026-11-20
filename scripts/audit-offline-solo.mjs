@@ -34,7 +34,7 @@ if (!shellMatch) {
   // Traverse statically identifiable local JS/CSS dependencies, including workers and
   // CSS url() resources. Dynamic expressions remain an explicit browser-test gap.
   const scanned = new Set();
-  const queue = [...required].filter(asset => /\\.(?:js|mjs|css)$/i.test(asset));
+  const queue = [...required].filter(asset => /\.(?:js|mjs|css)$/i.test(asset));
   const resolveLocal = (from, value) => {
     const asset = localPath(value);
     if (!asset) return null;
@@ -49,18 +49,18 @@ if (!shellMatch) {
     if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) continue;
     const source = fs.readFileSync(absolute, 'utf8');
     const refs = [];
-    if (/\\.css$/i.test(asset)) {
-      for (const m of source.matchAll(/url\\(\\s*['"]?([^)'"]+)['"]?\\s*\\)/gi)) refs.push(m[1]);
-      for (const m of source.matchAll(/@import\\s+(?:url\\()?\\s*['"]([^'"]+)['"]/gi)) refs.push(m[1]);
+    if (/\.css$/i.test(asset)) {
+      for (const m of source.matchAll(/url\(\s*['"]?([^)'"]+)['"]?\s*\)/gi)) refs.push(m[1]);
+      for (const m of source.matchAll(/@import\s+(?:url\()?\s*['"]([^'"]+)['"]/gi)) refs.push(m[1]);
     } else {
-      for (const m of source.matchAll(/(?:import\\s*(?:[^'"]*?\\sfrom\\s*)?|export\\s+[^'"]*?\\sfrom\\s*|import\\s*\\(|new\\s+(?:Shared)?Worker\\s*\\(|importScripts\\s*\\()\\s*['"]([^'"]+)['"]/g)) refs.push(m[1]);
-      for (const m of source.matchAll(/new\\s+URL\\(\\s*['"]([^'"]+)['"]\\s*,\\s*import\\.meta\\.url/g)) refs.push(m[1]);
+      for (const m of source.matchAll(/(?:import\s*(?:[^'"]*?\sfrom\s*)?|export\s+[^'"]*?\sfrom\s*|import\s*\(|new\s+(?:Shared)?Worker\s*\(|importScripts\s*\()\s*['"]([^'"]+)['"]/g)) refs.push(m[1]);
+      for (const m of source.matchAll(/new\s+URL\(\s*['"]([^'"]+)['"]\s*,\s*import\.meta\.url/g)) refs.push(m[1]);
     }
     for (const ref of refs) {
       const dependency = resolveLocal(asset, ref);
       if (!dependency) continue;
       required.add(dependency);
-      if (/\\.(?:js|mjs|css)$/i.test(dependency)) queue.push(dependency);
+      if (/\.(?:js|mjs|css)$/i.test(dependency)) queue.push(dependency);
     }
   }
   // Navigation fallback must return the requested game/homepage document, not an
@@ -75,7 +75,8 @@ if (!shellMatch) {
     kind: 'source-only-offline-audit',
     homepagePlayCandidate: entry,
     precacheCount: cached.length,
-    requiredAssetCount: requiredAssets.length,\n    scannedSourceCount: scanned.size,
+    requiredAssetCount: requiredAssets.length,
+    scannedSourceCount: scanned.size,
     missingFiles,
     missingCache,
     navigationUsesOfflineNotice,
