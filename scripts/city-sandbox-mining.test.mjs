@@ -82,3 +82,16 @@ test('exhausted revision refuses mutations atomically and permits idempotent ret
   assert.equal(journal.reset(4, 5, 6).changed, false);
   assert.deepEqual(journal.snapshot(), snapshot);
 });
+
+test('snapshot rejects a conflicting voxel scale without mutating the saved record', () => {
+  const journal = createVoxelEditJournal('seed-scale');
+  journal.apply({ x: -4, y: 2, z: 8, block: 'stone' });
+  const saved = journal.snapshot();
+  const incompatible = { ...saved, voxelMetres: 1 };
+  assert.throws(() => createVoxelEditJournal('seed-scale', incompatible), /incompatible/);
+  assert.deepEqual(journal.snapshot(), saved);
+  // Older v1 records without an explicit scale retain the established 0.25m interpretation.
+  const legacy = { ...saved };
+  delete legacy.voxelMetres;
+  assert.equal(createVoxelEditJournal('seed-scale', legacy).get(-4, 2, 8), 'stone');
+});
