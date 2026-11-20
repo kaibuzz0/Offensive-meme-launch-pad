@@ -34,3 +34,22 @@ test('reentry samples edited terrain without changing deterministic creature IDs
  assert.deepEqual(after.map(a=>a.id),before.map(a=>a.id));
  assert.deepEqual(after.map(a=>a.y),before.map(a=>a.y+2));
 });
+
+test('committed batch invalidates unique owning chunks, including negative coordinates',()=>{
+ const manager=createChunkWildlifeManager(world,{maxChunks:4});
+ manager.enter(-1,-1);manager.enter(0,0);manager.enter(1,0);
+ assert.equal(manager.invalidateCommittedVoxels([{x:-1,z:-1},{x:-16,z:-16},{x:0,z:0},{x:1,z:1}]),2);
+ assert.equal(manager.activeChunks(),1);
+ assert.equal(manager.invalidateCommittedVoxels([{x:0,z:0}]),0);
+ assert.equal(manager.activeChunks(),1);
+});
+test('malformed committed batch is rejected without partial invalidation',()=>{
+ const manager=createChunkWildlifeManager(world,{maxChunks:4});
+ manager.enter(-1,-1);manager.enter(0,0);
+ const before=manager.snapshot();
+ assert.throws(()=>manager.invalidateCommittedVoxels([{x:-1,z:-1},{x:0.5,z:0}]),TypeError);
+ assert.deepEqual(manager.snapshot(),before);
+ assert.equal(manager.activeChunks(),2);
+ assert.throws(()=>manager.invalidateCommittedVoxels(Array(4097).fill({x:0,z:0})),RangeError);
+ assert.equal(manager.activeChunks(),2);
+});
