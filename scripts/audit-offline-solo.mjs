@@ -32,6 +32,11 @@ if (!shellMatch) {
     if (asset) required.add(asset);
   }
   // This deliberately does not claim to resolve runtime imports, worker URLs or CSS url().
+  // Navigation fallback must return the requested game/homepage document, not an
+  // unrelated offline notice. A precache allowlist alone cannot prove this.
+  const navigationUsesOfflineNotice = /request\\.mode\\s*===?\\s*['\"]navigate['\"]/.test(sw)
+    && /fetch\\(request\\)\\.catch\\([\\s\\S]*?offline\\.html/.test(sw);
+  const navigationFallbackUnverified = !navigationUsesOfflineNotice;
   const requiredAssets = [...required].sort();
   const missingFiles = requiredAssets.filter(asset => !fs.existsSync(path.join(root, asset)));
   const missingCache = requiredAssets.filter(asset => !cached.includes(asset));
@@ -42,9 +47,11 @@ if (!shellMatch) {
     requiredAssetCount: requiredAssets.length,
     missingFiles,
     missingCache,
+    navigationUsesOfflineNotice,
+    navigationFallbackUnverified,
     offlineSoloProven: false,
-    note: 'Static HTML dependencies only. Dynamic imports, workers, CSS url(), runtime cache, service-worker scope and offline gameplay require Chromium validation.'
+    note: 'Static HTML dependencies and navigation-fallback heuristic only. Dynamic imports, workers, CSS url(), runtime cache, service-worker scope and offline gameplay require Chromium validation.'
   };
   console.log(JSON.stringify(report, null, 2));
-  if (process.argv.includes('--require-offline') && (missingFiles.length || missingCache.length)) process.exitCode = 1;
+  if (process.argv.includes('--require-offline') && (missingFiles.length || missingCache.length || navigationUsesOfflineNotice || navigationFallbackUnverified)) process.exitCode = 1;
 }
