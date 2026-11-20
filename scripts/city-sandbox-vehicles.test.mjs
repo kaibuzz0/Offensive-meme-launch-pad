@@ -178,3 +178,13 @@ test('invalid frame scheduler settings fail before simulation',()=>{
  assert.throws(()=>advanceVehicleFrame(vehicle,{},0,{}, {},{maxSteps:0}),/maxSteps/);
  assert.throws(()=>advanceVehicleFrame(vehicle,{},0,{}, {},{step:0}),/step/);
 });
+
+// Collision wiring must fail closed even if the render frame has not accumulated a tick.
+test('zero-step vehicle frames validate mandatory canonical collision wiring',()=>{
+ const vehicle=createVehicle();
+ assert.throws(()=>advanceVehicleFrame(vehicle,{},0,{requireCollision:true}),/canonical world collision adapter/);
+ assert.throws(()=>advanceVehicleFrame(vehicle,{},0,{requireCollision:'true'}),/requireCollision must be a boolean/);
+ const result=advanceVehicleFrame(vehicle,{},0,{requireCollision:true,canOccupy:()=>true});
+ assert.equal(result.steps,0);
+ assert.deepEqual(result.vehicle,vehicle);
+});
