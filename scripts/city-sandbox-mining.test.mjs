@@ -83,6 +83,21 @@ test('exhausted revision refuses mutations atomically and permits idempotent ret
   assert.deepEqual(journal.snapshot(), snapshot);
 });
 
+test('explicit invalid voxel scales fail closed without changing serialized save bytes', () => {
+  const journal = createVoxelEditJournal('seed-scale-bytes');
+  journal.apply({ x: -11, y: 0, z: 4, block: 'stone' });
+  const saved = JSON.parse(JSON.stringify(journal.snapshot()));
+  const before = JSON.stringify(saved);
+  for (const scale of [0, -0.25, 0.5, 1, null, '0.25', NaN, Infinity]) {
+    const invalid = { ...saved, voxelMetres: scale };
+    const invalidBytes = JSON.stringify(invalid);
+    assert.throws(() => createVoxelEditJournal('seed-scale-bytes', invalid), /incompatible/);
+    assert.equal(JSON.stringify(invalid), invalidBytes);
+    assert.equal(JSON.stringify(saved), before);
+  }
+  assert.deepEqual(createVoxelEditJournal('seed-scale-bytes', saved).snapshot(), saved);
+});
+
 test('snapshot rejects a conflicting voxel scale without mutating the saved record', () => {
   const journal = createVoxelEditJournal('seed-scale');
   journal.apply({ x: -4, y: 2, z: 8, block: 'stone' });
