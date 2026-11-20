@@ -161,3 +161,27 @@ test('failed terrain sampling does not partially evict visible wildlife',()=>{
  assert.ok(next.every(a=>!a.id.startsWith('88:0:0:')));
  assert.deepEqual(manager.sync([[1,0],[2,0]]),next);
 });
+
+test('missing or nonfinite slope metadata never spawns grounded animals',()=>{
+ const world={seed:100,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:80,water:false,river:false,group:'forest',biomeName:'Forest'
+ })};
+ let airborne=0;
+ for(let cx=-3;cx<=3;cx++)for(let cz=-3;cz<=3;cz++){
+  const placed=spawnChunkOnTerrain(world,cx,cz);
+  assert.deepEqual(spawnChunkOnTerrain(world,cx,cz),placed);
+  for(const animal of placed){assert.equal(animal.species,'songbird');airborne++;}
+ }
+ assert.ok(airborne>0,'aerial creatures remain supported without slope metadata');
+ const invalid={...world,surfaceAt:()=>({...world.surfaceAt(),slope:NaN})};
+ for(let cx=-2;cx<=2;cx++)for(let cz=-2;cz<=2;cz++)
+  assert.ok(spawnChunkOnTerrain(invalid,cx,cz).every(a=>a.species==='songbird'));
+ const wet={...world,surfaceAt:()=>({
+  height:100,water:true,waterLevel:112,group:'ocean',biomeName:'Ocean'
+ })};
+ let fish=0;
+ for(let cx=-3;cx<=3;cx++)for(let cz=-3;cz<=3;cz++)
+  for(const animal of spawnChunkOnTerrain(wet,cx,cz))
+   if(animal.species==='fish')fish++;
+ assert.ok(fish>0,'fish do not require ground slope metadata');
+});
