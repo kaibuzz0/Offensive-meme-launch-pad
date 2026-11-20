@@ -130,6 +130,7 @@
   function invalidateAtVoxel(x,z){
    if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z))throw TypeError('Safe integer voxel coordinates required');
    const cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE);
+   validate(cx,cz);
    return active.delete(key(cx,cz));
   }
   // Accept a committed edit delta as a batch: validate every coordinate before
