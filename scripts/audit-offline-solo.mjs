@@ -19,7 +19,7 @@ if (!shellMatch) {
     const url = value.trim();
     if (/^(?:[a-z][a-z\d+.-]*:|\/\/|#)/i.test(url)) return null;
     const pathname = url.split(/[?#]/, 1)[0].replace(/^\.\//, '').replace(/^\//, '');
-    return pathname && !pathname.startsWith('../') ? pathname : null;
+    return pathname || null;
   };
   const linked = html => [
     ...[...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/gi)].map(m => m[1]),
@@ -29,7 +29,7 @@ if (!shellMatch) {
   const required = new Set(['index.html', 'city.html']);
   for (const html of [homepage, game]) for (const value of linked(html)) {
     const asset = localPath(value);
-    if (asset) required.add(asset);
+    if (asset && !asset.startsWith('../')) required.add(asset);
   }
   // Traverse statically identifiable local JS/CSS dependencies, including workers and
   // CSS url() resources. Dynamic expressions remain an explicit browser-test gap.
