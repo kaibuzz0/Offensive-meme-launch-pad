@@ -40,8 +40,22 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   speed=clamp(speed,-cfg.maxSpeed*.35,cfg.maxSpeed);
   const heading=angle(v.heading+Math.tan(steer*cfg.steering)*speed/cfg.wheelbase*dt);
   const candidate={x:v.position.x+Math.sin(heading)*speed*dt,y:v.position.y,z:v.position.z+Math.cos(heading)*speed*dt};
-  if(environment.canOccupy&&!environment.canOccupy(candidate,v)) speed=0;
-  else v.position=candidate;
+  // Sweep the same quarter-meter spatial resolution as player movement.
+  // Endpoint-only checks could tunnel a fast vehicle through a thin wall.
+  // Keep the last safe position and stop at the first blocked sample.
+  if(environment.canOccupy){
+    const distance=Math.hypot(candidate.x-v.position.x,candidate.z-v.position.z);
+    const segments=Math.max(1,Math.ceil(distance/0.25));
+    const origin=v.position;
+    let blocked=false;
+    for(let i=1;i<=segments;i++){
+      const t=i/segments;
+      const sample={x:origin.x+(candidate.x-origin.x)*t,y:origin.y,z:origin.z+(candidate.z-origin.z)*t};
+      if(!environment.canOccupy(sample,v)){blocked=true;break;}
+      v.position=sample;
+    }
+    if(blocked) speed=0;
+  }else v.position=candidate;
   v.heading=heading;v.speed=speed;
   if(active) v.fuel=Math.max(0,v.fuel-Math.abs(throttle)*dt*.002);
   return v;
