@@ -87,3 +87,20 @@ test('audit follows nested CSS imports and excludes external or escaping assets'
   assert.ok(report.missingCache.includes('assets/sky.png'));
   assert.ok(!report.missingCache.some(asset => asset.includes('outside.png') || asset.includes('example.com')));
 });
+
+test('audit inventories all distinct homepage game routes without conflating render options', t => {
+  const root = fixture(t);
+  fs.appendFileSync(path.join(root, 'index.html'),
+    '<a href="city.html?terrain=1&amp;render=canvas">Compatibility</a>' +
+    '<a href="city.html?release=center-city-v1">Legacy</a>' +
+    '<a href="city.html?terrain=1">Duplicate</a>');
+  const { status, report } = run(root);
+  assert.equal(status, 0);
+  assert.deepEqual(report.homepageGameRoutes, [
+    'city.html?terrain=1',
+    'city.html?terrain=1&render=canvas',
+    'city.html?release=center-city-v1'
+  ]);
+  assert.equal(report.multiplePublicGameRoutes, true);
+  assert.equal(report.offlineSoloProven, false);
+});
