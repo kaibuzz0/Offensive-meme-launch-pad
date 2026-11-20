@@ -125,7 +125,7 @@ export function advanceVehicleFrame(vehicle,controls,frameSeconds,environment={}
   finite(step,'step');
   if(step<=0||step>0.1) throw new RangeError('step must be in (0, 0.1]');
   if(!Number.isInteger(maxSteps)||maxSteps<1||maxSteps>16) throw new RangeError('maxSteps must be an integer from 1 to 16');
-  const previous=finite(clock.remainder??0,'remainder');
+  // Validate the mandatory world adapter even on frames with zero physics steps.\n  // Otherwise a paused/low-delta frame can hide a disconnected collision source.\n  if(environment.requireCollision !== undefined && typeof environment.requireCollision !== 'boolean') {\n    throw new TypeError('requireCollision must be a boolean');\n  }\n  if(environment.requireCollision === true && typeof environment.canOccupy !== 'function') {\n    throw new TypeError('A canonical world collision adapter is required');\n  }\n  const previous=finite(clock.remainder??0,'remainder');
   if(previous<0||previous>=step) throw new RangeError('remainder must be in [0, step)');
   const accumulated=Math.min(previous+frameSeconds,step*maxSteps);
   const steps=Math.min(maxSteps,Math.floor((accumulated+step*1e-9)/step));
