@@ -159,3 +159,19 @@ test('snapshot requires own metadata and rejects inherited records without chang
   assert.throws(() => createVoxelEditJournal('seed-snapshot-ownership', []), /incompatible/);
   assert.deepEqual(createVoxelEditJournal('seed-snapshot-ownership', saved).snapshot(), saved);
 });
+
+
+test('rejects accessor-backed edits without running getters or changing journal state', () => {
+  const journal = createVoxelEditJournal('accessor-seed');
+  let getterCalls = 0;
+  const edit = { x: 1, y: 2, z: 3 };
+  Object.defineProperty(edit, 'block', { enumerable: true, get() { getterCalls++; return 'stone'; } });
+  assert.throws(() => journal.apply(edit), /data properties/);
+  const snapshot = { version: JOURNAL_VERSION, worldSeed: 'accessor-seed',
+    revision: 1, voxelMetres: VOXEL_METRES, edits: [edit] };
+  assert.throws(() => createVoxelEditJournal('accessor-seed', snapshot), /data properties/);
+  assert.equal(getterCalls, 0);
+  assert.equal(journal.revision, 0);
+  assert.equal(journal.size, 0);
+  assert.equal(journal.apply({ x: 1, y: 2, z: 3, block: 'stone' }).changed, true);
+});
