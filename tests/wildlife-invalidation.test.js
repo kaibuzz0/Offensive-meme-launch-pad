@@ -70,3 +70,18 @@ test('terrain columns are sampled at most once per chunk and refresh after commi
  assert.deepEqual(second.map(a=>a.y),first.map(a=>a.y+3));
  assert.ok(calls>before,'committed edit forces fresh terrain samples');
 });
+
+test('out-of-domain chunk coordinates reject atomically before eviction or terrain queries',()=>{
+ let samples=0;
+ const terrain={...world,surfaceAt(x,z){samples++;return world.surfaceAt(x,z);}};
+ const manager=createChunkWildlifeManager(terrain,{maxChunks:2});
+ manager.enter(0,0);
+ const before=manager.snapshot(), priorSamples=samples;
+ const outside=0x80000000;
+ assert.throws(()=>manager.enter(outside,0),RangeError);
+ assert.throws(()=>manager.sync([[0,0],[outside,0]]),RangeError);
+ assert.throws(()=>manager.leave(outside,0),RangeError);
+ assert.equal(manager.activeChunks(),1);
+ assert.strictEqual(manager.snapshot()[0],before[0]);
+ assert.equal(samples,priorSamples,'invalid chunks never sample terrain');
+});
