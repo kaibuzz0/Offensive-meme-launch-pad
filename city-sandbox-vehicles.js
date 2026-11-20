@@ -43,7 +43,10 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   // Sweep the same quarter-meter spatial resolution as player movement.
   // Endpoint-only checks could tunnel a fast vehicle through a thin wall.
   // Keep the last safe position and stop at the first blocked sample.
-  if(environment.requireCollision !== undefined && typeof environment.requireCollision !== 'boolean') {\n    throw new TypeError('requireCollision must be a boolean');\n  }\n  if(environment.requireCollision === true && typeof environment.canOccupy !== 'function') {
+  if(environment.requireCollision !== undefined && typeof environment.requireCollision !== 'boolean') {
+    throw new TypeError('requireCollision must be a boolean');
+  }
+  if(environment.requireCollision === true && typeof environment.canOccupy !== 'function') {
     throw new TypeError('A canonical world collision adapter is required');
   }
   if(environment.canOccupy !== undefined){
