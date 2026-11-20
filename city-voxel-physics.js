@@ -192,15 +192,25 @@
     throw Error('Invalid frame time');
    const accepted=Math.min(elapsedSeconds,MAX_FRAME_DT);
    const discardedInput=elapsedSeconds-accepted;
+   // A failing world query must not leave a partially advanced frame behind.
+   // Preserve the accumulator and player pose until every substep succeeds.
+   const beforeFrame={...state};
+   const beforeAccumulator=accumulator;
    accumulator+=accepted;
    let steps=0;
    const totals={surfaceQueries:0,caveQueries:0,structuralQueries:0,waterQueries:0,sweepSegments:0};
-   while(accumulator+1e-10>=FIXED_DT&&steps<MAX_SUBSTEPS){
-    tick(input,FIXED_DT);
-    const work=profileLastTick();
-    for(const key of Object.keys(totals))totals[key]+=work[key];
-    accumulator=Math.max(0,accumulator-FIXED_DT);
-    steps++;
+   try {
+    while(accumulator+1e-10>=FIXED_DT&&steps<MAX_SUBSTEPS){
+     tick(input,FIXED_DT);
+     const work=profileLastTick();
+     for(const key of Object.keys(totals))totals[key]+=work[key];
+     accumulator=Math.max(0,accumulator-FIXED_DT);
+     steps++;
+    }
+   } catch(error) {
+    Object.assign(state,beforeFrame);
+    accumulator=beforeAccumulator;
+    throw error;
    }
    // Discard ALL unprocessed whole steps after the bounded catch-up.
    // Retaining a full step here would advance the world on a zero-delta frame.
