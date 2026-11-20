@@ -70,3 +70,20 @@ test('audit rejects unknown navigation semantics rather than claiming offline su
   assert.equal(report.navigationFallbackUnverified, true);
   assert.equal(report.offlineSoloProven, false);
 });
+
+test('audit follows nested CSS imports and excludes external or escaping assets', t => {
+  const root = fixture(t);
+  fs.mkdirSync(path.join(root, 'css', 'nested'), { recursive: true });
+  fs.appendFileSync(path.join(root, 'css/main.css'),
+    '\n@import "./nested/theme.css";\n');
+  fs.writeFileSync(path.join(root, 'css/nested/theme.css'),
+    'div { background: url("../../assets/sky.png"); }\n' +
+    'span { background: url("https://example.com/external.png"); }\n' +
+    'i { background: url("../../../../outside.png"); }\n');
+  const { status, report } = run(root);
+  assert.equal(status, 0);
+  assert.deepEqual(report.missingFiles, []);
+  assert.ok(report.missingCache.includes('css/nested/theme.css'));
+  assert.ok(report.missingCache.includes('assets/sky.png'));
+  assert.ok(!report.missingCache.some(asset => asset.includes('outside.png') || asset.includes('example.com')));
+});
