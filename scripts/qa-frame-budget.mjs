@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // QA-only: summarize browser frame samples; does not claim physical-device evidence.
-import { readFile } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { createInterface } from 'node:readline';
 
 export function percentile(values, p) {
   if (!values.length) return null;
@@ -58,12 +59,18 @@ export function summarize(records) {
 async function main() {
   const filename = process.argv[2];
   if (!filename) throw new Error('Usage: node scripts/qa-frame-budget.mjs samples.jsonl');
-  const lines = (await readFile(filename, 'utf8')).split(/\r?\n/).filter(line => line.trim());
-  const samples = lines.map((line, index) => {
-    try { return JSON.parse(line); }
-    catch { throw new Error(`Invalid JSON at line ${index + 1}`); }
-  });
-  const result = summarize(samples);
+  // Read incrementally to avoid simultaneously retaining the complete text and split lines.
+  // Percentile calculation still retains parsed samples until summarization.
+  const records = [];
+  let lineNumber = 0;
+  const reader = createInterface({ input: createReadStream(filename, { encoding: 'utf8' }), crlfDelay: Infinity });
+  for await (const line of reader) {
+    lineNumber++;
+    if (!line.trim()) continue;
+    try { records.push(JSON.parse(line)); }
+    catch { throw new Error(`Invalid JSON at line ${lineNumber}`); }
+  }
+  const result = summarize(records);
   console.log(JSON.stringify(result, null, 2));
   if (!result.samples) process.exitCode = 2;
   else if (result.budgetResult !== 'within-provisional-budget') process.exitCode = 1;
