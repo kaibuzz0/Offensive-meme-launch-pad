@@ -64,13 +64,23 @@
   if(world.CHUNK_SIZE!==CHUNK_SIZE)throw RangeError('Wildlife and terrain chunk sizes differ');
   const centerX=chunkX*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
   const centerZ=chunkZ*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
-  const center=world.surfaceAt(centerX,centerZ);
+  // Reuse sampled columns within this one chunk spawn. At most seven columns
+  // (center + six candidates) are retained; never cache across committed edits.
+  const columns=new Map();
+  function sample(x,z){
+   const k=x+':'+z;
+   if(columns.has(k))return columns.get(k);
+   const column=world.surfaceAt(x,z);
+   columns.set(k,column);
+   return column;
+  }
+  const center=sample(centerX,centerZ);
   if(!center)return [];
   const biome={group:center.group,name:center.biomeName};
   const candidates=spawnChunk(world.seed,chunkX,chunkZ,biome,options);
   const placed=[];
   for(const animal of candidates){
-   const x=Math.floor(animal.x),z=Math.floor(animal.z),col=world.surfaceAt(x,z);
+   const x=Math.floor(animal.x),z=Math.floor(animal.z),col=sample(x,z);
    if(!col||!Number.isSafeInteger(col.height)||col.mouth||col.sinkhole)continue;
    const aquatic=AQUATIC.has(animal.species);
    // Rivers can host fish even where the atlas's biome is not a river biome.
