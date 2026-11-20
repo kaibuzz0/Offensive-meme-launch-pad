@@ -109,3 +109,28 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   if(active) v.fuel=Math.max(0,v.fuel-Math.abs(throttle)*dt*.002);
   return v;
 }
+
+/**
+ * Bounded fixed-step adapter for a frame scheduler. The caller owns accumulator
+ * state so world/player/vehicle clocks can share a single fixed simulation rate.
+ * Excess wall-clock time is deliberately discarded instead of causing an
+ * unbounded catch-up spiral after a tab suspension or Android backgrounding.
+ * No visual-detail input changes the simulation step.
+ */
+export function advanceVehicleFrame(vehicle,controls,frameSeconds,environment={},clock={remainder:0},options={}){
+  finite(frameSeconds,'frameSeconds');
+  if(frameSeconds<0) throw new RangeError('frameSeconds must be nonnegative');
+  const step=options.step??1/60;
+  const maxSteps=options.maxSteps??4;
+  finite(step,'step');
+  if(step<=0||step>0.1) throw new RangeError('step must be in (0, 0.1]');
+  if(!Number.isInteger(maxSteps)||maxSteps<1||maxSteps>16) throw new RangeError('maxSteps must be an integer from 1 to 16');
+  const previous=finite(clock.remainder??0,'remainder');
+  if(previous<0||previous>=step) throw new RangeError('remainder must be in [0, step)');
+  const accumulated=Math.min(previous+frameSeconds,step*maxSteps);
+  const steps=Math.min(maxSteps,Math.floor((accumulated+step*1e-9)/step));
+  let next=vehicle;
+  for(let i=0;i<steps;i++) next=stepVehicle(next,controls,step,environment);
+  const remainder=Math.max(0,Math.min(step*(1-1e-9),accumulated-steps*step));
+  return {vehicle:next,clock:{remainder},steps,droppedSeconds:Math.max(0,previous+frameSeconds-accumulated)};
+}
