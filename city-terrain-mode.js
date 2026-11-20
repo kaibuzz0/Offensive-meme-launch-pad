@@ -397,7 +397,16 @@
   put(POS+seed,JSON.stringify({version:world.version,seed,x:player.x,y:player.y,yaw:player.yaw,pitch:player.pitch,vertical}));
  }
  function spawnNewWorld(){
-  savePosition();seed=randomSeed();put(KEY,seed);
+  savePosition();
+  const nextSeed=randomSeed();
+  // Never switch the active world when its seed cannot be restored on reload.
+  if(!put(KEY,nextSeed)||get(KEY)!==nextSeed){
+   // A silent/partial storage write must not strand the previous world.
+   put(KEY,seed);
+   window.alert('Unable to save the new world seed. Your current world is unchanged.');
+   return;
+  }
+  seed=nextSeed;
   world=engine.createTerrain(seed,definitions);
   voxel=voxelApi?.createVoxelWorld(world)||null;
   player=restore();
