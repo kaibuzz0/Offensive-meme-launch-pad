@@ -70,4 +70,12 @@ test('invalid vehicle collision callback fails closed',()=>{
  assert.throws(()=>stepVehicle(createVehicle(),{throttle:1},1/60,{canOccupy:true}),/canOccupy must be a function/);
 });
 
-test('vehicle occupancy adapter must return an explicit boolean',()=>{\n const vehicle=createVehicle('car');\n vehicle.speed=12;\n for(const invalid of [undefined,null,0,1,'yes']){\n  assert.throws(()=>stepVehicle(vehicle,{},1/60,{canOccupy:()=>invalid}),/canOccupy must return a boolean/);\n  assert.deepEqual(vehicle.position,{x:0,y:0,z:0},'invalid query must not mutate caller state');\n }\n assert.equal(stepVehicle(vehicle,{},1/60,{canOccupy:()=>false}).speed,0);\n});\n
+test('vehicle occupancy adapter must return an explicit boolean',()=>{
+ const vehicle=createVehicle('car');
+ vehicle.speed=12;
+ for(const invalid of [undefined,null,0,1,'yes']){
+  assert.throws(()=>stepVehicle(vehicle,{},1/60,{canOccupy:()=>invalid}),/canOccupy must return a boolean/);
+  assert.deepEqual(vehicle.position,{x:0,y:0,z:0},'invalid query must not mutate caller state');
+ }
+ assert.equal(stepVehicle(vehicle,{},1/60,{canOccupy:()=>false}).speed,0);
+});
