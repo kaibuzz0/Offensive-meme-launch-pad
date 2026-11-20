@@ -43,6 +43,9 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   // Sweep the same quarter-meter spatial resolution as player movement.
   // Endpoint-only checks could tunnel a fast vehicle through a thin wall.
   // Keep the last safe position and stop at the first blocked sample.
+  if(environment.requireCollision === true && typeof environment.canOccupy !== 'function') {
+    throw new TypeError('A canonical world collision adapter is required');
+  }
   if(environment.canOccupy !== undefined){
     if(typeof environment.canOccupy!=='function') throw new TypeError('canOccupy must be a function');
     const distance=Math.hypot(candidate.x-v.position.x,candidate.z-v.position.z);
