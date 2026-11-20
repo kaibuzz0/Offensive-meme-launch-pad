@@ -85,3 +85,13 @@ test('out-of-domain chunk coordinates reject atomically before eviction or terra
  assert.strictEqual(manager.snapshot()[0],before[0]);
  assert.equal(samples,priorSamples,'invalid chunks never sample terrain');
 });
+
+
+test('out-of-domain committed edit batches reject atomically before cache mutation',()=>{
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ manager.enter(0,0);manager.enter(-1,0);
+ const before=manager.snapshot();
+ assert.throws(()=>manager.invalidateCommittedVoxels([{x:0,z:0},{x:0x80000000*16,z:0}]),RangeError);
+ assert.deepEqual(manager.snapshot(),before);
+ assert.equal(manager.activeChunks(),2);
+});
