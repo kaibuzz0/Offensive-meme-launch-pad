@@ -53,7 +53,7 @@ export function createVoxelVehicleCollision(world, options = {}) {
       // Match the player controller's cave-floor selection: a vehicle below
       // a closed roof stands on the gallery floor, not the terrain above it.
       // Exposed mouths are open to the cave and use its traversable floor.
-      if (gallery && (!Number.isFinite(gallery.floor) || !Number.isFinite(gallery.ceiling)))
+      if (gallery && (!Number.isFinite(gallery.floor) || !Number.isFinite(gallery.ceiling) || gallery.ceiling <= gallery.floor))
         return false;
       const insideGallery = !!gallery && (gallery.exposed || position.y < gallery.ceiling);
       const floor = insideGallery ? gallery.floor : column.height + 1;
