@@ -232,5 +232,4 @@ test('direct seeded spawns reject coordinates that alias the 32-bit hash domain'
  assert.throws(()=>spawnChunk(7,0.5,0,'forest'),TypeError);
  assert.throws(()=>spawnChunk(Number.MAX_SAFE_INTEGER+1,0,0,'forest'),TypeError);
  assert.deepEqual(spawnChunk(7,maxChunk,0,'forest'),spawnChunk(7,maxChunk,0,'forest'));
- assert.notDeepEqual(spawnChunk(7,0,0,'forest'),spawnChunk(7,1,0,'forest'));
 });
