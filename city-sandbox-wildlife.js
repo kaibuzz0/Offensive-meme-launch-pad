@@ -261,6 +261,9 @@
    if(!a||![a.x,a.z,a.vx,a.vz].every(Number.isFinite))throw TypeError('Flock agents require finite x,z,vx,vz');
    return a;
   });
+  // A zero-duration simulation tick must not change velocity or position.
+  // Return independent descriptors so callers cannot mutate input agents.
+  if(dt===0)return valid.map(a=>({...a}));
   return valid.map((a,i)=>{
    let n=0,cx=0,cz=0,vx=0,vz=0,sepX=0,sepZ=0;
    for(let j=0;j<valid.length;j++){
