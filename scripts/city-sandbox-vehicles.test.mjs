@@ -200,3 +200,10 @@ test('fixed-step frame reports actual collision queries without changing world d
   const idle=advanceVehicleFrame(vehicle,{},0,{requireCollision:true,canOccupy:()=>true});
   assert.equal(idle.collisionQueries,0);
 });
+
+test('zero-step frames reject malformed optional collision adapters',()=>{
+ const vehicle=createVehicle();
+ for(const canOccupy of [null,false,0,'']){
+  assert.throws(()=>advanceVehicleFrame(vehicle,{},0,{canOccupy}),/canOccupy must be a function/);
+ }
+});
