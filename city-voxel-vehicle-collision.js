@@ -35,15 +35,24 @@ export function createVoxelVehicleCollision(world, options = {}) {
       return false;
     const sin = Math.sin(vehicle.heading), cos = Math.cos(vehicle.heading);
     let low = Infinity, high = -Infinity;
+    // Footprint samples often fall in the same logical voxel column.
+    // Cache only immutable per-query terrain/cave columns, never dynamic edits.
+    const columns = new Map();
     for (const [forward, side] of footprint) {
       const x = position.x + forward*sin + side*cos;
       const z = position.z + forward*cos - side*sin;
-      const column = world.surfaceAt(Math.floor(x), Math.floor(z));
+      const bx = Math.floor(x), bz = Math.floor(z);
+      const key = `${bx},${bz}`;
+      let sampled = columns.get(key);
+      if (!sampled) {
+        sampled = {column: world.surfaceAt(bx, bz), gallery: world.caveRoomAt?.(bx, bz)};
+        columns.set(key, sampled);
+      }
+      const {column, gallery} = sampled;
       if (!column || !Number.isFinite(column.height)) return false;
       // Match the player controller's cave-floor selection: a vehicle below
       // a closed roof stands on the gallery floor, not the terrain above it.
       // Exposed mouths are open to the cave and use its traversable floor.
-      const gallery = world.caveRoomAt?.(Math.floor(x), Math.floor(z));
       if (gallery && (!Number.isFinite(gallery.floor) || !Number.isFinite(gallery.ceiling)))
         return false;
       const insideGallery = !!gallery && (gallery.exposed || position.y < gallery.ceiling);
