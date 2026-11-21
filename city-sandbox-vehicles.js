@@ -138,7 +138,14 @@ export function advanceVehicleFrame(vehicle,controls,frameSeconds,environment={}
   const accumulated=Math.min(previous+frameSeconds,step*maxSteps);
   const steps=Math.min(maxSteps,Math.floor((accumulated+step*1e-9)/step));
   let next=vehicle;
-  for(let i=0;i<steps;i++) next=stepVehicle(next,controls,step,environment);
+  let collisionQueries=0;
+  const measuredEnvironment=typeof environment.canOccupy==='function'
+    ? {...environment,canOccupy:(position,body)=>{
+        collisionQueries++;
+        return environment.canOccupy(position,body);
+      }}
+    : environment;
+  for(let i=0;i<steps;i++) next=stepVehicle(next,controls,step,measuredEnvironment);
   const remainder=Math.max(0,Math.min(step*(1-1e-9),accumulated-steps*step));
-  return {vehicle:next,clock:{remainder},steps,droppedSeconds:Math.max(0,previous+frameSeconds-accumulated)};
+  return {vehicle:next,clock:{remainder},steps,collisionQueries,droppedSeconds:Math.max(0,previous+frameSeconds-accumulated)};
 }
