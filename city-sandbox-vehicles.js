@@ -50,6 +50,8 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
     throw new TypeError('A canonical world collision adapter is required');
   }
   if(environment.groundHeightAt !== undefined && typeof environment.groundHeightAt !== 'function') throw new TypeError('groundHeightAt must be a function');
+  const maxGroundStep=environment.maxGroundStep??1;
+  if(!Number.isFinite(maxGroundStep)||maxGroundStep<0) throw new RangeError('maxGroundStep must be finite and nonnegative');
   if(environment.canOccupy !== undefined){
     if(typeof environment.canOccupy!=='function') throw new TypeError('canOccupy must be a function');
     const distance=Math.hypot(candidate.x-v.position.x,candidate.z-v.position.z);
@@ -100,6 +102,9 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
       if(environment.groundHeightAt){
         const supported=environment.groundHeightAt(sample,v);
         if(!Number.isFinite(supported)) throw new TypeError('groundHeightAt must return a finite height');
+        // Reject cliffs instead of snapping the chassis vertically to an
+        // unrelated surface or cave floor between swept positions.
+        if(Math.abs(supported-v.position.y)>maxGroundStep){blocked=true;break;}
         sample.y=supported;
       }
       // A malformed world adapter must never silently permit travel.
@@ -139,6 +144,7 @@ export function advanceVehicleFrame(vehicle,controls,frameSeconds,environment={}
     throw new TypeError('requireCollision must be a boolean');
   }
   if(environment.groundHeightAt !== undefined && typeof environment.groundHeightAt !== 'function') throw new TypeError('groundHeightAt must be a function');
+  if(environment.maxGroundStep !== undefined && (!Number.isFinite(environment.maxGroundStep)||environment.maxGroundStep<0)) throw new RangeError('maxGroundStep must be finite and nonnegative');
   if(environment.canOccupy !== undefined && typeof environment.canOccupy !== 'function') {
     throw new TypeError('canOccupy must be a function');
   }
