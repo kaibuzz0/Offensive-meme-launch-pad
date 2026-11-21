@@ -175,3 +175,23 @@ test('rejects accessor-backed edits without running getters or changing journal 
   assert.equal(journal.size, 0);
   assert.equal(journal.apply({ x: 1, y: 2, z: 3, block: 'stone' }).changed, true);
 });
+
+
+test('snapshot metadata accessors fail closed without invoking getters', () => {
+  const original = createVoxelEditJournal('seed-metadata-accessor');
+  original.apply({ x: 2, y: 3, z: 4, block: 'stone' });
+  const saved = original.snapshot();
+  const before = JSON.stringify(saved);
+  let getterCalls = 0;
+  for (const field of ['version', 'worldSeed', 'revision', 'edits', 'voxelMetres']) {
+    const malformed = { ...saved };
+    Object.defineProperty(malformed, field, {
+      enumerable: true,
+      get() { getterCalls++; throw new Error('unexpected getter invocation'); }
+    });
+    assert.throws(() => createVoxelEditJournal('seed-metadata-accessor', malformed), /incompatible/);
+    assert.equal(getterCalls, 0);
+    assert.equal(JSON.stringify(saved), before);
+  }
+  assert.deepEqual(createVoxelEditJournal('seed-metadata-accessor', saved).snapshot(), saved);
+});
