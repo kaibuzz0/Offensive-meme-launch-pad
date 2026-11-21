@@ -245,6 +245,24 @@
    dirty();
    return snapshot();
   }
+  // Stream a square neighborhood around the player's voxel position without
+  // requiring callers to construct or retain a potentially unbounded chunk list.
+  // Closest chunks win when the requested radius exceeds the active budget.
+  // Stable distance/coordinate ordering avoids per-frame population churn.
+  function syncAround(x,z,radiusChunks=1){
+   if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z))throw TypeError('Safe integer player voxel coordinates required');
+   if(!Number.isInteger(radiusChunks)||radiusChunks<0||radiusChunks>4)throw RangeError('radiusChunks must be 0..4');
+   const cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE);
+   validate(cx,cz);
+   const candidates=[];
+   for(let dz=-radiusChunks;dz<=radiusChunks;dz++)for(let dx=-radiusChunks;dx<=radiusChunks;dx++){
+    const nx=cx+dx,nz=cz+dz;
+    validate(nx,nz);
+    candidates.push([nx,nz,dx*dx+dz*dz,dx,dz]);
+   }
+   candidates.sort((a,b)=>a[2]-b[2]||a[4]-b[4]||a[3]-b[3]);
+   return sync(candidates.slice(0,maxChunks).map(([nx,nz])=>[nx,nz]));
+  }
   // Bounded spatial query for NPC/encounter integration. Only active chunks
   // participate; no terrain regeneration or offscreen actor activation.
   function nearby(x,z,radius,y,verticalReach){
@@ -286,7 +304,7 @@
    if(!cachedSnapshot)cachedSnapshot=Object.freeze(Array.from(active.values()).flat());
    return cachedSnapshot;
   }
-  return Object.freeze({enter,leave,invalidate,invalidateAtVoxel,invalidateCommittedVoxels,sync,snapshot,nearby,nearest,activeChunks:()=>active.size,
+  return Object.freeze({enter,leave,invalidate,invalidateAtVoxel,invalidateCommittedVoxels,sync,syncAround,snapshot,nearby,nearest,activeChunks:()=>active.size,
    clear:()=>{if(active.size){active.clear();dirty();}}});
  }
  function cappedFlockStep(agents,dt,options={}){
