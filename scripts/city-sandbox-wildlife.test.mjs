@@ -586,3 +586,13 @@ test('committed edit batches invalidate unique chunks atomically including negat
  assert.equal(manager.invalidateCommittedVoxels([]),0);
  assert.throws(()=>manager.invalidateCommittedVoxels(Array(4097).fill({x:0,z:0})),RangeError);
 });
+
+
+test('zero-duration flock tick preserves position and velocity even above speed cap',()=>{
+ const agents=[{id:'a',x:2,z:-3,vx:7,vz:0},{id:'b',x:3,z:-3,vx:0,vz:0}];
+ const before=structuredClone(agents);
+ const result=cappedFlockStep(agents,0,{speed:3});
+ assert.deepEqual(result,before);
+ assert.deepEqual(agents,before);
+ assert.notStrictEqual(result[0],agents[0]);
+});
