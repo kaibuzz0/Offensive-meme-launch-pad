@@ -114,3 +114,21 @@ test('direct terrain spawn rejects invalid chunks before sampling any columns',(
  }
  assert.equal(calls,0);
 });
+
+test('nearby queries only streamed creatures and never resamples terrain',()=>{
+ let calls=0;
+ const terrain={...world,surfaceAt(x,z){calls++;return world.surfaceAt(x,z);}};
+ const manager=createChunkWildlifeManager(terrain,{maxChunks:2});
+ const population=manager.enter(0,0);
+ const sampled=calls;
+ const matches=manager.nearby(8,8,256);
+ assert.deepEqual(matches,population);
+ assert.ok(Object.isFrozen(matches));
+ assert.equal(calls,sampled);
+ assert.throws(()=>manager.nearby(0,0,257),RangeError);
+ assert.throws(()=>manager.nearby(NaN,0,1),RangeError);
+ assert.equal(manager.activeChunks(),1);
+ manager.leave(0,0);
+ assert.deepEqual(manager.nearby(8,8,256),[]);
+ assert.equal(calls,sampled,'query never activates unloaded chunks');
+});
