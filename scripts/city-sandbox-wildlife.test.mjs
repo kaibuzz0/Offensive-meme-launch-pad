@@ -663,7 +663,7 @@ test('player-centered wildlife streaming prioritizes nearby chunks and preserves
  assert.equal(samples,after,'repeated sync does not sample terrain');
  assert.deepEqual(initial,manager.snapshot());
  assert.throws(()=>manager.syncAround(0,0,5),RangeError);
- assert.throws(()=>manager.syncAround(0.5,0,1),TypeError);
+ assert.strictEqual(manager.syncAround(0.5,0,2),initial,'fractional player positions must be accepted');
  assert.throws(()=>manager.syncAround(2147483648*16,0,1),RangeError);
  assert.strictEqual(manager.snapshot(),initial,'invalid inputs leave existing population intact');
  const moved=manager.syncAround(-1,-1,1);
