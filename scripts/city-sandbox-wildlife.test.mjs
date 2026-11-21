@@ -596,3 +596,27 @@ test('zero-duration flock tick preserves position and velocity even above speed 
  assert.deepEqual(agents,before);
  assert.notStrictEqual(result[0],agents[0]);
 });
+
+
+test('active wildlife proximity queries are bounded, immutable and do not generate terrain',()=>{
+ let samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ manager.sync([[0,0],[1,0]]);
+ const before=samples;
+ const all=manager.snapshot();
+ const near=manager.nearby(8,8,256);
+ assert.deepEqual(near,all);
+ assert.ok(Object.isFrozen(near));
+ assert.ok(near.every(Object.isFrozen));
+ assert.deepEqual(manager.nearby(999,999,1),[]);
+ assert.equal(samples,before,'query does not sample or activate distant terrain');
+ assert.throws(()=>manager.nearby(0,0,257),RangeError);
+ assert.throws(()=>manager.nearby(NaN,0,1),RangeError);
+ assert.throws(()=>manager.nearby(0,0,-1),RangeError);
+ manager.clear();
+ assert.deepEqual(manager.nearby(8,8,256),[]);
+});
