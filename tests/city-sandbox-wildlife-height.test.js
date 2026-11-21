@@ -8,7 +8,11 @@ test('height-aware nearest rejects wildlife through floors without terrain reads
  const world = {seed:42, CHUNK_SIZE:16, SEA_LEVEL:0,
   surfaceAt(){reads++;return {height:10,group:'forest',slope:0};}};
  const manager=createChunkWildlifeManager(world);
- const animals=manager.enter(0,0);
+ let animals=[];
+ for(let cx=0;cx<32&&!animals.length;cx++){
+  manager.clear();
+  animals=manager.enter(cx,0);
+ }
  assert.ok(animals.length>0);
  const animal=animals[0], before=reads;
  assert.strictEqual(manager.nearest(animal.x,animal.z,0),animal,'legacy horizontal query remains compatible');
