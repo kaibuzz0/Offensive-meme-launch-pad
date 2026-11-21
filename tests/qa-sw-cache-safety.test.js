@@ -101,3 +101,15 @@ test('HTML fallback cannot poison the cached JavaScript or CSS game entry', asyn
   await context.remember(page, response({ mime: 'text/html' }));
   assert.equal(saved.length, 3);
 });
+
+
+test('unknown and malformed content lengths never enter bounded offline cache', async () => {
+  const { context, saved } = worker();
+  const req = { url: 'https://example.test/game/city.js', method: 'GET', mode: 'cors', credentials: 'same-origin' };
+  for (const size of [null, '', 'not-a-number', '-1', 'Infinity', '9007199254740993']) {
+    await context.remember(req, response({ size }));
+  }
+  assert.equal(saved.length, 0);
+  await context.remember(req, response({ size: '2048' }));
+  assert.equal(saved.length, 1);
+});
