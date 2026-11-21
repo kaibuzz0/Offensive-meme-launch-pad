@@ -620,3 +620,29 @@ test('active wildlife proximity queries are bounded, immutable and do not genera
  manager.clear();
  assert.deepEqual(manager.nearby(8,8,256),[]);
 });
+
+
+test('height-aware nearby queries filter loaded wildlife without changing horizontal callers',()=>{
+ let samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:4});
+ // Find a populated deterministic chunk without relying on one fixed location.
+ let selected=null;
+ for(let cx=0;cx<12&&!selected;cx++)for(let cz=0;cz<12&&!selected;cz++){
+  const population=manager.enter(cx,cz);
+  if(population.length)selected=population[0];
+  else manager.leave(cx,cz);
+ }
+ assert.ok(selected,'fixture must contain a spawned creature');
+ const before=samples;
+ assert.ok(manager.nearby(selected.x,selected.z,0).some(a=>a.id===selected.id));
+ assert.ok(manager.nearby(selected.x,selected.z,0,selected.y,0).some(a=>a.id===selected.id));
+ assert.ok(!manager.nearby(selected.x,selected.z,0,selected.y+2,0).some(a=>a.id===selected.id));
+ assert.throws(()=>manager.nearby(selected.x,selected.z,1,selected.y),RangeError);
+ assert.throws(()=>manager.nearby(selected.x,selected.z,1,undefined,2),RangeError);
+ assert.throws(()=>manager.nearby(selected.x,selected.z,1,selected.y,-1),RangeError);
+ assert.equal(samples,before,'proximity checks never query terrain');
+});
