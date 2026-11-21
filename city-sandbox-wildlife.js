@@ -245,11 +245,23 @@
    dirty();
    return snapshot();
   }
+  // Bounded spatial query for NPC/encounter integration. Only active chunks
+  // participate; no terrain regeneration or offscreen actor activation.
+  function nearby(x,z,radius){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0||radius>256)
+    throw RangeError('Finite position and radius 0..256 required');
+   const r2=radius*radius,found=[];
+   for(const creatures of active.values())for(const creature of creatures){
+    const dx=creature.x-x,dz=creature.z-z;
+    if(dx*dx+dz*dz<=r2)found.push(creature);
+   }
+   return Object.freeze(found);
+  }
   function snapshot(){
    if(!cachedSnapshot)cachedSnapshot=Object.freeze(Array.from(active.values()).flat());
    return cachedSnapshot;
   }
-  return Object.freeze({enter,leave,invalidate,invalidateAtVoxel,invalidateCommittedVoxels,sync,snapshot,activeChunks:()=>active.size,
+  return Object.freeze({enter,leave,invalidate,invalidateAtVoxel,invalidateCommittedVoxels,sync,snapshot,nearby,activeChunks:()=>active.size,
    clear:()=>{if(active.size){active.clear();dirty();}}});
  }
  function cappedFlockStep(agents,dt,options={}){
