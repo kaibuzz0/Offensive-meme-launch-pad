@@ -30,7 +30,10 @@
     if(work&&typeof world.caveRoomAt==='function')work.caveQueries++;
     const gallery=world.caveRoomAt?.(bx,bz);
     if(gallery&&(gallery.exposed||referenceY<gallery.ceiling)){
-     if(!Number.isFinite(gallery.floor))return null;
+     // Reject impossible cave columns consistently with vehicle occupancy.
+     // Never treat a zero-height or inverted gallery as traversable.
+     if(!Number.isFinite(gallery.floor)||!Number.isFinite(gallery.ceiling)
+      ||gallery.ceiling<=gallery.floor)return null;
      height=gallery.floor;
     }
     top=Math.max(top,height);
