@@ -16,6 +16,11 @@ function eligible(url,request){
 }
 async function remember(request,response){
   if(!response||!response.ok||response.type==='opaque'||response.headers.has('set-cookie'))return response;
+  // A same-origin request can redirect to a third-party URL. Never persist that response.
+  if(response.redirected&&(!response.url||new URL(response.url).origin!==scope.origin))return response;
+  // Prevent unexpectedly large files from evicting the whole offline working set.
+  const bytes=Number(response.headers.get('content-length'));
+  if(Number.isFinite(bytes)&&bytes>2*1024*1024)return response;
   try{
     const cache=await caches.open(CACHE);
     await cache.put(request,response.clone());
