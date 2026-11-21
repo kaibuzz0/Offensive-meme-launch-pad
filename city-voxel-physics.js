@@ -36,7 +36,16 @@
   function snapshot(){return Object.freeze({...state});}
   function teleport(x,z,referenceY=Infinity){
    const floor=floorAt(x,z,referenceY);
-   if(floor===null)return false;
+   // Teleports must honor the same structural obstruction query as walking.
+   // A rejected destination leaves the complete controller state unchanged.
+   if(floor===null||world.gateRoad?.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS))return false;
+   // Reject underground destinations whose roofs intersect the capsule,
+   // including adjacent cells touched by the player's footprint.
+   for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
+    const gallery=world.caveRoomAt?.(Math.floor(x+ox),Math.floor(z+oz));
+    if(gallery&&!gallery.exposed&&floor<gallery.ceiling
+       &&floor+world.PLAYER_HEIGHT>gallery.ceiling)return false;
+   }
    state.x=x;state.z=z;state.y=floor;state.vy=0;state.grounded=true;
    return true;
   }
@@ -50,7 +59,8 @@
     const nx=axis==='x'?state.x+part:state.x;
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
-    if(floor===null||world.gateRoad?.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
+    const candidateY=state.grounded?Math.max(state.y,floor):state.y;
+    if(floor===null||world.gateRoad?.obstructs(nx,candidateY,nz,world.PLAYER_HEIGHT,RADIUS))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
@@ -59,7 +69,7 @@
     let blocked=false;
     for(const [ox,oz] of samples){
      const gallery=world.caveRoomAt?.(Math.floor(nx+ox),Math.floor(nz+oz));
-     if(gallery&&!gallery.exposed&&state.y<gallery.ceiling&&state.y+world.PLAYER_HEIGHT>gallery.ceiling){
+     if(gallery&&!gallery.exposed&&candidateY<gallery.ceiling&&candidateY+world.PLAYER_HEIGHT>gallery.ceiling){
       blocked=true;break;
      }
     }
@@ -73,7 +83,9 @@
   function tick(input,dt){
    if(!Number.isFinite(dt)||dt<0)throw Error('Invalid time step');
    const step=clamp(dt,0,.05);
-   let vx=clamp(Number(input?.right)||0,-1,1),vz=clamp(Number(input?.forward)||0,-1,1);
+   // Reject non-finite axis values rather than interpreting Infinity as full-speed input.
+   const axis=n=>Number.isFinite(n)?clamp(n,-1,1):0;
+   let vx=axis(input?.right),vz=axis(input?.forward);
    const len=Math.hypot(vx,vz);
    if(len>1){vx/=len;vz/=len;}
    const yaw=Number.isFinite(input?.yaw)?input.yaw:0;
