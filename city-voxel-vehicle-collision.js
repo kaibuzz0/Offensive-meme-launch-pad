@@ -13,7 +13,7 @@ export function createVoxelVehicleCollision(world, options = {}) {
     if (!Number.isFinite(value) || (name === 'maxStep' ? value < 0 : value <= 0))
       throw new RangeError(name + ' must be finite and positive (maxStep may be zero)');
   }
-  // Sample the oriented chassis rather than a circular center-only footprint.
+  // The edit ledger may supply committed, authoritative solid-voxel queries.\n  // Never inspect renderer meshes or uncommitted placement previews.\n  const editObstructs = options.editObstructs;\n  if (editObstructs !== undefined && typeof editObstructs !== 'function')\n    throw new TypeError('editObstructs must be a function');\n  // Sample the oriented chassis rather than a circular center-only footprint.
   const footprint = [[0,0],[-halfLength,0],[halfLength,0],
     [-halfLength,-radius],[-halfLength,radius],[halfLength,-radius],[halfLength,radius],
     [0,-radius],[0,radius]];
@@ -30,7 +30,7 @@ export function createVoxelVehicleCollision(world, options = {}) {
       const floor = column.height + 1;
       low = Math.min(low, floor); high = Math.max(high, floor);
       if (Math.abs(floor - position.y) > maxStep) return false;
-      if (world.gateRoad.obstructs(x, position.y, z, height, radius * 0.25)) return false;
+      if (world.gateRoad.obstructs(x, position.y, z, height, radius * 0.25)) return false;\n      if (editObstructs) {\n        const blocked = editObstructs(x, position.y, z, height, radius * 0.25);\n        if (typeof blocked !== 'boolean')\n          throw new TypeError('editObstructs must return a boolean');\n        if (blocked) return false;\n      }
       const gallery = world.caveRoomAt?.(Math.floor(x), Math.floor(z));
       if (gallery && !gallery.exposed && position.y < gallery.ceiling &&
           position.y + height > gallery.ceiling) return false;
