@@ -168,13 +168,19 @@
   }
   // Read-only proximity query over currently streamed creatures. Never load
   // distant chunks or sample terrain in response to an interaction probe.
-  function nearby(x,z,radius){
+  function nearby(x,z,radius,y,maxVerticalDistance){
    if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0||radius>256)
     throw RangeError('Nearby query requires finite coordinates and radius 0..256');
+   const vertical=y!==undefined;
+   if(vertical&&(!Number.isFinite(y)||!Number.isFinite(maxVerticalDistance)||maxVerticalDistance<0||maxVerticalDistance>256))
+    throw RangeError('Vertical probe requires finite height and reach 0..256');
+   if(!vertical&&maxVerticalDistance!==undefined)throw RangeError('Vertical reach requires height');
    const r2=radius*radius,found=[];
    for(const population of active.values())for(const creature of population){
+    const dy=vertical?creature.y-y:0;
+    if(vertical&&(!Number.isFinite(creature.y)||Math.abs(dy)>maxVerticalDistance))continue;
     const dx=creature.x-x,dz=creature.z-z;
-    if(dx*dx+dz*dz<=r2)found.push(creature);
+    if(dx*dx+dz*dz+dy*dy<=r2)found.push(creature);
    }
    return Object.freeze(found);
   }
