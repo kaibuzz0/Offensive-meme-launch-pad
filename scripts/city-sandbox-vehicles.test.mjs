@@ -188,3 +188,15 @@ test('zero-step vehicle frames validate mandatory canonical collision wiring',()
  assert.equal(result.steps,0);
  assert.deepEqual(result.vehicle,vehicle);
 });
+
+
+test('fixed-step frame reports actual collision queries without changing world decisions',()=>{
+  const vehicle=createVehicle();
+  let observed=0;
+  const result=advanceVehicleFrame(vehicle,{throttle:1},1/60,{requireCollision:true,canOccupy:()=>{observed++;return true;}});
+  assert.equal(result.steps,1);
+  assert.equal(result.collisionQueries,observed);
+  assert.ok(result.collisionQueries>=2);
+  const idle=advanceVehicleFrame(vehicle,{},0,{requireCollision:true,canOccupy:()=>true});
+  assert.equal(idle.collisionQueries,0);
+});
