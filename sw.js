@@ -9,6 +9,9 @@ const GAME_FILES=/^(?:city(?:-[a-z0-9-]+)?\.js|city\.css|index\.html|city\.html|
 function eligible(url,request){
   if(request.method!=='GET'||url.origin!==self.location.origin||!url.pathname.startsWith(scope.pathname))return false;
   if(request.credentials==='include'&&request.mode!=='navigate')return false;
+  // Never retain authentication or wallet callback parameters in offline navigation caches.
+  const sensitive=/^(?:access_token|id_token|refresh_token|token|code|state|session|session_id|auth|authorization|signature|sig|api_key|key|wallet|address)$/i;
+  for(const key of url.searchParams.keys())if(sensitive.test(key))return false;
   const relative=url.pathname.slice(scope.pathname.length);
   // GitHub Pages serves the homepage at the directory URL, not only index.html.
   // Without this case offline homepage Play falls back to offline.html even after warmup.
