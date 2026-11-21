@@ -49,6 +49,7 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   if(environment.requireCollision === true && typeof environment.canOccupy !== 'function') {
     throw new TypeError('A canonical world collision adapter is required');
   }
+  if(environment.groundHeightAt !== undefined && typeof environment.groundHeightAt !== 'function') throw new TypeError('groundHeightAt must be a function');
   if(environment.canOccupy !== undefined){
     if(typeof environment.canOccupy!=='function') throw new TypeError('canOccupy must be a function');
     const distance=Math.hypot(candidate.x-v.position.x,candidate.z-v.position.z);
@@ -93,7 +94,14 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
     v.heading=heading;
     for(let i=1;i<=segments;i++){
       const t=i/segments;
-      const sample={x:origin.x+(candidate.x-origin.x)*t,y:origin.y,z:origin.z+(candidate.z-origin.z)*t};
+      const sample={x:origin.x+(candidate.x-origin.x)*t,y:v.position.y,z:origin.z+(candidate.z-origin.z)*t};
+      // The canonical world may resolve chassis support at each swept position.
+      // Never derive vehicle height from rendered meshes or LOD.
+      if(environment.groundHeightAt){
+        const supported=environment.groundHeightAt(sample,v);
+        if(!Number.isFinite(supported)) throw new TypeError('groundHeightAt must return a finite height');
+        sample.y=supported;
+      }
       // A malformed world adapter must never silently permit travel.
       const permitted=environment.canOccupy(sample,v);
       if(typeof permitted!=='boolean') throw new TypeError('canOccupy must return a boolean');
@@ -130,6 +138,7 @@ export function advanceVehicleFrame(vehicle,controls,frameSeconds,environment={}
   if(environment.requireCollision !== undefined && typeof environment.requireCollision !== 'boolean') {
     throw new TypeError('requireCollision must be a boolean');
   }
+  if(environment.groundHeightAt !== undefined && typeof environment.groundHeightAt !== 'function') throw new TypeError('groundHeightAt must be a function');
   if(environment.canOccupy !== undefined && typeof environment.canOccupy !== 'function') {
     throw new TypeError('canOccupy must be a function');
   }
