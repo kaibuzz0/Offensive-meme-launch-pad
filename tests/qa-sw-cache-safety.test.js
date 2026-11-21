@@ -63,3 +63,13 @@ test('cache eviction skips shell entries without exceeding the entry cap', async
   assert.equal(deleted.length, 3);
   assert.ok(deleted.every(url => !shell.some(name => url === scope + name)));
 });
+
+
+test('authorized game requests are not eligible for public offline caching', () => {
+  const { context } = worker();
+  const url = new URL('https://example.test/game/city.js');
+  const anonymous = { method: 'GET', mode: 'cors', credentials: 'same-origin', headers: new Headers() };
+  const authorized = { ...anonymous, headers: new Headers({ Authorization: 'Bearer example-secret' }) };
+  assert.equal(context.eligible(url, anonymous), true);
+  assert.equal(context.eligible(url, authorized), false);
+});
