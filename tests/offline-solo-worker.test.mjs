@@ -43,3 +43,11 @@ test('directory homepage is cacheable only as a navigation for offline Play',()=
   assert.equal(context.eligible(new URL(scope),{method:'GET',mode:'navigate',credentials:'same-origin'}),true);
   assert.equal(context.eligible(new URL(scope),{method:'GET',mode:'cors',credentials:'same-origin'}),false);
 });
+
+test('navigation cache excludes sensitive callback parameters while preserving world seeds',()=>{
+  const {context,scope}=worker();
+  for(const key of ['access_token','code','state','session','signature','wallet']){
+    assert.equal(context.eligible(new URL('city.html?'+key+'=secret',scope),{method:'GET',mode:'navigate',credentials:'same-origin'}),false,key);
+  }
+  assert.equal(context.eligible(new URL('city.html?terrain=1&seed=123',scope),{method:'GET',mode:'navigate',credentials:'same-origin'}),true);
+});
