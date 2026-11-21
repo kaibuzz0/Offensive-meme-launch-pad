@@ -1,19 +1,43 @@
 'use strict';
-const CACHE='offensive-shell-v1';
+const CACHE='offensive-shell-v2';
 const OWN_PREFIX='offensive-shell-';
 const SHELL=['offline.html','assets/icons/app-192.png','assets/icons/app-512.png','assets/icons/apple-touch-180.png'];
 const urls=SHELL.map(path=>new URL(path,self.registration.scope).href);
+const scope=new URL(self.registration.scope);
+const MAX_GAME_ENTRIES=96;
+const GAME_FILES=/^(?:city(?:-[a-z0-9-]+)?\.js|city\.css|index\.html|city\.html|styles\.css|launchpad\.css|launchpad\.js|launchpad-config\.js|tokens\.js|share-core\.js|social\.js|pwa\.js)$/;
+function eligible(url,request){
+  if(request.method!=='GET'||url.origin!==self.location.origin||!url.pathname.startsWith(scope.pathname))return false;
+  if(request.credentials==='include'&&request.mode!=='navigate')return false;
+  const relative=url.pathname.slice(scope.pathname.length);
+  return GAME_FILES.test(relative);
+}
+async function remember(request,response){
+  if(!response||!response.ok||response.type==='opaque'||response.headers.has('set-cookie'))return response;
+  try{
+    const cache=await caches.open(CACHE);
+    await cache.put(request,response.clone());
+    const keys=await cache.keys();
+    // Cache insertion order is stable; keep the static shell plus a bounded game working set.
+    for(let i=0;i<keys.length-MAX_GAME_ENTRIES;i++)if(!urls.includes(keys[i].url))await cache.delete(keys[i]);
+  }catch(_error){/* Quota limits must not break online gameplay. */}
+  return response;
+}
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(urls)));});
-// Updates wait for existing app windows to close; do not reload an active wallet flow.
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{for(const key of await caches.keys())if(key.startsWith(OWN_PREFIX)&&key!==CACHE)await caches.delete(key);await self.clients.claim();})());});
 self.addEventListener('fetch',event=>{
   const request=event.request;
   const url=new URL(request.url);
   if(request.method!=='GET'||url.origin!==self.location.origin)return;
   if(request.mode==='navigate'){
-    event.respondWith(fetch(request).catch(()=>caches.match(new URL('offline.html',self.registration.scope).href)));
+    if(eligible(url,request)){
+      event.respondWith(fetch(request).then(response=>remember(request,response)).catch(async()=>await caches.match(request)||await caches.match(new URL('offline.html',scope).href)));
+    }else{
+      event.respondWith(fetch(request).catch(()=>caches.match(new URL('offline.html',scope).href)));
+    }
     return;
   }
-  // Never cache token metadata, reward configuration, wallet scripts, quotes, or API calls.
-  if(urls.includes(url.href))event.respondWith(caches.match(request).then(cached=>cached||fetch(request)));
+  if(urls.includes(url.href)){event.respondWith(caches.match(request).then(cached=>cached||fetch(request)));return;}
+  // Only versioned, local, public game code is cached. No wallet, API or remote responses.
+  if(eligible(url,request))event.respondWith(caches.match(request).then(cached=>cached||fetch(request).then(response=>remember(request,response))));
 });
