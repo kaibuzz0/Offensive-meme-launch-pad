@@ -37,3 +37,9 @@ test('fetch listener does not intercept unsafe methods or foreign origins',()=>{
     assert.equal(intercepted,false);
   }
 });
+
+test('directory homepage is cacheable only as a navigation for offline Play',()=>{
+  const {context,scope}=worker();
+  assert.equal(context.eligible(new URL(scope),{method:'GET',mode:'navigate',credentials:'same-origin'}),true);
+  assert.equal(context.eligible(new URL(scope),{method:'GET',mode:'cors',credentials:'same-origin'}),false);
+});
