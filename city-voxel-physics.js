@@ -13,7 +13,7 @@
   if(!Number.isFinite(world.PLAYER_HEIGHT)||world.PLAYER_HEIGHT<=0)
    throw Error('Finite positive player collision height required');
   // Per-tick physics query counts, independent of visual detail.
-  let lastWork=Object.freeze({surfaceQueries:0,caveQueries:0,structuralQueries:0,waterQueries:0,sweepSegments:0,requestedSeconds:0,simulatedSeconds:0,discardedSeconds:0,failed:false});
+  let lastWork=Object.freeze({surfaceQueries:0,caveQueries:0,structuralQueries:0,editQueries:0,waterQueries:0,sweepSegments:0,requestedSeconds:0,simulatedSeconds:0,discardedSeconds:0,failed:false});
   let work=null;
   function floorAt(x,z,referenceY=Infinity){
    if(!Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>999900||Math.abs(z)>999900)return null;
@@ -47,6 +47,7 @@
   function editBlocks(x,y,z){
    if(world.editObstructs===undefined)return false;
    if(typeof world.editObstructs!=='function')throw new TypeError('editObstructs must be a function');
+   if(work)work.editQueries++;
    const blocked=world.editObstructs(x,y,z,world.PLAYER_HEIGHT,RADIUS);
    if(typeof blocked!=='boolean')throw new TypeError('editObstructs must return a boolean');
    return blocked;
@@ -107,7 +108,7 @@
   }
   function tick(input,dt){
    if(!Number.isFinite(dt)||dt<0)throw Error('Invalid time step');
-   work={surfaceQueries:0,caveQueries:0,structuralQueries:0,waterQueries:0,sweepSegments:0};
+   work={surfaceQueries:0,caveQueries:0,structuralQueries:0,editQueries:0,waterQueries:0,sweepSegments:0};
    let failed=true;
    // A late collision-query exception must not retain movement from an earlier axis.
    const before={...state};
@@ -210,7 +211,7 @@
    const beforeProfile=lastWork;
    accumulator+=accepted;
    let steps=0;
-   const totals={surfaceQueries:0,caveQueries:0,structuralQueries:0,waterQueries:0,sweepSegments:0};
+   const totals={surfaceQueries:0,caveQueries:0,structuralQueries:0,editQueries:0,waterQueries:0,sweepSegments:0};
    try {
     while(accumulator+1e-10>=FIXED_DT&&steps<MAX_SUBSTEPS){
      tick(input,FIXED_DT);
