@@ -29,11 +29,12 @@
     // until the player reaches an open mouth or is already below the roof.
     if(work&&typeof world.caveRoomAt==='function')work.caveQueries++;
     const gallery=world.caveRoomAt?.(bx,bz);
+    // Reject corrupt cave columns even when approaching from the surface.
+    // Vehicle occupancy already enforces this invariant regardless of depth;
+    // player traversal, spawn and teleport must agree on the same geometry.
+    if(gallery&&(!Number.isFinite(gallery.floor)||!Number.isFinite(gallery.ceiling)
+     ||gallery.ceiling<=gallery.floor))return null;
     if(gallery&&(gallery.exposed||referenceY<gallery.ceiling)){
-     // Reject impossible cave columns consistently with vehicle occupancy.
-     // Never treat a zero-height or inverted gallery as traversable.
-     if(!Number.isFinite(gallery.floor)||!Number.isFinite(gallery.ceiling)
-      ||gallery.ceiling<=gallery.floor)return null;
      height=gallery.floor;
     }
     top=Math.max(top,height);
