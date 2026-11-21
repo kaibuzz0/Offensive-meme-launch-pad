@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {createChunkWildlifeManager}=require('../city-sandbox-wildlife.js');
+const {createChunkWildlifeManager,spawnChunkOnTerrain}=require('../city-sandbox-wildlife.js');
 const world={seed:42,CHUNK_SIZE:16,SEA_LEVEL:0,surfaceAt(x,z){return {height:10,group:'forest',slope:0};}};
 test('voxel invalidation removes only owning cached chunk including negative boundaries',()=>{
  const manager=createChunkWildlifeManager(world,{maxChunks:4});
@@ -103,4 +103,14 @@ test('single-voxel invalidation rejects out-of-domain chunks without mutating ca
  assert.throws(()=>manager.invalidateAtVoxel(0x80000000*16,0),RangeError);
  assert.deepEqual(manager.snapshot(),before);
  assert.equal(manager.activeChunks(),1);
+});
+
+
+test('direct terrain spawn rejects invalid chunks before sampling any columns',()=>{
+ let calls=0;
+ const terrain={...world,surfaceAt(x,z){calls++;return world.surfaceAt(x,z);}};
+ for(const [x,z,error] of [[0x80000000,0,RangeError],[0,0x80000000,RangeError],[NaN,0,TypeError],[0,0.5,TypeError]]){
+  assert.throws(()=>spawnChunkOnTerrain(terrain,x,z),error);
+ }
+ assert.equal(calls,0);
 });
