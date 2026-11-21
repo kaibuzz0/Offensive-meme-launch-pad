@@ -17,7 +17,8 @@ export function createVoxelVehicleCollision(world, options = {}) {
   // Never inspect renderer meshes or uncommitted placement previews.
   // Default to the same committed-edit query consumed by player physics.
   // An explicit override remains available for tests and server authority.
-  const editObstructs = options.editObstructs ?? world.editObstructs;
+  const editObstructs = Object.hasOwn(options, 'editObstructs')
+    ? options.editObstructs : world.editObstructs;
   if (editObstructs !== undefined && typeof editObstructs !== 'function')
     throw new TypeError('editObstructs must be a function');
   // Sample the oriented chassis rather than a circular center-only footprint.
