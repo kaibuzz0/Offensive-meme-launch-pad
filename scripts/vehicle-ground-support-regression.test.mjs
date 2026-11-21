@@ -52,3 +52,14 @@ test('invalid cave support fails closed instead of snapping vehicle into gallery
   assert.ok(Number.isNaN(adapter.groundHeightAt({x:0,y:0,z:0})));
   assert.equal(adapter.canOccupy({x:0,y:0,z:0},{heading:0}),false);
 });
+
+test('vehicle cannot snap up a cliff or teleport between unrelated support surfaces', () => {
+  const adapter = createVoxelVehicleCollision({
+    ...slopeWorld(0),
+    surfaceAt: (x,z) => ({height: z >= 8 ? 9 : -1})
+  }, {maxStep:1});
+  let vehicle = createVehicle();
+  for (let i=0; i<240; i++) vehicle=stepVehicle(vehicle,{throttle:1},1/60,adapter);
+  assert.ok(vehicle.position.z < 8, 'cliff must prevent forward motion');
+  assert.ok(vehicle.position.y < 2, 'chassis must not snap upward');
+});
