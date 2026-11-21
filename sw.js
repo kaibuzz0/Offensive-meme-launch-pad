@@ -20,7 +20,9 @@ function eligible(url,request){
   return (request.mode==='navigate'&&relative==='')||GAME_FILES.test(relative);
 }
 async function remember(request,response){
-  if(!response||!response.ok||response.type==='opaque'||response.headers.has('set-cookie'))return response;
+  if(!response||response.status!==200||response.type==='opaque'||response.headers.has('set-cookie'))return response;
+  // Do not persist a login/error redirect or another document under the requested game URL.
+  if(response.redirected&&(!response.url||!eligible(new URL(response.url),request)))return response;
   // Respect origin cache policy even for otherwise public game files.
   if(/(?:^|,)\s*(?:no-store|private)(?:\s|,|$)/i.test(response.headers.get('cache-control')||''))return response;
   // A same-origin request can redirect to a third-party URL. Never persist that response.
