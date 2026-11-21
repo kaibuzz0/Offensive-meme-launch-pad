@@ -233,3 +233,31 @@ test('direct seeded spawns reject coordinates that alias the 32-bit hash domain'
  assert.throws(()=>spawnChunk(Number.MAX_SAFE_INTEGER+1,0,0,'forest'),TypeError);
  assert.deepEqual(spawnChunk(7,maxChunk,0,'forest'),spawnChunk(7,maxChunk,0,'forest'));
 });
+
+
+test('nearby wildlife supports bounded vertical reach without terrain queries',()=>{
+ let samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ let population=[];
+ for(let cx=-3;cx<=3&&!population.length;cx++)
+  for(let cz=-3;cz<=3&&!population.length;cz++)
+   population=manager.enter(cx,cz);
+ assert.ok(population.length>0,'seeded search finds a populated chunk');
+ const creature=population[0],reads=samples;
+ const horizontal=manager.nearby(creature.x,creature.z,2);
+ assert.ok(horizontal.some(a=>a.id===creature.id));
+ const sameHeight=manager.nearby(creature.x,creature.z,2,creature.y,2);
+ assert.ok(sameHeight.some(a=>a.id===creature.id));
+ assert.ok(!manager.nearby(creature.x,creature.z,2,creature.y+10,2).some(a=>a.id===creature.id));
+ assert.ok(Object.isFrozen(sameHeight));
+ assert.equal(samples,reads,'interaction probes never resample terrain');
+ assert.throws(()=>manager.nearby(0,0,2,NaN,2),RangeError);
+ assert.throws(()=>manager.nearby(0,0,2,80,-1),RangeError);
+ assert.throws(()=>manager.nearby(0,0,2,undefined,2),RangeError);
+ manager.clear();
+ assert.deepEqual(manager.nearby(creature.x,creature.z,2,creature.y,2),[]);
+});
