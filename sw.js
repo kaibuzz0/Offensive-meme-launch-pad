@@ -19,6 +19,13 @@ function eligible(url,request){
   // Without this case offline homepage Play falls back to offline.html even after warmup.
   return (request.mode==='navigate'&&relative==='')||GAME_FILES.test(relative);
 }
+// Navigation HTML is seed-independent; avoid one cache entry per world query string.
+// The live URL remains untouched so game initialization still reads its seed.
+function cacheKey(request){
+  if(request.mode!=='navigate')return request;
+  const url=new URL(request.url);
+  return new Request(url.origin+url.pathname,{method:'GET'});
+}
 async function remember(request,response){
   if(!response||response.status!==200||response.type==='opaque'||response.headers.has('set-cookie'))return response;
   // Do not persist a login/error redirect or another document under the requested game URL.
@@ -43,7 +50,7 @@ async function remember(request,response){
   if(!Number.isSafeInteger(bytes)||bytes>2*1024*1024)return response;
   try{
     const cache=await caches.open(CACHE);
-    await cache.put(request,response.clone());
+    await cache.put(cacheKey(request),response.clone());
     const keys=await cache.keys();
     // Cache insertion order is stable; keep the static shell plus a bounded game working set.
     let excess=Math.max(0,keys.length-MAX_GAME_ENTRIES);
@@ -64,7 +71,7 @@ self.addEventListener('fetch',event=>{
   if(request.method!=='GET'||url.origin!==self.location.origin)return;
   if(request.mode==='navigate'){
     if(eligible(url,request)){
-      event.respondWith(fetch(request).then(response=>remember(request,response)).catch(async()=>await caches.match(request)||await caches.match(new URL('offline.html',scope).href)));
+      event.respondWith(fetch(request).then(response=>remember(request,response)).catch(async()=>await caches.match(cacheKey(request))||await caches.match(new URL('offline.html',scope).href)));
     }else{
       event.respondWith(fetch(request).catch(()=>caches.match(new URL('offline.html',scope).href)));
     }
