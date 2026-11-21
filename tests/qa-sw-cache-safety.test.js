@@ -21,9 +21,9 @@ function worker(existingKeys = []) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8'), context);
   return { context, saved, deleted };
 }
-function response({ redirected = false, url = '', size = '1024', cacheControl = null } = {}) {
+function response({ redirected = false, url = '', size = '1024', cacheControl = null, status = 200 } = {}) {
   return {
-    ok: true, type: 'basic', redirected, url,
+    ok: status >= 200 && status < 300, status, type: 'basic', redirected, url,
     headers: { has: () => false, get: name => name === 'content-length' ? size : name === 'cache-control' ? cacheControl : null },
     clone() { return this; }
   };
@@ -72,4 +72,16 @@ test('authorized game requests are not eligible for public offline caching', () 
   const authorized = { ...anonymous, headers: new Headers({ Authorization: 'Bearer example-secret' }) };
   assert.equal(context.eligible(url, anonymous), true);
   assert.equal(context.eligible(url, authorized), false);
+});
+
+
+test('cache rejects partial content and redirects outside the game allowlist', async () => {
+  const { context, saved } = worker();
+  const req = { url: 'https://example.test/game/city.js', method: 'GET', mode: 'cors', credentials: 'same-origin' };
+  await context.remember(req, response({ status: 206 }));
+  await context.remember(req, response({ redirected: true, url: 'https://example.test/game/api/rewards' }));
+  await context.remember(req, response({ redirected: true, url: 'https://example.test/game/wallet.js' }));
+  assert.equal(saved.length, 0);
+  await context.remember(req, response({ redirected: true, url: req.url }));
+  assert.equal(saved.length, 1);
 });
