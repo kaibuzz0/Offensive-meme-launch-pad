@@ -40,3 +40,14 @@ test('nearest rejects invalid radius and coordinates without changing loaded chu
  }
  assert.strictEqual(manager.snapshot(), before);
 });
+
+
+test('zero-duration flock step preserves velocity and leaves inputs untouched', () => {
+ const agents = [{id:'fast',x:2,z:-3,vx:12,vz:-7},{id:'slow',x:4,z:1,vx:0,vz:1}];
+ const before = structuredClone(agents);
+ const result = wildlife.cappedFlockStep(agents, 0, {speed: 2});
+ assert.deepStrictEqual(result, before);
+ assert.deepStrictEqual(agents, before);
+ assert.notStrictEqual(result[0], agents[0]);
+ assert.throws(() => wildlife.cappedFlockStep([{x:0,z:0,vx:NaN,vz:0}],0), TypeError);
+});
