@@ -198,3 +198,28 @@ test('missing or nonfinite slope metadata never spawns grounded animals',()=>{
    if(animal.species==='fish')fish++;
  assert.ok(fish>0,'fish do not require ground slope metadata');
 });
+
+test('unchanged wildlife sync reuses frozen snapshots and invalidation refreshes them',()=>{
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0
+ })};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ const first=manager.sync([[0,0],[1,0]]);
+ assert.strictEqual(manager.snapshot(),first);
+ assert.strictEqual(manager.sync([[0,0],[1,0]]),first);
+ assert.ok(Object.isFrozen(first));
+ assert.equal(manager.invalidateCommittedVoxels([{x:1,z:1}]),1);
+ const afterEdit=manager.snapshot();
+ assert.notStrictEqual(afterEdit,first);
+ assert.strictEqual(manager.snapshot(),afterEdit);
+ const restored=manager.sync([[0,0],[1,0]]);
+ assert.notStrictEqual(restored,afterEdit);
+ assert.deepEqual(restored,first,'seeded wildlife identities remain stable');
+ assert.strictEqual(manager.sync([[0,0],[1,0]]),restored);
+ assert.equal(manager.invalidateCommittedVoxels([{x:500,z:500}]),0);
+ assert.strictEqual(manager.snapshot(),restored,'unrelated edits preserve snapshot identity');
+ manager.clear();
+ const empty=manager.snapshot();
+ assert.notStrictEqual(empty,restored);
+ assert.strictEqual(manager.snapshot(),empty);
+});
