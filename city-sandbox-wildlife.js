@@ -166,6 +166,18 @@
    if(removed)dirty();
    return removed;
   }
+  // Read-only proximity query over currently streamed creatures. Never load
+  // distant chunks or sample terrain in response to an interaction probe.
+  function nearby(x,z,radius){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0||radius>256)
+    throw RangeError('Nearby query requires finite coordinates and radius 0..256');
+   const r2=radius*radius,found=[];
+   for(const population of active.values())for(const creature of population){
+    const dx=creature.x-x,dz=creature.z-z;
+    if(dx*dx+dz*dz<=r2)found.push(creature);
+   }
+   return Object.freeze(found);
+  }
   function leave(cx,cz){validate(cx,cz);const removed=active.delete(key(cx,cz));if(removed)dirty();return removed;}
   function sync(chunks){
    if(!Array.isArray(chunks)||chunks.length>maxChunks)throw RangeError('Visible chunks exceed wildlife budget');
@@ -195,7 +207,7 @@
    if(!cachedSnapshot)cachedSnapshot=Object.freeze(Array.from(active.values()).flat());
    return cachedSnapshot;
   }
-  return Object.freeze({enter,leave,sync,invalidateAtVoxel,invalidateCommittedVoxels,snapshot,activeChunks:()=>active.size,
+  return Object.freeze({enter,leave,sync,nearby,invalidateAtVoxel,invalidateCommittedVoxels,snapshot,activeChunks:()=>active.size,
    clear:()=>{if(active.size){active.clear();dirty();}}});
  }
  function cappedFlockStep(agents,dt,options={}){
