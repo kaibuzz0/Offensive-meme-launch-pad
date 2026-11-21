@@ -178,6 +178,20 @@
    }
    return Object.freeze(found);
   }
+  // Closest loaded creature for a player interaction probe. Stable ties use
+  // the existing chunk/creature iteration order; no terrain or chunk loads.
+  function nearest(x,z,radius){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0||radius>256)
+    throw RangeError('Nearest query requires finite coordinates and radius 0..256');
+   let best=null,bestDistance2=radius*radius;
+   for(const population of active.values())for(const creature of population){
+    const dx=creature.x-x,dz=creature.z-z,distance2=dx*dx+dz*dz;
+    if(distance2<=bestDistance2&&(best===null||distance2<bestDistance2)){
+     best=creature;bestDistance2=distance2;
+    }
+   }
+   return best;
+  }
   function leave(cx,cz){validate(cx,cz);const removed=active.delete(key(cx,cz));if(removed)dirty();return removed;}
   function sync(chunks){
    if(!Array.isArray(chunks)||chunks.length>maxChunks)throw RangeError('Visible chunks exceed wildlife budget');
@@ -207,7 +221,7 @@
    if(!cachedSnapshot)cachedSnapshot=Object.freeze(Array.from(active.values()).flat());
    return cachedSnapshot;
   }
-  return Object.freeze({enter,leave,sync,nearby,invalidateAtVoxel,invalidateCommittedVoxels,snapshot,activeChunks:()=>active.size,
+  return Object.freeze({enter,leave,sync,nearby,nearest,invalidateAtVoxel,invalidateCommittedVoxels,snapshot,activeChunks:()=>active.size,
    clear:()=>{if(active.size){active.clear();dirty();}}});
  }
  function cappedFlockStep(agents,dt,options={}){
