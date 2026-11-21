@@ -47,7 +47,10 @@ export function createVoxelVehicleCollision(world, options = {}) {
       if (Math.abs(floor - position.y) > maxStep) return false;
       if (insideGallery && !gallery.exposed && position.y + height > gallery.ceiling)
         return false;
-      if (world.gateRoad.obstructs(x, position.y, z, height, radius * 0.25)) return false;
+      const structureBlocked = world.gateRoad.obstructs(x, position.y, z, height, radius * 0.25);
+      if (typeof structureBlocked !== 'boolean')
+        throw new TypeError('gateRoad.obstructs must return a boolean');
+      if (structureBlocked) return false;
       if (editObstructs) {
         const blocked = editObstructs(x, position.y, z, height, radius * 0.25);
         if (typeof blocked !== 'boolean')
