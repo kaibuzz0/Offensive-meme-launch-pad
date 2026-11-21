@@ -690,3 +690,26 @@ test('first-person fractional positions stream the same chunks as floored voxels
  }
  assert.strictEqual(manager.snapshot(),previous,'invalid positions leave the active world unchanged');
 });
+
+test('player-centered wildlife streaming clips out-of-range neighbor chunks without losing the center',()=>{
+ let samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:4});
+ // Chunk hashes and voxel positions are only valid through signed 32-bit
+ // chunk coordinates, even though JavaScript can represent larger integers.
+ const edge=0x7fffffff;
+ const first=manager.syncAround(edge*16+0.5,0,1);
+ assert.ok(Object.isFrozen(first));
+ assert.ok(manager.activeChunks()<=4);
+ assert.ok(first.every(a=>Number(a.id.split(':')[1])<=edge));
+ const previous=manager.snapshot(),before=samples;
+ assert.strictEqual(manager.syncAround(edge*16+0.75,0,1),previous);
+ assert.equal(samples,before,'fractional movement inside a chunk does not regenerate fauna');
+ const negative=manager.syncAround(-edge*16-0.5,0,1);
+ assert.ok(Object.isFrozen(negative));
+ assert.ok(manager.activeChunks()<=4);
+ assert.ok(negative.every(a=>Number(a.id.split(':')[1])>=-edge));
+});
