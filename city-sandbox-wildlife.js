@@ -230,10 +230,15 @@
    // A renderer may sync the same visible set every frame. Preserve the
    // immutable snapshot unless membership, ordering, or descriptors changed.
    const previousEntries=active.entries();
-   const unchanged=active.size===staged.size&&Array.from(staged).every(([k,creatures])=>{
-    const previous=previousEntries.next().value;
-    return previous&&previous[0]===k&&previous[1]===creatures;
-   });
+   // Compare the two bounded maps directly: avoid materializing a temporary
+   // entries array on every visible-chunk sync.
+   let unchanged=active.size===staged.size;
+   if(unchanged){
+    for(const [k,creatures] of staged){
+     const previous=previousEntries.next().value;
+     if(!previous||previous[0]!==k||previous[1]!==creatures){unchanged=false;break;}
+    }
+   }
    if(unchanged)return snapshot();
    active.clear();
    for(const [k,creatures] of staged)active.set(k,creatures);
