@@ -39,7 +39,7 @@ const result={
  stallsOver100Ms:frames.filter(n=>n>100).length,
  startupMs:data.startupMs??null,transferBytes:data.transferBytes??null,
  longTaskCount:data.longTasksMs?.length??null,
- longTaskMaxMs:data.longTasksMs?.length?Math.max(...data.longTasksMs):null
+ longTaskMaxMs:data.longTasksMs?.length?data.longTasksMs.reduce((max,n)=>Math.max(max,n),0):null
 };
 console.log(JSON.stringify(result,null,2));
 // Diagnostic only: thresholds are provisional, not measured release budgets.
