@@ -708,7 +708,7 @@ test('player-centered wildlife streaming clips out-of-range neighbor chunks with
  const previous=manager.snapshot(),before=samples;
  assert.strictEqual(manager.syncAround(edge*16+0.75,0,1),previous);
  assert.equal(samples,before,'fractional movement inside a chunk does not regenerate fauna');
- const negative=manager.syncAround(-edge*16-0.5,0,1);
+ const negative=manager.syncAround(-edge*16+0.5,0,1);
  assert.ok(Object.isFrozen(negative));
  assert.ok(manager.activeChunks()<=4);
  assert.ok(negative.every(a=>Number(a.id.split(':')[1])>=-edge));
