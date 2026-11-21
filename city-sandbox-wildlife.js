@@ -260,7 +260,11 @@
    const candidates=[];
    for(let dz=-radiusChunks;dz<=radiusChunks;dz++)for(let dx=-radiusChunks;dx<=radiusChunks;dx++){
     const nx=cx+dx,nz=cz+dz;
-    validate(nx,nz);
+    // Near the supported world boundary, skip nonexistent neighbors rather
+    // than crashing the entire player-centered streaming update. The center
+    // chunk is validated above and remains first in the sorted candidates.
+    const maxChunk=Math.min(0x7fffffff,Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE));
+    if(Math.abs(nx)>maxChunk||Math.abs(nz)>maxChunk)continue;
     candidates.push([nx,nz,dx*dx+dz*dz,dx,dz]);
    }
    candidates.sort((a,b)=>a[2]-b[2]||a[4]-b[4]||a[3]-b[3]);
