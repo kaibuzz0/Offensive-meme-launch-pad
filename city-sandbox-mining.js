@@ -55,7 +55,10 @@ export function createVoxelEditJournal(worldSeed, snapshot) {
   const changes = new Map();
   if (snapshot !== undefined) {
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot) ||
-        !['version', 'worldSeed', 'revision', 'edits'].every(field => Object.hasOwn(snapshot, field)) ||
+        !['version', 'worldSeed', 'revision', 'edits'].every(field =>
+          Object.hasOwn(Object.getOwnPropertyDescriptor(snapshot, field) ?? {}, 'value')) ||
+        (Object.hasOwn(snapshot, 'voxelMetres') &&
+          !Object.hasOwn(Object.getOwnPropertyDescriptor(snapshot, 'voxelMetres'), 'value')) ||
         snapshot.version !== JOURNAL_VERSION || snapshot.worldSeed !== worldSeed ||
         (Object.hasOwn(snapshot, 'voxelMetres') && snapshot.voxelMetres !== VOXEL_METRES) ||
         !Array.isArray(snapshot.edits) || snapshot.edits.length > MAX_EDITS) {
