@@ -62,6 +62,11 @@
   if(!world||typeof world.surfaceAt!=='function'||!Number.isSafeInteger(world.seed))
    throw TypeError('Seeded voxel world with surfaceAt required');
   if(world.CHUNK_SIZE!==CHUNK_SIZE)throw RangeError('Wildlife and terrain chunk sizes differ');
+  // Validate before any surface query: direct callers must not sample outside
+  // the seeded 32-bit chunk domain or silently alias distant world locations.
+  const maxChunk=Math.min(0x7fffffff,Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE));
+  if(!Number.isSafeInteger(chunkX)||!Number.isSafeInteger(chunkZ))throw TypeError('Safe integer chunk coordinates required');
+  if(Math.abs(chunkX)>maxChunk||Math.abs(chunkZ)>maxChunk)throw RangeError('Chunk coordinates exceed safe voxel range');
   const centerX=chunkX*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
   const centerZ=chunkZ*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
   // Reuse sampled columns within this one chunk spawn. At most seven columns
