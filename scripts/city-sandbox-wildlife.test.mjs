@@ -110,6 +110,19 @@ test('ground fauna stay off flooded or steep ground while aerial fauna can pass'
   assert.ok(spawnChunkOnTerrain(flooded,x,z).every(a=>a.species==='songbird'&&a.y>=116));
 });
 
+test('negative slope metadata cannot place grounded wildlife',()=>{
+ const world={seed:100,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:80,water:false,river:false,group:'forest',biomeName:'Forest',slope:-1
+ })};
+ let airborne=0;
+ for(let cx=-3;cx<=3;cx++)for(let cz=-3;cz<=3;cz++){
+  const placed=spawnChunkOnTerrain(world,cx,cz);
+  assert.deepEqual(placed,spawnChunkOnTerrain(world,cx,cz));
+  for(const animal of placed){assert.equal(animal.species,'songbird');airborne++;}
+ }
+ assert.ok(airborne>0,'negative ground slope does not suppress flying wildlife');
+});
+
 test('fish require actual water depth rather than merely a water flag',()=>{
  const dryBed={seed:7,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
   height:112,water:true,waterLevel:112,river:false,group:'ocean',biomeName:'Ocean',slope:0
@@ -160,4 +173,91 @@ test('failed terrain sampling does not partially evict visible wildlife',()=>{
  assert.equal(manager.activeChunks(),2);
  assert.ok(next.every(a=>!a.id.startsWith('88:0:0:')));
  assert.deepEqual(manager.sync([[1,0],[2,0]]),next);
+});
+
+test('missing or nonfinite slope metadata never spawns grounded animals',()=>{
+ const world={seed:100,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:80,water:false,river:false,group:'forest',biomeName:'Forest'
+ })};
+ let airborne=0;
+ for(let cx=-3;cx<=3;cx++)for(let cz=-3;cz<=3;cz++){
+  const placed=spawnChunkOnTerrain(world,cx,cz);
+  assert.deepEqual(spawnChunkOnTerrain(world,cx,cz),placed);
+  for(const animal of placed){assert.equal(animal.species,'songbird');airborne++;}
+ }
+ assert.ok(airborne>0,'aerial creatures remain supported without slope metadata');
+ const invalid={...world,surfaceAt:()=>({...world.surfaceAt(),slope:NaN})};
+ for(let cx=-2;cx<=2;cx++)for(let cz=-2;cz<=2;cz++)
+  assert.ok(spawnChunkOnTerrain(invalid,cx,cz).every(a=>a.species==='songbird'));
+ const wet={...world,surfaceAt:()=>({
+  height:100,water:true,waterLevel:112,group:'ocean',biomeName:'Ocean'
+ })};
+ let fish=0;
+ for(let cx=-3;cx<=3;cx++)for(let cz=-3;cz<=3;cz++)
+  for(const animal of spawnChunkOnTerrain(wet,cx,cz))
+   if(animal.species==='fish')fish++;
+ assert.ok(fish>0,'fish do not require ground slope metadata');
+});
+
+test('unchanged wildlife sync reuses frozen snapshots and invalidation refreshes them',()=>{
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0
+ })};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ const first=manager.sync([[0,0],[1,0]]);
+ assert.strictEqual(manager.snapshot(),first);
+ assert.strictEqual(manager.sync([[0,0],[1,0]]),first);
+ assert.ok(Object.isFrozen(first));
+ assert.equal(manager.invalidateCommittedVoxels([{x:1,z:1}]),1);
+ const afterEdit=manager.snapshot();
+ assert.notStrictEqual(afterEdit,first);
+ assert.strictEqual(manager.snapshot(),afterEdit);
+ const restored=manager.sync([[0,0],[1,0]]);
+ assert.notStrictEqual(restored,afterEdit);
+ assert.deepEqual(restored,first,'seeded wildlife identities remain stable');
+ assert.strictEqual(manager.sync([[0,0],[1,0]]),restored);
+ assert.equal(manager.invalidateCommittedVoxels([{x:500,z:500}]),0);
+ assert.strictEqual(manager.snapshot(),restored,'unrelated edits preserve snapshot identity');
+ manager.clear();
+ const empty=manager.snapshot();
+ assert.notStrictEqual(empty,restored);
+ assert.strictEqual(manager.snapshot(),empty);
+});
+
+test('direct seeded spawns reject coordinates that alias the 32-bit hash domain',()=>{
+ const maxChunk=Math.min(0x7fffffff,Math.floor((Number.MAX_SAFE_INTEGER-15)/16));
+ assert.throws(()=>spawnChunk(7,0x100000000,0,'forest'),RangeError);
+ assert.throws(()=>spawnChunk(7,0,-0x100000000,'forest'),RangeError);
+ assert.throws(()=>spawnChunk(7,Number.MAX_SAFE_INTEGER,0,'forest'),RangeError);
+ assert.throws(()=>spawnChunk(7,0.5,0,'forest'),TypeError);
+ assert.throws(()=>spawnChunk(Number.MAX_SAFE_INTEGER+1,0,0,'forest'),TypeError);
+ assert.deepEqual(spawnChunk(7,maxChunk,0,'forest'),spawnChunk(7,maxChunk,0,'forest'));
+});
+
+
+test('nearby wildlife supports bounded vertical reach without terrain queries',()=>{
+ let samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:2});
+ let population=[];
+ for(let cx=-3;cx<=3&&!population.length;cx++)
+  for(let cz=-3;cz<=3&&!population.length;cz++)
+   population=manager.enter(cx,cz);
+ assert.ok(population.length>0,'seeded search finds a populated chunk');
+ const creature=population[0],reads=samples;
+ const horizontal=manager.nearby(creature.x,creature.z,2);
+ assert.ok(horizontal.some(a=>a.id===creature.id));
+ const sameHeight=manager.nearby(creature.x,creature.z,2,creature.y,2);
+ assert.ok(sameHeight.some(a=>a.id===creature.id));
+ assert.ok(!manager.nearby(creature.x,creature.z,2,creature.y+10,2).some(a=>a.id===creature.id));
+ assert.ok(Object.isFrozen(sameHeight));
+ assert.equal(samples,reads,'interaction probes never resample terrain');
+ assert.throws(()=>manager.nearby(0,0,2,NaN,2),RangeError);
+ assert.throws(()=>manager.nearby(0,0,2,80,-1),RangeError);
+ assert.throws(()=>manager.nearby(0,0,2,undefined,2),RangeError);
+ manager.clear();
+ assert.deepEqual(manager.nearby(creature.x,creature.z,2,creature.y,2),[]);
 });

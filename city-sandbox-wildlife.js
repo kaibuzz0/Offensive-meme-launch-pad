@@ -36,7 +36,11 @@
   return 'plains';
  }
  function spawnChunk(seed,chunkX,chunkZ,biome,options={}){
-  if(!Number.isInteger(chunkX)||!Number.isInteger(chunkZ)||!Number.isInteger(seed))throw TypeError('Integer seed and chunk coordinates required');
+  if(!Number.isSafeInteger(seed)||!Number.isSafeInteger(chunkX)||!Number.isSafeInteger(chunkZ))throw TypeError('Safe integer seed and chunk coordinates required');
+  // Hashing truncates coordinates to signed 32-bit integers; reject aliases
+  // before generating IDs or positions, even when called without terrain.
+  const maxChunk=Math.min(0x7fffffff,Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE));
+  if(Math.abs(chunkX)>maxChunk||Math.abs(chunkZ)>maxChunk)throw RangeError('Chunk coordinates exceed safe voxel range');
   const cap=options.maxPerChunk===undefined?MAX_PER_CHUNK:options.maxPerChunk;
   if(!Number.isInteger(cap)||cap<0||cap>MAX_PER_CHUNK)throw RangeError('maxPerChunk must be 0..6');
   const habitat=habitatFor(biome),species=HABITATS[habitat];
@@ -62,15 +66,30 @@
   if(!world||typeof world.surfaceAt!=='function'||!Number.isSafeInteger(world.seed))
    throw TypeError('Seeded voxel world with surfaceAt required');
   if(world.CHUNK_SIZE!==CHUNK_SIZE)throw RangeError('Wildlife and terrain chunk sizes differ');
+  // Validate before any surface query: direct callers must not sample outside
+  // the seeded 32-bit chunk domain or silently alias distant world locations.
+  const maxChunk=Math.min(0x7fffffff,Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE));
+  if(!Number.isSafeInteger(chunkX)||!Number.isSafeInteger(chunkZ))throw TypeError('Safe integer chunk coordinates required');
+  if(Math.abs(chunkX)>maxChunk||Math.abs(chunkZ)>maxChunk)throw RangeError('Chunk coordinates exceed safe voxel range');
   const centerX=chunkX*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
   const centerZ=chunkZ*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
-  const center=world.surfaceAt(centerX,centerZ);
+  // Reuse sampled columns within this one chunk spawn. At most seven columns
+  // (center + six candidates) are retained; never cache across committed edits.
+  const columns=new Map();
+  function sample(x,z){
+   const k=x+':'+z;
+   if(columns.has(k))return columns.get(k);
+   const column=world.surfaceAt(x,z);
+   columns.set(k,column);
+   return column;
+  }
+  const center=sample(centerX,centerZ);
   if(!center)return [];
   const biome={group:center.group,name:center.biomeName};
   const candidates=spawnChunk(world.seed,chunkX,chunkZ,biome,options);
   const placed=[];
   for(const animal of candidates){
-   const x=Math.floor(animal.x),z=Math.floor(animal.z),col=world.surfaceAt(x,z);
+   const x=Math.floor(animal.x),z=Math.floor(animal.z),col=sample(x,z);
    if(!col||!Number.isSafeInteger(col.height)||col.mouth||col.sinkhole)continue;
    const aquatic=AQUATIC.has(animal.species);
    // Rivers can host fish even where the atlas's biome is not a river biome.
@@ -80,7 +99,7 @@
    const aerial=AERIAL.has(animal.species);
    // Flying species can traverse water and steep terrain; ground species
    // cannot. Fish require actual water and a finite water surface above bed.
-   if(aquatic?!wet:!aerial&&(wet||col.slope>18))continue;
+   if(aquatic?!wet:!aerial&&(wet||!Number.isFinite(col.slope)||col.slope<0||col.slope>18))continue;
    const waterTop=Number.isFinite(col.waterLevel)?col.waterLevel:world.SEA_LEVEL;
    if(aquatic&&(!Number.isFinite(waterTop)||waterTop<=col.height))continue;
    const y=aquatic?Math.min(col.height+1,waterTop-0.5):
@@ -98,9 +117,16 @@
   const maxChunks=options.maxChunks??16;
   if(!Number.isInteger(maxChunks)||maxChunks<1||maxChunks>64)throw RangeError('maxChunks must be 1..64');
   const active=new Map();
+  // Reuse immutable renderer snapshots until the active population changes.
+  let cachedSnapshot=null;
+  const dirty=()=>{cachedSnapshot=null;};
   const key=(cx,cz)=>cx+':'+cz;
   const validate=(cx,cz)=>{
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz))throw TypeError('Safe integer chunk coordinates required');
+   // Reject coordinates that overflow the seeded 32-bit hash domain before
+   // cache lookup, eviction or multi-chunk staging. Match spawnChunk bounds.
+   const maxChunk=Math.min(0x7fffffff,Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE));
+   if(Math.abs(cx)>maxChunk||Math.abs(cz)>maxChunk)throw RangeError('Chunk coordinates exceed safe voxel range');
   };
   function enter(cx,cz){
    validate(cx,cz);
@@ -109,9 +135,78 @@
    const creatures=spawnChunkOnTerrain(world,cx,cz,options);
    if(active.size>=maxChunks)active.delete(active.keys().next().value);
    active.set(k,creatures);
+   dirty();
    return creatures;
   }
-  function leave(cx,cz){validate(cx,cz);return active.delete(key(cx,cz));}
+  // Invalidate only cached wildlife for the edited voxel's owning chunk.
+  // Call after the edit transaction commits, never on a rejected edit.
+  function invalidateAtVoxel(x,z){
+   if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z))throw TypeError('Safe integer voxel coordinates required');
+   const cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE);
+   validate(cx,cz);
+   const removed=active.delete(key(cx,cz));
+   if(removed)dirty();
+   return removed;
+  }
+  // Accept a committed edit delta as a batch: validate every coordinate before
+  // touching the cache, then invalidate each owning chunk once. Callers must
+  // supply only durable, changed voxel positions after transaction success.
+  function invalidateCommittedVoxels(voxels){
+   if(!Array.isArray(voxels)||voxels.length>4096)throw RangeError('Committed voxel batch must contain 0..4096 edits');
+   const affected=new Set();
+   for(const voxel of voxels){
+    if(!voxel||!Number.isSafeInteger(voxel.x)||!Number.isSafeInteger(voxel.z))
+     throw TypeError('Committed edits require safe integer x and z');
+    const cx=Math.floor(voxel.x/CHUNK_SIZE),cz=Math.floor(voxel.z/CHUNK_SIZE);
+    validate(cx,cz);
+    affected.add(key(cx,cz));
+   }
+   let removed=0;
+   for(const k of affected)if(active.delete(k))removed++;
+   if(removed)dirty();
+   return removed;
+  }
+  // Read-only proximity query over currently streamed creatures. Never load
+  // distant chunks or sample terrain in response to an interaction probe.
+  function nearby(x,z,radius,y,maxVerticalDistance){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0||radius>256)
+    throw RangeError('Nearby query requires finite coordinates and radius 0..256');
+   const vertical=y!==undefined;
+   if(vertical&&(!Number.isFinite(y)||!Number.isFinite(maxVerticalDistance)||maxVerticalDistance<0||maxVerticalDistance>256))
+    throw RangeError('Vertical probe requires finite height and reach 0..256');
+   if(!vertical&&maxVerticalDistance!==undefined)throw RangeError('Vertical reach requires height');
+   const r2=radius*radius,found=[];
+   for(const population of active.values())for(const creature of population){
+    const dy=vertical?creature.y-y:0;
+    if(vertical&&(!Number.isFinite(creature.y)||Math.abs(dy)>maxVerticalDistance))continue;
+    const dx=creature.x-x,dz=creature.z-z;
+    if(dx*dx+dz*dz+dy*dy<=r2)found.push(creature);
+   }
+   return Object.freeze(found);
+  }
+  // Closest loaded creature for a player interaction probe. Stable ties use
+  // the existing chunk/creature iteration order; no terrain or chunk loads.
+  // Optional vertical reach prevents selecting animals through cave floors.
+  // Three-argument callers retain the original horizontal-only behavior.
+  function nearest(x,z,radius,y,maxVerticalDistance){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0||radius>256)
+    throw RangeError('Nearest query requires finite coordinates and radius 0..256');
+   const vertical=y!==undefined;
+   if(vertical&&(!Number.isFinite(y)||!Number.isFinite(maxVerticalDistance)||maxVerticalDistance<0||maxVerticalDistance>256))
+    throw RangeError('Vertical probe requires finite height and reach 0..256');
+   if(!vertical&&maxVerticalDistance!==undefined)throw RangeError('Vertical reach requires height');
+   let best=null,bestDistance2=radius*radius;
+   for(const population of active.values())for(const creature of population){
+    const dy=vertical?creature.y-y:0;
+    if(vertical&&(!Number.isFinite(creature.y)||Math.abs(dy)>maxVerticalDistance))continue;
+    const dx=creature.x-x,dz=creature.z-z,distance2=dx*dx+dz*dz+dy*dy;
+    if(distance2<=bestDistance2&&(best===null||distance2<bestDistance2)){
+     best=creature;bestDistance2=distance2;
+    }
+   }
+   return best;
+  }
+  function leave(cx,cz){validate(cx,cz);const removed=active.delete(key(cx,cz));if(removed)dirty();return removed;}
   function sync(chunks){
    if(!Array.isArray(chunks)||chunks.length>maxChunks)throw RangeError('Visible chunks exceed wildlife budget');
    const wanted=new Set();
@@ -129,15 +224,37 @@
     const k=key(cx,cz);
     staged.set(k,active.has(k)?active.get(k):spawnChunkOnTerrain(world,cx,cz,options));
    }
+   // A stable visible set is a no-op, avoiding per-frame snapshot allocations.
+   if(staged.size===active.size&&Array.from(staged).every(([k,v])=>active.get(k)===v))return snapshot();
    active.clear();
    for(const [k,creatures] of staged)active.set(k,creatures);
+   dirty();
    return snapshot();
   }
-  function snapshot(){
-   return Object.freeze(Array.from(active.values()).flat());
+  // Select the closest bounded neighborhood without loading an unbounded square.
+  // Stable distance/coordinate ordering avoids chunk churn at equal distances.
+  function syncAround(x,z,radiusChunks=1){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isSafeInteger(Math.floor(x/CHUNK_SIZE))||!Number.isSafeInteger(Math.floor(z/CHUNK_SIZE)))
+    throw RangeError('Player coordinates must be finite safe voxels');
+   if(!Number.isInteger(radiusChunks)||radiusChunks<0||radiusChunks>8)
+    throw RangeError('radiusChunks must be 0..8');
+   const cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE);
+   validate(cx,cz);
+   const candidates=[];
+   for(let dz=-radiusChunks;dz<=radiusChunks;dz++)for(let dx=-radiusChunks;dx<=radiusChunks;dx++){
+    const nx=cx+dx,nz=cz+dz;
+    try{validate(nx,nz);}catch(e){if(e instanceof RangeError)continue;throw e;}
+    candidates.push([nx,nz,dx*dx+dz*dz]);
+   }
+   candidates.sort((a,b)=>a[2]-b[2]||a[0]-b[0]||a[1]-b[1]);
+   return sync(candidates.slice(0,maxChunks).map(([nx,nz])=>[nx,nz]));
   }
-  return Object.freeze({enter,leave,sync,snapshot,activeChunks:()=>active.size,
-   clear:()=>active.clear()});
+  function snapshot(){
+   if(!cachedSnapshot)cachedSnapshot=Object.freeze(Array.from(active.values()).flat());
+   return cachedSnapshot;
+  }
+  return Object.freeze({enter,leave,sync,syncAround,nearby,nearest,invalidateAtVoxel,invalidateCommittedVoxels,snapshot,activeChunks:()=>active.size,
+   clear:()=>{if(active.size){active.clear();dirty();}}});
  }
  function cappedFlockStep(agents,dt,options={}){
   if(!Array.isArray(agents)||agents.length>64)throw RangeError('Flock must contain 0..64 agents');
@@ -148,6 +265,8 @@
    if(!a||![a.x,a.z,a.vx,a.vz].every(Number.isFinite))throw TypeError('Flock agents require finite x,z,vx,vz');
    return a;
   });
+  // A zero-time step must not change velocity, even for agents above the speed cap.
+  if(dt===0)return valid.map(a=>({...a}));
   return valid.map((a,i)=>{
    let n=0,cx=0,cz=0,vx=0,vz=0,sepX=0,sepZ=0;
    for(let j=0;j<valid.length;j++){
