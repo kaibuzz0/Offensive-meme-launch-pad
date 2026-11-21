@@ -250,7 +250,10 @@
   // Closest chunks win when the requested radius exceeds the active budget.
   // Stable distance/coordinate ordering avoids per-frame population churn.
   function syncAround(x,z,radiusChunks=1){
-   if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z))throw TypeError('Safe integer player voxel coordinates required');
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isSafeInteger(Math.floor(x))||!Number.isSafeInteger(Math.floor(z)))
+    throw TypeError('Finite player coordinates within the safe voxel range required');
+   // The first-person controller uses fractional voxel positions. Floor before
+   // selecting chunks, including for negative coordinates at origin seams.
    if(!Number.isInteger(radiusChunks)||radiusChunks<0||radiusChunks>4)throw RangeError('radiusChunks must be 0..4');
    const cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE);
    validate(cx,cz);
