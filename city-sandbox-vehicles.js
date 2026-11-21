@@ -130,6 +130,9 @@ export function advanceVehicleFrame(vehicle,controls,frameSeconds,environment={}
   if(environment.requireCollision !== undefined && typeof environment.requireCollision !== 'boolean') {
     throw new TypeError('requireCollision must be a boolean');
   }
+  if(environment.canOccupy !== undefined && typeof environment.canOccupy !== 'function') {
+    throw new TypeError('canOccupy must be a function');
+  }
   if(environment.requireCollision === true && typeof environment.canOccupy !== 'function') {
     throw new TypeError('A canonical world collision adapter is required');
   }
