@@ -30,6 +30,20 @@ export function createVoxelVehicleCollision(world, options = {}) {
     for (const side of [-radius, 0, radius])
       footprint.push([halfLength * fraction, side]);
   }
+  // Resolve the chassis' support from logical terrain/cave geometry only.
+  // Occupancy still validates the full oriented footprint and roof clearance.
+  function groundHeightAt(position) {
+    if (![position?.x,position?.y,position?.z].every(Number.isFinite))
+      return NaN;
+    const x = Math.floor(position.x), z = Math.floor(position.z);
+    const column = world.surfaceAt(x,z);
+    const gallery = world.caveRoomAt?.(x,z);
+    if (!column || !Number.isFinite(column.height)) return NaN;
+    if (gallery && (!Number.isFinite(gallery.floor) || !Number.isFinite(gallery.ceiling) || gallery.ceiling <= gallery.floor))
+      return NaN;
+    const insideGallery = !!gallery && (gallery.exposed || position.y < gallery.ceiling);
+    return insideGallery ? gallery.floor : column.height + 1;
+  }
   function canOccupy(position, vehicle) {
     if (![position?.x,position?.y,position?.z,vehicle?.heading].every(Number.isFinite))
       return false;
@@ -74,5 +88,5 @@ export function createVoxelVehicleCollision(world, options = {}) {
     }
     return high - low <= maxStep;
   }
-  return Object.freeze({canOccupy, requireCollision:true});
+  return Object.freeze({canOccupy, groundHeightAt, requireCollision:true});
 }
