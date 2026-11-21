@@ -88,5 +88,5 @@ export function createVoxelVehicleCollision(world, options = {}) {
     }
     return high - low <= maxStep;
   }
-  return Object.freeze({canOccupy, groundHeightAt, requireCollision:true});
+  return Object.freeze({canOccupy, groundHeightAt, maxGroundStep:maxStep, requireCollision:true});
 }
