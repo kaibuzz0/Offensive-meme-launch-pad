@@ -671,3 +671,22 @@ test('player-centered wildlife streaming prioritizes nearby chunks and preserves
  assert.notStrictEqual(moved,initial,'crossing chunk boundaries updates active populations');
  assert.strictEqual(manager.syncAround(-1,-1,1),moved);
 });
+
+test('first-person fractional positions stream the same chunks as floored voxels',()=>{
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0
+ })};
+ const manager=createChunkWildlifeManager(world,{maxChunks:4});
+ const left=manager.syncAround(-0.25,15.75,1);
+ assert.strictEqual(manager.syncAround(-1,15,1),left,'fractional motion within a voxel does not rebuild snapshots');
+ const seam=manager.syncAround(0.25,16.25,1);
+ assert.strictEqual(manager.syncAround(0,16,1),seam,'positive seam uses the correct chunk');
+ assert.notStrictEqual(seam,left,'crossing the seam updates streamed populations');
+ assert.ok(manager.activeChunks()<=4);
+ const previous=manager.snapshot();
+ for(const invalid of [NaN,Infinity,-Infinity,Number.MAX_SAFE_INTEGER+1]){
+  assert.throws(()=>manager.syncAround(invalid,0,1),TypeError);
+  assert.throws(()=>manager.syncAround(0,invalid,1),TypeError);
+ }
+ assert.strictEqual(manager.snapshot(),previous,'invalid positions leave the active world unchanged');
+});
