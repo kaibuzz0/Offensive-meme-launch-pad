@@ -36,7 +36,7 @@ test('offline cache rejects cross-origin redirected responses', async () => {
 });
 test('offline cache rejects oversized assets but accepts ordinary same-origin scripts', async () => {
   const { context, saved } = worker();
-  const req = { url: 'https://example.test/game/city.js' };
+  const req = { url: 'https://example.test/game/city.js', method: 'GET', mode: 'cors', credentials: 'same-origin' };
   await context.remember(req, response({ size: String(3 * 1024 * 1024) }));
   assert.equal(saved.length, 0);
   await context.remember(req, response({ redirected: true, url: req.url }));
@@ -45,7 +45,7 @@ test('offline cache rejects oversized assets but accepts ordinary same-origin sc
 
 test('offline cache respects private and no-store response directives', async () => {
   const { context, saved } = worker();
-  const req = { url: 'https://example.test/game/city.js' };
+  const req = { url: 'https://example.test/game/city.js', method: 'GET', mode: 'cors', credentials: 'same-origin' };
   await context.remember(req, response({ cacheControl: 'public, no-store' }));
   await context.remember(req, response({ cacheControl: 'private, max-age=60' }));
   assert.equal(saved.length, 0);
