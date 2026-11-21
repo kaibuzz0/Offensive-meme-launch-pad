@@ -52,13 +52,20 @@
    if(typeof blocked!=='boolean')throw new TypeError('editObstructs must return a boolean');
    return blocked;
   }
+  function structureBlocks(x,y,z){
+   if(world.gateRoad?.obstructs===undefined)return false;
+   if(typeof world.gateRoad.obstructs!=='function')throw new TypeError('gateRoad.obstructs must be a function');
+   if(work)work.structuralQueries++;
+   const blocked=world.gateRoad.obstructs(x,y,z,world.PLAYER_HEIGHT,RADIUS);
+   if(typeof blocked!=='boolean')throw new TypeError('gateRoad.obstructs must return a boolean');
+   return blocked;
+  }
   function teleport(x,z,referenceY=Infinity){
    // A save restore or fast-travel destination must obey the same static
    // collision footprint as walking. Reject invalid destinations atomically.
    const floor=floorAt(x,z,referenceY);
    if(floor===null||!Number.isFinite(floor))return false;
-   if(typeof world.gateRoad?.obstructs==='function'
-    &&world.gateRoad.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS))return false;
+   if(structureBlocks(x,floor,z))return false;
    if(editBlocks(x,floor,z))return false;
    for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
     const gallery=world.caveRoomAt?.(Math.floor(x+ox),Math.floor(z+oz));
@@ -80,10 +87,7 @@
     const nz=axis==='z'?state.z+part:state.z;
     const floor=floorAt(nx,nz,state.y);
     if(floor===null)break;
-    if(typeof world.gateRoad?.obstructs==='function'){
-     if(work)work.structuralQueries++;
-     if(world.gateRoad.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
-    }
+    if(structureBlocks(nx,Math.max(state.y,floor),nz))break;
     if(editBlocks(nx,Math.max(state.y,floor),nz))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
