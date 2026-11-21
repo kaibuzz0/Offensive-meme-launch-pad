@@ -16,6 +16,8 @@ function eligible(url,request){
 }
 async function remember(request,response){
   if(!response||!response.ok||response.type==='opaque'||response.headers.has('set-cookie'))return response;
+  // Respect origin cache policy even for otherwise public game files.
+  if(/(?:^|,)\s*(?:no-store|private)(?:\s|,|$)/i.test(response.headers.get('cache-control')||''))return response;
   // A same-origin request can redirect to a third-party URL. Never persist that response.
   if(response.redirected&&(!response.url||new URL(response.url).origin!==scope.origin))return response;
   // Prevent unexpectedly large files from evicting the whole offline working set.
@@ -26,7 +28,13 @@ async function remember(request,response){
     await cache.put(request,response.clone());
     const keys=await cache.keys();
     // Cache insertion order is stable; keep the static shell plus a bounded game working set.
-    for(let i=0;i<keys.length-MAX_GAME_ENTRIES;i++)if(!urls.includes(keys[i].url))await cache.delete(keys[i]);
+    let excess=Math.max(0,keys.length-MAX_GAME_ENTRIES);
+    for(const key of keys){
+      if(excess===0)break;
+      if(urls.includes(key.url))continue;
+      await cache.delete(key);
+      excess--;
+    }
   }catch(_error){/* Quota limits must not break online gameplay. */}
   return response;
 }
