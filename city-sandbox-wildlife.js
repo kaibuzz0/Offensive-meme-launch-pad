@@ -231,11 +231,29 @@
    dirty();
    return snapshot();
   }
+  // Select the closest bounded neighborhood without loading an unbounded square.
+  // Stable distance/coordinate ordering avoids chunk churn at equal distances.
+  function syncAround(x,z,radiusChunks=1){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isSafeInteger(Math.floor(x/CHUNK_SIZE))||!Number.isSafeInteger(Math.floor(z/CHUNK_SIZE)))
+    throw RangeError('Player coordinates must be finite safe voxels');
+   if(!Number.isInteger(radiusChunks)||radiusChunks<0||radiusChunks>8)
+    throw RangeError('radiusChunks must be 0..8');
+   const cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE);
+   validate(cx,cz);
+   const candidates=[];
+   for(let dz=-radiusChunks;dz<=radiusChunks;dz++)for(let dx=-radiusChunks;dx<=radiusChunks;dx++){
+    const nx=cx+dx,nz=cz+dz;
+    try{validate(nx,nz);}catch(e){if(e instanceof RangeError)continue;throw e;}
+    candidates.push([nx,nz,dx*dx+dz*dz]);
+   }
+   candidates.sort((a,b)=>a[2]-b[2]||a[0]-b[0]||a[1]-b[1]);
+   return sync(candidates.slice(0,maxChunks).map(([nx,nz])=>[nx,nz]));
+  }
   function snapshot(){
    if(!cachedSnapshot)cachedSnapshot=Object.freeze(Array.from(active.values()).flat());
    return cachedSnapshot;
   }
-  return Object.freeze({enter,leave,sync,nearby,nearest,invalidateAtVoxel,invalidateCommittedVoxels,snapshot,activeChunks:()=>active.size,
+  return Object.freeze({enter,leave,sync,syncAround,nearby,nearest,invalidateAtVoxel,invalidateCommittedVoxels,snapshot,activeChunks:()=>active.size,
    clear:()=>{if(active.size){active.clear();dirty();}}});
  }
  function cappedFlockStep(agents,dt,options={}){
