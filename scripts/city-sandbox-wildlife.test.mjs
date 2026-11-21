@@ -223,3 +223,14 @@ test('unchanged wildlife sync reuses frozen snapshots and invalidation refreshes
  assert.notStrictEqual(empty,restored);
  assert.strictEqual(manager.snapshot(),empty);
 });
+
+test('direct seeded spawns reject coordinates that alias the 32-bit hash domain',()=>{
+ const maxChunk=Math.min(0x7fffffff,Math.floor((Number.MAX_SAFE_INTEGER-15)/16));
+ assert.throws(()=>spawnChunk(7,0x100000000,0,'forest'),RangeError);
+ assert.throws(()=>spawnChunk(7,0,-0x100000000,'forest'),RangeError);
+ assert.throws(()=>spawnChunk(7,Number.MAX_SAFE_INTEGER,0,'forest'),RangeError);
+ assert.throws(()=>spawnChunk(7,0.5,0,'forest'),TypeError);
+ assert.throws(()=>spawnChunk(Number.MAX_SAFE_INTEGER+1,0,0,'forest'),TypeError);
+ assert.deepEqual(spawnChunk(7,maxChunk,0,'forest'),spawnChunk(7,maxChunk,0,'forest'));
+ assert.notDeepEqual(spawnChunk(7,0,0,'forest'),spawnChunk(7,1,0,'forest'));
+});
