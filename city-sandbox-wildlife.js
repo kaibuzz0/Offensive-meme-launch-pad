@@ -113,6 +113,9 @@
   const maxChunks=options.maxChunks??16;
   if(!Number.isInteger(maxChunks)||maxChunks<1||maxChunks>64)throw RangeError('maxChunks must be 1..64');
   const active=new Map();
+  // Reuse immutable renderer snapshots until the active population changes.
+  let cachedSnapshot=null;
+  const dirty=()=>{cachedSnapshot=null;};
   const key=(cx,cz)=>cx+':'+cz;
   const validate=(cx,cz)=>{
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz))throw TypeError('Safe integer chunk coordinates required');
@@ -128,6 +131,7 @@
    const creatures=spawnChunkOnTerrain(world,cx,cz,options);
    if(active.size>=maxChunks)active.delete(active.keys().next().value);
    active.set(k,creatures);
+   dirty();
    return creatures;
   }
   // Invalidate only cached wildlife for the edited voxel's owning chunk.
@@ -136,7 +140,9 @@
    if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z))throw TypeError('Safe integer voxel coordinates required');
    const cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE);
    validate(cx,cz);
-   return active.delete(key(cx,cz));
+   const removed=active.delete(key(cx,cz));
+   if(removed)dirty();
+   return removed;
   }
   // Accept a committed edit delta as a batch: validate every coordinate before
   // touching the cache, then invalidate each owning chunk once. Callers must
@@ -153,9 +159,10 @@
    }
    let removed=0;
    for(const k of affected)if(active.delete(k))removed++;
+   if(removed)dirty();
    return removed;
   }
-  function leave(cx,cz){validate(cx,cz);return active.delete(key(cx,cz));}
+  function leave(cx,cz){validate(cx,cz);const removed=active.delete(key(cx,cz));if(removed)dirty();return removed;}
   function sync(chunks){
    if(!Array.isArray(chunks)||chunks.length>maxChunks)throw RangeError('Visible chunks exceed wildlife budget');
    const wanted=new Set();
@@ -173,15 +180,19 @@
     const k=key(cx,cz);
     staged.set(k,active.has(k)?active.get(k):spawnChunkOnTerrain(world,cx,cz,options));
    }
+   // A stable visible set is a no-op, avoiding per-frame snapshot allocations.
+   if(staged.size===active.size&&Array.from(staged).every(([k,v])=>active.get(k)===v))return snapshot();
    active.clear();
    for(const [k,creatures] of staged)active.set(k,creatures);
+   dirty();
    return snapshot();
   }
   function snapshot(){
-   return Object.freeze(Array.from(active.values()).flat());
+   if(!cachedSnapshot)cachedSnapshot=Object.freeze(Array.from(active.values()).flat());
+   return cachedSnapshot;
   }
   return Object.freeze({enter,leave,sync,invalidateAtVoxel,invalidateCommittedVoxels,snapshot,activeChunks:()=>active.size,
-   clear:()=>active.clear()});
+   clear:()=>{if(active.size){active.clear();dirty();}}});
  }
  function cappedFlockStep(agents,dt,options={}){
   if(!Array.isArray(agents)||agents.length>64)throw RangeError('Flock must contain 0..64 agents');
