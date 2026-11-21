@@ -105,6 +105,9 @@
    const wet=!!col.water||!!col.river;
    const aerial=AERIAL.has(animal.species);
    const amphibious=AMPHIBIOUS.has(animal.species);
+   // Keep ground wildlife off the established fortress road and its curbs.
+   // Road flags come from the canonical terrain column; flying wildlife may pass overhead.
+   if(!aquatic&&!aerial&&(col.road||col.curb))continue;
    // Water and flying actors need a valid bed elevation, but not a walkable
    // ground grade. Only terrestrial placement depends on slope metadata.
    if(!aquatic&&!aerial&&(!Number.isFinite(col.slope)||col.slope<0))continue;
