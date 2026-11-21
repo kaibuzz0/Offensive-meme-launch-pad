@@ -28,6 +28,13 @@ function material(value) {
 
 function normalizedEdit(edit) {
   if (!edit || typeof edit !== 'object' || Array.isArray(edit)) throw new TypeError('invalid edit');
+  // Reject prototype-inherited fields: commands and restored records must carry their own values.
+  if (!['x', 'y', 'z', 'block'].every(field => Object.hasOwn(edit, field))) {
+    throw new TypeError('voxel edit fields must be own properties');
+  }
+  if (!['x', 'y', 'z', 'block'].every(field => Object.hasOwn(Object.getOwnPropertyDescriptor(edit, field), 'value'))) {
+    throw new TypeError('voxel edit fields must be data properties');
+  }
   const x = coordinate(edit.x);
   const y = coordinate(edit.y);
   const z = coordinate(edit.z);
@@ -47,7 +54,13 @@ export function createVoxelEditJournal(worldSeed, snapshot) {
   let revision = 0;
   const changes = new Map();
   if (snapshot !== undefined) {
-    if (!snapshot || snapshot.version !== JOURNAL_VERSION || snapshot.worldSeed !== worldSeed ||
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot) ||
+        !['version', 'worldSeed', 'revision', 'edits'].every(field =>
+          Object.hasOwn(Object.getOwnPropertyDescriptor(snapshot, field) ?? {}, 'value')) ||
+        (Object.hasOwn(snapshot, 'voxelMetres') &&
+          !Object.hasOwn(Object.getOwnPropertyDescriptor(snapshot, 'voxelMetres'), 'value')) ||
+        snapshot.version !== JOURNAL_VERSION || snapshot.worldSeed !== worldSeed ||
+        (Object.hasOwn(snapshot, 'voxelMetres') && snapshot.voxelMetres !== VOXEL_METRES) ||
         !Array.isArray(snapshot.edits) || snapshot.edits.length > MAX_EDITS) {
       throw new Error('incompatible voxel edit snapshot');
     }

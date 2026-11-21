@@ -82,3 +82,116 @@ test('exhausted revision refuses mutations atomically and permits idempotent ret
   assert.equal(journal.reset(4, 5, 6).changed, false);
   assert.deepEqual(journal.snapshot(), snapshot);
 });
+
+test('explicit invalid voxel scales fail closed without changing serialized save bytes', () => {
+  const journal = createVoxelEditJournal('seed-scale-bytes');
+  journal.apply({ x: -11, y: 0, z: 4, block: 'stone' });
+  const saved = JSON.parse(JSON.stringify(journal.snapshot()));
+  const before = JSON.stringify(saved);
+  for (const scale of [0, -0.25, 0.5, 1, null, '0.25', NaN, Infinity]) {
+    const invalid = { ...saved, voxelMetres: scale };
+    const invalidBytes = JSON.stringify(invalid);
+    assert.throws(() => createVoxelEditJournal('seed-scale-bytes', invalid), /incompatible/);
+    assert.equal(JSON.stringify(invalid), invalidBytes);
+    assert.equal(JSON.stringify(saved), before);
+  }
+  assert.deepEqual(createVoxelEditJournal('seed-scale-bytes', saved).snapshot(), saved);
+});
+
+test('snapshot rejects a conflicting voxel scale without mutating the saved record', () => {
+  const journal = createVoxelEditJournal('seed-scale');
+  journal.apply({ x: -4, y: 2, z: 8, block: 'stone' });
+  const saved = journal.snapshot();
+  const incompatible = { ...saved, voxelMetres: 1 };
+  assert.throws(() => createVoxelEditJournal('seed-scale', incompatible), /incompatible/);
+  assert.deepEqual(journal.snapshot(), saved);
+  // Older v1 records without an explicit scale retain the established 0.25m interpretation.
+  const legacy = { ...saved };
+  delete legacy.voxelMetres;
+  assert.equal(createVoxelEditJournal('seed-scale', legacy).get(-4, 2, 8), 'stone');
+});
+
+
+test('explicit undefined voxel scale is not a legacy missing field', () => {
+  const journal = createVoxelEditJournal('seed-explicit-undefined');
+  journal.apply({ x: -2, y: 1, z: 3, block: 'stone' });
+  const saved = journal.snapshot();
+  const before = JSON.stringify(saved);
+  assert.throws(() => createVoxelEditJournal('seed-explicit-undefined', {
+    ...saved, voxelMetres: undefined
+  }), /incompatible/);
+  assert.equal(JSON.stringify(saved), before);
+  const legacy = { ...saved };
+  delete legacy.voxelMetres;
+  assert.equal(createVoxelEditJournal('seed-explicit-undefined', legacy).get(-2, 1, 3), 'stone');
+  assert.deepEqual(createVoxelEditJournal('seed-explicit-undefined', saved).snapshot(), saved);
+});
+
+
+test('rejects inherited edit fields in commands and restored snapshots without mutation', () => {
+  const journal = createVoxelEditJournal('seed-own-fields');
+  const inherited = Object.create({ x: 1, y: 2, z: 3, block: 'stone' });
+  assert.throws(() => journal.apply(inherited), /own properties/);
+  assert.equal(journal.revision, 0);
+  assert.equal(journal.size, 0);
+  const partial = Object.assign(Object.create({ block: 'stone' }), { x: 1, y: 2, z: 3 });
+  assert.throws(() => journal.apply(partial), /own properties/);
+  const snapshot = { version: JOURNAL_VERSION, worldSeed: 'seed-own-fields',
+    voxelMetres: VOXEL_METRES, revision: 1, edits: [inherited] };
+  assert.throws(() => createVoxelEditJournal('seed-own-fields', snapshot), /own properties/);
+  assert.equal(journal.revision, 0);
+  assert.deepEqual(journal.snapshot().edits, []);
+  assert.equal(journal.apply({ x: 1, y: 2, z: 3, block: 'stone' }).changed, true);
+});
+
+test('snapshot requires own metadata and rejects inherited records without changing the source', () => {
+  const journal = createVoxelEditJournal('seed-snapshot-ownership');
+  journal.apply({ x: -3, y: 2, z: 5, block: 'stone' });
+  const saved = journal.snapshot();
+  const before = JSON.stringify(saved);
+  for (const field of ['version', 'worldSeed', 'revision', 'edits']) {
+    const inherited = Object.create({ [field]: saved[field] });
+    Object.assign(inherited, saved);
+    delete inherited[field];
+    assert.throws(() => createVoxelEditJournal('seed-snapshot-ownership', inherited), /incompatible/);
+    assert.equal(JSON.stringify(saved), before);
+  }
+  assert.throws(() => createVoxelEditJournal('seed-snapshot-ownership', []), /incompatible/);
+  assert.deepEqual(createVoxelEditJournal('seed-snapshot-ownership', saved).snapshot(), saved);
+});
+
+
+test('rejects accessor-backed edits without running getters or changing journal state', () => {
+  const journal = createVoxelEditJournal('accessor-seed');
+  let getterCalls = 0;
+  const edit = { x: 1, y: 2, z: 3 };
+  Object.defineProperty(edit, 'block', { enumerable: true, get() { getterCalls++; return 'stone'; } });
+  assert.throws(() => journal.apply(edit), /data properties/);
+  const snapshot = { version: JOURNAL_VERSION, worldSeed: 'accessor-seed',
+    revision: 1, voxelMetres: VOXEL_METRES, edits: [edit] };
+  assert.throws(() => createVoxelEditJournal('accessor-seed', snapshot), /data properties/);
+  assert.equal(getterCalls, 0);
+  assert.equal(journal.revision, 0);
+  assert.equal(journal.size, 0);
+  assert.equal(journal.apply({ x: 1, y: 2, z: 3, block: 'stone' }).changed, true);
+});
+
+
+test('snapshot metadata accessors fail closed without invoking getters', () => {
+  const original = createVoxelEditJournal('seed-metadata-accessor');
+  original.apply({ x: 2, y: 3, z: 4, block: 'stone' });
+  const saved = original.snapshot();
+  const before = JSON.stringify(saved);
+  let getterCalls = 0;
+  for (const field of ['version', 'worldSeed', 'revision', 'edits', 'voxelMetres']) {
+    const malformed = { ...saved };
+    Object.defineProperty(malformed, field, {
+      enumerable: true,
+      get() { getterCalls++; throw new Error('unexpected getter invocation'); }
+    });
+    assert.throws(() => createVoxelEditJournal('seed-metadata-accessor', malformed), /incompatible/);
+    assert.equal(getterCalls, 0);
+    assert.equal(JSON.stringify(saved), before);
+  }
+  assert.deepEqual(createVoxelEditJournal('seed-metadata-accessor', saved).snapshot(), saved);
+});
