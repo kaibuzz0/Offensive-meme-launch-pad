@@ -646,3 +646,28 @@ test('height-aware nearby queries filter loaded wildlife without changing horizo
  assert.throws(()=>manager.nearby(selected.x,selected.z,1,selected.y,-1),RangeError);
  assert.equal(samples,before,'proximity checks never query terrain');
 });
+
+test('player-centered wildlife streaming prioritizes nearby chunks and preserves stable snapshots',()=>{
+ let samples=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{
+  samples++;
+  return {height:80,group:'forest',biomeName:'Forest',water:false,river:false,slope:0};
+ }};
+ const manager=createChunkWildlifeManager(world,{maxChunks:3});
+ const initial=manager.syncAround(8,8,2);
+ assert.equal(manager.activeChunks(),3,'large neighborhood is capped');
+ assert.strictEqual(manager.syncAround(8,8,2),initial,'same player chunk retains snapshot');
+ assert.strictEqual(manager.syncAround(15,15,2),initial,'moving within chunk does not churn');
+ const after=samples;
+ assert.strictEqual(manager.syncAround(15,15,2),initial);
+ assert.equal(samples,after,'repeated sync does not sample terrain');
+ assert.deepEqual(initial,manager.snapshot());
+ assert.throws(()=>manager.syncAround(0,0,5),RangeError);
+ assert.throws(()=>manager.syncAround(0.5,0,1),TypeError);
+ assert.throws(()=>manager.syncAround(2147483648*16,0,1),RangeError);
+ assert.strictEqual(manager.snapshot(),initial,'invalid inputs leave existing population intact');
+ const moved=manager.syncAround(-1,-1,1);
+ assert.equal(manager.activeChunks(),3);
+ assert.notStrictEqual(moved,initial,'crossing chunk boundaries updates active populations');
+ assert.strictEqual(manager.syncAround(-1,-1,1),moved);
+});
