@@ -22,9 +22,14 @@ export function createVoxelVehicleCollision(world, options = {}) {
   if (editObstructs !== undefined && typeof editObstructs !== 'function')
     throw new TypeError('editObstructs must be a function');
   // Sample the oriented chassis rather than a circular center-only footprint.
-  const footprint = [[0,0],[-halfLength,0],[halfLength,0],
-    [-halfLength,-radius],[-halfLength,radius],[halfLength,-radius],[halfLength,radius],
-    [0,-radius],[0,radius]];
+  // Sample intermediate longitudinal sections too: endpoint/corner-only tests
+  // can miss a narrow wall crossing the middle of a long chassis.
+  // This is a bounded occupancy broad sample, not continuous swept collision.
+  const footprint = [];
+  for (const fraction of [-1, -0.5, 0, 0.5, 1]) {
+    for (const side of [-radius, 0, radius])
+      footprint.push([halfLength * fraction, side]);
+  }
   function canOccupy(position, vehicle) {
     if (![position?.x,position?.y,position?.z,vehicle?.heading].every(Number.isFinite))
       return false;
