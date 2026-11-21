@@ -42,6 +42,15 @@
   if(initial===null)throw Error('Spawn outside supported world');
   const state={x:start.x,z:start.z,y:initial,vy:0,grounded:true};
   function snapshot(){return Object.freeze({...state});}
+  // Committed edits share the vehicle world's logical collision callback.
+  // Preview meshes and render detail must never determine occupancy.
+  function editBlocks(x,y,z){
+   if(world.editObstructs===undefined)return false;
+   if(typeof world.editObstructs!=='function')throw new TypeError('editObstructs must be a function');
+   const blocked=world.editObstructs(x,y,z,world.PLAYER_HEIGHT,RADIUS);
+   if(typeof blocked!=='boolean')throw new TypeError('editObstructs must return a boolean');
+   return blocked;
+  }
   function teleport(x,z,referenceY=Infinity){
    // A save restore or fast-travel destination must obey the same static
    // collision footprint as walking. Reject invalid destinations atomically.
@@ -49,6 +58,7 @@
    if(floor===null||!Number.isFinite(floor))return false;
    if(typeof world.gateRoad?.obstructs==='function'
     &&world.gateRoad.obstructs(x,floor,z,world.PLAYER_HEIGHT,RADIUS))return false;
+   if(editBlocks(x,floor,z))return false;
    for(const [ox,oz] of [[0,0],[RADIUS,RADIUS],[-RADIUS,RADIUS],[RADIUS,-RADIUS],[-RADIUS,-RADIUS]]){
     const gallery=world.caveRoomAt?.(Math.floor(x+ox),Math.floor(z+oz));
     if(gallery&&!gallery.exposed&&floor<gallery.ceiling
@@ -73,6 +83,7 @@
      if(work)work.structuralQueries++;
      if(world.gateRoad.obstructs(nx,Math.max(state.y,floor),nz,world.PLAYER_HEIGHT,RADIUS))break;
     }
+    if(editBlocks(nx,Math.max(state.y,floor),nz))break;
     const climb=floor-state.y;
     if(climb>(state.grounded?MAX_STEP:.18))break;
     // Sample the player's radius, not just the center. A gallery with a
