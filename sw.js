@@ -10,7 +10,9 @@ function eligible(url,request){
   if(request.method!=='GET'||url.origin!==self.location.origin||!url.pathname.startsWith(scope.pathname))return false;
   if(request.credentials==='include'&&request.mode!=='navigate')return false;
   const relative=url.pathname.slice(scope.pathname.length);
-  return GAME_FILES.test(relative);
+  // GitHub Pages serves the homepage at the directory URL, not only index.html.
+  // Without this case offline homepage Play falls back to offline.html even after warmup.
+  return (request.mode==='navigate'&&relative==='')||GAME_FILES.test(relative);
 }
 async function remember(request,response){
   if(!response||!response.ok||response.type==='opaque'||response.headers.has('set-cookie'))return response;
