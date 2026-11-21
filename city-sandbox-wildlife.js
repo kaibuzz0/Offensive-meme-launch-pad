@@ -233,6 +233,8 @@
    if(!a||![a.x,a.z,a.vx,a.vz].every(Number.isFinite))throw TypeError('Flock agents require finite x,z,vx,vz');
    return a;
   });
+  // A zero-time step must not change velocity, even for agents above the speed cap.
+  if(dt===0)return valid.map(a=>({...a}));
   return valid.map((a,i)=>{
    let n=0,cx=0,cz=0,vx=0,vz=0,sepX=0,sepZ=0;
    for(let j=0;j<valid.length;j++){
