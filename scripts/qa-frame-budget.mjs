@@ -44,6 +44,14 @@ const result={
 console.log(JSON.stringify(result,null,2));
 // Diagnostic only: thresholds are provisional, not measured release budgets.
 if(process.argv.includes('--gate')) {
+ // A missing measurement is not a passing release gate. Diagnostics may omit it.
+ for (const field of ['startupMs','transferBytes']) {
+  if (data[field]===undefined || data[field]===null) {
+   console.error('Gate requires measured field:',field);
+   process.exitCode=2;
+  }
+ }
+ if (process.exitCode===2) process.exit();
  const fail=result.frameMs.p95>50||result.stallsOver100Ms>0||(result.startupMs!==null&&result.startupMs>10000);
  if(fail) {console.error('Provisional mobile frame/startup budget exceeded.');process.exitCode=1;}
 }
