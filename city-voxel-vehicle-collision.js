@@ -34,9 +34,18 @@ export function createVoxelVehicleCollision(world, options = {}) {
       const z = position.z + forward*cos - side*sin;
       const column = world.surfaceAt(Math.floor(x), Math.floor(z));
       if (!column || !Number.isFinite(column.height)) return false;
-      const floor = column.height + 1;
+      // Match the player controller's cave-floor selection: a vehicle below
+      // a closed roof stands on the gallery floor, not the terrain above it.
+      // Exposed mouths are open to the cave and use its traversable floor.
+      const gallery = world.caveRoomAt?.(Math.floor(x), Math.floor(z));
+      if (gallery && (!Number.isFinite(gallery.floor) || !Number.isFinite(gallery.ceiling)))
+        return false;
+      const insideGallery = !!gallery && (gallery.exposed || position.y < gallery.ceiling);
+      const floor = insideGallery ? gallery.floor : column.height + 1;
       low = Math.min(low, floor); high = Math.max(high, floor);
       if (Math.abs(floor - position.y) > maxStep) return false;
+      if (insideGallery && !gallery.exposed && position.y + height > gallery.ceiling)
+        return false;
       if (world.gateRoad.obstructs(x, position.y, z, height, radius * 0.25)) return false;
       if (editObstructs) {
         const blocked = editObstructs(x, position.y, z, height, radius * 0.25);
@@ -44,9 +53,6 @@ export function createVoxelVehicleCollision(world, options = {}) {
           throw new TypeError('editObstructs must return a boolean');
         if (blocked) return false;
       }
-      const gallery = world.caveRoomAt?.(Math.floor(x), Math.floor(z));
-      if (gallery && !gallery.exposed && position.y < gallery.ceiling &&
-          position.y + height > gallery.ceiling) return false;
     }
     return high - low <= maxStep;
   }
