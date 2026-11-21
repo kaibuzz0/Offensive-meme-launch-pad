@@ -257,11 +257,30 @@
    }
    return Object.freeze(found);
   }
+  // Nearest loaded creature for first-person interaction. Optional y and
+  // vertical reach prevent selecting an actor on another floor or cave level.
+  // Never wakes chunks or queries terrain; ties follow stable chunk order.
+  function nearest(x,z,radius,y,verticalReach){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0||radius>256)
+    throw RangeError('Finite position and radius 0..256 required');
+   const heightAware=y!==undefined||verticalReach!==undefined;
+   if(heightAware&&(!Number.isFinite(y)||!Number.isFinite(verticalReach)||verticalReach<0||verticalReach>256))
+    throw RangeError('Finite y and verticalReach 0..256 required together');
+   let best=null,bestDistance=radius*radius;
+   for(const creatures of active.values())for(const creature of creatures){
+    if(heightAware&&(!Number.isFinite(creature.y)||Math.abs(creature.y-y)>verticalReach))continue;
+    const dx=creature.x-x,dz=creature.z-z,d2=dx*dx+dz*dz;
+    if(d2<=bestDistance&&(best===null||d2<bestDistance)){
+     best=creature;bestDistance=d2;
+    }
+   }
+   return best;
+  }
   function snapshot(){
    if(!cachedSnapshot)cachedSnapshot=Object.freeze(Array.from(active.values()).flat());
    return cachedSnapshot;
   }
-  return Object.freeze({enter,leave,invalidate,invalidateAtVoxel,invalidateCommittedVoxels,sync,snapshot,nearby,activeChunks:()=>active.size,
+  return Object.freeze({enter,leave,invalidate,invalidateAtVoxel,invalidateCommittedVoxels,sync,snapshot,nearby,nearest,activeChunks:()=>active.size,
    clear:()=>{if(active.size){active.clear();dirty();}}});
  }
  function cappedFlockStep(agents,dt,options={}){
