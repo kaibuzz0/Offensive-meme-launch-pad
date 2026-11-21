@@ -21,10 +21,10 @@ function worker(existingKeys = []) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8'), context);
   return { context, saved, deleted };
 }
-function response({ redirected = false, url = '', size = '1024', cacheControl = null, status = 200 } = {}) {
+function response({ redirected = false, url = '', size = '1024', cacheControl = null, status = 200, mime = 'text/javascript' } = {}) {
   return {
     ok: status >= 200 && status < 300, status, type: 'basic', redirected, url,
-    headers: { has: () => false, get: name => name === 'content-length' ? size : name === 'cache-control' ? cacheControl : null },
+    headers: { has: () => false, get: name => name === 'content-length' ? size : name === 'cache-control' ? cacheControl : name === 'content-type' ? mime : null },
     clone() { return this; }
   };
 }
@@ -84,4 +84,20 @@ test('cache rejects partial content and redirects outside the game allowlist', a
   assert.equal(saved.length, 0);
   await context.remember(req, response({ redirected: true, url: req.url }));
   assert.equal(saved.length, 1);
+});
+
+
+test('HTML fallback cannot poison the cached JavaScript or CSS game entry', async () => {
+  const { context, saved } = worker();
+  const js = { url: 'https://example.test/game/city.js', method: 'GET', mode: 'cors', credentials: 'same-origin' };
+  const css = { ...js, url: 'https://example.test/game/city.css' };
+  const page = { ...js, url: 'https://example.test/game/city.html', mode: 'navigate' };
+  await context.remember(js, response({ mime: 'text/html' }));
+  await context.remember(css, response({ mime: 'text/html' }));
+  await context.remember(page, response({ mime: 'text/javascript' }));
+  assert.equal(saved.length, 0);
+  await context.remember(js, response({ mime: 'application/javascript; charset=utf-8' }));
+  await context.remember(css, response({ mime: 'text/css' }));
+  await context.remember(page, response({ mime: 'text/html' }));
+  assert.equal(saved.length, 3);
 });
