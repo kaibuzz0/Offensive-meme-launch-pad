@@ -28,3 +28,14 @@ test('turning the chassis detects side obstacles and malformed coordinates',()=>
   assert.equal(adapter.canOccupy(v.position,{...v,heading:Math.PI/2}),false);
   assert.equal(adapter.canOccupy({x:NaN,y:1,z:0},v),false);
 });
+
+test('malformed structure occupancy cannot silently permit vehicle movement',()=>{
+  const vehicle=createVehicle('car',{x:0,y:1,z:0});
+  for (const invalid of [undefined,null,0,1,'false',{},NaN]) {
+    const adapter=createVoxelVehicleCollision(world({obstacle:()=>invalid}));
+    assert.throws(()=>adapter.canOccupy(vehicle.position,vehicle),/gateRoad\.obstructs must return a boolean/);
+    assert.throws(()=>stepVehicle(vehicle,{throttle:1},1/60,adapter),/gateRoad\.obstructs must return a boolean/);
+  }
+  assert.equal(createVoxelVehicleCollision(world({obstacle:()=>false})).canOccupy(vehicle.position,vehicle),true);
+  assert.equal(createVoxelVehicleCollision(world({obstacle:()=>true})).canOccupy(vehicle.position,vehicle),false);
+});
