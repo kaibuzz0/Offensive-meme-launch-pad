@@ -27,9 +27,9 @@ async function remember(request,response){
   // cache and produce a blank scene on the next launch. Validate response type.
   const requestedPath=new URL(request.url).pathname;
   const mime=(response.headers.get('content-type')||'').split(';',1)[0].trim().toLowerCase();
-  if(/\\.js$/.test(requestedPath)&&!['text/javascript','application/javascript','application/x-javascript'].includes(mime))return response;
-  if(/\\.css$/.test(requestedPath)&&mime!=='text/css')return response;
-  if((request.mode==='navigate'||/\\.html$/.test(requestedPath))&&mime!=='text/html')return response;
+  if(/\.js$/.test(requestedPath)&&!['text/javascript','application/javascript','application/x-javascript'].includes(mime))return response;
+  if(/\.css$/.test(requestedPath)&&mime!=='text/css')return response;
+  if((request.mode==='navigate'||/\.html$/.test(requestedPath))&&mime!=='text/html')return response;
   // Respect origin cache policy even for otherwise public game files.
   if(/(?:^|,)\s*(?:no-store|private)(?:\s|,|$)/i.test(response.headers.get('cache-control')||''))return response;
   // A same-origin request can redirect to a third-party URL. Never persist that response.
