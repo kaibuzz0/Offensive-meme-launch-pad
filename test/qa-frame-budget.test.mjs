@@ -30,3 +30,11 @@ test('provisional gate rejects stalls without falsifying capture',()=>{
  assert.equal(r.status,1);
  assert.equal(JSON.parse(r.stdout).stallsOver100Ms,1);
 });
+
+test('long-session task arrays do not overflow the argument stack',()=>{
+ const r=run({...base,longTasksMs:Array(150000).fill(51)});
+ assert.equal(r.status,0,r.stderr);
+ const report=JSON.parse(r.stdout);
+ assert.equal(report.longTaskCount,150000);
+ assert.equal(report.longTaskMaxMs,51);
+});
