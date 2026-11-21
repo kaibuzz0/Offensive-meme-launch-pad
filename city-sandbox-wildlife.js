@@ -180,12 +180,20 @@
   }
   // Closest loaded creature for a player interaction probe. Stable ties use
   // the existing chunk/creature iteration order; no terrain or chunk loads.
-  function nearest(x,z,radius){
+  // Optional vertical reach prevents selecting animals through cave floors.
+  // Three-argument callers retain the original horizontal-only behavior.
+  function nearest(x,z,radius,y,maxVerticalDistance){
    if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0||radius>256)
     throw RangeError('Nearest query requires finite coordinates and radius 0..256');
+   const vertical=y!==undefined;
+   if(vertical&&(!Number.isFinite(y)||!Number.isFinite(maxVerticalDistance)||maxVerticalDistance<0||maxVerticalDistance>256))
+    throw RangeError('Vertical probe requires finite height and reach 0..256');
+   if(!vertical&&maxVerticalDistance!==undefined)throw RangeError('Vertical reach requires height');
    let best=null,bestDistance2=radius*radius;
    for(const population of active.values())for(const creature of population){
-    const dx=creature.x-x,dz=creature.z-z,distance2=dx*dx+dz*dz;
+    const dy=vertical?creature.y-y:0;
+    if(vertical&&(!Number.isFinite(creature.y)||Math.abs(dy)>maxVerticalDistance))continue;
+    const dx=creature.x-x,dz=creature.z-z,distance2=dx*dx+dz*dz+dy*dy;
     if(distance2<=bestDistance2&&(best===null||distance2<bestDistance2)){
      best=creature;bestDistance2=distance2;
     }
