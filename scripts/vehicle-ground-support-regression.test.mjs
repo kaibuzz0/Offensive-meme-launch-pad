@@ -36,11 +36,11 @@ test('unsupported and non-finite ground support cannot advance the chassis', () 
 test('support query cannot bypass an obstructing committed edit', () => {
   const adapter = createVoxelVehicleCollision({
     ...slopeWorld(0),
-    editObstructs: (x,y,z) => z > 2 && z < 3
+    editObstructs: (x,y,z) => z > 6 && z < 7
   });
   let vehicle = createVehicle();
   for (let i = 0; i < 180; i++) vehicle = stepVehicle(vehicle, {throttle:1}, 1/60, adapter);
-  assert.ok(vehicle.position.z < 3, 'committed obstacle must block forward travel');
+  assert.ok(vehicle.position.z < 7, 'committed obstacle must block forward travel');
   assert.equal(vehicle.speed, 0);
 });
 
