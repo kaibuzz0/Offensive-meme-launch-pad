@@ -35,8 +35,12 @@ async function remember(request,response){
   // A same-origin request can redirect to a third-party URL. Never persist that response.
   if(response.redirected&&(!response.url||new URL(response.url).origin!==scope.origin))return response;
   // Prevent unexpectedly large files from evicting the whole offline working set.
-  const bytes=Number(response.headers.get('content-length'));
-  if(Number.isFinite(bytes)&&bytes>2*1024*1024)return response;
+  const declaredLength=response.headers.get('content-length');
+  // Unknown or malformed lengths cannot satisfy a byte budget. Keep online play
+  // functional, but do not persist an unbounded response in CacheStorage.
+  if(declaredLength===null||!/^(?:0|[1-9][0-9]*)$/.test(declaredLength.trim()))return response;
+  const bytes=Number(declaredLength);
+  if(!Number.isSafeInteger(bytes)||bytes>2*1024*1024)return response;
   try{
     const cache=await caches.open(CACHE);
     await cache.put(request,response.clone());
