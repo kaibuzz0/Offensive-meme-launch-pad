@@ -247,11 +247,17 @@
   }
   // Bounded spatial query for NPC/encounter integration. Only active chunks
   // participate; no terrain regeneration or offscreen actor activation.
-  function nearby(x,z,radius){
+  function nearby(x,z,radius,y,verticalReach){
    if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0||radius>256)
     throw RangeError('Finite position and radius 0..256 required');
+   // Keep existing horizontal-only queries compatible while allowing callers
+   // to exclude creatures on another floor or below the current cave level.
+   const heightAware=y!==undefined||verticalReach!==undefined;
+   if(heightAware&&(!Number.isFinite(y)||!Number.isFinite(verticalReach)||verticalReach<0||verticalReach>256))
+    throw RangeError('Finite y and verticalReach 0..256 required together');
    const r2=radius*radius,found=[];
    for(const creatures of active.values())for(const creature of creatures){
+    if(heightAware&&(!Number.isFinite(creature.y)||Math.abs(creature.y-y)>verticalReach))continue;
     const dx=creature.x-x,dz=creature.z-z;
     if(dx*dx+dz*dz<=r2)found.push(creature);
    }
