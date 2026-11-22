@@ -11,7 +11,9 @@ function world(cave) {
   return {
     PLAYER_HEIGHT: 7.2,
     SEA_LEVEL: -100,
-    surfaceAt: () => ({ height: 9 }),
+    // Keep the synthetic surface above the cave roof (12m); a player
+    // standing at ground level must not intersect the underground roof.
+    surfaceAt: () => ({ height: 15 }),
     caveRoomAt: () => cave,
     gateRoad: { obstructs: () => false },
   };
