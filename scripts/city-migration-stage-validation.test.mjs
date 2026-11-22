@@ -57,3 +57,16 @@ test('rejects matching but malformed or unsupported protected source',()=>{
     assert.equal(migration.inspectStage({getItem:k=>values.get(k)??null},keys).status,'invalid');
   }
 });
+
+test('inspection rejects protected saves with unmappable active sessions',()=>{
+  for (const activity of [{contract:{id:'job'}},{blockJob:{id:'block'}},{defense:true},{room:'arena'},{rising:{arena:true}}]) {
+    const raw=JSON.stringify({version:5,saveVersion:5,worldVersion:1,x:1,y:2,...activity});
+    const values=new Map([['active',raw],['backup',raw],['preview',JSON.stringify({
+      kind:'world2-preview-only',sourceRaw:raw,
+      save:{version:6,saveVersion:6,worldVersion:2,x:12,y:13,area:'hub'},notices:[]
+    })]]);
+    assert.equal(migration.inspectStage({getItem:k=>values.get(k)??null},keys).status,'invalid');
+    assert.equal(values.get('active'),raw);
+    assert.equal(values.get('backup'),raw);
+  }
+});
