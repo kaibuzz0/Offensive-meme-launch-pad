@@ -110,6 +110,10 @@
      (original.worldVersion!==undefined&&original.worldVersion!==1)||
      (original.version===5&&(original.saveVersion!==5||original.worldVersion!==1)))
    return {status:'invalid',reason:'Staged source save version is unsupported.'};
+  // A session activity that stage() refuses must also be refused at review time.
+  // Local staged data can be edited independently of the protected source.
+  if(original.contract||original.blockJob||original.defense||original.room||original.rising?.arena)
+   return {status:'invalid',reason:'Staged source contains an unmappable active session activity.'};
   if(source!==parsed.sourceRaw||recovery!==parsed.sourceRaw)
    return {status:'conflict',reason:'The active save or recovery copy changed since staging. Do not activate.'};
   return {status:'ready-for-review',save:parsed.save,notices:parsed.notices||[]};
