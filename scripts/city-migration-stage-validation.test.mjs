@@ -70,3 +70,24 @@ test('inspection rejects protected saves with unmappable active sessions',()=>{
     assert.equal(values.get('backup'),raw);
   }
 });
+
+test('rejects tampered staged inventory, progression, and world edits without changing backups',()=>{
+  const original={version:5,saveVersion:5,worldVersion:1,x:1,y:2,
+    inventory:{wood:4},xp:12,worldEdits:[{x:3,y:4,id:'stone'}]};
+  const raw=JSON.stringify(original);
+  const valid={...original,version:6,saveVersion:6,worldVersion:2,x:12,y:13,area:'hub'};
+  const check=(save)=>{
+    const values=new Map([['active',raw],['backup',raw],['preview',JSON.stringify({
+      kind:'world2-preview-only',sourceRaw:raw,save,notices:[]
+    })]]);
+    const status=migration.inspectStage({getItem:k=>values.get(k)??null},keys).status;
+    assert.equal(values.get('active'),raw);
+    assert.equal(values.get('backup'),raw);
+    return status;
+  };
+  assert.equal(check(valid),'ready-for-review');
+  assert.equal(check({...valid,inventory:{wood:400}}),'invalid');
+  assert.equal(check({...valid,xp:1200}),'invalid');
+  assert.equal(check({...valid,worldEdits:[{x:3,y:4,id:'gold'}]}),'invalid');
+  assert.equal(check({...valid,unearnedReward:99}),'invalid');
+});
