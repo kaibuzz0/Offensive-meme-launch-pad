@@ -102,6 +102,14 @@
      !Array.isArray(parsed.notices)||parsed.notices.length>256||
      !parsed.notices.every(note=>typeof note==='string'&&note.length<=2048))
    return {status:'invalid',reason:'Staged gameplay coordinates or migration notices are invalid.'};
+  // A matching backup is not proof that its contents are a supported source save.
+  // Reject forged previews whose protected source cannot be parsed or versioned.
+  let original;
+  try{original=JSON.parse(parsed.sourceRaw);}catch{return {status:'invalid',reason:'Staged source save is malformed.'};}
+  if(!isObject(original)||!Number.isInteger(original.version)||original.version<1||original.version>5||
+     (original.worldVersion!==undefined&&original.worldVersion!==1)||
+     (original.version===5&&(original.saveVersion!==5||original.worldVersion!==1)))
+   return {status:'invalid',reason:'Staged source save version is unsupported.'};
   if(source!==parsed.sourceRaw||recovery!==parsed.sourceRaw)
    return {status:'conflict',reason:'The active save or recovery copy changed since staging. Do not activate.'};
   return {status:'ready-for-review',save:parsed.save,notices:parsed.notices||[]};
