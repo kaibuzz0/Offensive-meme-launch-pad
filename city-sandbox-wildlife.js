@@ -309,7 +309,7 @@
    for(const creatures of active.values())for(const creature of creatures){
     if(heightAware&&(!Number.isFinite(creature.y)||Math.abs(creature.y-y)>verticalReach))continue;
     const dx=creature.x-x,dz=creature.z-z,d2=dx*dx+dz*dz;
-    if(d2<=bestDistance&&(best===null||d2<bestDistance)){
+    if(d2<=bestDistance&&(best===null||d2<bestDistance||(d2===bestDistance&&creature.id<best.id))){
      best=creature;bestDistance=d2;
     }
    }
