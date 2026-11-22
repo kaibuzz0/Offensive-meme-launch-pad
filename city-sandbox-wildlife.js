@@ -184,10 +184,11 @@
     const dx=creature.x-x,dz=creature.z-z;
     if(dx*dx+dz*dz+dy*dy<=r2)found.push(creature);
    }
+   found.sort((a,b)=>a.id.localeCompare(b.id));
    return Object.freeze(found);
   }
   // Closest loaded creature for a player interaction probe. Stable ties use
-  // the existing chunk/creature iteration order; no terrain or chunk loads.
+  // creature IDs rather than chunk activation order; no terrain or chunk loads.
   // Optional vertical reach prevents selecting animals through cave floors.
   // Three-argument callers retain the original horizontal-only behavior.
   function nearest(x,z,radius,y,maxVerticalDistance){
@@ -202,7 +203,7 @@
     const dy=vertical?creature.y-y:0;
     if(vertical&&(!Number.isFinite(creature.y)||Math.abs(dy)>maxVerticalDistance))continue;
     const dx=creature.x-x,dz=creature.z-z,distance2=dx*dx+dz*dz+dy*dy;
-    if(distance2<=bestDistance2&&(best===null||distance2<bestDistance2)){
+    if(distance2<=bestDistance2&&(best===null||distance2<bestDistance2||(distance2===bestDistance2&&creature.id<best.id))){
      best=creature;bestDistance2=distance2;
     }
    }
