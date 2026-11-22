@@ -28,10 +28,10 @@
   // names to resolve generic groups such as 'temperate' or 'continental'.
   const group=String(typeof biome==='string'?biome:(biome?.group||'')).toLowerCase();
   const detail=String(typeof biome==='string'?'':(biome?.name||biome?.id||'')).toLowerCase();
-  const known=/cave|underground|subterranean|ocean|sea|reef|coral|river|stream|marsh|swamp|wetland|mangrove|bog|desert|dune|arid|badland|tundra|snow|ice|glacier|polar|mountain|alpine|highland|peak|forest|jungle|wood|grove|taiga|evergreen|tropical|fungal/;
+  const known=/cave|underground|subterranean|ocean|\bsea\b|reef|coral|river|stream|marsh|swamp|wetland|mangrove|bog|desert|dune|arid|badland|tundra|snow|\bice\b|glacier|polar|mountain|alpine|highland|peak|forest|jungle|wood|grove|taiga|evergreen|tropical|fungal/;
   const name=known.test(group)?group:detail||group;
   if(/cave|underground|subterranean/.test(name))return 'cave';
-  if(/ocean|sea|reef|coral/.test(name))return 'ocean';
+  if(/ocean|\bsea\b|reef|coral/.test(name))return 'ocean';
   if(/river|stream/.test(name))return 'river';
   if(/marsh|swamp|wetland|mangrove|bog/.test(name))return 'wetland';
   if(/desert|dune|arid|badland/.test(name))return 'desert';
