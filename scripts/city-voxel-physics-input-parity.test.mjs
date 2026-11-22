@@ -50,3 +50,34 @@ test('obstruction callback remains active regardless of visual detail settings',
     near(a.x, b.x); near(a.z, b.z);
   }
 });
+
+test('player rejects inverted and zero-height exposed cave columns without changing position', () => {
+  for (const ceiling of [2, 3]) {
+    const caveWorld = {
+      ...world(),
+      caveRoomAt(x) {
+        return x >= 2 ? { exposed: true, floor: 3, ceiling } : null;
+      }
+    };
+    const player = create(caveWorld, { x: 0, z: 0 });
+    assert.equal(player.teleport(2, 0), false);
+    near(player.snapshot().x, 0);
+    for (let i = 0; i < 25; i++) player.tick({ right: 1 }, 1 / 60);
+    assert.ok(player.snapshot().x < 2, 'entered invalid cave column');
+  }
+});
+
+test('valid exposed cave floor remains reachable independently of render detail', () => {
+  for (const visualDetail of ['low', 'high']) {
+    const caveWorld = {
+      ...world(),
+      visualDetail,
+      caveRoomAt(x) {
+        return x >= 2 ? { exposed: true, floor: 1, ceiling: 5 } : null;
+      }
+    };
+    const player = create(caveWorld, { x: 0, z: 0 });
+    assert.equal(player.teleport(2, 0), true);
+    near(player.snapshot().y, 1);
+  }
+});

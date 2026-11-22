@@ -54,12 +54,34 @@ try{
  await new Promise((resolve,reject)=>{
   server.once('error',reject);server.listen(0,'127.0.0.1',()=>{server.off('error',reject);resolve();});
  });
+ const chromeDiagnostics=[];
+ const diagnosticLimit=4096;
+ const captureChromeOutput=chunk=>{
+  chromeDiagnostics.push(String(chunk));
+  while(chromeDiagnostics.join('').length>diagnosticLimit)chromeDiagnostics.shift();
+ };
  chrome=spawn(chromeBin,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',
-  '--remote-debugging-port=0','--user-data-dir='+profile,'--no-first-run','--no-default-browser-check','about:blank'],{stdio:'ignore'});
- const port=await waitFor(async()=>{
-  try{return Number((await readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0])||null;}
-  catch{return null;}
- },'Chrome DevTools port',25000);
+  '--remote-debugging-port=0','--user-data-dir='+profile,'--no-first-run','--no-default-browser-check','about:blank'],{
+  stdio:['ignore','pipe','pipe'],
+  // CI runners may expose an invalid session bus address. Chrome's headless
+  // CDP endpoint does not require a desktop session bus.
+  env:{...process.env,DBUS_SESSION_BUS_ADDRESS:''}
+ });
+ chrome.stdout.on('data',captureChromeOutput);
+ chrome.stderr.on('data',captureChromeOutput);
+ let chromeExit=null;
+ chrome.once('error',error=>{chromeExit='spawn error: '+error.message;});
+ chrome.once('exit',(code,signal)=>{chromeExit='exit code '+code+', signal '+signal;});
+ let port;
+ try{
+  port=await waitFor(async()=>{
+   if(chromeExit)throw Error('Chrome terminated: '+chromeExit+'; output: '+chromeDiagnostics.join('').slice(-diagnosticLimit));
+   try{return Number((await readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0])||null;}
+   catch{return null;}
+  },'Chrome DevTools port',25000);
+ }catch(error){
+  throw Error(error.message+'; Chrome status: '+(chromeExit||'still running')+'; output: '+chromeDiagnostics.join('').slice(-diagnosticLimit));
+ }
  const tabResponse=await fetch('http://127.0.0.1:'+port+'/json/new?about:blank',{method:'PUT'});
  assert.equal(tabResponse.status,200);
  const tab=await tabResponse.json();

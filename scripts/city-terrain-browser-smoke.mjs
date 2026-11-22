@@ -133,6 +133,50 @@ try{
   // Exercise an actual first-person resource pickup on mobile-size Chromium.
   // Never collect by writing the storage key directly: this is the public UI.
   assert.equal(await evalPage('document.getElementById("city-road-supplies")?.hidden'),true);
+  // The prior dual-stick exercise deliberately turns the camera. Restore its
+  // original heading using the *actual* look control before testing W-only
+  // fortress traversal; otherwise this test confounds steering with collision.
+  // This is input-driven: never write controller position/yaw or bypass geometry.
+  const yawNow=()=>evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)');
+  const rotatedYaw=await yawNow();
+  if(Math.abs(rotatedYaw-firstYaw)>.015){
+   await request('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+   await request('Emulation.setDeviceMetricsOverride',{width:915,height:412,deviceScaleFactor:2,mobile:true});
+   await waitFor(()=>evalPage('matchMedia("(orientation:landscape)").matches'),'restore landscape look controls',8000);
+   // Sample between bounded real pointer pulses: a held stick can overshoot
+   // the target before the polling loop observes the matching heading.
+   const headingError=(yaw)=>Math.atan2(Math.sin(yaw-firstYaw),Math.cos(yaw-firstYaw));
+   let remaining=headingError(await yawNow());
+   try{
+    for(let pulse=0;pulse<120&&Math.abs(remaining)>.025;pulse++){
+     const pointerId=500+pulse;
+     // Scale the steering impulse down near the target instead of
+     // repeatedly crossing it with a fixed-size pulse.
+     const magnitude=Math.min(.18,Math.max(.025,Math.abs(remaining)*.55));
+     const direction=remaining>0?-magnitude:magnitude;
+     await evalPage(`(()=>{
+      const pad=document.getElementById("city-look-pad"),r=pad.getBoundingClientRect();
+      pad.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:${pointerId},
+       clientX:r.left+r.width*(.5+${direction}),clientY:r.top+r.height/2}));
+      return true;
+     })()`);
+     await delay(35);
+     await evalPage(`(()=>{
+      document.getElementById("city-look-pad").dispatchEvent(
+       new PointerEvent("pointerup",{bubbles:true,pointerId:${pointerId}}));return true;
+     })()`);
+     await delay(35);
+     remaining=headingError(await yawNow());
+    }
+    assert.ok(Math.abs(remaining)<.04,
+     'touch-look pulses restore heading; remaining yaw error='+remaining);
+   }finally{
+    await request('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:2,mobile:true});
+    await request('Emulation.setTouchEmulationEnabled',{enabled:false});
+   }
+  }
+  assert.ok(Math.abs(Math.atan2(Math.sin((await yawNow())-firstYaw),Math.cos((await yawNow())-firstYaw)))<.04,
+   'fortress traversal begins at the original verified heading');
   // Capture the post-joystick heading before walking. Releasing a touch look
   // stick recenters its knob, not the first-person camera yaw.
   const traversalStart=await evalPage('(()=>{const d=document.getElementById("city-voxel-status").dataset;return {yaw:Number(d.lookYaw),x:Number(d.worldX),z:Number(d.worldZ),fps:Number(d.fps),grounded:d.grounded,viewRadius:Number(d.viewRadius)};})()');
