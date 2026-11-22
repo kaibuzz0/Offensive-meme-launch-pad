@@ -63,3 +63,18 @@ test('vehicle cannot snap up a cliff or teleport between unrelated support surfa
   assert.ok(vehicle.position.z < 8, 'cliff must prevent forward motion');
   assert.ok(vehicle.position.y < 2, 'chassis must not snap upward');
 });
+
+test('ground support cannot silently bypass canonical collision when occupancy is missing', () => {
+  const vehicle = createVehicle('car');
+  const unsafe = {groundHeightAt: () => 0};
+  assert.throws(
+    () => stepVehicle(vehicle, {throttle: 1}, 1/60, unsafe),
+    /groundHeightAt requires a canonical world collision adapter/
+  );
+  // A zero-step frame must reject bad wiring before the next movement input.
+  assert.throws(
+    () => advanceVehicleFrame(vehicle, {}, 0, unsafe),
+    /groundHeightAt requires a canonical world collision adapter/
+  );
+  assert.deepEqual(vehicle.position, {x:0,y:0,z:0});
+});
