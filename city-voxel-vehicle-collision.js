@@ -17,9 +17,11 @@ export function createVoxelVehicleCollision(world, options = {}) {
   // Never inspect renderer meshes or uncommitted placement previews.
   // Default to the same committed-edit query consumed by player physics.
   // An explicit override remains available for tests and server authority.
-  const editObstructs = Object.hasOwn(options, 'editObstructs')
-    ? options.editObstructs : world.editObstructs;
-  if (editObstructs !== undefined && typeof editObstructs !== 'function')
+  const hasEditOverride = Object.hasOwn(options, 'editObstructs');
+  const editOverride = options.editObstructs;
+  if (hasEditOverride && editOverride !== undefined && typeof editOverride !== 'function')
+    throw new TypeError('editObstructs must be a function');
+  if (!hasEditOverride && world.editObstructs !== undefined && typeof world.editObstructs !== 'function')
     throw new TypeError('editObstructs must be a function');
   // Sample the oriented chassis rather than a circular center-only footprint.
   // Sample intermediate longitudinal sections too: endpoint/corner-only tests
@@ -45,6 +47,11 @@ export function createVoxelVehicleCollision(world, options = {}) {
     return insideGallery ? gallery.floor : column.height + 1;
   }
   function canOccupy(position, vehicle) {
+    // Resolve the current committed-edit query after save reload or ledger replacement.
+    // Explicit overrides stay pinned for deterministic tests/server authority.
+    const editObstructs = hasEditOverride ? editOverride : world.editObstructs;
+    if (editObstructs !== undefined && typeof editObstructs !== 'function')
+      throw new TypeError('editObstructs must be a function');
     if (![position?.x,position?.y,position?.z,vehicle?.heading].every(Number.isFinite))
       return false;
     const sin = Math.sin(vehicle.heading), cos = Math.cos(vehicle.heading);
