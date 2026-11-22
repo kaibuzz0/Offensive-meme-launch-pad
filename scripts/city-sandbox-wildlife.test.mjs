@@ -18,6 +18,13 @@ test('seed and chunk coordinates yield stable wildlife independent of call order
  assert.ok(a.length<=MAX_PER_CHUNK);
  assert.ok(a.every(e=>e.x>=192&&e.x<208&&e.z>=-64&&e.z<-48));
 });
+test('raw chunk populations cannot be mutated across deterministic consumers',()=>{
+ const population=spawnChunk(741,12,-4,'forest');
+ assert.ok(Object.isFrozen(population));
+ assert.ok(population.every(Object.isFrozen));
+ assert.throws(()=>population.push({id:'injected'}),TypeError);
+ assert.deepEqual(spawnChunk(741,12,-4,'forest'),population);
+});
 test('different habitats choose compatible species and are capped',()=>{
  for(const habitat of ['forest','plains','desert','tundra','mountain','wetland','ocean','river','cave']){
   const creatures=spawnChunk(100,4,5,habitat);
