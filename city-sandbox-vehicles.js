@@ -50,6 +50,7 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
     throw new TypeError('A canonical world collision adapter is required');
   }
   if(environment.groundHeightAt !== undefined && typeof environment.groundHeightAt !== 'function') throw new TypeError('groundHeightAt must be a function');
+  if(environment.groundHeightAt && typeof environment.canOccupy !== 'function') throw new TypeError('groundHeightAt requires a canonical world collision adapter');
   const maxGroundStep=environment.maxGroundStep??1;
   if(!Number.isFinite(maxGroundStep)||maxGroundStep<0) throw new RangeError('maxGroundStep must be finite and nonnegative');
   if(environment.canOccupy !== undefined){
@@ -144,6 +145,7 @@ export function advanceVehicleFrame(vehicle,controls,frameSeconds,environment={}
     throw new TypeError('requireCollision must be a boolean');
   }
   if(environment.groundHeightAt !== undefined && typeof environment.groundHeightAt !== 'function') throw new TypeError('groundHeightAt must be a function');
+  if(environment.groundHeightAt && typeof environment.canOccupy !== 'function') throw new TypeError('groundHeightAt requires a canonical world collision adapter');
   if(environment.maxGroundStep !== undefined && (!Number.isFinite(environment.maxGroundStep)||environment.maxGroundStep<0)) throw new RangeError('maxGroundStep must be finite and nonnegative');
   if(environment.canOccupy !== undefined && typeof environment.canOccupy !== 'function') {
     throw new TypeError('canOccupy must be a function');
