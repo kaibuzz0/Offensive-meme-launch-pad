@@ -82,7 +82,9 @@
  }
  function inspectStage(storage,keys){
   const {active,backup,preview}=keys||{};
-  if(![active,backup,preview].every(k=>typeof k==='string'&&k))return {status:'invalid'};
+  if(![active,backup,preview].every(k=>typeof k==='string'&&k.length>0)||
+     new Set([active,backup,preview]).size!==3)
+   return {status:'invalid',reason:'Distinct save, backup and preview keys required.'};
   let source,recovery,staged;
   try{source=storage.getItem(active);recovery=storage.getItem(backup);staged=storage.getItem(preview);}
   catch{return {status:'blocked',reason:'Storage cannot be inspected.'};}
@@ -92,6 +94,73 @@
      parsed.save.worldVersion!==TARGET_WORLD||parsed.save.saveVersion!==TARGET_SAVE||
      parsed.save.version!==TARGET_SAVE||typeof parsed.sourceRaw!=='string')
    return {status:'invalid',reason:'Staged schema is untrusted or incompatible.'};
+  // Staged previews are editable local data. Reject malformed core state before
+  // any future activation path can treat a matching backup as sufficient proof.
+  // Preserve unknown legacy fields in the backup; validate only the mapped core.
+  if(!Number.isFinite(parsed.save.x)||!Number.isFinite(parsed.save.y)||
+     typeof parsed.save.area!=='string'||!parsed.save.area||parsed.save.area.length>128||
+     !Array.isArray(parsed.notices)||parsed.notices.length>256||
+     !parsed.notices.every(note=>typeof note==='string'&&note.length<=2048))
+   return {status:'invalid',reason:'Staged gameplay coordinates or migration notices are invalid.'};
+  // A matching backup is not proof that its contents are a supported source save.
+  // Reject forged previews whose protected source cannot be parsed or versioned.
+  let original;
+  try{original=JSON.parse(parsed.sourceRaw);}catch{return {status:'invalid',reason:'Staged source save is malformed.'};}
+  if(!isObject(original)||!Number.isInteger(original.version)||original.version<1||original.version>5||
+     (original.worldVersion!==undefined&&original.worldVersion!==1)||
+     (original.version===5&&(original.saveVersion!==5||original.worldVersion!==1)))
+   return {status:'invalid',reason:'Staged source save version is unsupported.'};
+  // A session activity that stage() refuses must also be refused at review time.
+  // Local staged data can be edited independently of the protected source.
+  if(original.contract||original.blockJob||original.defense||original.room||original.rising?.arena)
+   return {status:'invalid',reason:'Staged source contains an unmappable active session activity.'};
+  // Only location, version, waypoint and defender-post coordinates may change.
+  // Compare every other source field, including unknown legacy data, so an edited
+  // preview cannot silently mint inventory, progression or construction records.
+  const preserved=(value)=>{
+   const copy=JSON.parse(JSON.stringify(value));
+   for(const key of ['version','saveVersion','worldVersion','x','y','area','waypoint','checkpoint','respawn'])delete copy[key];
+   if(Array.isArray(copy.crew))for(const member of copy.crew)if(isObject(member))delete member.post;
+   return copy;
+  };
+  if(JSON.stringify(preserved(original))!==JSON.stringify(preserved(parsed.save)))
+   return {status:'invalid',reason:'Staged inventory, progression or world edits differ from protected source.'};
+  // Waypoint transforms may change coordinates or clear unmappable locations,
+  // but must not inject new checkpoints or change unrelated waypoint metadata.
+  for(const key of ['waypoint','checkpoint','respawn']){
+   const old=original[key],next=parsed.save[key];
+   if(old==null){
+    if(next!=null)return {status:'invalid',reason:'Staged navigation target was injected.'};
+    continue;
+   }
+   if(next===null)continue; // plan() explicitly clears unmappable targets.
+   if(!isObject(old)||!isObject(next))
+    return {status:'invalid',reason:'Staged navigation target is malformed.'};
+   if(!Number.isFinite(next.x)||!Number.isFinite(next.y)||
+      (next.area!==undefined&&(typeof next.area!=='string'||!next.area||next.area.length>128)))
+    return {status:'invalid',reason:'Staged navigation coordinates are invalid.'};
+   const nonPosition=value=>{
+    const copy={...value};
+    delete copy.x;delete copy.y;delete copy.area;
+    return JSON.stringify(copy);
+   };
+   if(nonPosition(old)!==nonPosition(next))
+    return {status:'invalid',reason:'Staged navigation metadata differs from protected source.'};
+  }
+  // Transformed defender posts must retain their original member and post count.
+  if(Array.isArray(original.crew)){
+   if(!Array.isArray(parsed.save.crew)||parsed.save.crew.length!==original.crew.length)
+    return {status:'invalid',reason:'Staged defender roster differs from protected source.'};
+   for(let i=0;i<original.crew.length;i++){
+    const old=original.crew[i],next=parsed.save.crew[i];
+    if(isObject(old)&&isObject(old.post)&&(!isObject(next)||!isObject(next.post)||
+       !Number.isFinite(next.post.x)||!Number.isFinite(next.post.y)||
+       Object.keys(next.post).some(key=>key!=='x'&&key!=='y')))
+     return {status:'invalid',reason:'Staged defender post is invalid.'};
+    if((!isObject(old)||!isObject(old.post))&&isObject(next)&&Object.hasOwn(next,'post'))
+     return {status:'invalid',reason:'Staged defender post was injected.'};
+   }
+  }
   if(source!==parsed.sourceRaw||recovery!==parsed.sourceRaw)
    return {status:'conflict',reason:'The active save or recovery copy changed since staging. Do not activate.'};
   return {status:'ready-for-review',save:parsed.save,notices:parsed.notices||[]};
