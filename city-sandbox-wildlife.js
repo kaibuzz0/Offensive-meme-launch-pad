@@ -56,7 +56,8 @@
     heading:rand(seed,chunkX,chunkZ,400+i)*Math.PI*2
    }));
   }
-  return animals;
+  // Never expose a mutable spawn array to callers sharing deterministic chunk data.
+  return Object.freeze(animals);
  }
  // Terrain adapter: reads existing voxel surface columns without changing seeds,
  // cave layouts, chunk caches, saves, or rendering. Coordinates stay in voxels.
