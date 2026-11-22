@@ -190,7 +190,8 @@
     const dx=creature.x-x,dz=creature.z-z;
     if(dx*dx+dz*dz+dy*dy<=r2)found.push(creature);
    }
-   found.sort((a,b)=>a.id.localeCompare(b.id));
+   // Use code-point ordering, not locale collation, for cross-device deterministic IDs.
+   found.sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
    return Object.freeze(found);
   }
   // Closest loaded creature for a player interaction probe. Stable ties use
