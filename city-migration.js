@@ -132,8 +132,11 @@
    for(let i=0;i<original.crew.length;i++){
     const old=original.crew[i],next=parsed.save.crew[i];
     if(isObject(old)&&isObject(old.post)&&(!isObject(next)||!isObject(next.post)||
-       !Number.isFinite(next.post.x)||!Number.isFinite(next.post.y)))
+       !Number.isFinite(next.post.x)||!Number.isFinite(next.post.y)||
+       Object.keys(next.post).some(key=>key!=='x'&&key!=='y')))
      return {status:'invalid',reason:'Staged defender post is invalid.'};
+    if((!isObject(old)||!isObject(old.post))&&isObject(next)&&Object.hasOwn(next,'post'))
+     return {status:'invalid',reason:'Staged defender post was injected.'};
    }
   }
   if(source!==parsed.sourceRaw||recovery!==parsed.sourceRaw)
