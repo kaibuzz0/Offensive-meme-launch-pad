@@ -85,7 +85,8 @@
    return column;
   }
   const center=sample(centerX,centerZ);
-  if(!center)return [];
+  // Keep empty terrain populations immutable just like populated chunks.
+  if(!center)return Object.freeze([]);
   const biome={group:center.group,name:center.biomeName};
   const candidates=spawnChunk(world.seed,chunkX,chunkZ,biome,options);
   const placed=[];
