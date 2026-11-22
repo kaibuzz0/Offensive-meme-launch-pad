@@ -36,8 +36,10 @@
   if(/marsh|swamp|wetland|mangrove|bog/.test(name))return 'wetland';
   if(/desert|dune|arid|badland/.test(name))return 'desert';
   if(/tundra|snow|ice|glacier|polar/.test(name))return 'tundra';
-  if(/mountain|alpine|highland|peak/.test(name))return 'mountain';
+  // Mixed names such as Alpine Forest describe forest habitat, while an
+  // explicit mountain group still wins because `name` resolves to that group.
   if(/forest|jungle|wood|grove|taiga|evergreen|tropical|fungal/.test(name))return 'forest';
+  if(/mountain|alpine|highland|peak/.test(name))return 'mountain';
   return 'plains';
  }
  function spawnChunk(seed,chunkX,chunkZ,biome,options={}){
