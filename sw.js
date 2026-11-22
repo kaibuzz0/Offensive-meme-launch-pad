@@ -4,7 +4,11 @@ const OWN_PREFIX='offensive-shell-';
 const SHELL=['offline.html','assets/icons/app-192.png','assets/icons/app-512.png','assets/icons/apple-touch-180.png'];
 const urls=SHELL.map(path=>new URL(path,self.registration.scope).href);
 const scope=new URL(self.registration.scope);
-const MAX_GAME_ENTRIES=96;
+// Conservative count ceiling: each game response is limited to 2 MiB, so 24 entries
+// contribute at most 48 MiB; reserve 16 MiB of the 64 MiB provisional
+// Android cache budget for shell assets and browser bookkeeping.
+// This is not a measured total quota: shell size and browser overhead still need profiling.
+const MAX_GAME_ENTRIES=24;
 const GAME_FILES=/^(?:city(?:-[a-z0-9-]+)?\.js|city\.css|index\.html|city\.html|styles\.css|launchpad\.css|launchpad\.js|launchpad-config\.js|tokens\.js|share-core\.js|social\.js|pwa\.js)$/;
 function eligible(url,request){
   if(request.method!=='GET'||url.origin!==self.location.origin||!url.pathname.startsWith(scope.pathname))return false;
