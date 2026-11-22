@@ -125,6 +125,28 @@
   };
   if(JSON.stringify(preserved(original))!==JSON.stringify(preserved(parsed.save)))
    return {status:'invalid',reason:'Staged inventory, progression or world edits differ from protected source.'};
+  // Waypoint transforms may change coordinates or clear unmappable locations,
+  // but must not inject new checkpoints or change unrelated waypoint metadata.
+  for(const key of ['waypoint','checkpoint','respawn']){
+   const old=original[key],next=parsed.save[key];
+   if(old==null){
+    if(next!=null)return {status:'invalid',reason:'Staged navigation target was injected.'};
+    continue;
+   }
+   if(next===null)continue; // plan() explicitly clears unmappable targets.
+   if(!isObject(old)||!isObject(next))
+    return {status:'invalid',reason:'Staged navigation target is malformed.'};
+   if(!Number.isFinite(next.x)||!Number.isFinite(next.y)||
+      (next.area!==undefined&&(typeof next.area!=='string'||!next.area||next.area.length>128)))
+    return {status:'invalid',reason:'Staged navigation coordinates are invalid.'};
+   const nonPosition=value=>{
+    const copy={...value};
+    delete copy.x;delete copy.y;delete copy.area;
+    return JSON.stringify(copy);
+   };
+   if(nonPosition(old)!==nonPosition(next))
+    return {status:'invalid',reason:'Staged navigation metadata differs from protected source.'};
+  }
   // Transformed defender posts must retain their original member and post count.
   if(Array.isArray(original.crew)){
    if(!Array.isArray(parsed.save.crew)||parsed.save.crew.length!==original.crew.length)
