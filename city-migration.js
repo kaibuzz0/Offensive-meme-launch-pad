@@ -114,6 +114,28 @@
   // Local staged data can be edited independently of the protected source.
   if(original.contract||original.blockJob||original.defense||original.room||original.rising?.arena)
    return {status:'invalid',reason:'Staged source contains an unmappable active session activity.'};
+  // Only location, version, waypoint and defender-post coordinates may change.
+  // Compare every other source field, including unknown legacy data, so an edited
+  // preview cannot silently mint inventory, progression or construction records.
+  const preserved=(value)=>{
+   const copy=JSON.parse(JSON.stringify(value));
+   for(const key of ['version','saveVersion','worldVersion','x','y','area','waypoint','checkpoint','respawn'])delete copy[key];
+   if(Array.isArray(copy.crew))for(const member of copy.crew)if(isObject(member))delete member.post;
+   return copy;
+  };
+  if(JSON.stringify(preserved(original))!==JSON.stringify(preserved(parsed.save)))
+   return {status:'invalid',reason:'Staged inventory, progression or world edits differ from protected source.'};
+  // Transformed defender posts must retain their original member and post count.
+  if(Array.isArray(original.crew)){
+   if(!Array.isArray(parsed.save.crew)||parsed.save.crew.length!==original.crew.length)
+    return {status:'invalid',reason:'Staged defender roster differs from protected source.'};
+   for(let i=0;i<original.crew.length;i++){
+    const old=original.crew[i],next=parsed.save.crew[i];
+    if(isObject(old)&&isObject(old.post)&&(!isObject(next)||!isObject(next.post)||
+       !Number.isFinite(next.post.x)||!Number.isFinite(next.post.y)))
+     return {status:'invalid',reason:'Staged defender post is invalid.'};
+   }
+  }
   if(source!==parsed.sourceRaw||recovery!==parsed.sourceRaw)
    return {status:'conflict',reason:'The active save or recovery copy changed since staging. Do not activate.'};
   return {status:'ready-for-review',save:parsed.save,notices:parsed.notices||[]};
