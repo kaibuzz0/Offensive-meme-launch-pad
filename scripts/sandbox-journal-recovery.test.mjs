@@ -105,3 +105,17 @@ test('no-op reset and duplicate placement never advance a saved revision', () =>
   assert.equal(restored.apply({ x: -4, y: 0, z: 6, block: 'stone' }).changed, false);
   assert.deepEqual(restored.snapshot(), committed);
 });
+
+test('reload rejects incompatible voxel scale without altering the source journal', () => {
+  const journal = createVoxelEditJournal('fortress-route');
+  journal.apply({ x: 8, y: 1, z: -2, block: 'stone' });
+  const saved = journal.snapshot();
+  for (const voxelMetres of [0.5, 1, 0, null, undefined]) {
+    const incompatible = structuredClone(saved);
+    if (voxelMetres === undefined) delete incompatible.voxelMetres;
+    else incompatible.voxelMetres = voxelMetres;
+    assert.throws(() => createVoxelEditJournal('fortress-route', incompatible), /incompatible/);
+  }
+  assert.deepEqual(journal.snapshot(), saved);
+  assert.deepEqual(createVoxelEditJournal('fortress-route', saved).snapshot(), saved);
+});
