@@ -43,14 +43,39 @@ async function remember(request,response){
   if(response.redirected&&(!response.url||new URL(response.url).origin!==scope.origin))return response;
   // Prevent unexpectedly large files from evicting the whole offline working set.
   const declaredLength=response.headers.get('content-length');
-  // Unknown or malformed lengths cannot satisfy a byte budget. Keep online play
-  // functional, but do not persist an unbounded response in CacheStorage.
-  if(declaredLength===null||!/^(?:0|[1-9][0-9]*)$/.test(declaredLength.trim()))return response;
-  const bytes=Number(declaredLength);
-  if(!Number.isSafeInteger(bytes)||bytes>2*1024*1024)return response;
+  // Headers are only hints: a missing or dishonest Content-Length must not
+  // disable offline Solo or bypass the actual two-megabyte cache-write budget.
+  const LIMIT=2*1024*1024;
+  if(declaredLength!==null){
+    if(!/^(?:0|[1-9][0-9]*)$/.test(declaredLength.trim()))return response;
+    const claimed=Number(declaredLength);
+    if(!Number.isSafeInteger(claimed)||claimed>LIMIT)return response;
+  }
   try{
+    // Read a clone, not the response returned to the game. Stop reading as soon
+    // as the real byte count exceeds the limit, and never cache partial bytes.
+    const clone=response.clone();
+    if(!clone.body)return response;
+    const reader=clone.body.getReader();
+    const chunks=[];
+    let total=0;
+    let oversized=false;
+    try{
+      while(true){
+        const {done,value}=await reader.read();
+        if(done)break;
+        total+=value.byteLength;
+        if(total>LIMIT){oversized=true;await reader.cancel();break;}
+        chunks.push(value);
+      }
+    }finally{if(oversized)reader.releaseLock();}
+    if(oversized)return response;
+    const body=new Uint8Array(total);
+    let offset=0;
+    for(const chunk of chunks){body.set(chunk,offset);offset+=chunk.byteLength;}
+    const bounded=new Response(body,{status:response.status,statusText:response.statusText,headers:response.headers});
     const cache=await caches.open(CACHE);
-    await cache.put(cacheKey(request),response.clone());
+    await cache.put(cacheKey(request),bounded);
     const keys=await cache.keys();
     // Cache insertion order is stable; keep the static shell plus a bounded game working set.
     let excess=Math.max(0,keys.length-MAX_GAME_ENTRIES);
