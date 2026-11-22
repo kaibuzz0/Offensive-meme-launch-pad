@@ -268,3 +268,17 @@ test('nearby wildlife supports bounded vertical reach without terrain queries',(
  manager.clear();
  assert.deepEqual(manager.nearby(creature.x,creature.z,2,creature.y,2),[]);
 });
+
+test('missing terrain center returns an immutable empty population without speculative spawns',()=>{
+ let calls=0;
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>{calls++;return null;}};
+ const empty=spawnChunkOnTerrain(world,0,0);
+ assert.deepEqual(empty,[]);
+ assert.ok(Object.isFrozen(empty));
+ assert.equal(calls,1);
+ assert.throws(()=>empty.push({id:'invalid'}),TypeError);
+ const manager=createChunkWildlifeManager(world,{maxChunks:1});
+ const snapshot=manager.sync([[0,0]]);
+ assert.ok(Object.isFrozen(snapshot));
+ assert.deepEqual(snapshot,[]);
+});
