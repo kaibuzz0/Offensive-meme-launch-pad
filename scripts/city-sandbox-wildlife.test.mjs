@@ -36,6 +36,21 @@ test('different habitats choose compatible species and are capped',()=>{
  assert.deepEqual(spawnChunk(4,0,0,'forest',{maxPerChunk:0}),[]);
  assert.throws(()=>spawnChunk(4,0,0,'forest',{maxPerChunk:7}),RangeError);
 });
+test('generic biome groups use descriptive ecology without overriding recognized groups',()=>{
+ assert.equal(habitatFor({group:'temperate',name:'Ancient Forest'}),'forest');
+ assert.equal(habitatFor({group:'continental',name:'Snowy Tundra'}),'tundra');
+ assert.equal(habitatFor({group:'wetland',name:'Dry Meadow'}),'wetland');
+ assert.equal(habitatFor({group:'plains',name:'Alpine Forest'}),'forest');
+ assert.equal(habitatFor({id:'Volcanic Desert'}),'desert');
+ const world={seed:741,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:80,group:'temperate',biomeName:'Ancient Forest',water:false,river:false,slope:0
+ })};
+ for(const animal of spawnChunkOnTerrain(world,2,-3)){
+  assert.equal(animal.habitat,'forest');
+  assert.ok(['songbird','deer','rabbit'].includes(animal.species));
+ }
+});
+
 test('stable spawn IDs distinguish negative chunk coordinates and slots',()=>{
  const ids=new Set();
  for(let x=-4;x<=4;x++)for(let z=-4;z<=4;z++)
