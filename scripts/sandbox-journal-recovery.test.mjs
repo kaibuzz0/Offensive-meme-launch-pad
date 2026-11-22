@@ -57,3 +57,20 @@ test('reset restores generated terrain semantics without confusing it with mined
   assert.equal(journal.has(0, 0, 0), false);
   assert.equal(journal.get(0, 0, 0), undefined);
 });
+
+test('snapshots are detached and failed stale resets preserve the committed world', () => {
+  const journal = createVoxelEditJournal('fortress-route');
+  journal.apply({ x: -2, y: 1, z: -3, block: 'timber' });
+  const committed = journal.snapshot();
+  const revision = journal.revision;
+  assert.throws(() => journal.reset(-2, 1, -3, revision - 1), /stale/);
+  assert.equal(journal.get(-2, 1, -3), 'timber');
+  assert.deepEqual(journal.snapshot(), committed);
+  const detached = journal.snapshot();
+  detached.edits[0].block = 'stone';
+  detached.edits.push({ x: 99, y: 99, z: 99, block: 'stone' });
+  assert.deepEqual(journal.snapshot(), committed);
+  const restored = createVoxelEditJournal('fortress-route', committed);
+  assert.equal(restored.get(-2, 1, -3), 'timber');
+  assert.equal(restored.revision, revision);
+});
