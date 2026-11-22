@@ -91,3 +91,24 @@ test('rejects tampered staged inventory, progression, and world edits without ch
   assert.equal(check({...valid,worldEdits:[{x:3,y:4,id:'gold'}]}),'invalid');
   assert.equal(check({...valid,unearnedReward:99}),'invalid');
 });
+
+
+test('rejects injected defender posts and extra post metadata while preserving recovery',()=>{
+  const original={version:5,saveVersion:5,worldVersion:1,x:1,y:2,
+    crew:[{id:'guard-a',post:{x:4,y:5}},{id:'guard-b'}]};
+  const raw=JSON.stringify(original);
+  const base={...original,version:6,saveVersion:6,worldVersion:2,x:12,y:13,area:'hub',
+    crew:[{id:'guard-a',post:{x:14,y:15}},{id:'guard-b'}]};
+  const inspect=(save)=>{
+    const values=new Map([['active',raw],['backup',raw],['preview',JSON.stringify({
+      kind:'world2-preview-only',sourceRaw:raw,save,notices:[]
+    })]]);
+    const result=migration.inspectStage({getItem:k=>values.get(k)??null},keys);
+    assert.equal(values.get('active'),raw);
+    assert.equal(values.get('backup'),raw);
+    return result.status;
+  };
+  assert.equal(inspect(base),'ready-for-review');
+  assert.equal(inspect({...base,crew:[base.crew[0],{id:'guard-b',post:{x:9,y:9}}]}),'invalid');
+  assert.equal(inspect({...base,crew:[{id:'guard-a',post:{x:14,y:15,reward:999}},base.crew[1]]}),'invalid');
+});
