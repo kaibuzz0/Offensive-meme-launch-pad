@@ -127,6 +127,11 @@
     aerial?Math.max(col.height,wet?waterTop:col.height)+4+(hash(world.seed,x,z,511)%5):
     amphibious&&wet?Math.max(col.height,waterTop)+1:col.height+1;
    if(!Number.isFinite(y))continue;
+   // Generated fortress boxes are authoritative collision geometry. Keep
+   // ground fauna outside solid gatehouse walls/towers; flying fauna may
+   // traverse overhead. Use the same boxes as player physics, not a new map.
+   if(!aerial&&typeof world.gateRoad?.obstructs==='function'&&
+      world.gateRoad.obstructs(animal.x,y,animal.z,Math.max(1,Math.min(3,world.PLAYER_HEIGHT||2)),0.5))continue;
    placed.push(Object.freeze({...animal,y}));
   }
   return Object.freeze(placed);
