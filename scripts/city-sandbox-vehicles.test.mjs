@@ -207,3 +207,37 @@ test('zero-step frames reject malformed optional collision adapters',()=>{
   assert.throws(()=>advanceVehicleFrame(vehicle,{},0,{canOccupy}),/canOccupy must be a function/);
  }
 });
+
+test('vehicle support sweeps follow incremental slopes and reject cliff snaps',()=>{
+ const environment={
+  requireCollision:true,maxGroundStep:0.3,
+  groundHeightAt:position=>position.z*0.2,
+  canOccupy:(position,body)=>Number.isFinite(position.y)&&body.type==='car'
+ };
+ let v=createVehicle('car');
+ v.speed=12;
+ const uphill=stepVehicle(v,{throttle:0},0.1,environment);
+ assert.ok(uphill.position.z>0,'uphill movement is reachable');
+ assert.ok(uphill.position.y>0,'support height follows canonical terrain');
+ assert.ok(Math.abs(uphill.position.y-uphill.position.z*0.2)<1e-9);
+ const cliff=stepVehicle(v,{throttle:0},0.1,{
+  ...environment,groundHeightAt:position=>position.z>0.25?10:0
+ });
+ assert.ok(cliff.position.z<=0.25,'cliff must stop at last safe sweep');
+ assert.equal(cliff.speed,0);
+ assert.deepEqual(v.position,{x:0,y:0,z:0},'source state remains immutable');
+});
+test('vehicle frame reports support-query counts and bounds suspended-tab catch-up',()=>{
+ let support=0,occupancy=0;
+ const environment={
+  requireCollision:true,
+  groundHeightAt:()=>{support++;return 0;},
+  canOccupy:()=>{occupancy++;return true;}
+ };
+ const result=advanceVehicleFrame(createVehicle(),{throttle:1},30,environment,{remainder:0},{maxSteps:4});
+ assert.equal(result.steps,4);
+ assert.equal(result.groundSupportQueries,support);
+ assert.equal(result.collisionQueries,occupancy);
+ assert.ok(support>0&&occupancy>=support);
+ assert.ok(result.droppedSeconds>29);
+});
