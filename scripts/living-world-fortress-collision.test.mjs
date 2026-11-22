@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import wildlife from '../city-sandbox-wildlife.js';
+// The browser wildlife module publishes its API on globalThis; it has no ESM default export.
+import '../city-sandbox-wildlife.js';
+const wildlife = globalThis.CitySandboxWildlife;
 
 const makeWorld = (obstructs) => ({
  seed: 1234, CHUNK_SIZE: 16, SEA_LEVEL: 0,
