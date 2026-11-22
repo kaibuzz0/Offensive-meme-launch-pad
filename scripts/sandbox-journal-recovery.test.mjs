@@ -74,3 +74,34 @@ test('snapshots are detached and failed stale resets preserve the committed worl
   assert.equal(restored.get(-2, 1, -3), 'timber');
   assert.equal(restored.revision, revision);
 });
+
+test('malformed saved coordinates and unsafe material IDs fail closed on reload', () => {
+  const journal = createVoxelEditJournal('fortress-route');
+  journal.apply({ x: 2, y: -1, z: 5, block: 'timber' });
+  const valid = journal.snapshot();
+  for (const edit of [
+    { x: 2.5, y: -1, z: 5, block: 'timber' },
+    { x: Number.MAX_SAFE_INTEGER, y: -1, z: 5, block: 'timber' },
+    { x: 2, y: -1, z: 5, block: 'constructor' },
+    { x: 2, y: -1, z: 5, block: 'UPPERCASE' },
+    { x: 2, y: -1, z: 5, block: undefined }
+  ]) {
+    const corrupted = structuredClone(valid);
+    corrupted.edits[0] = edit;
+    assert.throws(() => createVoxelEditJournal('fortress-route', corrupted));
+  }
+  assert.deepEqual(journal.snapshot(), valid);
+});
+
+test('no-op reset and duplicate placement never advance a saved revision', () => {
+  const journal = createVoxelEditJournal('fortress-route');
+  assert.deepEqual(journal.reset(-4, 0, 6), { changed: false, revision: 0 });
+  journal.apply({ x: -4, y: 0, z: 6, block: 'stone' });
+  const committed = journal.snapshot();
+  assert.equal(journal.apply({ x: -4, y: 0, z: 6, block: 'stone' }).changed, false);
+  assert.equal(journal.revision, committed.revision);
+  assert.deepEqual(journal.snapshot(), committed);
+  const restored = createVoxelEditJournal('fortress-route', committed);
+  assert.equal(restored.apply({ x: -4, y: 0, z: 6, block: 'stone' }).changed, false);
+  assert.deepEqual(restored.snapshot(), committed);
+});
