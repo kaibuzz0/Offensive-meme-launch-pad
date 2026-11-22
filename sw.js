@@ -4,7 +4,11 @@ const OWN_PREFIX='offensive-shell-';
 const SHELL=['offline.html','assets/icons/app-192.png','assets/icons/app-512.png','assets/icons/apple-touch-180.png'];
 const urls=SHELL.map(path=>new URL(path,self.registration.scope).href);
 const scope=new URL(self.registration.scope);
-const MAX_GAME_ENTRIES=96;
+// Conservative count ceiling: each game response is limited to 2 MiB, so 24 entries
+// contribute at most 48 MiB; reserve 16 MiB of the 64 MiB provisional
+// Android cache budget for shell assets and browser bookkeeping.
+// This is not a measured total quota: shell size and browser overhead still need profiling.
+const MAX_GAME_ENTRIES=24;
 const GAME_FILES=/^(?:city(?:-[a-z0-9-]+)?\.js|city\.css|index\.html|city\.html|styles\.css|launchpad\.css|launchpad\.js|launchpad-config\.js|tokens\.js|share-core\.js|social\.js|pwa\.js)$/;
 function eligible(url,request){
   if(request.method!=='GET'||url.origin!==self.location.origin||!url.pathname.startsWith(scope.pathname))return false;
@@ -43,14 +47,39 @@ async function remember(request,response){
   if(response.redirected&&(!response.url||new URL(response.url).origin!==scope.origin))return response;
   // Prevent unexpectedly large files from evicting the whole offline working set.
   const declaredLength=response.headers.get('content-length');
-  // Unknown or malformed lengths cannot satisfy a byte budget. Keep online play
-  // functional, but do not persist an unbounded response in CacheStorage.
-  if(declaredLength===null||!/^(?:0|[1-9][0-9]*)$/.test(declaredLength.trim()))return response;
-  const bytes=Number(declaredLength);
-  if(!Number.isSafeInteger(bytes)||bytes>2*1024*1024)return response;
+  // Headers are only hints: a missing or dishonest Content-Length must not
+  // disable offline Solo or bypass the actual two-megabyte cache-write budget.
+  const LIMIT=2*1024*1024;
+  if(declaredLength!==null){
+    if(!/^(?:0|[1-9][0-9]*)$/.test(declaredLength.trim()))return response;
+    const claimed=Number(declaredLength);
+    if(!Number.isSafeInteger(claimed)||claimed>LIMIT)return response;
+  }
   try{
+    // Read a clone, not the response returned to the game. Stop reading as soon
+    // as the real byte count exceeds the limit, and never cache partial bytes.
+    const clone=response.clone();
+    if(!clone.body)return response;
+    const reader=clone.body.getReader();
+    const chunks=[];
+    let total=0;
+    let oversized=false;
+    try{
+      while(true){
+        const {done,value}=await reader.read();
+        if(done)break;
+        total+=value.byteLength;
+        if(total>LIMIT){oversized=true;await reader.cancel();break;}
+        chunks.push(value);
+      }
+    }finally{if(oversized)reader.releaseLock();}
+    if(oversized)return response;
+    const body=new Uint8Array(total);
+    let offset=0;
+    for(const chunk of chunks){body.set(chunk,offset);offset+=chunk.byteLength;}
+    const bounded=new Response(body,{status:response.status,statusText:response.statusText,headers:response.headers});
     const cache=await caches.open(CACHE);
-    await cache.put(cacheKey(request),response.clone());
+    await cache.put(cacheKey(request),bounded);
     const keys=await cache.keys();
     // Cache insertion order is stable; keep the static shell plus a bounded game working set.
     let excess=Math.max(0,keys.length-MAX_GAME_ENTRIES);
@@ -71,7 +100,7 @@ self.addEventListener('fetch',event=>{
   if(request.method!=='GET'||url.origin!==self.location.origin)return;
   if(request.mode==='navigate'){
     if(eligible(url,request)){
-      event.respondWith(fetch(request).then(response=>remember(request,response)).catch(async()=>await caches.match(cacheKey(request))||await caches.match(new URL('offline.html',scope).href)));
+      event.respondWith(fetch(request).then(response=>{event.waitUntil(remember(request,response));return response;}).catch(async()=>await caches.match(cacheKey(request))||await caches.match(new URL('offline.html',scope).href)));
     }else{
       event.respondWith(fetch(request).catch(()=>caches.match(new URL('offline.html',scope).href)));
     }
@@ -79,5 +108,5 @@ self.addEventListener('fetch',event=>{
   }
   if(urls.includes(url.href)){event.respondWith(caches.match(request).then(cached=>cached||fetch(request)));return;}
   // Only versioned, local, public game code is cached. No wallet, API or remote responses.
-  if(eligible(url,request))event.respondWith(caches.match(request).then(cached=>cached||fetch(request).then(response=>remember(request,response))));
+  if(eligible(url,request))event.respondWith(caches.match(request).then(cached=>cached||fetch(request).then(response=>{event.waitUntil(remember(request,response));return response;})));
 });
