@@ -92,6 +92,14 @@
      parsed.save.worldVersion!==TARGET_WORLD||parsed.save.saveVersion!==TARGET_SAVE||
      parsed.save.version!==TARGET_SAVE||typeof parsed.sourceRaw!=='string')
    return {status:'invalid',reason:'Staged schema is untrusted or incompatible.'};
+  // Staged previews are editable local data. Reject malformed core state before
+  // any future activation path can treat a matching backup as sufficient proof.
+  // Preserve unknown legacy fields in the backup; validate only the mapped core.
+  if(!Number.isFinite(parsed.save.x)||!Number.isFinite(parsed.save.y)||
+     typeof parsed.save.area!=='string'||!parsed.save.area||parsed.save.area.length>128||
+     !Array.isArray(parsed.notices)||parsed.notices.length>256||
+     !parsed.notices.every(note=>typeof note==='string'&&note.length<=2048))
+   return {status:'invalid',reason:'Staged gameplay coordinates or migration notices are invalid.'};
   if(source!==parsed.sourceRaw||recovery!==parsed.sourceRaw)
    return {status:'conflict',reason:'The active save or recovery copy changed since staging. Do not activate.'};
   return {status:'ready-for-review',save:parsed.save,notices:parsed.notices||[]};
