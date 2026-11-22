@@ -294,11 +294,14 @@
     const dx=creature.x-x,dz=creature.z-z;
     if(dx*dx+dz*dz<=r2)found.push(creature);
    }
+   // Stable ordering makes encounter lists independent of chunk LRU churn.
+   // Do not mutate the cached, immutable spawn descriptors.
+   found.sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
    return Object.freeze(found);
   }
   // Nearest loaded creature for first-person interaction. Optional y and
   // vertical reach prevent selecting an actor on another floor or cave level.
-  // Never wakes chunks or queries terrain; ties follow stable chunk order.
+  // Never wakes chunks or queries terrain; equal-distance ties use stable IDs.
   function nearest(x,z,radius,y,verticalReach){
    if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0||radius>256)
     throw RangeError('Finite position and radius 0..256 required');
