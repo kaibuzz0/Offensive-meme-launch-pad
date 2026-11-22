@@ -46,3 +46,14 @@ test('inspection rejects aliased or empty storage keys without reading storage',
     {active:'',backup:'backup',preview:'preview'}
   ]) assert.equal(migration.inspectStage(storage,keys).status,'invalid');
 });
+
+test('rejects matching but malformed or unsupported protected source',()=>{
+  for(const raw of ['{broken', 'null', JSON.stringify({version:7,worldVersion:1}),
+    JSON.stringify({version:5,saveVersion:5,worldVersion:2})]){
+    const values=new Map([['active',raw],['backup',raw],['preview',JSON.stringify({
+      kind:'world2-preview-only',sourceRaw:raw,
+      save:{version:6,saveVersion:6,worldVersion:2,x:12,y:13,area:'hub'},notices:[]
+    })]]);
+    assert.equal(migration.inspectStage({getItem:k=>values.get(k)??null},keys).status,'invalid');
+  }
+});
