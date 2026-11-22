@@ -99,7 +99,9 @@
    const aerial=AERIAL.has(animal.species);
    // Flying species can traverse water and steep terrain; ground species
    // cannot. Fish require actual water and a finite water surface above bed.
-   // Road and curb flags come from the canonical graded terrain surface.\n   // Keep land creatures out of the player route without additional terrain probes.\n   if(aquatic?!wet:!aerial&&(wet||col.road||col.curb||!Number.isFinite(col.slope)||col.slope<0||col.slope>18))continue;
+   // Road and curb flags come from the canonical graded terrain surface.
+   // Keep land creatures out of the player route without additional terrain probes.
+   if(aquatic?!wet:!aerial&&(wet||col.road||col.curb||!Number.isFinite(col.slope)||col.slope<0||col.slope>18))continue;
    const waterTop=Number.isFinite(col.waterLevel)?col.waterLevel:world.SEA_LEVEL;
    if(aquatic&&(!Number.isFinite(waterTop)||waterTop<=col.height))continue;
    const y=aquatic?Math.min(col.height+1,waterTop-0.5):
