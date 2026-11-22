@@ -107,6 +107,11 @@
    const y=aquatic?Math.min(col.height+1,waterTop-0.5):
     aerial?Math.max(col.height,wet?waterTop:col.height)+4+(hash(world.seed,x,z,511)%5):col.height+1;
    if(!Number.isFinite(y))continue;
+   // The canonical fortress uses solid world-space boxes for player collision.
+   // Apply that same contract to terrestrial wildlife; do not create a second
+   // footprint or reject aerial wildlife flying above the structures.
+   if(!aerial&&!aquatic&&typeof world.gateRoad?.obstructs==='function'&&
+      world.gateRoad.obstructs(animal.x,y,animal.z,2,0.4))continue;
    placed.push(Object.freeze({...animal,y}));
   }
   return Object.freeze(placed);
