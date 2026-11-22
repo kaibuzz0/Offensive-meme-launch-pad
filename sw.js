@@ -96,7 +96,7 @@ self.addEventListener('fetch',event=>{
   if(request.method!=='GET'||url.origin!==self.location.origin)return;
   if(request.mode==='navigate'){
     if(eligible(url,request)){
-      event.respondWith(fetch(request).then(response=>remember(request,response)).catch(async()=>await caches.match(cacheKey(request))||await caches.match(new URL('offline.html',scope).href)));
+      event.respondWith(fetch(request).then(response=>{event.waitUntil(remember(request,response));return response;}).catch(async()=>await caches.match(cacheKey(request))||await caches.match(new URL('offline.html',scope).href)));
     }else{
       event.respondWith(fetch(request).catch(()=>caches.match(new URL('offline.html',scope).href)));
     }
@@ -104,5 +104,5 @@ self.addEventListener('fetch',event=>{
   }
   if(urls.includes(url.href)){event.respondWith(caches.match(request).then(cached=>cached||fetch(request)));return;}
   // Only versioned, local, public game code is cached. No wallet, API or remote responses.
-  if(eligible(url,request))event.respondWith(caches.match(request).then(cached=>cached||fetch(request).then(response=>remember(request,response))));
+  if(eligible(url,request))event.respondWith(caches.match(request).then(cached=>cached||fetch(request).then(response=>{event.waitUntil(remember(request,response));return response;})));
 });
