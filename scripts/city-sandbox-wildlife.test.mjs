@@ -297,3 +297,10 @@ test('missing terrain center returns an immutable empty population without specu
  assert.ok(Object.isFrozen(snapshot));
  assert.deepEqual(snapshot,[]);
 });
+
+
+test('seasonal forest is not misclassified as sea habitat',()=>{
+ assert.equal(habitatFor({group:'seasonal forest',name:'Seasonal Forest'}),'forest');
+ assert.equal(habitatFor({group:'temperate',name:'Seasonal Forest'}),'forest');
+ assert.equal(habitatFor({group:'sea',name:'Open Sea'}),'ocean');
+});
