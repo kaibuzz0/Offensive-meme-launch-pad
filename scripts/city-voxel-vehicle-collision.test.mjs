@@ -26,3 +26,22 @@ test('malformed edit collision adapters fail closed', () => {
     assert.throws(() => collision.canOccupy(position, vehicle), /editObstructs must return a boolean/);
   }
 });
+
+test('retained vehicle adapter observes replaced committed-edit ledger after reload', () => {
+  const mutableWorld = {...world, editObstructs: () => false};
+  const adapter = createVoxelVehicleCollision(mutableWorld);
+  assert.equal(adapter.canOccupy(position, vehicle), true);
+  mutableWorld.editObstructs = (_x, _y, z) => z > 1 && z < 3;
+  assert.equal(adapter.canOccupy(position, vehicle), false, 'reloaded wall blocks without rebuilding adapter');
+  mutableWorld.editObstructs = () => false;
+  assert.equal(adapter.canOccupy(position, vehicle), true, 'removed wall clears without rebuilding adapter');
+  mutableWorld.editObstructs = null;
+  assert.throws(() => adapter.canOccupy(position, vehicle), /editObstructs must be a function/);
+});
+
+test('explicit authoritative edit override stays pinned across world ledger replacement', () => {
+  const mutableWorld = {...world, editObstructs: () => false};
+  const adapter = createVoxelVehicleCollision(mutableWorld, {editObstructs: () => true});
+  mutableWorld.editObstructs = () => false;
+  assert.equal(adapter.canOccupy(position, vehicle), false);
+});
