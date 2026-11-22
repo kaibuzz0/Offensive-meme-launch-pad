@@ -268,7 +268,7 @@
    return sync(candidates.slice(0,maxChunks).map(([nx,nz])=>[nx,nz]));
   }
   function snapshot(){
-   if(!cachedSnapshot)cachedSnapshot=Object.freeze(Array.from(active.values()).flat());
+   if(!cachedSnapshot)cachedSnapshot=Object.freeze(Array.from(active.values()).flat().sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0));
    return cachedSnapshot;
   }
   return Object.freeze({enter,leave,sync,syncAround,nearby,nearest,invalidateAtVoxel,invalidateCommittedVoxels,snapshot,activeChunks:()=>active.size,
