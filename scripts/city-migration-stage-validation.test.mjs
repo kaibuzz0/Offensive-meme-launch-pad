@@ -37,3 +37,12 @@ test('rejects source drift and preserves active and backup',()=>{
   assert.equal(storage.getItem('active'),original);
   assert.equal(storage.getItem('backup'),original);
 });
+
+test('inspection rejects aliased or empty storage keys without reading storage',()=>{
+  const storage={getItem:()=>{throw new Error('should not read');}};
+  for(const keys of [
+    {active:'active',backup:'active',preview:'preview'},
+    {active:'active',backup:'backup',preview:'backup'},
+    {active:'',backup:'backup',preview:'preview'}
+  ]) assert.equal(migration.inspectStage(storage,keys).status,'invalid');
+});
