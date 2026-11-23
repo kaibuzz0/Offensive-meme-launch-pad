@@ -9,7 +9,7 @@ self.addEventListener('activate',event=>{event.waitUntil((async()=>{for(const ke
 self.addEventListener('fetch',event=>{
   const request=event.request;
   const url=new URL(request.url);
-  if(request.method!=='GET'||url.origin!==self.location.origin)return;
+  if(request.method!=='GET'||url.origin!==self.location.origin||!url.href.startsWith(self.registration.scope))return;
   if(request.mode==='navigate'){
     event.respondWith(fetch(request).catch(()=>caches.match(new URL('offline.html',self.registration.scope).href)));
     return;
