@@ -72,3 +72,16 @@ test('swept steering follows the shortest heading arc across the pi boundary',()
   assert.ok(turns.every(turn=>turn>0&&turn<1),'sweep must follow the short positive arc');
   assert.ok(turns.every((turn,i)=>i===0||turn>=turns[i-1]),'heading must advance monotonically through the seam');
 });
+
+test('blocked steering does not rotate the chassis into the obstacle',()=>{
+  const car=createVehicle('car',{x:0,y:0,z:0});
+  car.speed=30;
+  car.heading=0.2;
+  const next=stepVehicle(car,{steering:1},0.1,{
+    canOccupy(_position,vehicle){return vehicle.heading<0.21;}
+  });
+  assert.equal(next.position.z,car.position.z);
+  assert.equal(next.position.x,car.position.x);
+  assert.equal(next.speed,0);
+  assert.equal(next.heading,car.heading,'blocked sweep must retain last safe heading');
+});
