@@ -38,3 +38,19 @@ test('clear path moves the vehicle with bounded collision query count',()=>{
   assert.ok(result.position.z>0);
   assert.ok(queries<=13,`unexpected collision query count: ${queries}`);
 });
+
+test('steering sweep checks intermediate rotated chassis orientation',()=>{
+  const car=createVehicle('car',{x:0,y:0,z:0});
+  car.speed=30;
+  const headings=[];
+  const result=stepVehicle(car,{steering:1},0.1,{
+    canOccupy(_position,vehicle){
+      headings.push(vehicle.heading);
+      return vehicle.heading<0.03;
+    }
+  });
+  assert.ok(headings.length>1);
+  assert.ok(headings.some(h=>h>0),'occupancy must receive swept orientation');
+  assert.equal(result.position.z,0);
+  assert.equal(result.speed,0);
+});
