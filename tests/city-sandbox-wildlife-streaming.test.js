@@ -25,3 +25,21 @@ test('syncAround preserves stable populations after returning to same chunk',()=
  manager.syncAround(100,100,1);
  assert.deepEqual(manager.syncAround(8,8,1),original);
 });
+
+test('enter keeps recently visited chunks resident without resampling terrain',()=>{
+ let probes=0;
+ const countedWorld={...world,surfaceAt(x,z){probes++;return world.surfaceAt(x,z);}};
+ const manager=createChunkWildlifeManager(countedWorld,{maxChunks:2});
+ const first=manager.enter(0,0);
+ manager.enter(1,0);
+ const before=probes;
+ assert.strictEqual(manager.enter(0,0),first);
+ assert.equal(probes,before);
+ manager.enter(2,0); // Evicts older (1,0), not recently visited (0,0).
+ assert.strictEqual(manager.enter(0,0),first);
+ assert.equal(probes>before,true);
+ const after=probes;
+ manager.enter(1,0); // Recreates the evicted population.
+ assert.ok(probes>after);
+ assert.equal(manager.activeChunks(),2);
+});
