@@ -142,21 +142,30 @@ try{
   // misleading collision timeout. Keep the actual pickup/gate assertions.
   // Compare headings on the circle: -PI and +PI describe the same pose.
   const yawDelta=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
-  if(Math.abs(yawDelta(traversalStart.yaw,firstYaw))>.015){
+  // Drive the actual touch-look input in short bounded pulses. A fixed left
+  // hold can overshoot at low FPS, and the shortest turn may cross +/-PI.
+  // Each pulse chooses direction from the measured signed heading error.
+  let aligned=false;
+  for(let attempt=0;attempt<32;attempt++){
+   const yaw=await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)');
+   const error=yawDelta(firstYaw,yaw);
+   if(Math.abs(error)<.06){aligned=true;break;}
+   const rightward=error>0;
    await evalPage(`(()=>{
     const pad=document.getElementById("city-look-pad"),r=pad.getBoundingClientRect();
     pad.dispatchEvent(new PointerEvent("pointerdown",{
-     bubbles:true,pointerId:403,clientX:r.left+r.width*.18,clientY:r.top+r.height/2
+     bubbles:true,pointerId:403,clientX:r.left+r.width*(${rightward?".70":".30"}),
+     clientY:r.top+r.height/2
     }));
     return true;
    })()`);
-   try{
-    await waitFor(()=>evalPage(`Math.abs(Math.atan2(Math.sin(Number(document.getElementById("city-voxel-status").dataset.lookYaw)-(${firstYaw})),Math.cos(Number(document.getElementById("city-voxel-status").dataset.lookYaw)-(${firstYaw}))))<.035`),
-     'restore fortress approach heading through touch look',12000);
-   }finally{
+   try{await delay(90);}
+   finally{
     await evalPage('document.getElementById("city-look-pad").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:403}));true');
    }
+   await delay(80);
   }
+  assert.ok(aligned,'touch-look correction must converge to the fortress approach heading');
   const restoredYaw=await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)');
   assert.ok(Math.abs(yawDelta(restoredYaw,firstYaw))<.06,'fortress traversal must start on its original approach heading');
   console.log('Terrain traversal heading '+JSON.stringify({firstYaw,restoredYaw,traversalStart}));
