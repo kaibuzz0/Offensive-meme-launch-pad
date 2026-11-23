@@ -266,7 +266,7 @@
     staged.set(k,active.has(k)?active.get(k):spawnChunkOnTerrain(world,cx,cz,options));
    }
    // A stable visible set is a no-op, avoiding per-frame snapshot allocations.
-   if(staged.size===active.size&&Array.from(staged).every(([k,v])=>active.get(k)===v))return snapshot();
+   // Chunk order can change as the player crosses a boundary even when the\n   // resident populations are identical. Keep the existing immutable snapshot\n   // and avoid churn when only the caller's enumeration order changes.\n   if(staged.size===active.size&&Array.from(staged).every(([k,v])=>active.has(k)&&active.get(k)===v))return snapshot();
    active.clear();
    for(const [k,creatures] of staged)active.set(k,creatures);
    dirty();
