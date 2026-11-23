@@ -65,6 +65,10 @@ test('swept steering follows the shortest heading arc across the pi boundary',()
     canOccupy(_position,vehicle){headings.push(vehicle.heading);return true;}
   });
   assert.ok(headings.length>2);
-  // A wrapped destination near -pi must not rotate the collision hull through zero.
-  assert.ok(headings.every(h=>Math.abs(h)>3),'intermediate heading must remain near the pi seam');
+  // Compare signed shortest-arc displacement, not absolute wrapped angles:
+  // the final valid sample may be below -3 radians at this speed.
+  const delta=h=>Math.atan2(Math.sin(h-car.heading),Math.cos(h-car.heading));
+  const turns=headings.map(delta);
+  assert.ok(turns.every(turn=>turn>0&&turn<1),'sweep must follow the short positive arc');
+  assert.ok(turns.every((turn,i)=>i===0||turn>=turns[i-1]),'heading must advance monotonically through the seam');
 });
