@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createVehicle,stepVehicle} from '../city-sandbox-vehicles.js';
+import {createVehicle,stepVehicle,saveVehicle,loadVehicle} from '../city-sandbox-vehicles.js';
 
 test('vehicle sweep cannot tunnel through a quarter-meter obstacle between endpoints',()=>{
   const car=createVehicle('car',{x:0,y:0,z:0});
@@ -84,4 +84,19 @@ test('blocked steering does not rotate the chassis into the obstacle',()=>{
   assert.equal(next.position.x,car.position.x);
   assert.equal(next.speed,0);
   assert.ok(Math.abs(next.heading-car.heading)<1e-12,'blocked sweep must retain last safe heading within floating-point precision');
+});
+
+test('blocked vehicle sweep survives save and reload without crossing an obstacle',()=>{
+  const car=createVehicle('car',{x:0,y:0,z:0});
+  car.driverId='solo';
+  car.speed=30;
+  const collision={canOccupy(position){return position.z<1;}};
+  const blocked=stepVehicle(car,{steering:0.4},0.1,collision);
+  assert.equal(blocked.position.z,0);
+  assert.equal(blocked.speed,0);
+  const restored=loadVehicle(saveVehicle(blocked));
+  assert.deepEqual(restored,blocked,'save/reload must retain the last safe pose');
+  assert.equal(restored.driverId,'solo','seat identity must persist');
+  const resumed=stepVehicle(restored,{throttle:1},1/60,collision);
+  assert.ok(resumed.position.z<1,'reloaded vehicle must still respect the same collision world');
 });
