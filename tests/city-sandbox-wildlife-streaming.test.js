@@ -43,3 +43,18 @@ test('enter keeps recently visited chunks resident without resampling terrain',(
  assert.ok(probes>after);
  assert.equal(manager.activeChunks(),2);
 });
+
+test('proximity broad phase preserves exact results across negative chunk borders',()=>{
+ const manager=createChunkWildlifeManager(world,{maxChunks:8});
+ manager.sync([[-2,0],[-1,0],[0,0],[1,0],[2,0]]);
+ const population=manager.snapshot();
+ for(const [x,z,radius] of [[-16,8,0],[-16,8,1],[-0.1,8,16],[16,8,32],[0,8,256]]){
+  const expected=population.filter(a=>(a.x-x)**2+(a.z-z)**2<=radius**2);
+  assert.deepEqual(manager.nearby(x,z,radius),expected);
+  const closest=[...expected].sort((a,b)=>{
+   const da=(a.x-x)**2+(a.z-z)**2,db=(b.x-x)**2+(b.z-z)**2;
+   return da-db||(a.id<b.id?-1:a.id>b.id?1:0);
+  })[0]??null;
+  assert.deepEqual(manager.nearest(x,z,radius),closest);
+ }
+});
