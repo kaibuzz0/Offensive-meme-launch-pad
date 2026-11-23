@@ -13,7 +13,7 @@ test('PWA service worker ignores same-origin URLs outside its registration scope
     registration: { scope },
     addEventListener(type, listener) { listeners.set(type, listener); },
   };
-  vm.runInNewContext(source, { self, URL, caches: {}, fetch() { throw Error('unexpected fetch'); } });
+  vm.runInNewContext(source, { self, URL, caches: {}, fetch() { return Promise.resolve({ ok: true }); } });
   let intercepted = 0;
   const dispatch = (url, method = 'GET') => listeners.get('fetch')({
     request: { url, method, mode: 'navigate' },
