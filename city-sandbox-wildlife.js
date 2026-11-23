@@ -147,7 +147,14 @@
   function enter(cx,cz){
    validate(cx,cz);
    const k=key(cx,cz);
-   if(active.has(k))return active.get(k);
+   if(active.has(k)){
+    // Refresh recency without regenerating terrain or changing the snapshot.
+    // Repeatedly visiting a nearby chunk must not evict it before stale ones.
+    const creatures=active.get(k);
+    active.delete(k);
+    active.set(k,creatures);
+    return creatures;
+   }
    const creatures=spawnChunkOnTerrain(world,cx,cz,options);
    if(active.size>=maxChunks)active.delete(active.keys().next().value);
    active.set(k,creatures);
