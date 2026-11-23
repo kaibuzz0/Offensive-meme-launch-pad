@@ -136,7 +136,28 @@ try{
   // Capture the post-joystick heading before walking. Releasing a touch look
   // stick recenters its knob, not the first-person camera yaw.
   const traversalStart=await evalPage('(()=>{const d=document.getElementById("city-voxel-status").dataset;return {yaw:Number(d.lookYaw),x:Number(d.worldX),z:Number(d.worldZ),fps:Number(d.fps),grounded:d.grounded,viewRadius:Number(d.viewRadius)};})()');
-  console.log('Terrain traversal start '+JSON.stringify({firstYaw,traversalStart}));
+  // Restore the original approach heading using the real touch-look input.
+  // Releasing the right stick recenters its knob, not the camera yaw.
+  // A rotated camera can walk past the gate and turn a route test into a
+  // misleading collision timeout. Keep the actual pickup/gate assertions.
+  if(Math.abs(traversalStart.yaw-firstYaw)>.015){
+   await evalPage(`(()=>{
+    const pad=document.getElementById("city-look-pad"),r=pad.getBoundingClientRect();
+    pad.dispatchEvent(new PointerEvent("pointerdown",{
+     bubbles:true,pointerId:403,clientX:r.left+r.width*.18,clientY:r.top+r.height/2
+    }));
+    return true;
+   })()`);
+   try{
+    await waitFor(()=>evalPage(`Math.abs(Number(document.getElementById("city-voxel-status").dataset.lookYaw)-${firstYaw})<.035`),
+     'restore fortress approach heading through touch look',12000);
+   }finally{
+    await evalPage('document.getElementById("city-look-pad").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:403}));true');
+   }
+  }
+  const restoredYaw=await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)');
+  assert.ok(Math.abs(restoredYaw-firstYaw)<.06,'fortress traversal must start on its original approach heading');
+  console.log('Terrain traversal heading '+JSON.stringify({firstYaw,restoredYaw,traversalStart}));
   await request('Input.dispatchKeyEvent',{type:'keyDown',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
   try{
    await waitFor(()=>evalPage('!document.getElementById("city-road-supplies").hidden'),'walk to the roadside supply cache',90000);
