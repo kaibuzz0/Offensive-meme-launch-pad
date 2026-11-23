@@ -39,3 +39,11 @@ These are **provisional acceptance targets**, not existing measurements or promi
 `SHA | PR | physical/emulated device | viewport | renderer | seed | cold/warm | visible route step | startup s | transferred MiB | frame p95/p99 ms | stall ms | heap/RAM | workers/jobs | persistence pass/fail | public deployed SHA | screenshot/HAR/trace link | limitation`
 
 No public deployment, performance result or source-gameplay change is claimed by this documentation-only increment.
+
+## 2026-11-23 source-level blocker and additional budget gates
+
+Fresh `main` inspection: `sw.js` currently precaches `offline.html` plus three icons; it does **not** precache `index.html`, `city.html` or the playable script/worker graph. The network-first navigation fallback therefore cannot establish offline Solo. This is a source-level finding, not a disconnected-browser test. Coordinate any cache implementation with #43 and the existing scope/cache PRs rather than creating a competing service worker.
+
+Additional **candidate** bounds to capture alongside the table above: game-only CacheStorage total ≤ 64 MiB after a complete online visit and 30 minutes of traversal; no monotonic growth in worker count or queued chunk jobs over that session; zero cached wallet, account, API, multiplayer or token-response payloads. These are provisional targets, not current measurements. If the canonical game requires more than 64 MiB, publish the measured essential-asset inventory and revise the cap before asserting offline support.
+
+Security and migration evidence must include duplicate action-ID replay, forged reward/balance and cosmetic IDs, unauthorized room/world mutations, and an interrupted migration with exact original save backup preserved. Validate candidate readback and repeat the migration/reload twice. Treat missing physical Android, unavailable GPU-memory counters and unexecuted browser paths as **not tested**, not passing.
