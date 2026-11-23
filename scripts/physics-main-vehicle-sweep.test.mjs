@@ -55,3 +55,16 @@ test('steering sweep checks intermediate rotated chassis orientation',()=>{
   assert.equal(result.position.z,0);
   assert.equal(result.speed,0);
 });
+
+test('swept steering follows the shortest heading arc across the pi boundary',()=>{
+  const car=createVehicle('car',{x:0,y:0,z:0});
+  car.heading=Math.PI-0.01;
+  car.speed=30;
+  const headings=[];
+  stepVehicle(car,{steering:1},0.1,{
+    canOccupy(_position,vehicle){headings.push(vehicle.heading);return true;}
+  });
+  assert.ok(headings.length>2);
+  // A wrapped destination near -pi must not rotate the collision hull through zero.
+  assert.ok(headings.every(h=>Math.abs(h)>3),'intermediate heading must remain near the pi seam');
+});
