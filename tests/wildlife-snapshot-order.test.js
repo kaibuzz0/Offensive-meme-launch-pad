@@ -21,3 +21,16 @@ test('wildlife render snapshots use stable ID ordering independent of chunk acti
  assert.strictEqual(first.sync(chunks),a,'unchanged visible set reuses snapshot');
  assert.deepEqual(first.nearby(0,0,256),second.nearby(0,0,256));
 });
+
+test('repeated and reordered visible membership does not resample terrain',()=>{
+ let samples=0;
+ const sampledWorld={...world,surfaceAt(x,z){samples++;return world.surfaceAt(x,z);}};
+ const manager=createChunkWildlifeManager(sampledWorld,{maxChunks:4});
+ const chunks=[[0,0],[1,0],[-1,0],[0,1]];
+ const initial=manager.sync(chunks);
+ const afterFirst=samples;
+ assert.strictEqual(manager.sync(chunks),initial);
+ assert.strictEqual(manager.sync([...chunks].reverse()),initial);
+ assert.equal(samples,afterFirst,'unchanged chunks must not resample terrain');
+ assert.equal(manager.activeChunks(),4);
+});
