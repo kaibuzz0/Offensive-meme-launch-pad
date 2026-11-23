@@ -140,7 +140,9 @@ try{
   // Releasing the right stick recenters its knob, not the camera yaw.
   // A rotated camera can walk past the gate and turn a route test into a
   // misleading collision timeout. Keep the actual pickup/gate assertions.
-  if(Math.abs(traversalStart.yaw-firstYaw)>.015){
+  // Compare headings on the circle: -PI and +PI describe the same pose.
+  const yawDelta=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
+  if(Math.abs(yawDelta(traversalStart.yaw,firstYaw))>.015){
    await evalPage(`(()=>{
     const pad=document.getElementById("city-look-pad"),r=pad.getBoundingClientRect();
     pad.dispatchEvent(new PointerEvent("pointerdown",{
@@ -149,14 +151,14 @@ try{
     return true;
    })()`);
    try{
-    await waitFor(()=>evalPage(`Math.abs(Number(document.getElementById("city-voxel-status").dataset.lookYaw)-${firstYaw})<.035`),
+    await waitFor(()=>evalPage(`Math.abs(Math.atan2(Math.sin(Number(document.getElementById("city-voxel-status").dataset.lookYaw)-(${firstYaw})),Math.cos(Number(document.getElementById("city-voxel-status").dataset.lookYaw)-(${firstYaw}))))<.035`),
      'restore fortress approach heading through touch look',12000);
    }finally{
     await evalPage('document.getElementById("city-look-pad").dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:403}));true');
    }
   }
   const restoredYaw=await evalPage('Number(document.getElementById("city-voxel-status").dataset.lookYaw)');
-  assert.ok(Math.abs(restoredYaw-firstYaw)<.06,'fortress traversal must start on its original approach heading');
+  assert.ok(Math.abs(yawDelta(restoredYaw,firstYaw))<.06,'fortress traversal must start on its original approach heading');
   console.log('Terrain traversal heading '+JSON.stringify({firstYaw,restoredYaw,traversalStart}));
   await request('Input.dispatchKeyEvent',{type:'keyDown',key:'w',code:'KeyW',windowsVirtualKeyCode:87});
   try{
