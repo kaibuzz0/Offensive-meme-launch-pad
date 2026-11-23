@@ -304,3 +304,21 @@ test('seasonal forest is not misclassified as sea habitat',()=>{
  assert.equal(habitatFor({group:'temperate',name:'Seasonal Forest'}),'forest');
  assert.equal(habitatFor({group:'sea',name:'Open Sea'}),'ocean');
 });
+
+test('shallow flagged water cannot embed fish below the terrain bed',()=>{
+ const base={seed:7,CHUNK_SIZE:16,SEA_LEVEL:112,surfaceAt:()=>({
+  height:103,water:true,river:false,waterLevel:103.25,
+  group:'ocean',biomeName:'Ocean',slope:0
+ })};
+ let fishInDeepWater=0;
+ for(let cx=-3;cx<=3;cx++)for(let cz=-3;cz<=3;cz++){
+  const shallow=spawnChunkOnTerrain(base,cx,cz);
+  assert.ok(shallow.every(a=>a.species!=='fish'),'no submerged fish without clearance');
+  const deep=spawnChunkOnTerrain({...base,surfaceAt:()=>({...base.surfaceAt(),waterLevel:105})},cx,cz);
+  for(const animal of deep)if(animal.species==='fish'){
+   fishInDeepWater++;
+   assert.ok(animal.y>103&&animal.y<105,'fish remain above bed and below surface');
+  }
+ }
+ assert.ok(fishInDeepWater>0,'deep water still supports fish');
+});
