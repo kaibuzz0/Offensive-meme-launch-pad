@@ -199,11 +199,19 @@
     throw RangeError('Vertical probe requires finite height and reach 0..256');
    if(!vertical&&maxVerticalDistance!==undefined)throw RangeError('Vertical reach requires height');
    const r2=radius*radius,found=[];
-   for(const population of active.values())for(const creature of population){
+   for(const [chunkKey,population] of active){
+    // Broad-phase reject resident chunks outside the horizontal query radius.
+    const [cx,cz]=chunkKey.split(':').map(Number);
+    const minX=cx*CHUNK_SIZE,minZ=cz*CHUNK_SIZE;
+    const dxBox=Math.max(minX-x,0,x-(minX+CHUNK_SIZE));
+    const dzBox=Math.max(minZ-z,0,z-(minZ+CHUNK_SIZE));
+    if(dxBox*dxBox+dzBox*dzBox>r2)continue;
+    for(const creature of population){
     const dy=vertical?creature.y-y:0;
     if(vertical&&(!Number.isFinite(creature.y)||Math.abs(dy)>maxVerticalDistance))continue;
     const dx=creature.x-x,dz=creature.z-z;
     if(dx*dx+dz*dz+dy*dy<=r2)found.push(creature);
+   }
    }
    // Use code-point ordering, not locale collation, for cross-device deterministic IDs.
    found.sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
@@ -221,13 +229,21 @@
     throw RangeError('Vertical probe requires finite height and reach 0..256');
    if(!vertical&&maxVerticalDistance!==undefined)throw RangeError('Vertical reach requires height');
    let best=null,bestDistance2=radius*radius;
-   for(const population of active.values())for(const creature of population){
+   for(const [chunkKey,population] of active){
+    // Broad-phase reject resident chunks outside the horizontal query radius.
+    const [cx,cz]=chunkKey.split(':').map(Number);
+    const minX=cx*CHUNK_SIZE,minZ=cz*CHUNK_SIZE;
+    const dxBox=Math.max(minX-x,0,x-(minX+CHUNK_SIZE));
+    const dzBox=Math.max(minZ-z,0,z-(minZ+CHUNK_SIZE));
+    if(dxBox*dxBox+dzBox*dzBox>bestDistance2)continue;
+    for(const creature of population){
     const dy=vertical?creature.y-y:0;
     if(vertical&&(!Number.isFinite(creature.y)||Math.abs(dy)>maxVerticalDistance))continue;
     const dx=creature.x-x,dz=creature.z-z,distance2=dx*dx+dz*dz+dy*dy;
     if(distance2<=bestDistance2&&(best===null||distance2<bestDistance2||(distance2===bestDistance2&&creature.id<best.id))){
      best=creature;bestDistance2=distance2;
     }
+   }
    }
    return best;
   }
