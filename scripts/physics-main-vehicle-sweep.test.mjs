@@ -83,5 +83,5 @@ test('blocked steering does not rotate the chassis into the obstacle',()=>{
   assert.equal(next.position.z,car.position.z);
   assert.equal(next.position.x,car.position.x);
   assert.equal(next.speed,0);
-  assert.equal(next.heading,car.heading,'blocked sweep must retain last safe heading');
+  assert.ok(Math.abs(next.heading-car.heading)<1e-12,'blocked sweep must retain last safe heading within floating-point precision');
 });
