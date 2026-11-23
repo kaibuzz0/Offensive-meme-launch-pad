@@ -56,7 +56,9 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   }
   if(blocked) speed=0;
   else v.position=candidate;
-  v.heading=heading;v.speed=speed;
+  // A rejected sweep must not commit its final orientation: the chassis could
+  // rotate into the same wall that stopped translation.
+  v.heading=blocked?v.heading:heading;v.speed=speed;
   if(active) v.fuel=Math.max(0,v.fuel-Math.abs(throttle)*dt*.002);
   return v;
 }
