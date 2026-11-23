@@ -15,10 +15,11 @@ function harness(){
   async match(req){const url=typeof req==='string'?req:req.url;return [...store.values()].some(set=>set.has(url))?{cached:true,url}:undefined;}
  };
  const self={location:{origin:'https://example.test'},registration:{scope},clients:{claim:async()=>{}},addEventListener:(type,fn)=>handlers.set(type,fn)};
- const fetch=async request=>{requests.push(request.url);return {network:true};};
+ let networkAvailable=true;
+ const fetch=async request=>{requests.push(request.url);if(!networkAvailable)throw new Error('offline');return {network:true};};
  vm.runInNewContext(source,{self,caches,fetch,URL});
  async function dispatch(type,request){let task;const event={request,waitUntil:p=>task=p,respondWith:p=>task=p};handlers.get(type)(event);return task&&await task;}
- return {dispatch,store,requests};
+ return {dispatch,store,requests,setNetworkAvailable(value){networkAvailable=value;}};
 }
 test('worker shell cache remains bounded and excludes gameplay, wallet and token assets',async()=>{
  const h=harness();await h.dispatch('install');
@@ -40,4 +41,13 @@ test('worker removes obsolete owned caches without deleting unrelated caches',as
  await h.dispatch('install');await h.dispatch('activate');
  assert.equal(h.store.has('offensive-shell-old'),false);
  assert.equal(h.store.has('other-app'),true);
+});
+
+test('offline navigation currently returns notice, not a playable Solo bootstrap (release blocker)',async()=>{
+ const h=harness();await h.dispatch('install');h.setNetworkAvailable(false);
+ const response=await h.dispatch('fetch',{url:scope+'city.html?terrain=1',method:'GET',mode:'navigate'});
+ assert.equal(response?.cached,true);
+ assert.equal(response?.url,scope+'offline.html');
+ // This test records CURRENT behavior; release acceptance must replace this
+ // expectation with the canonical playable Solo entry and persisted interaction.
 });
