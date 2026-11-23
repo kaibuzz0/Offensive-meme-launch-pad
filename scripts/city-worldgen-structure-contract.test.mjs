@@ -35,7 +35,7 @@ test('seeded settlement and building identities survive chunk order and reload',
     return JSON.parse(JSON.stringify({ id: chunk.id, sites: chunk.sites, structures: chunk.structures }));
   });
   const expected = snapshot(a);
-  coords.reverse().forEach(([x, z]) => b.chunkAt(x, z));
+  coords.slice().reverse().forEach(([x, z]) => b.chunkAt(x, z));
   assert.deepEqual(snapshot(b), expected);
 });
 
