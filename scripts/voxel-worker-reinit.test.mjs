@@ -9,6 +9,7 @@ test('failed worker reinitialization cannot serve stale seed geometry', () => {
   const replies = [];
   let meshCalls = 0;
   const scope = {
+    Float32Array,
     performance: { now: () => 1 },
     importScripts: () => {},
     postMessage: (message) => replies.push(message),
