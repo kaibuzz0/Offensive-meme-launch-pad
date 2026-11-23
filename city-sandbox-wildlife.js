@@ -24,19 +24,30 @@
  });
  const MAX_PER_CHUNK=6;
  function habitatFor(biome){
-  const name=String(typeof biome==='string'?biome:(biome?.group||biome?.name||biome?.id||'')).toLowerCase();
+  // Prefer explicit habitat group when recognized, but allow descriptive biome
+  // names to resolve generic groups such as 'temperate' or 'continental'.
+  const group=String(typeof biome==='string'?biome:(biome?.group||'')).toLowerCase();
+  const detail=String(typeof biome==='string'?'':(biome?.name||biome?.id||'')).toLowerCase();
+  const known=/cave|underground|subterranean|ocean|\bsea\b|reef|coral|river|stream|marsh|swamp|wetland|mangrove|bog|desert|dune|arid|badland|tundra|snow|\bice\b|glacier|polar|mountain|alpine|highland|peak|forest|jungle|wood|grove|taiga|evergreen|tropical|fungal/;
+  const name=known.test(group)?group:detail||group;
   if(/cave|underground|subterranean/.test(name))return 'cave';
-  if(/ocean|sea|reef|coral/.test(name))return 'ocean';
+  if(/ocean|\bsea\b|reef|coral/.test(name))return 'ocean';
   if(/river|stream/.test(name))return 'river';
   if(/marsh|swamp|wetland|mangrove|bog/.test(name))return 'wetland';
   if(/desert|dune|arid|badland/.test(name))return 'desert';
   if(/tundra|snow|ice|glacier|polar/.test(name))return 'tundra';
-  if(/mountain|alpine|highland|peak/.test(name))return 'mountain';
+  // Mixed names such as Alpine Forest describe forest habitat, while an
+  // explicit mountain group still wins because `name` resolves to that group.
   if(/forest|jungle|wood|grove|taiga|evergreen|tropical|fungal/.test(name))return 'forest';
+  if(/mountain|alpine|highland|peak/.test(name))return 'mountain';
   return 'plains';
  }
  function spawnChunk(seed,chunkX,chunkZ,biome,options={}){
-  if(!Number.isInteger(chunkX)||!Number.isInteger(chunkZ)||!Number.isInteger(seed))throw TypeError('Integer seed and chunk coordinates required');
+  if(!Number.isSafeInteger(seed)||!Number.isSafeInteger(chunkX)||!Number.isSafeInteger(chunkZ))throw TypeError('Safe integer seed and chunk coordinates required');
+  // Hashing truncates coordinates to signed 32-bit integers; reject aliases
+  // before generating IDs or positions, even when called without terrain.
+  const maxChunk=Math.min(0x7fffffff,Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE));
+  if(Math.abs(chunkX)>maxChunk||Math.abs(chunkZ)>maxChunk)throw RangeError('Chunk coordinates exceed safe voxel range');
   const cap=options.maxPerChunk===undefined?MAX_PER_CHUNK:options.maxPerChunk;
   if(!Number.isInteger(cap)||cap<0||cap>MAX_PER_CHUNK)throw RangeError('maxPerChunk must be 0..6');
   const habitat=habitatFor(biome),species=HABITATS[habitat];
@@ -52,7 +63,8 @@
     heading:rand(seed,chunkX,chunkZ,400+i)*Math.PI*2
    }));
   }
-  return animals;
+  // Never expose a mutable spawn array to callers sharing deterministic chunk data.
+  return Object.freeze(animals);
  }
  // Terrain adapter: reads existing voxel surface columns without changing seeds,
  // cave layouts, chunk caches, saves, or rendering. Coordinates stay in voxels.
@@ -62,15 +74,31 @@
   if(!world||typeof world.surfaceAt!=='function'||!Number.isSafeInteger(world.seed))
    throw TypeError('Seeded voxel world with surfaceAt required');
   if(world.CHUNK_SIZE!==CHUNK_SIZE)throw RangeError('Wildlife and terrain chunk sizes differ');
+  // Validate before any surface query: direct callers must not sample outside
+  // the seeded 32-bit chunk domain or silently alias distant world locations.
+  const maxChunk=Math.min(0x7fffffff,Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE));
+  if(!Number.isSafeInteger(chunkX)||!Number.isSafeInteger(chunkZ))throw TypeError('Safe integer chunk coordinates required');
+  if(Math.abs(chunkX)>maxChunk||Math.abs(chunkZ)>maxChunk)throw RangeError('Chunk coordinates exceed safe voxel range');
   const centerX=chunkX*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
   const centerZ=chunkZ*CHUNK_SIZE+Math.floor(CHUNK_SIZE/2);
-  const center=world.surfaceAt(centerX,centerZ);
-  if(!center)return [];
+  // Reuse sampled columns within this one chunk spawn. At most seven columns
+  // (center + six candidates) are retained; never cache across committed edits.
+  const columns=new Map();
+  function sample(x,z){
+   const k=x+':'+z;
+   if(columns.has(k))return columns.get(k);
+   const column=world.surfaceAt(x,z);
+   columns.set(k,column);
+   return column;
+  }
+  const center=sample(centerX,centerZ);
+  // Keep empty terrain populations immutable just like populated chunks.
+  if(!center)return Object.freeze([]);
   const biome={group:center.group,name:center.biomeName};
   const candidates=spawnChunk(world.seed,chunkX,chunkZ,biome,options);
   const placed=[];
   for(const animal of candidates){
-   const x=Math.floor(animal.x),z=Math.floor(animal.z),col=world.surfaceAt(x,z);
+   const x=Math.floor(animal.x),z=Math.floor(animal.z),col=sample(x,z);
    if(!col||!Number.isSafeInteger(col.height)||col.mouth||col.sinkhole)continue;
    const aquatic=AQUATIC.has(animal.species);
    // Rivers can host fish even where the atlas's biome is not a river biome.
@@ -80,12 +108,22 @@
    const aerial=AERIAL.has(animal.species);
    // Flying species can traverse water and steep terrain; ground species
    // cannot. Fish require actual water and a finite water surface above bed.
-   if(aquatic?!wet:!aerial&&(wet||col.slope>18))continue;
+   // Road and curb flags come from the canonical graded terrain surface.
+   // Keep land creatures out of the player route without additional terrain probes.
+   if(aquatic?!wet:!aerial&&(wet||col.road||col.curb||!Number.isFinite(col.slope)||col.slope<0||col.slope>18))continue;
    const waterTop=Number.isFinite(col.waterLevel)?col.waterLevel:world.SEA_LEVEL;
-   if(aquatic&&(!Number.isFinite(waterTop)||waterTop<=col.height))continue;
+   // A water flag with less than half a voxel of depth cannot fit the
+   // submerged fish position (water surface minus 0.5 voxel). Reject it
+   // rather than placing fish inside the solid bed.
+   if(aquatic&&(!Number.isFinite(waterTop)||waterTop<=col.height+0.5))continue;
    const y=aquatic?Math.min(col.height+1,waterTop-0.5):
     aerial?Math.max(col.height,wet?waterTop:col.height)+4+(hash(world.seed,x,z,511)%5):col.height+1;
    if(!Number.isFinite(y))continue;
+   // The canonical fortress uses solid world-space boxes for player collision.
+   // Apply that same contract to terrestrial wildlife; do not create a second
+   // footprint or reject aerial wildlife flying above the structures.
+   if(!aerial&&!aquatic&&typeof world.gateRoad?.obstructs==='function'&&
+      world.gateRoad.obstructs(animal.x,y,animal.z,2,0.4))continue;
    placed.push(Object.freeze({...animal,y}));
   }
   return Object.freeze(placed);
@@ -98,20 +136,121 @@
   const maxChunks=options.maxChunks??16;
   if(!Number.isInteger(maxChunks)||maxChunks<1||maxChunks>64)throw RangeError('maxChunks must be 1..64');
   const active=new Map();
+  // Reuse immutable renderer snapshots until the active population changes.
+  let cachedSnapshot=null;
+  const dirty=()=>{cachedSnapshot=null;};
   const key=(cx,cz)=>cx+':'+cz;
   const validate=(cx,cz)=>{
    if(!Number.isSafeInteger(cx)||!Number.isSafeInteger(cz))throw TypeError('Safe integer chunk coordinates required');
+   // Reject coordinates that overflow the seeded 32-bit hash domain before
+   // cache lookup, eviction or multi-chunk staging. Match spawnChunk bounds.
+   const maxChunk=Math.min(0x7fffffff,Math.floor((Number.MAX_SAFE_INTEGER-(CHUNK_SIZE-1))/CHUNK_SIZE));
+   if(Math.abs(cx)>maxChunk||Math.abs(cz)>maxChunk)throw RangeError('Chunk coordinates exceed safe voxel range');
   };
   function enter(cx,cz){
    validate(cx,cz);
    const k=key(cx,cz);
-   if(active.has(k))return active.get(k);
+   if(active.has(k)){
+    // Refresh recency without regenerating terrain or changing the snapshot.
+    // Repeatedly visiting a nearby chunk must not evict it before stale ones.
+    const creatures=active.get(k);
+    active.delete(k);
+    active.set(k,creatures);
+    return creatures;
+   }
    const creatures=spawnChunkOnTerrain(world,cx,cz,options);
    if(active.size>=maxChunks)active.delete(active.keys().next().value);
    active.set(k,creatures);
+   dirty();
    return creatures;
   }
-  function leave(cx,cz){validate(cx,cz);return active.delete(key(cx,cz));}
+  // Invalidate only cached wildlife for the edited voxel's owning chunk.
+  // Call after the edit transaction commits, never on a rejected edit.
+  function invalidateAtVoxel(x,z){
+   if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z))throw TypeError('Safe integer voxel coordinates required');
+   const cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE);
+   validate(cx,cz);
+   const removed=active.delete(key(cx,cz));
+   if(removed)dirty();
+   return removed;
+  }
+  // Accept a committed edit delta as a batch: validate every coordinate before
+  // touching the cache, then invalidate each owning chunk once. Callers must
+  // supply only durable, changed voxel positions after transaction success.
+  function invalidateCommittedVoxels(voxels){
+   if(!Array.isArray(voxels)||voxels.length>4096)throw RangeError('Committed voxel batch must contain 0..4096 edits');
+   const affected=new Set();
+   for(const voxel of voxels){
+    if(!voxel||!Number.isSafeInteger(voxel.x)||!Number.isSafeInteger(voxel.z))
+     throw TypeError('Committed edits require safe integer x and z');
+    const cx=Math.floor(voxel.x/CHUNK_SIZE),cz=Math.floor(voxel.z/CHUNK_SIZE);
+    validate(cx,cz);
+    affected.add(key(cx,cz));
+   }
+   let removed=0;
+   for(const k of affected)if(active.delete(k))removed++;
+   if(removed)dirty();
+   return removed;
+  }
+  // Read-only proximity query over currently streamed creatures. Never load
+  // distant chunks or sample terrain in response to an interaction probe.
+  function nearby(x,z,radius,y,maxVerticalDistance){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0||radius>256)
+    throw RangeError('Nearby query requires finite coordinates and radius 0..256');
+   const vertical=y!==undefined;
+   if(vertical&&(!Number.isFinite(y)||!Number.isFinite(maxVerticalDistance)||maxVerticalDistance<0||maxVerticalDistance>256))
+    throw RangeError('Vertical probe requires finite height and reach 0..256');
+   if(!vertical&&maxVerticalDistance!==undefined)throw RangeError('Vertical reach requires height');
+   const r2=radius*radius,found=[];
+   for(const [chunkKey,population] of active){
+    // Broad-phase reject resident chunks outside the horizontal query radius.
+    const [cx,cz]=chunkKey.split(':').map(Number);
+    const minX=cx*CHUNK_SIZE,minZ=cz*CHUNK_SIZE;
+    const dxBox=Math.max(minX-x,0,x-(minX+CHUNK_SIZE));
+    const dzBox=Math.max(minZ-z,0,z-(minZ+CHUNK_SIZE));
+    if(dxBox*dxBox+dzBox*dzBox>r2)continue;
+    for(const creature of population){
+    const dy=vertical?creature.y-y:0;
+    if(vertical&&(!Number.isFinite(creature.y)||Math.abs(dy)>maxVerticalDistance))continue;
+    const dx=creature.x-x,dz=creature.z-z;
+    if(dx*dx+dz*dz+dy*dy<=r2)found.push(creature);
+   }
+   }
+   // Use code-point ordering, not locale collation, for cross-device deterministic IDs.
+   found.sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
+   return Object.freeze(found);
+  }
+  // Closest loaded creature for a player interaction probe. Stable ties use
+  // creature IDs rather than chunk activation order; no terrain or chunk loads.
+  // Optional vertical reach prevents selecting animals through cave floors.
+  // Three-argument callers retain the original horizontal-only behavior.
+  function nearest(x,z,radius,y,maxVerticalDistance){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0||radius>256)
+    throw RangeError('Nearest query requires finite coordinates and radius 0..256');
+   const vertical=y!==undefined;
+   if(vertical&&(!Number.isFinite(y)||!Number.isFinite(maxVerticalDistance)||maxVerticalDistance<0||maxVerticalDistance>256))
+    throw RangeError('Vertical probe requires finite height and reach 0..256');
+   if(!vertical&&maxVerticalDistance!==undefined)throw RangeError('Vertical reach requires height');
+   let best=null,bestDistance2=radius*radius;
+   for(const [chunkKey,population] of active){
+    // Broad-phase reject resident chunks outside the horizontal query radius.
+    const [cx,cz]=chunkKey.split(':').map(Number);
+    const minX=cx*CHUNK_SIZE,minZ=cz*CHUNK_SIZE;
+    const dxBox=Math.max(minX-x,0,x-(minX+CHUNK_SIZE));
+    const dzBox=Math.max(minZ-z,0,z-(minZ+CHUNK_SIZE));
+    if(dxBox*dxBox+dzBox*dzBox>bestDistance2)continue;
+    for(const creature of population){
+    const dy=vertical?creature.y-y:0;
+    if(vertical&&(!Number.isFinite(creature.y)||Math.abs(dy)>maxVerticalDistance))continue;
+    const dx=creature.x-x,dz=creature.z-z,distance2=dx*dx+dz*dz+dy*dy;
+    if(distance2<=bestDistance2&&(best===null||distance2<bestDistance2||(distance2===bestDistance2&&creature.id<best.id))){
+     best=creature;bestDistance2=distance2;
+    }
+   }
+   }
+   return best;
+  }
+  function leave(cx,cz){validate(cx,cz);const removed=active.delete(key(cx,cz));if(removed)dirty();return removed;}
   function sync(chunks){
    if(!Array.isArray(chunks)||chunks.length>maxChunks)throw RangeError('Visible chunks exceed wildlife budget');
    const wanted=new Set();
@@ -122,6 +261,14 @@
     if(wanted.has(k))throw RangeError('Duplicate visible chunk');
     wanted.add(k);
    }
+   // A repeated visible set is the common frame path. Membership alone is
+   // sufficient because immutable populations are reused until invalidated.
+   // Skip staging allocations and preserve the existing snapshot identity.
+   if(active.size===wanted.size){
+    let same=true;
+    for(const k of wanted)if(!active.has(k)){same=false;break;}
+    if(same)return snapshot();
+   }
    // Stage new chunks before changing the active set. If surfaceAt throws,
    // the previous visible wildlife stays intact instead of partially unloading.
    const staged=new Map();
@@ -129,15 +276,43 @@
     const k=key(cx,cz);
     staged.set(k,active.has(k)?active.get(k):spawnChunkOnTerrain(world,cx,cz,options));
    }
+   // A stable visible set is a no-op, avoiding per-frame snapshot allocations.
+   // Reordered visible chunks with unchanged populations are a no-op.
+   // Compare identities without allocating a temporary array each frame.
+   let unchanged=staged.size===active.size;
+   if(unchanged)for(const [k,creatures] of staged){
+    if(active.get(k)!==creatures){unchanged=false;break;}
+   }
+   if(unchanged)return snapshot();
    active.clear();
    for(const [k,creatures] of staged)active.set(k,creatures);
+   dirty();
    return snapshot();
   }
-  function snapshot(){
-   return Object.freeze(Array.from(active.values()).flat());
+  // Select the closest bounded neighborhood without loading an unbounded square.
+  // Stable distance/coordinate ordering avoids chunk churn at equal distances.
+  function syncAround(x,z,radiusChunks=1){
+   if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isSafeInteger(Math.floor(x/CHUNK_SIZE))||!Number.isSafeInteger(Math.floor(z/CHUNK_SIZE)))
+    throw RangeError('Player coordinates must be finite safe voxels');
+   if(!Number.isInteger(radiusChunks)||radiusChunks<0||radiusChunks>8)
+    throw RangeError('radiusChunks must be 0..8');
+   const cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE);
+   validate(cx,cz);
+   const candidates=[];
+   for(let dz=-radiusChunks;dz<=radiusChunks;dz++)for(let dx=-radiusChunks;dx<=radiusChunks;dx++){
+    const nx=cx+dx,nz=cz+dz;
+    try{validate(nx,nz);}catch(e){if(e instanceof RangeError)continue;throw e;}
+    candidates.push([nx,nz,dx*dx+dz*dz]);
+   }
+   candidates.sort((a,b)=>a[2]-b[2]||a[0]-b[0]||a[1]-b[1]);
+   return sync(candidates.slice(0,maxChunks).map(([nx,nz])=>[nx,nz]));
   }
-  return Object.freeze({enter,leave,sync,snapshot,activeChunks:()=>active.size,
-   clear:()=>active.clear()});
+  function snapshot(){
+   if(!cachedSnapshot)cachedSnapshot=Object.freeze(Array.from(active.values()).flat().sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0));
+   return cachedSnapshot;
+  }
+  return Object.freeze({enter,leave,sync,syncAround,nearby,nearest,invalidateAtVoxel,invalidateCommittedVoxels,snapshot,activeChunks:()=>active.size,
+   clear:()=>{if(active.size){active.clear();dirty();}}});
  }
  function cappedFlockStep(agents,dt,options={}){
   if(!Array.isArray(agents)||agents.length>64)throw RangeError('Flock must contain 0..64 agents');
@@ -148,6 +323,8 @@
    if(!a||![a.x,a.z,a.vx,a.vz].every(Number.isFinite))throw TypeError('Flock agents require finite x,z,vx,vz');
    return a;
   });
+  // A zero-time step must not change velocity, even for agents above the speed cap.
+  if(dt===0)return valid.map(a=>({...a}));
   return valid.map((a,i)=>{
    let n=0,cx=0,cz=0,vx=0,vz=0,sepX=0,sepZ=0;
    for(let j=0;j<valid.length;j++){
