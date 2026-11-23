@@ -46,11 +46,12 @@ test('steering sweep checks intermediate rotated chassis orientation',()=>{
   const result=stepVehicle(car,{steering:1},0.1,{
     canOccupy(_position,vehicle){
       headings.push(vehicle.heading);
-      return vehicle.heading<0.03;
+      return headings.length<3;
     }
   });
-  assert.ok(headings.length>1);
-  assert.ok(headings.some(h=>h>0),'occupancy must receive swept orientation');
+  assert.ok(headings.length>=3,'sweep must reach a later collision sample');
+  assert.ok(headings.every(h=>h>0),'occupancy must receive swept orientation');
+  assert.ok(headings[1]>headings[0],'orientation must advance between sweep samples');
   assert.equal(result.position.z,0);
   assert.equal(result.speed,0);
 });
