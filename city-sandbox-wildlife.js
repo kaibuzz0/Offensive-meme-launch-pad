@@ -261,6 +261,14 @@
     if(wanted.has(k))throw RangeError('Duplicate visible chunk');
     wanted.add(k);
    }
+   // A repeated visible set is the common frame path. Membership alone is
+   // sufficient because immutable populations are reused until invalidated.
+   // Skip staging allocations and preserve the existing snapshot identity.
+   if(active.size===wanted.size){
+    let same=true;
+    for(const k of wanted)if(!active.has(k)){same=false;break;}
+    if(same)return snapshot();
+   }
    // Stage new chunks before changing the active set. If surfaceAt throws,
    // the previous visible wildlife stays intact instead of partially unloading.
    const staged=new Map();
