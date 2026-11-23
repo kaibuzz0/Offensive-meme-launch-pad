@@ -40,9 +40,25 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
   speed=clamp(speed,-cfg.maxSpeed*.35,cfg.maxSpeed);
   const heading=angle(v.heading+Math.tan(steer*cfg.steering)*speed/cfg.wheelbase*dt);
   const candidate={x:v.position.x+Math.sin(heading)*speed*dt,y:v.position.y,z:v.position.z+Math.cos(heading)*speed*dt};
-  if(environment.canOccupy&&!environment.canOccupy(candidate,v)) speed=0;
+  // Sweep the chassis through nearby positions rather than testing only the
+  // endpoint: even a slow frame can cross a thin committed voxel obstacle.
+  // Keep the collision contract independent of render detail and camera LOD.
+  let blocked=false;
+  if(environment.canOccupy){
+    const dx=candidate.x-v.position.x,dz=candidate.z-v.position.z;
+    const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/0.25));
+    for(let i=1;i<=steps;i++){
+      const t=i/steps;
+      if(!environment.canOccupy({x:v.position.x+dx*t,y:v.position.y,z:v.position.z+dz*t},{...v,heading:angle(v.heading+angle(heading-v.heading)*t)})){
+        blocked=true;break;
+      }
+    }
+  }
+  if(blocked) speed=0;
   else v.position=candidate;
-  v.heading=heading;v.speed=speed;
+  // A rejected sweep must not commit its final orientation: the chassis could
+  // rotate into the same wall that stopped translation.
+  v.heading=blocked?v.heading:heading;v.speed=speed;
   if(active) v.fuel=Math.max(0,v.fuel-Math.abs(throttle)*dt*.002);
   return v;
 }
