@@ -49,7 +49,7 @@ export function stepVehicle(vehicle,controls={},dt=1/60,environment={}){
     const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/0.25));
     for(let i=1;i<=steps;i++){
       const t=i/steps;
-      if(!environment.canOccupy({x:v.position.x+dx*t,y:v.position.y,z:v.position.z+dz*t},{...v,heading:angle(v.heading+(heading-v.heading)*t)})){
+      if(!environment.canOccupy({x:v.position.x+dx*t,y:v.position.y,z:v.position.z+dz*t},{...v,heading:angle(v.heading+angle(heading-v.heading)*t)})){
         blocked=true;break;
       }
     }
