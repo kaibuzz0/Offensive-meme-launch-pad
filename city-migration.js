@@ -82,7 +82,7 @@
  }
  function inspectStage(storage,keys){
   const {active,backup,preview}=keys||{};
-  if(![active,backup,preview].every(k=>typeof k==='string'&&k))return {status:'invalid'};
+  if(![active,backup,preview].every(k=>typeof k==='string'&&k.length>0)||new Set([active,backup,preview]).size!==3)return {status:'invalid',reason:'Distinct save, backup and preview keys required.'};
   let source,recovery,staged;
   try{source=storage.getItem(active);recovery=storage.getItem(backup);staged=storage.getItem(preview);}
   catch{return {status:'blocked',reason:'Storage cannot be inspected.'};}
