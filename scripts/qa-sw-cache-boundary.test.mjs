@@ -51,3 +51,24 @@ test('offline navigation currently returns notice, not a playable Solo bootstrap
  // This test records CURRENT behavior; release acceptance must replace this
  // expectation with the canonical playable Solo entry and persisted interaction.
 });
+
+test('non-GET navigation and unlisted same-origin assets bypass service-worker interception',async()=>{
+ const h=harness();await h.dispatch('install');
+ for(const request of [
+  {url:scope+'city.html',method:'POST',mode:'navigate'},
+  {url:scope+'city.js',method:'GET',mode:'cors'},
+  {url:scope+'assets/world/chunk.bin',method:'GET',mode:'cors'},
+  {url:'https://external.test/city.html',method:'GET',mode:'navigate'}
+ ]){
+  assert.equal(await h.dispatch('fetch',request),undefined,request.url);
+ }
+ assert.equal(h.requests.length,0);
+});
+
+test('online navigation uses network, without silently serving offline notice',async()=>{
+ const h=harness();await h.dispatch('install');
+ const request={url:scope+'city.html?terrain=1',method:'GET',mode:'navigate'};
+ const response=await h.dispatch('fetch',request);
+ assert.equal(response?.network,true);
+ assert.deepEqual(h.requests,[request.url]);
+});
