@@ -13,6 +13,9 @@
   const m=event?.data||{};
   try{
    if(m.type==='init'){
+    // A failed reinitialization must not continue serving meshes from the previous seed.
+    world=null;
+    seed=null;
     if(typeof m.seed!=='string'||m.seed.length>128||!Array.isArray(m.definitions)||
        m.definitions.length!==132)throw Error('Invalid terrain world metadata');
     const atlas=root.CityTerrainWorld.createTerrain(m.seed,m.definitions);
