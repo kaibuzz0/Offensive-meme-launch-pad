@@ -291,7 +291,8 @@
  }
  function claimSeal(){
   if(!running||paused||!firstPerson||atlas||!atGate()||sealClaimed)return;
-  sealClaimed=put(sealKey(),'1');
+  const saved=put(sealKey(),'1');
+  sealClaimed=saved&&get(sealKey())==='1';
   gateButton.textContent=sealClaimed?'Gate seal collected':'Save unavailable · retry';
  }
  gateButton.textContent='Claim gate seal';
@@ -314,11 +315,30 @@
  }
  function claimSupplies(){
   if(!running||paused||!firstPerson||atlas||!atSupplies()||suppliesClaimed)return;
-  suppliesClaimed=put(supplyKey(),'1');
-  supplyButton.textContent=suppliesClaimed?'8 supplies recovered':'Save unavailable · retry';
+  // Do not acknowledge an inventory pickup unless the legacy save can be read back.
+  // Preserve this record for the canonical journal migration; never delete it here.
+  const saved=put(supplyKey(),'1')&&get(supplyKey())==='1';
+  suppliesClaimed=saved;
+  supplyButton.textContent=saved?'8 supplies recovered':'Save unavailable · retry';
   updateHud();
  }
  supplyButton.addEventListener('click',claimSupplies);
+ // A second tab may claim the same seed's cache while this tab is running.
+ // Refresh the visible action state rather than presenting a stale pickup.
+ window.addEventListener('storage',event=>{
+  if(event.storageArea!==window.localStorage)return;
+  if(event.key===sealKey()){
+   sealClaimed=get(sealKey())==='1';
+   gateButton.textContent=sealClaimed?'Gate seal collected':'Claim gate seal';
+   gateButton.disabled=sealClaimed;
+   return;
+  }
+  if(event.key!==supplyKey())return;
+  suppliesClaimed=get(supplyKey())==='1';
+  supplyButton.textContent=suppliesClaimed?'8 supplies recovered':'Collect 8 builder supplies';
+  supplyButton.hidden=suppliesClaimed||!atSupplies();
+  updateHud();
+ });
  function interactRoad(){if(atGate()&&!sealClaimed)claimSeal();else claimSupplies();}
  // Right-hand look control uses its own pointer capture independently of
  // the left movement thumbstick, including simultaneous multi-touch input.
@@ -377,7 +397,16 @@
   put(POS+seed,JSON.stringify({version:world.version,seed,x:player.x,y:player.y,yaw:player.yaw,pitch:player.pitch,vertical}));
  }
  function spawnNewWorld(){
-  savePosition();seed=randomSeed();put(KEY,seed);
+  savePosition();
+  const nextSeed=randomSeed();
+  // Never switch the active world when its seed cannot be restored on reload.
+  if(!put(KEY,nextSeed)||get(KEY)!==nextSeed){
+   // A silent/partial storage write must not strand the previous world.
+   put(KEY,seed);
+   window.alert('Unable to save the new world seed. Your current world is unchanged.');
+   return;
+  }
+  seed=nextSeed;
   world=engine.createTerrain(seed,definitions);
   voxel=voxelApi?.createVoxelWorld(world)||null;
   player=restore();
