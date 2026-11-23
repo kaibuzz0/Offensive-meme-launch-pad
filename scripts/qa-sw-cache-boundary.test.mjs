@@ -25,7 +25,7 @@ test('worker shell cache remains bounded and excludes gameplay, wallet and token
  const all=[...h.store.values()].flatMap(set=>[...set]);
  assert.equal(all.length,4);
  assert.ok(all.every(url=>url.startsWith(scope)));
- assert.ok(all.every(url=>!/(city\\.html|city\\.js|wallet|token|api|reward)/i.test(url)));
+ assert.ok(all.every(url=>!/(city[.]html|city[.]js|wallet|token|api|reward)/i.test(url)));
 });
 test('worker does not intercept wallet, API or cross-origin requests',async()=>{
  const h=harness();await h.dispatch('install');
