@@ -229,6 +229,7 @@ test('unchanged wildlife sync reuses frozen snapshots and invalidation refreshes
  const first=manager.sync([[0,0],[1,0]]);
  assert.strictEqual(manager.snapshot(),first);
  assert.strictEqual(manager.sync([[0,0],[1,0]]),first);
+ assert.strictEqual(manager.sync([[1,0],[0,0]]),first,'reordering resident chunks does not allocate a new snapshot');
  assert.ok(Object.isFrozen(first));
  assert.equal(manager.invalidateCommittedVoxels([{x:1,z:1}]),1);
  const afterEdit=manager.snapshot();
