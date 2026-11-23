@@ -112,7 +112,10 @@
    // Keep land creatures out of the player route without additional terrain probes.
    if(aquatic?!wet:!aerial&&(wet||col.road||col.curb||!Number.isFinite(col.slope)||col.slope<0||col.slope>18))continue;
    const waterTop=Number.isFinite(col.waterLevel)?col.waterLevel:world.SEA_LEVEL;
-   // A water flag with less than half a voxel of depth cannot fit the\n   // submerged fish position (water surface minus 0.5 voxel). Reject it\n   // rather than placing fish inside the solid bed.\n   if(aquatic&&(!Number.isFinite(waterTop)||waterTop<=col.height+0.5))continue;
+   // A water flag with less than half a voxel of depth cannot fit the
+   // submerged fish position (water surface minus 0.5 voxel). Reject it
+   // rather than placing fish inside the solid bed.
+   if(aquatic&&(!Number.isFinite(waterTop)||waterTop<=col.height+0.5))continue;
    const y=aquatic?Math.min(col.height+1,waterTop-0.5):
     aerial?Math.max(col.height,wet?waterTop:col.height)+4+(hash(world.seed,x,z,511)%5):col.height+1;
    if(!Number.isFinite(y))continue;
