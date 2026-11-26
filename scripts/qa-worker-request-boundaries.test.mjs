@@ -8,6 +8,9 @@ function harness() {
   const replies = [];
   let generated = 0;
   const scope = {
+    // The renderer stub runs in the host realm; share its typed-array constructor.
+    // Real importScripts executes renderer and worker in the same realm.
+    Float32Array,
     importScripts() {},
     performance: { now: () => 1 },
     postMessage(message, transfers = []) { replies.push({ message, transfers }); },
@@ -50,7 +53,7 @@ test('valid worker job transfers exactly its mesh buffer', () => {
   h.send({ type: 'init', seed: 'qa-seed', definitions: Array(132).fill(null) });
   h.send({ type: 'mesh', id: 7, cx: 0, cz: 0, stride: 4 });
   const { message, transfers } = h.replies.at(-1);
-  assert.equal(message.type, 'mesh');
+  assert.equal(message.type, 'mesh', message.message);
   assert.equal(message.id, 7);
   assert.equal(message.byteLength, 108);
   assert.equal(transfers.length, 1);
